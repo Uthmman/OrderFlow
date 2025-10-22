@@ -1,3 +1,76 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "avatar-1",
+      "description": "User avatar 1",
+      "imageUrl": "https://images.unsplash.com/photo-1521146764736-56c929d59c83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MTA5MzYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar-2",
+      "description": "User avatar 2",
+      "imageUrl": "https://images.unsplash.com/flagged/photo-1570612861542-284f4c12e75f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MTA5MzYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar-3",
+      "description": "User avatar 3",
+      "imageUrl": "https://images.unsplash.com/photo-1521146764736-56c929d59c83?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MTA5MzYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar-4",
+      "description": "User avatar 4",
+      "imageUrl": "https://images.unsplash.com/flagged/photo-1570612861542-284f4c12e75f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MTA5MzYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar-5",
+      "description": "User avatar 5",
+      "imageUrl": "https://images.unsplash.com/photo-1695470667338-e7e8608ff048?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBmYWNlfGVufDB8fHx8MTc2MTA5MzYzNnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person face"
+    },
+    {
+      "id": "order-1-thumb",
+      "description": "Thumbnail for a custom furniture piece",
+      "imageUrl": "https://images.unsplash.com/photo-1642756063091-0b6abb1bf595?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmdXJuaXR1cmUlMjBkZXNpZ258ZW58MHx8fHwxNzYxMTQ2ODg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "furniture design"
+    },
+    {
+      "id": "order-2-thumb",
+      "description": "Thumbnail for a branded merchandise design",
+      "imageUrl": "https://images.unsplash.com/photo-1759572095317-3a96f9a98e2b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx0c2hpcnQlMjBkZXNpZ258ZW58MHx8fHwxNzYxMDU4NTAzfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "tshirt design"
+    },
+    {
+      "id": "order-3-thumb",
+      "description": "Thumbnail for a web development project",
+      "imageUrl": "https://images.unsplash.com/photo-1509395062183-67c5ad6faff9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHx3ZWJzaXRlJTIwd2lyZWZyYW1lfGVufDB8fHx8MTc2MTE0Njg4NHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "website wireframe"
+    },
+    {
+      "id": "order-4-thumb",
+      "description": "Thumbnail for a custom signage project",
+      "imageUrl": "https://images.unsplash.com/photo-1647742313923-07764cef6e09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdG9yZSUyMHNpZ258ZW58MHx8fHwxNzYxMTQ1NTQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "store sign"
+    },
+    {
+      "id": "order-5-thumb",
+      "description": "Thumbnail for a 3D printed prototype",
+      "imageUrl": "https://images.unsplash.com/photo-1610081574260-e61e93e6e1aa?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8M2QlMjBtb2RlbHxlbnwwfHx8fDE3NjEwNjUyMDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "3d model"
+    },
+    {
+      "id": "order-attachment-1",
+      "description": "Attachment image for an order",
+      "imageUrl": "https://images.unsplash.com/photo-1609921141835-710b7fa6e438?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZGVzaWduJTIwc2tldGNofGVufDB8fHx8MTc2MTEwNjc4M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "design sketch"
+    },
+    {
+      "id": "order-attachment-2",
+      "description": "Attachment image for an order",
+      "imageUrl": "https://images.unsplash.com/photo-1608231261603-42c08866e163?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxjb2xvciUyMHBhbGV0dGV8ZW58MHx8fHwxNzYxMDY1MzAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "color palette"
+    }
+  ]
 }

@@ -1,0 +1,105 @@
+import type { User, Customer, Order } from '@/lib/types';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+const findImage = (id: string) => PlaceHolderImages.find((img) => img.id === id)?.imageUrl || '';
+
+export const mockUsers: User[] = [
+  { id: 'user-1', name: 'Alex Johnson', email: 'alex.j@orderflow.io', avatarUrl: findImage('avatar-1'), role: 'Admin' },
+  { id: 'user-2', name: 'Maria Garcia', email: 'maria.g@orderflow.io', avatarUrl: findImage('avatar-2'), role: 'Manager' },
+  { id: 'user-3', name: 'James Smith', email: 'james.s@orderflow.io', avatarUrl: findImage('avatar-3'), role: 'Sales' },
+  { id: 'user-4', name: 'Emily White', email: 'emily.w@orderflow.io', avatarUrl: findImage('avatar-4'), role: 'Designer' },
+  { id: 'user-5', name: 'David Brown', email: 'david.b@orderflow.io', avatarUrl: findImage('avatar-5'), role: 'Designer' },
+];
+
+export const mockCustomers: Customer[] = [
+  { id: 'cust-1', name: 'Innovate Inc.', email: 'contact@innovate.com', phone: '555-0101', company: 'Innovate Inc.', avatarUrl: findImage('avatar-1'), orderIds: ['order-1', 'order-5'] },
+  { id: 'cust-2', name: 'Solutions Co.', email: 'support@solutionsco.com', phone: '555-0102', company: 'Solutions Co.', avatarUrl: findImage('avatar-2'), orderIds: ['order-2'] },
+  { id: 'cust-3', name: 'Global Corp.', email: 'admin@globalcorp.net', phone: '555-0103', company: 'Global Corp.', avatarUrl: findImage('avatar-3'), orderIds: ['order-3'] },
+  { id: 'cust-4', name: 'Synergy Ltd.', email: 'hello@synergy.io', phone: '555-0104', company: 'Synergy Ltd.', avatarUrl: findImage('avatar-4'), orderIds: ['order-4'] },
+  { id: 'cust-5', name: 'Apex Enterprises', email: 'ceo@apex.com', phone: '555-0105', company: 'Apex Enterprises', avatarUrl: findImage('avatar-5'), orderIds: [] },
+  { id: 'cust-6', name: 'NextGen Digital', email: 'contact@nextgen.digital', phone: '555-0106', company: 'NextGen Digital', avatarUrl: findImage('avatar-1'), orderIds: [] },
+];
+
+export const mockOrders: Order[] = [
+  {
+    id: 'ORD-001',
+    customerId: 'cust-1',
+    customerName: 'Innovate Inc.',
+    description: 'Custom ergonomic office chairs for the new headquarters. Upholstered in premium gray fabric with adjustable lumbar support.',
+    status: 'Completed',
+    deadline: new Date(new Date().setDate(new Date().getDate() + 10)).toISOString(),
+    incomeAmount: 15000,
+    isUrgent: false,
+    creationDate: new Date('2023-10-01').toISOString(),
+    attachments: [
+        { type: 'image', url: findImage('order-attachment-1'), fileName: 'chair_sketch.jpg' },
+        { type: 'voice', url: '#', fileName: 'design_notes.mp3' },
+    ],
+    color: '#34495e',
+    material: 'Premium Fabric',
+    dimensions: { width: 60, height: 110, depth: 65 },
+    paymentDetails: 'Paid via Bank Transfer, Ref #BT-98765',
+    assignedTo: ['user-2', 'user-4'],
+  },
+  {
+    id: 'ORD-002',
+    customerId: 'cust-2',
+    customerName: 'Solutions Co.',
+    description: 'Branded merchandise package for upcoming conference, including 500 t-shirts and 1000 tote bags with company logo.',
+    status: 'In Progress',
+    deadline: new Date(new Date().setDate(new Date().getDate() + 5)).toISOString(),
+    incomeAmount: 7500,
+    isUrgent: true,
+    creationDate: new Date('2023-10-05').toISOString(),
+    attachments: [
+        { type: 'image', url: findImage('order-attachment-2'), fileName: 'logo_files.zip' },
+    ],
+    color: '#2980b9',
+    material: 'Cotton & Canvas',
+    paymentDetails: '50% upfront via Stripe, Ref #CH-12345',
+    assignedTo: ['user-3', 'user-5'],
+  },
+  {
+    id: 'ORD-003',
+    customerId: 'cust-3',
+    customerName: 'Global Corp.',
+    description: 'Development of a new e-commerce platform with custom CMS integration and payment gateway setup.',
+    status: 'Designing',
+    deadline: new Date(new Date().setDate(new Date().getDate() + 45)).toISOString(),
+    incomeAmount: 35000,
+    isUrgent: false,
+    creationDate: new Date('2023-10-12').toISOString(),
+    paymentDetails: 'Awaiting Invoice Payment',
+    assignedTo: ['user-2', 'user-5'],
+  },
+  {
+    id: 'ORD-004',
+    customerId: 'cust-4',
+    customerName: 'Synergy Ltd.',
+    description: 'Fabrication of 10 large-format outdoor signs for new retail locations. Must be weatherproof and backlit.',
+    status: 'Manufacturing',
+    deadline: new Date(new Date().setDate(new Date().getDate() + 25)).toISOString(),
+    incomeAmount: 22000,
+    isUrgent: false,
+    creationDate: new Date('2023-10-15').toISOString(),
+    color: '#ffffff',
+    material: 'Aluminum and Acrylic',
+    dimensions: { width: 300, height: 150, depth: 10 },
+    paymentDetails: 'Paid in full, Ref #INV-2023-10-004',
+    assignedTo: ['user-4'],
+  },
+  {
+    id: 'ORD-005',
+    customerId: 'cust-1',
+    customerName: 'Innovate Inc.',
+    description: '3D printed prototypes for a new consumer electronic device. Requires high-precision printing with ABS material.',
+    status: 'Pending',
+    deadline: new Date(new Date().setDate(new Date().getDate() + 2)).toISOString(),
+    incomeAmount: 2500,
+    isUrgent: true,
+    creationDate: new Date('2023-10-20').toISOString(),
+    material: 'ABS Plastic',
+    paymentDetails: 'Credit Card, pending authorization',
+    assignedTo: ['user-5'],
+  },
+];
