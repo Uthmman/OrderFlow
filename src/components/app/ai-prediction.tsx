@@ -1,7 +1,5 @@
 "use client"
 
-"use server"
-
 import { useState } from "react"
 import {
   Card,
@@ -13,29 +11,10 @@ import {
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Wand2, AlertTriangle, CheckCircle2, Loader } from "lucide-react"
-import { predictOrderStatus, PredictOrderStatusOutput } from "@/ai/flows/predict-order-status"
+import { PredictOrderStatusOutput } from "@/ai/flows/predict-order-status"
 import { useToast } from "@/hooks/use-toast"
 import type { Order } from "@/lib/types"
-
-async function runPrediction(order: Order) {
-  "use server"
-  try {
-    const result = await predictOrderStatus({
-      orderId: order.id,
-      customerName: order.customerName,
-      orderDescription: order.description,
-      deadline: order.deadline,
-      creationDate: order.creationDate,
-      status: order.status,
-      priority: order.isUrgent ? "High" : "Normal",
-      paymentDetails: order.paymentDetails,
-    })
-    return { success: true, data: result }
-  } catch (error) {
-    console.error("AI Prediction failed:", error)
-    return { success: false, error: "An error occurred while running the prediction." }
-  }
-}
+import { runPrediction } from "@/app/actions/predictionActions"
 
 export function AIPrediction({ order }: { order: Order }) {
   const [prediction, setPrediction] = useState<PredictOrderStatusOutput | null>(null)
