@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft, X } from "lucide-react"
+import { PanelLeft } from "lucide-react"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -186,6 +186,9 @@ const Sidebar = React.forwardRef<
               } as React.CSSProperties
             }
           >
+              <SheetTitle asChild>
+                <VisuallyHidden>Main Navigation</VisuallyHidden>
+              </SheetTitle>
               <div className="flex h-full w-full flex-col">
                 {children}
               </div>
