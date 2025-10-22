@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
 
@@ -28,13 +28,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
+      <div className="flex min-h-screen w-full">
         <AppSidebar />
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 min-w-0">
           <AppHeader />
-          <main className="flex-1 p-4 md:p-6 lg:p-8">
+          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
             {children}
           </main>
         </div>
+      </div>
     </SidebarProvider>
   );
 }
