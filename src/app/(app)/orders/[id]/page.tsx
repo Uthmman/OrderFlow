@@ -32,19 +32,21 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
             <h1 className="text-3xl font-bold font-headline tracking-tight">
                 Order {order.id}
             </h1>
-            <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
-            {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
+            <div className="flex items-center gap-2">
+              <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+              {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
+            </div>
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mt-1">
           Detailed view of order from {order.customerName}.
         </p>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
             <AIPrediction order={order} />
 
@@ -62,7 +64,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardHeader>
                         <CardTitle>Attachments</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {order.attachments.map(att => (
                             <div key={att.fileName} className="group relative">
                                 <Image 

@@ -106,6 +106,7 @@ export const columns: ColumnDef<Order>[] = [
       const date = new Date(row.getValue("deadline"))
       return <div>{date.toLocaleDateString()}</div>
     },
+    enableHiding: true,
   },
   {
     accessorKey: "incomeAmount",
@@ -118,6 +119,7 @@ export const columns: ColumnDef<Order>[] = [
       const amount = parseFloat(row.getValue("incomeAmount"))
       return <div className="text-right font-medium">{formatCurrency(amount)}</div>
     },
+    enableHiding: true,
   },
   {
     id: "actions",
@@ -161,7 +163,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
           onChange={(event) =>
             table.getColumn("customerName")?.setFilterValue(event.target.value)
           }
-          className="h-8 w-[150px] lg:w-[250px]"
+          className="h-8 w-full sm:w-[250px]"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -169,7 +171,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
         <Link href="/orders/new">
             <Button size="sm" className="h-8">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                New Order
+                <span className="hidden sm:inline">New Order</span>
             </Button>
         </Link>
       </div>
