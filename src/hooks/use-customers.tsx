@@ -1,8 +1,9 @@
+
 "use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Customer } from '@/lib/types';
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 interface CustomerContextType {
@@ -17,7 +18,12 @@ const CustomerContext = createContext<CustomerContextType | undefined>(undefined
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user } = useUser();
-  const { data: customers, loading } = useCollection<Customer>(firestore ? collection(firestore, 'customers') : null);
+  
+  const customersCollection = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'customers') : null),
+    [firestore]
+  );
+  const { data: customers, loading } = useCollection<Customer>(customersCollection);
 
   const getCustomerById = (id: string) => {
     return customers?.find(customer => customer.id === id);
@@ -25,8 +31,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   
   const addCustomer = async (customerData: Omit<Customer, 'id' | 'ownerId'>) => {
     if (!firestore || !user) throw new Error("Firestore or user not available");
-    const customersCollection = collection(firestore, 'customers');
-    const newCustomerDoc = await addDoc(customersCollection, {
+    const customersCollectionRef = collection(firestore, 'customers');
+    const newCustomerDoc = await addDoc(customersCollectionRef, {
       ...customerData,
       ownerId: user.id,
     });

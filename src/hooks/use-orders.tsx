@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useMemo } from 'react';
 import type { Order, OrderChatMessage, OrderAttachment } from '@/lib/types';
 import { useToast } from './use-toast';
-import { useCollection, useFirestore, useUser, useStorage } from '@/firebase';
-import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { useCollection, useFirestore, useUser, useStorage, useMemoFirebase } from '@/firebase';
+import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -25,7 +25,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const storage = useStorage();
   const { user } = useUser();
-  const { data: orders, loading } = useCollection<Order>(firestore ? collection(firestore, 'orders') : null);
+  
+  const ordersCollection = useMemoFirebase(
+    () => (firestore ? collection(firestore, 'orders') : null),
+    [firestore]
+  );
+  const { data: orders, loading } = useCollection<Order>(ordersCollection);
+  
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -70,12 +76,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
     if (!firestore || !user) throw new Error("Firestore or user not available");
     
-    // Create a temporary order document to get an ID
-    const ordersCollection = collection(firestore, 'orders');
-    const newOrderRef = doc(ordersCollection);
+    const ordersCollectionRef = collection(firestore, 'orders');
+    const newOrderRef = doc(ordersCollectionRef);
     const orderId = newOrderRef.id;
 
-    // Upload files
     const attachmentPromises = newFiles.map(file => uploadFile(orderId, file));
     const newAttachments = await Promise.all(attachmentPromises);
 
@@ -98,26 +102,25 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const originalOrder = orders?.find(o => o.id === updatedOrder.id);
     if (!originalOrder) return;
     
-    // Upload new files
     const newAttachmentPromises = newFiles.map(file => uploadFile(updatedOrder.id, file));
     const newAttachments = await Promise.all(newAttachmentPromises);
 
-    // Determine removed attachments
-    const existingStoragePaths = originalOrder.attachments?.map(a => a.storagePath) || [];
-    const remainingStoragePaths = updatedOrder.attachments?.map(a => a.storagePath) || [];
-    const removedAttachments = originalOrder.attachments?.filter(att => !remainingStoragePaths.includes(att.storagePath)) || [];
+    const remainingAttachments = updatedOrder.attachments?.filter(att => att.storagePath) || [];
+    const removedAttachments = originalOrder.attachments?.filter(att => 
+        !remainingAttachments.some(remAtt => remAtt.storagePath === att.storagePath)
+    ) || [];
 
-    // Delete removed files from storage
     const deletionPromises = removedAttachments.map(att => {
-        const fileRef = ref(storage, att.storagePath);
-        return deleteObject(fileRef);
+        if (att.storagePath) {
+            const fileRef = ref(storage, att.storagePath);
+            return deleteObject(fileRef);
+        }
+        return Promise.resolve();
     });
     await Promise.all(deletionPromises);
 
     const newChatMessages: OrderChatMessage[] = updatedOrder.chatMessages ? [...updatedOrder.chatMessages] : [];
-    let hasChanges = false;
 
-    // Check for status change
     if (originalOrder.status !== updatedOrder.status) {
         newChatMessages.push({
             user: { id: 'system', name: 'System', avatarUrl: '' },
@@ -125,42 +128,38 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             timestamp: new Date().toISOString(),
             isSystemMessage: true,
         });
-        hasChanges = true;
-    }
-
-    const simpleCompare = (obj1: any, obj2: any) => {
-        const cleanedObj1 = { ...obj1, chatMessages: [], attachments: [], creationDate: null, deadline: null, status: null };
-        const cleanedObj2 = { ...obj2, chatMessages: [], attachments: [], creationDate: null, deadline: null, status: null };
-        return JSON.stringify(cleanedObj1) === JSON.stringify(cleanedObj2);
-    }
-    
-    if (!hasChanges && !simpleCompare(originalOrder, updatedOrder)) {
-       newChatMessages.push({
-            user: { id: 'system', name: 'System', avatarUrl: '' },
-            text: `${user.name} edited the order details`,
-            timestamp: new Date().toISOString(),
-            isSystemMessage: true,
-        });
+    } else {
+        const hasMeaningfulChanges = JSON.stringify({ ...originalOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null }) !== JSON.stringify({ ...updatedOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null });
+        if(hasMeaningfulChanges) {
+             newChatMessages.push({
+                user: { id: 'system', name: 'System', avatarUrl: '' },
+                text: `${user.name} edited the order details`,
+                timestamp: new Date().toISOString(),
+                isSystemMessage: true,
+            });
+        }
     }
 
     const orderWithSystemMessages = {
         ...updatedOrder,
-        attachments: [...(updatedOrder.attachments || []), ...newAttachments],
+        attachments: [...remainingAttachments, ...newAttachments],
         chatMessages: newChatMessages
     };
     
     const orderRef = doc(firestore, 'orders', updatedOrder.id);
     const { id, creationDate, ...rest } = orderWithSystemMessages;
-    await updateDoc(orderRef, rest);
+    await updateDoc(orderRef, rest as any);
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
     if (!firestore || !storage) return;
 
-    // Delete all attachments from Firebase Storage
     const deletionPromises = (attachments || []).map(att => {
-        const fileRef = ref(storage, att.storagePath);
-        return deleteObject(fileRef);
+        if(att.storagePath) {
+            const fileRef = ref(storage, att.storagePath);
+            return deleteObject(fileRef);
+        }
+        return Promise.resolve();
     });
 
     try {
