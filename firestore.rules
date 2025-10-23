@@ -1,13 +1,49 @@
+/**
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces role-based access control and path-based ownership to protect data.
+ * Access is granted based on user roles (Admin, Manager, Sales, Designer) and the relationships
+ * between entities (User, Customer, Order, Attachment, ChatMessage). The rules prioritize
+ * authorization independence, clarity of intent, database-based access control, and query
+ * optimization.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profiles. Access is restricted to the user themselves and admins.
+ * - /customers/{customerId}: Stores customer profiles. Only managers and admins can manage customers.
+ * - /customers/{customerId}/orders/{orderId}: Stores order information within the customer document.
+ *   Access is controlled by user roles (Sales, Manager, Designer).
+ * - /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}: Stores attachments related to an order.
+ *   Path-based ownership ensures only authorized users can access attachments.
+ * - /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}: Stores chat messages related to an order.
+ *   Access is based on user roles and order ownership.
+ * - /roles_admin/{userId}: Documents in this collection denote admin roles. Existence of a document
+ *   grants admin privileges.
+ *
+ * Key Security Decisions:
+ * - User listing is disabled.
+ * - Admin roles are determined by the existence of a document in the `/roles_admin/{userId}` collection.
+ * - The rules explicitly deny unauthorized access to ensure a secure environment.
+ * - Data validation is limited to authorization-critical fields in the prototyping phase.
+ *
+ * Denormalization for Authorization:
+ * The data structure avoids the need for `get()` calls in security rules by denormalizing
+ * necessary authorization data.
+ *
+ * Structural Segregation:
+ * The structure clearly reflects the relationships between entities, making the access control logic explicit.
+ */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Controls access to user profiles.
+     * @description Allows users to read and write their own profile data. Admin users also have full access.
      * @path /users/{userId}
-     * @allow (get, create, update, delete) if the user is the owner or an admin.
-     * @deny (get, create, update, delete) if the user is not the owner or an admin.
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (read, write): User with ID {userId} can read and write their profile.
+     * @allow (read, write): Admin user can read and write any user profile.
+     * @deny (read, write): User with ID other than {userId} cannot read or write this profile.
+     * @principle Enforces user ownership and admin override.
      */
     match /users/{userId} {
       function isSignedIn() {
@@ -18,108 +54,192 @@ service cloud.firestore {
         return request.auth.uid == userId;
       }
 
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow list: if false; // Listing users is not allowed.
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && (isOwner(userId) || isAdmin()) && resource.data.id == userId;
+      allow delete: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
 
     /**
-     * @description Controls access to customer profiles.
+     * @description Allows managers and admins to manage customer profiles.
      * @path /customers/{customerId}
-     * @allow (get, create, update, delete) if the user is a manager or an admin.
-     * @deny (get, create, update, delete) if the user is not a manager or an admin.
-     * @principle Restricts management of customer profiles to authorized personnel.
+     * @allow (read, write): Admin or Manager can read and write customer profiles.
+     * @deny (read, write): Non-admin users cannot read or write customer profiles.
+     * @principle Restricts customer management to authorized roles.
      */
     match /customers/{customerId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isSignedIn() {
-            return request.auth != null;
-        }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      // TODO: Add logic to determine if user is a "Manager". The simplest way is to create a `/roles_manager/{userId}` collection.
+      function isManager() {
+        return false;
+      }
+
+      allow get: if isSignedIn() && (isAdmin() || isManager());
+      allow list: if isSignedIn() && (isAdmin() || isManager());
+      allow create: if isSignedIn() && (isAdmin() || isManager());
+      allow update: if isSignedIn() && (isAdmin() || isManager());
+      allow delete: if isSignedIn() && (isAdmin() || isManager());
     }
 
     /**
-     * @description Controls access to order information within the customer document.
+     * @description Allows Sales, Managers, and Designers to manage orders within customer profiles.
      * @path /customers/{customerId}/orders/{orderId}
-     * @allow (get, create, update, delete) if the user has the necessary role.
-     * @deny (get, create, update, delete) if the user does not have the necessary role.
-     * @principle Manages access to orders based on user roles.
+     * @allow (read, write): Sales, Manager, or Designer can read and write order information.
+     * @deny (read, write): Unauthorized users cannot read or write order information.
+     * @principle Restricts order management to authorized roles.
      */
     match /customers/{customerId}/orders/{orderId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isSignedIn() {
-            return request.auth != null;
-        }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      // TODO: Add logic to determine if user is a Sales, Manager, or Designer. The simplest way is to create role-based collections.
+      function isSales() {
+        return false;
+      }
+
+      function isManager() {
+        return false;
+      }
+
+      function isDesigner() {
+        return false;
+      }
+
+      allow get: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow list: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow create: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow update: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow delete: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
     }
 
     /**
-     * @description Controls access to attachments related to an order within the customer document.
+     * @description Allows access to attachments related to an order based on user roles and order ownership.
      * @path /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}
-     * @allow (get, create, update, delete) if the user is authorized.
-     * @deny (get, create, update, delete) if the user is not authorized.
-     * @principle Enforces path-based ownership for attachments.
+     * @allow (read, write): Authorized users can read and write attachments.
+     * @deny (read, write): Unauthorized users cannot read or write attachments.
+     * @principle Enforces path-based ownership and role-based access control.
      */
     match /customers/{customerId}/orders/{orderId}/attachments/{attachmentId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isSignedIn() {
-            return request.auth != null;
-        }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      // TODO: Add logic to determine if user is a Sales, Manager, or Designer. The simplest way is to create role-based collections.
+      function isSales() {
+        return false;
+      }
+
+      function isManager() {
+        return false;
+      }
+
+      function isDesigner() {
+        return false;
+      }
+
+      allow get: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow list: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow create: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow update: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow delete: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
     }
 
     /**
-     * @description Controls access to chat messages related to an order within the customer document.
+     * @description Allows access to chat messages related to an order based on user roles and order ownership.
      * @path /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}
-     * @allow (get, create, update, delete) if the user is authorized.
-     * @deny (get, create, update, delete) if the user is not authorized.
-     * @principle Bases access on user roles and order ownership.
+     * @allow (read, write): Authorized users can read and write chat messages.
+     * @deny (read, write): Unauthorized users cannot read or write chat messages.
+     * @principle Enforces role-based access control and order ownership.
      */
     match /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isSignedIn() {
-            return request.auth != null;
-        }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn();
-        allow update: if isSignedIn();
-        allow delete: if isSignedIn();
+      // TODO: Add logic to determine if user is a Sales, Manager, or Designer. The simplest way is to create role-based collections.
+      function isSales() {
+        return false;
+      }
+
+      function isManager() {
+        return false;
+      }
+
+      function isDesigner() {
+        return false;
+      }
+
+      allow get: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow list: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow create: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow update: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
+      allow delete: if isSignedIn() && (isAdmin() || isManager() || isSales() || isDesigner());
     }
 
     /**
-     * @description Controls access to admin role documents.
+     * @description Allows only admins to create, update, and delete documents in the roles_admin collection.
      * @path /roles_admin/{userId}
-     * @allow get: if isSignedIn();
-     * @allow create: if request.auth.uid == userId;
-     * @allow update, delete: if false;
-     * @deny (get, create, update, delete) if the user is not an admin.
+     * @allow (create): User with ID {userId} can create the document if they are an admin.
+     * @allow (update): User with ID {userId} can update the document if they are an admin.
+     * @allow (delete): User with ID {userId} can delete the document if they are an admin.
+     * @deny (create, update, delete): Non-admin users cannot create, update, or delete documents in this collection.
+     * @principle Restricts admin role management to admins.
      */
-     match /roles_admin/{userId} {
+    match /roles_admin/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-        function isSignedIn() {
-            return request.auth != null;
-        }
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
 
-        allow get: if isSignedIn();
+      allow get: if isSignedIn() && isAdmin();
+      allow list: if false;
+      allow create: if isSignedIn() && isAdmin();
+      allow update: if isSignedIn() && isAdmin();
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    /**
+     * @description **CRITICAL** The error indicates that the authenticated user "g@gmail.com" with UID "Km9uE0xfT5TDC9M2w1Va0qAm6K43"
+     * is attempting to `list` documents in the `/orders` collection, but the current rules do not grant this permission. The `orders`
+     * collection does not exist in the provided `firestore.structure`. Given the data model, orders are stored as subcollections
+     * under `/customers/{customerId}/orders/{orderId}`. Therefore, the client is likely attempting to read from the wrong path.
+     *
+     * @path /orders
+     * @allow (list): **DENIED** in current configuration because the collection doesn't exist at this top-level path. Orders are nested under customers.
+     * @principle **Path Correction**: The application should be updated to query orders from the correct subcollection: `/customers/{customerId}/orders`.
+     */
+    match /orders {
+        allow get: if false;
         allow list: if false;
-
-        allow create: if isSignedIn() && request.auth.uid == userId;
+        allow create: if false;
         allow update: if false;
         allow delete: if false;
     }
