@@ -20,8 +20,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
   
   const customersCollection = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'customers') : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, 'customers') : null),
+    [firestore, user]
   );
   const { data: customers, loading } = useCollection<Customer>(customersCollection);
 

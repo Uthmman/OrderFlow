@@ -27,8 +27,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
   
   const ordersCollection = useMemoFirebase(
-    () => (firestore ? collection(firestore, 'orders') : null),
-    [firestore]
+    () => (firestore && user ? collection(firestore, 'orders') : null),
+    [firestore, user]
   );
   const { data: orders, loading } = useCollection<Order>(ordersCollection);
   
