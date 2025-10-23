@@ -3,6 +3,10 @@
 import * as React from "react"
 import {
   ColumnDef,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
@@ -24,6 +28,7 @@ import { DataTableViewOptions } from "@/components/app/data-table/data-table-vie
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
+import { useOrders } from "@/hooks/use-orders"
 
 function CustomerActions({ customer }: { customer: Customer }) {
     return (
@@ -139,6 +144,12 @@ function CustomerTableToolbar({ table }: { table: ReturnType<typeof useReactTabl
 }
 
 function MobileCustomerList({ customers }: { customers: Customer[] }) {
+    const { orders } = useOrders();
+
+    const getCustomerOrderCount = (customerId: string) => {
+        return orders.filter(order => order.customerId === customerId).length;
+    }
+
     return (
         <div className="space-y-4">
              <div className="flex items-center justify-between gap-2">
@@ -174,7 +185,7 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
                         <p className="text-muted-foreground">{customer.email}</p>
                         <p className="text-muted-foreground">{customer.phone}</p>
                         <p>
-                            <span className="font-medium">{customer.orderIds.length}</span>{" "}
+                            <span className="font-medium">{getCustomerOrderCount(customer.id)}</span>{" "}
                             <span className="text-muted-foreground">orders</span>
                         </p>
                     </CardContent>
@@ -186,6 +197,16 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
 
 export default function CustomersPage() {
     const data = React.useMemo(() => mockCustomers, []);
+
+    const table = useReactTable({
+        data,
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+    })
+
 
     return (
         <div className="flex flex-col gap-8">
@@ -200,8 +221,8 @@ export default function CustomersPage() {
             </div>
             <Card className="hidden md:block">
                 <CardContent className="pt-6">
-                    <DataTable columns={columns} data={data}>
-                        <CustomerTableToolbar />
+                    <DataTable table={table} columns={columns} data={data}>
+                        <CustomerTableToolbar table={table} />
                     </DataTable>
                 </CardContent>
             </Card>

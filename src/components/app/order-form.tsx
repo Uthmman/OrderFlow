@@ -36,36 +36,74 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { mockCustomers } from "@/lib/mock-data"
+import { Order } from "@/lib/types"
+import { useRouter } from "next/navigation"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
+  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
   color: z.string().optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
   height: z.coerce.number().optional(),
   depth: z.coerce.number().optional(),
-  price: z.coerce.number().min(0, "Price cannot be negative."),
+  incomeAmount: z.coerce.number().min(0, "Price cannot be negative."),
+  prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
   deadline: z.date({ required_error: "A deadline is required." }),
   isUrgent: z.boolean().default(false),
 })
 
-export function OrderForm() {
-  const form = useForm<z.infer<typeof formSchema>>({
+type OrderFormValues = z.infer<typeof formSchema>
+
+interface OrderFormProps {
+  order?: Order;
+  onSubmit: (data: Order) => void;
+  submitButtonText?: string;
+}
+
+
+export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }: OrderFormProps) {
+  const router = useRouter();
+  const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: order ? {
+        ...order,
+        deadline: new Date(order.deadline),
+        width: order.dimensions?.width,
+        height: order.dimensions?.height,
+        depth: order.dimensions?.depth,
+    } : {
       isUrgent: false,
+      status: "Pending",
+      incomeAmount: 0,
+      prepaidAmount: 0,
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values)
+  function handleFormSubmit(values: OrderFormValues) {
+    const customerName = mockCustomers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+    
+    const newOrderData: Order = {
+        id: order?.id || `ORD-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+        ...values,
+        customerName,
+        deadline: values.deadline.toISOString(),
+        creationDate: order?.creationDate || new Date().toISOString(),
+        dimensions: values.width && values.height && values.depth ? {
+            width: values.width,
+            height: values.height,
+            depth: values.depth,
+        } : undefined,
+        assignedTo: order?.assignedTo || [],
+    };
+    onSubmit(newOrderData);
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             <Card>
@@ -134,7 +172,7 @@ export function OrderForm() {
                         <FormItem>
                           <FormLabel>Material</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., Oak Wood, Canvas" {...field} />
+                            <Input placeholder="e.g., Oak Wood, Canvas" {...field} value={field.value || ''}/>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -147,8 +185,8 @@ export function OrderForm() {
                         <FormItem>
                           <FormLabel>Color</FormLabel>
                           <div className="flex items-center gap-2">
-                             <Input type="color" className="w-12 h-10 p-1" {...field} />
-                             <Input placeholder="e.g., #FF0000 or 'Cherry Red'" {...field} className="w-auto flex-1" />
+                             <Input type="color" className="w-12 h-10 p-1" {...field} value={field.value || '#000000'} />
+                             <Input placeholder="e.g., #FF0000 or 'Cherry Red'" {...field} className="w-auto flex-1" value={field.value || ''} />
                           </div>
                           <FormMessage />
                         </FormItem>
@@ -164,7 +202,7 @@ export function OrderForm() {
                         <FormItem>
                           <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="W" {...field} />
+                            <Input type="number" placeholder="W" {...field} value={field.value || ''} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -176,7 +214,7 @@ export function OrderForm() {
                         <FormItem>
                           <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="H" {...field} />
+                            <Input type="number" placeholder="H" {...field} value={field.value || ''} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -188,7 +226,7 @@ export function OrderForm() {
                         <FormItem>
                           <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="D" {...field} />
+                            <Input type="number" placeholder="D" {...field} value={field.value || ''} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -235,7 +273,7 @@ export function OrderForm() {
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="price"
+                  name="incomeAmount"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Income Amount</FormLabel>
@@ -243,6 +281,22 @@ export function OrderForm() {
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <FormControl>
                             <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                        </FormControl>
+                       </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="prepaidAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pre-paid Amount</FormLabel>
+                       <div className="relative">
+                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <FormControl>
+                            <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value || ''} />
                         </FormControl>
                        </div>
                       <FormMessage />
@@ -259,6 +313,7 @@ export function OrderForm() {
                         <Textarea
                           placeholder="e.g., 50% upfront, Paid via Stripe #..."
                           {...field}
+                          value={field.value || ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -269,9 +324,35 @@ export function OrderForm() {
             </Card>
              <Card>
               <CardHeader>
-                <CardTitle>Scheduling</CardTitle>
+                <CardTitle>Scheduling & Status</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                 <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Order Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a status" />
+                            </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                <SelectItem value="Pending">Pending</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Designing">Designing</SelectItem>
+                                <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                                <SelectItem value="Completed">Completed</SelectItem>
+                                <SelectItem value="Shipped">Shipped</SelectItem>
+                                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
                 <FormField
                   control={form.control}
                   name="deadline"
@@ -338,8 +419,8 @@ export function OrderForm() {
           </div>
         </div>
         <div className="flex justify-end gap-2">
-            <Button variant="outline" type="button">Cancel</Button>
-            <Button type="submit">Create Order</Button>
+            <Button variant="outline" type="button" onClick={() => router.back()}>Cancel</Button>
+            <Button type="submit">{submitButtonText}</Button>
         </div>
       </form>
     </Form>

@@ -3,9 +3,10 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
-import { SidebarProvider, Sidebar } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
+import { OrderProvider } from "@/hooks/use-orders";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -28,15 +29,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 min-w-0">
+      <OrderProvider>
+        <div className="flex h-screen w-full flex-col">
           <AppHeader />
-          <main className="flex-1 p-4 md:p-6 lg:p-8 overflow-x-hidden">
-            {children}
-          </main>
+          <div className="flex flex-1 overflow-hidden">
+            <AppSidebar />
+            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </OrderProvider>
     </SidebarProvider>
   );
 }

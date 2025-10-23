@@ -1,15 +1,15 @@
-
 "use client"
 
 import * as React from "react"
 import {
   ColumnDef,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import {
-  MoreHorizontal,
-  PlusCircle,
-} from "lucide-react"
+import { MoreHorizontal, PlusCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -24,7 +24,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus } from "@/lib/types"
-import { mockOrders } from "@/lib/mock-data"
 import { formatCurrency } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
@@ -32,6 +31,20 @@ import { DataTableViewOptions } from "./data-table/data-table-view-options"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { useOrders } from "@/hooks/use-orders"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { useToast } from "@/hooks/use-toast"
+
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -45,26 +58,59 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 
 function OrderActions({ order }: { order: Order }) {
     const router = useRouter();
+    const { deleteOrder } = useOrders();
+    const { toast } = useToast();
+
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Prevent card click
+        deleteOrder(order.id);
+        toast({
+            title: "Order Cancelled",
+            description: `Order ${order.id} has been cancelled.`,
+        });
+    }
+
     return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
-              Copy Order ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">Cancel Order</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AlertDialog>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
+                  View Details
+                </DropdownMenuItem>
+                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
+                  Edit Order
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
+                  Copy Order ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                        Cancel Order
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will cancel the order. This action can be undone by changing the order status.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Back</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Cancel Order</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     )
 }
 
@@ -138,7 +184,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => <OrderActions order={row.original} />,
+    cell: ({ row }) => <div className="flex justify-end"><OrderActions order={row.original} /></div>,
   },
 ]
 
@@ -169,15 +215,19 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
 }
 
 function MobileOrderList({ orders }: { orders: Order[] }) {
-    const router = useRouter();
-
     return (
         <div className="space-y-4">
-             <div className="flex items-center justify-between">
+             <div className="flex items-center justify-between gap-2">
                 <Input
-                    placeholder="Filter by customer..."
-                    className="h-8 w-full"
+                    placeholder="Filter orders..."
+                    className="h-9 flex-1"
                 />
+                 <Link href="/orders/new">
+                    <Button size="sm" className="h-9">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">New</span>
+                    </Button>
+                </Link>
             </div>
             {orders.map(order => (
                  <Card key={order.id} className="hover:bg-muted/50 transition-colors">
@@ -190,7 +240,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                     </CardTitle>
                                     <CardDescription>{order.customerName}</CardDescription>
                                 </div>
-                                <div onClick={(e) => e.stopPropagation()}>
+                                <div onClick={(e) => e.preventDefault()}>
                                     <OrderActions order={order} />
                                 </div>
                             </div>
@@ -217,20 +267,28 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
 
 
 export function OrderTable() {
-  const data = React.useMemo(() => mockOrders, []);
+  const { orders } = useOrders();
+  const sortedOrders = React.useMemo(() => [...orders].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()), [orders]);
+
+  const table = useReactTable({
+    data: sortedOrders,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
   
   return (
     <>
         <div className="hidden md:block">
-            <DataTable columns={columns} data={data}>
-                <OrderTableToolbar />
+            <DataTable table={table} columns={columns} data={sortedOrders}>
+                <OrderTableToolbar table={table} />
             </DataTable>
         </div>
          <div className="block md:hidden">
-            <MobileOrderList orders={data} />
+            <MobileOrderList orders={sortedOrders} />
         </div>
     </>
   )
 }
-
-  

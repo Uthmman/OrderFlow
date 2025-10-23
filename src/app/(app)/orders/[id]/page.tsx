@@ -1,17 +1,40 @@
+"use client";
 
-
-import { mockOrders, mockCustomers } from "@/lib/mock-data";
-import { notFound } from "next/navigation";
+import { useOrders } from "@/hooks/use-orders";
+import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, AlertCircle, Pencil } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User } from "lucide-react";
 import Image from "next/image";
 import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { mockCustomers } from "@/lib/mock-data";
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -24,11 +47,24 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const order = mockOrders.find(o => o.id === params.id);
+  const { getOrderById, deleteOrder } = useOrders();
+  const router = useRouter();
+  const { toast } = useToast();
+  
+  const order = getOrderById(params.id);
   
   if (!order) {
     notFound();
   }
+
+  const handleDelete = () => {
+    deleteOrder(order.id);
+    toast({
+        title: "Order Deleted",
+        description: `Order ${order.id} has been deleted.`,
+    });
+    router.push("/orders");
+  };
 
   const customer = mockCustomers.find(c => c.id === order.customerId);
   const prepaid = order.prepaidAmount || 0;
@@ -53,17 +89,36 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   Detailed view of order from {order.customerName}.
                 </p>
             </div>
-            <Button>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit Order
-            </Button>
+            <div className="flex items-center gap-2">
+                <Link href={`/orders/${order.id}/edit`}>
+                    <Button>Edit Order</Button>
+                </Link>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem>Mark as Complete</DropdownMenuItem>
+                        <DropdownMenuItem>Duplicate Order</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive">
+                                Delete Order
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
         </div>
       </div>
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
             <AIPrediction order={order} />
-
             <Card>
                 <CardHeader>
                     <CardTitle>Order Description</CardTitle>
@@ -161,6 +216,21 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             )}
         </div>
       </div>
+      <AlertDialog>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the order
+                        and remove its data from our servers.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

@@ -3,8 +3,26 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
 import { DollarSign, Package, Users, Activity } from "lucide-react"
+import { useOrders } from "@/hooks/use-orders"
+import { useMemo } from "react"
+import { formatCurrency } from "@/lib/utils"
 
 export default function Dashboard() {
+  const { orders } = useOrders();
+
+  const stats = useMemo(() => {
+    const totalRevenue = orders.reduce((acc, order) => acc + order.incomeAmount, 0);
+    const ordersInProgress = orders.filter(o => o.status === "In Progress" || o.status === "Designing" || o.status === "Manufacturing").length;
+    const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
+    
+    return {
+      totalRevenue,
+      ordersInProgress,
+      urgentOrders
+    }
+  }, [orders]);
+
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -23,9 +41,9 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$45,231.89</div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">
-              +20.1% from last month
+              Based on all orders
             </p>
           </CardContent>
         </Card>
@@ -47,9 +65,9 @@ export default function Dashboard() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+12</div>
+            <div className="text-2xl font-bold">+{stats.ordersInProgress}</div>
             <p className="text-xs text-muted-foreground">
-              +5 since last week
+              Currently active orders
             </p>
           </CardContent>
         </Card>
@@ -59,7 +77,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{stats.urgentOrders}</div>
             <p className="text-xs text-muted-foreground">
               Action required
             </p>
