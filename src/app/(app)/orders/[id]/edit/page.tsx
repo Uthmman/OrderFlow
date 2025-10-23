@@ -7,8 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 
-export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function EditOrderPage({ params: { id } }: { params: { id: string } }) {
   const { getOrderById, updateOrder } = useOrders();
   const { toast } = useToast();
   const router = useRouter();

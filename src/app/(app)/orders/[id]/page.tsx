@@ -46,8 +46,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Cancelled": "destructive",
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default function OrderDetailPage({ params: { id } }: { params: { id: string } }) {
   const { getOrderById, deleteOrder } = useOrders();
   const router = useRouter();
   const { toast } = useToast();
