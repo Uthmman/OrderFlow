@@ -1,11 +1,11 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useAuth as useFirebaseAuth, useFirestore, useFirebase } from '@/firebase';
+import { useUser, useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
-import type { Role } from '@/lib/types';
+import type { Role, User } from '@/lib/types';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from './use-toast';
 
@@ -17,63 +17,53 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const MOCK_USER_STORAGE_KEY = 'mockUser';
+
+const mockUsers: Record<Role, User> = {
+    Admin: { id: 'admin-001', name: 'Admin User', email: 'admin@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=admin', role: 'Admin' },
+    Manager: { id: 'manager-001', name: 'Manager User', email: 'manager@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=manager', role: 'Manager' },
+    Sales: { id: 'sales-001', name: 'Sales User', email: 'sales@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=sales', role: 'Sales' },
+    Designer: { id: 'designer-001', name: 'Designer User', email: 'designer@example.com', avatarUrl: 'https://i.pravatar.cc/150?u=designer', role: 'Designer' },
+};
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useFirebaseAuth();
   const firestore = useFirestore();
-  const { user, loading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
   const signInWithGoogle = async () => {
-    if (!auth) return;
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      if (user && firestore) {
-        const userRef = doc(firestore, "users", user.uid);
-        await setDoc(userRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          customClaims: { role: 'Designer' } 
-        }, { merge: true });
-      }
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error("Error during Google sign-in:", error);
-      if (error.code === 'auth/popup-blocked') {
-        toast({
-            variant: "destructive",
-            title: "Popup Blocked",
-            description: "Your browser blocked the sign-in popup. Please allow popups for this site and try again."
-        });
-      } else {
-        toast({
-            variant: "destructive",
-            title: "Sign-in Error",
-            description: error.message
-        });
-      }
-    }
+    toast({
+        variant: "destructive",
+        title: "Feature Unavailable",
+        description: "Google Sign-In is temporarily disabled. Please use the demo login.",
+    });
   };
 
   const signOut = async () => {
-    if (!auth) return;
-    try {
-      await firebaseSignOut(auth);
-      router.push('/login');
-    } catch (error) {
-      console.error("Error signing out:", error);
+    // Clear mock user from localStorage
+    localStorage.removeItem(MOCK_USER_STORAGE_KEY);
+    // Dispatch a custom event to notify other components (like useUser hook)
+    window.dispatchEvent(new Event('mock-user-change'));
+
+    // Also sign out from Firebase if there's a real session
+    if (auth && auth.currentUser) {
+        try {
+            await firebaseSignOut(auth);
+        } catch (error) {
+            console.error("Error signing out from Firebase:", error);
+        }
     }
+    router.push('/login');
   };
 
   const signInAsMockUser = async (role: Role) => {
-    toast({
-        title: "Feature Unavailable",
-        description: `To test as a ${role}, please sign in with Google. Role-based access is configured via Firestore security rules.`,
-    });
+    const mockUser = mockUsers[role];
+    localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(mockUser));
+    // Dispatch a custom event to notify other components (like useUser hook)
+    window.dispatchEvent(new Event('mock-user-change'));
+    router.push('/dashboard');
   };
 
 

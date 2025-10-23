@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -44,7 +43,7 @@ export default function LoginPage() {
     signInAsMockUser(role);
   };
   
-  if (loading || user) {
+  if (loading) {
       return (
         <div className="flex h-screen items-center justify-center">
             <div className="text-xl">Loading...</div>
@@ -62,28 +61,13 @@ export default function LoginPage() {
                  <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
             </div>
             <p className="text-balance text-muted-foreground">
-              Sign in to your account to continue
+              Sign in to your account to continue (Demo Mode)
             </p>
           </div>
-            <div className="grid gap-4">
-              <Button variant="outline" onClick={signInWithGoogle}>
-                Login with Google
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                    Or continue with
-                    </span>
-                </div>
-              </div>
             
               <form onSubmit={handleMockLogin} className="grid gap-4">
                 <div className="grid gap-2">
-                    <Label>Login As (for Demo)</Label>
+                    <Label>Login As</Label>
                     <Select onValueChange={(value: Role) => setRole(value)} defaultValue={role}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a role to log in as" />
@@ -100,7 +84,7 @@ export default function LoginPage() {
                     Login as {role}
                 </Button>
               </form>
-          </div>
+          
         </div>
       </div>
       <div className="hidden bg-muted lg:block">
