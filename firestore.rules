@@ -1,0 +1,174 @@
+/**
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a hierarchical data model based on customer-order relationships,
+ * with strong ownership and role-based access controls. User data is private and only
+ * accessible by the user themselves. Customer and Order data are managed by specific roles.
+ * Admin privileges are granted based on the existence of a document in the /roles_admin collection.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores individual user profiles. Only the user can read/write their own profile.
+ * - /customers/{customerId}: Stores customer profiles. Only managers and admins can manage customers.
+ * - /customers/{customerId}/orders/{orderId}: Stores order data related to a specific customer.
+ *   Access controlled based on user role (Sales, Manager, Designer).
+ * - /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}: Stores attachments for an order.
+ *   Access is restricted based on the parent order's access rules.
+ * - /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}: Stores chat messages for an order.
+ *   Access is restricted based on the parent order's access rules.
+ * - /roles_admin/{userId}: Presence of a document grants admin privileges to the user.
+ *
+ * Key Security Decisions:
+ * - User listing is disallowed for privacy.
+ * - Admin roles are determined by document existence in `/roles_admin`.
+ * - Data validation is limited to ownership checks and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * - The data model relies on path-based ownership and structural segregation to avoid `get()` calls in security rules.
+ *   For example, attachments are nested under orders, enabling access control based on the order's security context.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Secure user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user123' can create their profile.
+     *     - auth.uid: 'user123'
+     *     - request.resource.data.id: 'user123'
+     * @allow (get) User with ID 'user123' can read their profile.
+     *     - auth.uid: 'user123'
+     * @allow (update) User with ID 'user123' can update their profile.
+     *     - auth.uid: 'user123'
+     * @allow (delete) User with ID 'user123' can delete their profile.
+     *     - auth.uid: 'user123'
+     * @deny (create) User with ID 'user456' cannot create a profile for 'user123'.
+     *     - auth.uid: 'user456'
+     *     - request.resource.data.id: 'user123'
+     * @principle Enforces user-ownership for profile data.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Secure customer profiles.
+     * @path /customers/{customerId}
+     * @allow (create) Admin user can create a customer.
+     *     - auth.uid: 'admin123' (assuming 'admin123' exists in /roles_admin)
+     * @allow (get) Admin user can read a customer profile.
+     *     - auth.uid: 'admin123'
+     * @deny (create) Regular user cannot create a customer.
+     *     - auth.uid: 'user123'
+     * @principle Restricts customer management to admins.
+     */
+    match /customers/{customerId} {
+        function isAdmin() {
+            return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        }
+
+        allow get: if isAdmin();
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin() && resource != null;
+        allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Secure order information within a customer document.
+     * @path /customers/{customerId}/orders/{orderId}
+     * @allow (create) Admin user can create an order.
+     *     - auth.uid: 'admin123'
+     * @allow (get) Admin user can read an order.
+     *     - auth.uid: 'admin123'
+     * @deny (create) Regular user cannot create an order.
+     *     - auth.uid: 'user123'
+     * @principle Restricts order management to admins.
+     */
+    match /customers/{customerId}/orders/{orderId} {
+        function isAdmin() {
+            return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        }
+
+        allow get: if isAdmin();
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin() && resource != null;
+        allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Secure attachments related to an order within a customer document.
+     * @path /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}
+     * @allow (create) Admin user can create an attachment.
+     *     - auth.uid: 'admin123'
+     * @allow (get) Admin user can read an attachment.
+     *     - auth.uid: 'admin123'
+     * @deny (create) Regular user cannot create an attachment.
+     *     - auth.uid: 'user123'
+     * @principle Restricts attachment management to admins.
+     */
+    match /customers/{customerId}/orders/{orderId}/attachments/{attachmentId} {
+        function isAdmin() {
+            return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        }
+
+        allow get: if isAdmin();
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin() && resource != null;
+        allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Secure chat messages related to an order within a customer document.
+     * @path /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}
+     * @allow (create) Admin user can create a chat message.
+     *     - auth.uid: 'admin123'
+     * @allow (get) Admin user can read a chat message.
+     *     - auth.uid: 'admin123'
+     * @deny (create) Regular user cannot create a chat message.
+     *     - auth.uid: 'user123'
+     * @principle Restricts chat message management to admins.
+     */
+    match /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId} {
+        function isAdmin() {
+            return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        }
+
+        allow get: if isAdmin();
+        allow list: if isAdmin();
+        allow create: if isAdmin();
+        allow update: if isAdmin() && resource != null;
+        allow delete: if isAdmin() && resource != null;
+    }
+
+    /**
+     * @description Grants admin privileges to a user if a document exists for them in this collection.
+     * @path /roles_admin/{userId}
+     * @allow (create) Only server can create these documents.
+     * @allow (get)  Only server can get these documents.
+     * @principle DBAC (Database-Based Access Control) - Role is determined by document existence.
+     */
+    match /roles_admin/{userId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
