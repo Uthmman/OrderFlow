@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, use } from "react";
@@ -8,6 +9,7 @@ import { notFound } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
+import { formatOrderId } from "@/lib/utils";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -32,7 +34,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     updateOrder({ ...order, ...updatedOrderData}).then(() => {
         toast({
         title: "Order Updated",
-        description: `Order ${order.id} has been successfully updated.`,
+        description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
         });
         router.push(`/orders/${order.id}`);
     }).finally(() => {
@@ -44,7 +46,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold font-headline tracking-tight">
-          Edit Order {order.id}
+          Edit Order {formatOrderId(order.id)}
         </h1>
         <p className="text-muted-foreground">
           Update the details of the order below.

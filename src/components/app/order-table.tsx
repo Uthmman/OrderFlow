@@ -24,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus } from "@/lib/types"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatOrderId } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
@@ -66,7 +66,7 @@ function OrderActions({ order }: { order: Order }) {
         updateOrder({ ...order, status: "Cancelled" });
         toast({
             title: "Order Cancelled",
-            description: `Order ${order.id} has been cancelled.`,
+            description: `Order ${formatOrderId(order.id)} has been cancelled.`,
         });
     }
 
@@ -142,7 +142,7 @@ export const columns: ColumnDef<Order>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Order ID" />
     ),
-    cell: ({ row }) => <div className="font-medium text-primary"><Link href={`/orders/${row.getValue("id")}`}>{row.getValue("id")}</Link></div>,
+    cell: ({ row }) => <div className="font-medium text-primary"><Link href={`/orders/${row.getValue("id")}`}>{formatOrderId(row.getValue("id"))}</Link></div>,
   },
   {
     accessorKey: "customerName",
@@ -236,7 +236,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                             <div className="flex justify-between items-start">
                                 <div>
                                     <CardTitle className="text-base font-bold">
-                                        {order.id}
+                                        {formatOrderId(order.id)}
                                     </CardTitle>
                                     <CardDescription>{order.customerName}</CardDescription>
                                 </div>

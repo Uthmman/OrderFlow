@@ -11,3 +11,10 @@ export function formatCurrency(amount: number) {
     currency: 'USD',
   }).format(amount);
 }
+
+export function formatOrderId(orderId: string) {
+    if (!orderId || orderId.length < 6) {
+        return orderId;
+    }
+    return `${orderId.substring(0, 2).toUpperCase()}${orderId.slice(-5)}`
+}

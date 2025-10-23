@@ -13,7 +13,7 @@ import Image from "next/image";
 import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatOrderId } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -37,6 +37,8 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useCustomers } from "@/hooks/use-customers";
+import { customColorOptions, woodFinishOptions } from "@/lib/colors";
+import { cn } from "@/lib/utils";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -47,6 +49,8 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Shipped": "default",
     "Cancelled": "destructive",
 }
+
+const allColorOptions = [...woodFinishOptions, ...customColorOptions];
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -71,7 +75,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     deleteOrder(order.id);
     toast({
         title: "Order Deleted",
-        description: `Order ${order.id} has been deleted.`,
+        description: `Order ${formatOrderId(order.id)} has been deleted.`,
     });
     router.push("/orders");
   };
@@ -87,7 +91,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        Order {order.id}
+                        Order {formatOrderId(order.id)}
                     </h1>
                     <div className="flex items-center gap-2">
                       <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
@@ -141,19 +145,41 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 <CardHeader>
                     <CardTitle>Specifications</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                     {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
-                    {order.colors && order.colors.length > 0 && (
+                    {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
                         <div className="flex items-start gap-3">
-                            <Palette className="h-4 w-4 text-muted-foreground mt-0.5"/>
-                            <div className="flex flex-wrap gap-2">
+                            <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
+                            <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-sm">Colors:</span>
-                                {order.colors.map(color => <Badge key={color} variant="secondary">{color}</Badge>)}
+                                {order.colors.map(colorName => {
+                                    const colorOption = allColorOptions.find(c => c.name === colorName);
+                                    if (!colorOption) return <Badge key={colorName} variant="secondary">{colorName}</Badge>;
+
+                                    if ('imageUrl' in colorOption) {
+                                        return (
+                                            <div key={colorName} className="flex items-center gap-2" title={colorName}>
+                                                <Image src={colorOption.imageUrl} alt={colorName} width={20} height={20} className="rounded-full object-cover h-5 w-5"/>
+                                                <span className="text-sm sr-only">{colorName}</span>
+                                            </div>
+                                        )
+                                    }
+
+                                    if ('colorValue' in colorOption) {
+                                        return (
+                                             <div key={colorName} className="flex items-center gap-2" title={colorName}>
+                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-5 w-5 rounded-full border" />
+                                                <span className="text-sm sr-only">{colorName}</span>
+                                            </div>
+                                        )
+                                    }
+                                    return null;
+                                })}
                             </div>
                         </div>
                     )}
                     {order.colors?.includes("As Attached Picture") && (
-                        <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color to be determined by attached picture.</span></div>
+                        <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
                     )}
                     {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
                 </CardContent>
@@ -194,7 +220,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-3">
                         <Hash className="h-4 w-4 text-muted-foreground"/>
-                        <span className="text-sm">ID: {order.id}</span>
+                        <span className="text-sm">ID: {formatOrderId(order.id)}</span>
                     </div>
                      <div className="flex items-center gap-3">
                         <Calendar className="h-4 w-4 text-muted-foreground"/>
