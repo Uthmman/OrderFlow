@@ -39,6 +39,7 @@ import {
 import { useCustomers } from "@/hooks/use-customers";
 import { customColorOptions, woodFinishOptions } from "@/lib/colors";
 import { cn } from "@/lib/utils";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -125,8 +126,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleToggleUrgent}>
-                                <AlertTriangle /> 
-                                <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
+                                <AlertTriangle className="mr-2" /> 
+                                <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem>Mark as Complete</DropdownMenuItem>
                             <DropdownMenuItem>Duplicate Order</DropdownMenuItem>
@@ -174,40 +175,57 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
+                    
                     {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
                         <div className="flex items-start gap-3">
                             <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
-                            <div className="flex flex-wrap items-start gap-4">
-                                <span className="text-sm pt-4">Colors:</span>
-                                {order.colors.map(colorName => {
-                                    const colorOption = allColorOptions.find(c => c.name === colorName);
-                                    if (!colorOption) return <Badge key={colorName} variant="secondary">{colorName}</Badge>;
+                             <div className="w-full">
+                                <span className="text-sm">Colors:</span>
+                                <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                                    <CarouselContent className="-ml-2">
+                                        {order.colors.map(colorName => {
+                                            const colorOption = allColorOptions.find(c => c.name === colorName);
+                                            if (!colorOption) return (
+                                                <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                    <Badge variant="secondary">{colorName}</Badge>
+                                                </CarouselItem>
+                                            );
 
-                                    if ('imageUrl' in colorOption) {
-                                        return (
-                                            <div key={colorName} className="flex flex-col items-center gap-2" title={colorName}>
-                                                <Image src={colorOption.imageUrl} alt={colorName} width={64} height={64} className="rounded-md object-cover h-16 w-16"/>
-                                                <span className="text-xs font-medium">{colorName}</span>
-                                            </div>
-                                        )
-                                    }
+                                            if ('imageUrl' in colorOption) {
+                                                return (
+                                                    <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                        <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                            <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
+                                                            <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                        </div>
+                                                    </CarouselItem>
+                                                )
+                                            }
 
-                                    if ('colorValue' in colorOption) {
-                                        return (
-                                             <div key={colorName} className="flex flex-col items-center gap-2" title={colorName}>
-                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-16 w-16 rounded-md border" />
-                                                <span className="text-xs font-medium">{colorName}</span>
-                                            </div>
-                                        )
-                                    }
-                                    return null;
-                                })}
-                            </div>
+                                            if ('colorValue' in colorOption) {
+                                                return (
+                                                    <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                        <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                            <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
+                                                            <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                        </div>
+                                                    </CarouselItem>
+                                                )
+                                            }
+                                            return null;
+                                        })}
+                                    </CarouselContent>
+                                    <CarouselPrevious className="ml-12" />
+                                    <CarouselNext className="mr-12" />
+                                </Carousel>
+                             </div>
                         </div>
                     )}
+
                     {order.colors?.includes("As Attached Picture") && (
                         <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
                     )}
+
                     {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
                 </CardContent>
             </Card>
@@ -296,5 +314,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
