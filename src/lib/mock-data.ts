@@ -33,7 +33,6 @@ export const mockOrders: Order[] = [
     creationDate: new Date('2023-10-01').toISOString(),
     attachments: [
         { type: 'image', url: findImage('order-attachment-1'), fileName: 'chair_sketch.jpg' },
-        { type: 'voice', url: '#', fileName: 'design_notes.mp3' },
     ],
     color: '#34495e',
     material: 'Premium Fabric',
