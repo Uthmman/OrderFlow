@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -90,8 +91,15 @@ export function ChatInterface({ order }: { order: Order }) {
 
 
     try {
+        // Create a plain order object for the server action
+        const plainOrder = {
+          ...order,
+          creationDate: new Date(order.creationDate).toISOString(),
+          deadline: new Date(order.deadline).toISOString(),
+        };
+
         const aiResponse = await generateOrderChatResponse({
-            order,
+            order: plainOrder,
             message: inputValue,
         });
 
