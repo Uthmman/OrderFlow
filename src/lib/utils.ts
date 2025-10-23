@@ -13,8 +13,11 @@ export function formatCurrency(amount: number) {
 }
 
 export function formatOrderId(orderId: string) {
-    if (!orderId || orderId.length < 6) {
-        return orderId;
+    if (!orderId || orderId.length < 5) {
+        return `#ZF-ORD-${orderId}`;
     }
-    return `${orderId.substring(0, 2).toUpperCase()}${orderId.slice(-5)}`
+    const numericPart = orderId.slice(-5);
+    return `#ZF-ORD-${numericPart}`;
 }
+
+    

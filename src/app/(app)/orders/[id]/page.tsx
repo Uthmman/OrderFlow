@@ -150,7 +150,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
                         <div className="flex items-start gap-3">
                             <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-4">
                                 <span className="text-sm">Colors:</span>
                                 {order.colors.map(colorName => {
                                     const colorOption = allColorOptions.find(c => c.name === colorName);
@@ -159,8 +159,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     if ('imageUrl' in colorOption) {
                                         return (
                                             <div key={colorName} className="flex items-center gap-2" title={colorName}>
-                                                <Image src={colorOption.imageUrl} alt={colorName} width={20} height={20} className="rounded-full object-cover h-5 w-5"/>
-                                                <span className="text-sm sr-only">{colorName}</span>
+                                                <Image src={colorOption.imageUrl} alt={colorName} width={32} height={32} className="rounded-md object-cover h-8 w-8"/>
+                                                <span className="text-sm font-medium">{colorName}</span>
                                             </div>
                                         )
                                     }
@@ -168,8 +168,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     if ('colorValue' in colorOption) {
                                         return (
                                              <div key={colorName} className="flex items-center gap-2" title={colorName}>
-                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-5 w-5 rounded-full border" />
-                                                <span className="text-sm sr-only">{colorName}</span>
+                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-8 w-8 rounded-md border" />
+                                                <span className="text-sm font-medium">{colorName}</span>
                                             </div>
                                         )
                                     }
@@ -284,7 +284,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
 
     
