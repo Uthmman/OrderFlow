@@ -43,6 +43,7 @@ import { useState } from "react"
 import Image from "next/image"
 import { colorOptions } from "@/lib/colors"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
+import { Label } from "../ui/label"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
