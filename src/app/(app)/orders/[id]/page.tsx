@@ -10,7 +10,6 @@ import { OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import Image from "next/image";
-import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatOrderId } from "@/lib/utils";
@@ -159,7 +158,6 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-            <AIPrediction order={order} />
             <Card>
                 <CardHeader>
                     <CardTitle>Order Description</CardTitle>
@@ -313,4 +311,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       </div>
     </div>
   );
-}
+
+    
