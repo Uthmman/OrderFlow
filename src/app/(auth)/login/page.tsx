@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
   
-  if (loading || user) {
+  if (loading) {
       return (
         <div className="flex h-screen items-center justify-center">
             <div className="text-xl">Loading...</div>
