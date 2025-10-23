@@ -40,8 +40,19 @@ export type OrderStatus =
   | 'Shipped'
   | 'Cancelled';
 
+export type OrderChatMessage = {
+    user: {
+        id: string;
+        name: string;
+        avatarUrl: string;
+    };
+    text: string;
+    imageUrl?: string;
+    timestamp: string; // ISO String
+}
+
 export type Order = {
-  id: string;
+  id:string;
   customerName: string;
   customerId: string;
   description: string;
@@ -58,4 +69,5 @@ export type Order = {
   paymentDetails: string;
   assignedTo: string[];
   ownerId: string;
+  chatMessages?: OrderChatMessage[];
 };

@@ -75,7 +75,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     deleteOrder(order.id);
     toast({
         title: "Order Deleted",
-        description: `Order ${formatOrderId(order.id)} has been deleted.`,
+        description: `${formatOrderId(order.id)} has been deleted.`,
     });
     router.push("/orders");
   };
@@ -84,7 +84,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     updateOrder({ ...order, isUrgent: !order.isUrgent });
     toast({
         title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-        description: `Order ${formatOrderId(order.id)} has been updated.`,
+        description: `${formatOrderId(order.id)} has been updated.`,
     });
   };
 
@@ -125,7 +125,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={handleToggleUrgent}>
-                                <AlertTriangle className="mr-2" /> 
+                                <AlertTriangle className="mr-2 h-4 w-4" /> 
                                 <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem>Mark as Complete</DropdownMenuItem>
@@ -253,7 +253,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </Card>
             )}
 
-            <ChatInterface orderId={order.id} />
+            <ChatInterface order={order} />
         </div>
         <div className="space-y-8">
             <Card>
