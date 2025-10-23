@@ -1,18 +1,20 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useState, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useState } from 'react';
 import type { Order, OrderChatMessage, OrderAttachment } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCollection, useFirestore, useUser, useStorage, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
 import { v4 as uuidv4 } from 'uuid';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => Promise<string>;
+  addOrder: (order: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => Promise<string | undefined>;
   updateOrder: (order: Order, newFiles?: File[]) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -74,81 +76,123 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
-    if (!firestore || !user) throw new Error("Firestore or user not available");
+    if (!firestore || !user) {
+        console.error("Firestore or user not available");
+        return;
+    }
     
     const ordersCollectionRef = collection(firestore, 'orders');
     const newOrderRef = doc(ordersCollectionRef);
     const orderId = newOrderRef.id;
 
-    const attachmentPromises = newFiles.map(file => uploadFile(orderId, file));
-    const newAttachments = await Promise.all(attachmentPromises);
+    try {
+        const attachmentPromises = newFiles.map(file => uploadFile(orderId, file));
+        const newAttachments = await Promise.all(attachmentPromises);
 
-    const finalOrderData = {
-        ...orderData,
-        id: orderId,
-        attachments: [...(orderData.attachments || []), ...newAttachments],
-        creationDate: serverTimestamp(),
-        ownerId: user.id,
-    };
-    
-    await setDoc(newOrderRef, finalOrderData);
-    
-    return orderId;
+        const finalOrderData = {
+            ...orderData,
+            id: orderId,
+            attachments: [...(orderData.attachments || []), ...newAttachments],
+            creationDate: serverTimestamp(),
+            ownerId: user.id,
+        };
+        
+        await setDoc(newOrderRef, finalOrderData).catch(error => {
+            errorEmitter.emit(
+                'permission-error',
+                new FirestorePermissionError({
+                path: newOrderRef.path,
+                operation: 'create',
+                requestResourceData: finalOrderData,
+                })
+            );
+            throw error;
+        });
+        
+        return orderId;
+    } catch (error) {
+        console.error("Failed to create order:", error);
+        return undefined;
+    }
   };
 
-  const updateOrder = async (updatedOrder: Order, newFiles: File[] = []) => {
-    if (!firestore || !user || !storage) return;
+  const updateOrder = (updatedOrder: Order, newFiles: File[] = []) => {
+    return new Promise<void>(async (resolve, reject) => {
+        if (!firestore || !user || !storage) {
+            reject("Firebase services not available");
+            return;
+        };
 
-    const originalOrder = orders?.find(o => o.id === updatedOrder.id);
-    if (!originalOrder) return;
-    
-    const newAttachmentPromises = newFiles.map(file => uploadFile(updatedOrder.id, file));
-    const newAttachments = await Promise.all(newAttachmentPromises);
-
-    const remainingAttachments = updatedOrder.attachments?.filter(att => att.storagePath) || [];
-    const removedAttachments = originalOrder.attachments?.filter(att => 
-        !remainingAttachments.some(remAtt => remAtt.storagePath === att.storagePath)
-    ) || [];
-
-    const deletionPromises = removedAttachments.map(att => {
-        if (att.storagePath) {
-            const fileRef = ref(storage, att.storagePath);
-            return deleteObject(fileRef);
+        const originalOrder = orders?.find(o => o.id === updatedOrder.id);
+        if (!originalOrder) {
+            reject("Original order not found");
+            return;
         }
-        return Promise.resolve();
-    });
-    await Promise.all(deletionPromises);
 
-    const newChatMessages: OrderChatMessage[] = updatedOrder.chatMessages ? [...updatedOrder.chatMessages] : [];
+        try {
+            const newAttachmentPromises = newFiles.map(file => uploadFile(updatedOrder.id, file));
+            const newAttachments = await Promise.all(newAttachmentPromises);
 
-    if (originalOrder.status !== updatedOrder.status) {
-        newChatMessages.push({
-            user: { id: 'system', name: 'System', avatarUrl: '' },
-            text: `${user.name} changed status from '${originalOrder.status}' to '${updatedOrder.status}'`,
-            timestamp: new Date().toISOString(),
-            isSystemMessage: true,
-        });
-    } else {
-        const hasMeaningfulChanges = JSON.stringify({ ...originalOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null }) !== JSON.stringify({ ...updatedOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null });
-        if(hasMeaningfulChanges) {
-             newChatMessages.push({
-                user: { id: 'system', name: 'System', avatarUrl: '' },
-                text: `${user.name} edited the order details`,
-                timestamp: new Date().toISOString(),
-                isSystemMessage: true,
+            const remainingAttachments = updatedOrder.attachments?.filter(att => att.storagePath) || [];
+            const removedAttachments = originalOrder.attachments?.filter(att => 
+                !remainingAttachments.some(remAtt => remAtt.storagePath === att.storagePath)
+            ) || [];
+
+            const deletionPromises = removedAttachments.map(att => {
+                if (att.storagePath) {
+                    const fileRef = ref(storage, att.storagePath);
+                    return deleteObject(fileRef);
+                }
+                return Promise.resolve();
             });
-        }
-    }
+            await Promise.all(deletionPromises);
 
-    const orderWithSystemMessages = {
-        ...updatedOrder,
-        attachments: [...remainingAttachments, ...newAttachments],
-        chatMessages: newChatMessages
-    };
-    
-    const orderRef = doc(firestore, 'orders', updatedOrder.id);
-    const { id, creationDate, ...rest } = orderWithSystemMessages;
-    await updateDoc(orderRef, rest as any);
+            const newChatMessages: OrderChatMessage[] = updatedOrder.chatMessages ? [...updatedOrder.chatMessages] : [];
+
+            if (originalOrder.status !== updatedOrder.status) {
+                newChatMessages.push({
+                    user: { id: 'system', name: 'System', avatarUrl: '' },
+                    text: `${user.name} changed status from '${originalOrder.status}' to '${updatedOrder.status}'`,
+                    timestamp: new Date().toISOString(),
+                    isSystemMessage: true,
+                });
+            } else {
+                const hasMeaningfulChanges = JSON.stringify({ ...originalOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null }) !== JSON.stringify({ ...updatedOrder, chatMessages: [], creationDate: null, deadline: null, attachments: null });
+                if(hasMeaningfulChanges) {
+                    newChatMessages.push({
+                        user: { id: 'system', name: 'System', avatarUrl: '' },
+                        text: `${user.name} edited the order details`,
+                        timestamp: new Date().toISOString(),
+                        isSystemMessage: true,
+                    });
+                }
+            }
+
+            const orderWithSystemMessages = {
+                ...updatedOrder,
+                attachments: [...remainingAttachments, ...newAttachments],
+                chatMessages: newChatMessages
+            };
+            
+            const orderRef = doc(firestore, 'orders', updatedOrder.id);
+            const { id, creationDate, ...rest } = orderWithSystemMessages;
+            
+            updateDoc(orderRef, rest as any).catch(error => {
+                errorEmitter.emit(
+                    'permission-error',
+                    new FirestorePermissionError({
+                    path: orderRef.path,
+                    operation: 'update',
+                    requestResourceData: rest,
+                    })
+                );
+            });
+            resolve();
+        } catch (error) {
+            console.error("Failed to update order:", error);
+            reject(error);
+        }
+    });
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
@@ -157,7 +201,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const deletionPromises = (attachments || []).map(att => {
         if(att.storagePath) {
             const fileRef = ref(storage, att.storagePath);
-            return deleteObject(fileRef);
+            return deleteObject(fileRef).catch(err => console.error("Failed to delete attachment", err));
         }
         return Promise.resolve();
     });
@@ -169,7 +213,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     const orderRef = doc(firestore, 'orders', orderId);
-    await deleteDoc(orderRef);
+    deleteDoc(orderRef).catch(error => {
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: orderRef.path,
+                operation: 'delete',
+            })
+        );
+    });
   };
 
   const getOrderById = (orderId: string) => {
@@ -186,7 +238,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 export function useOrders() {
   const context = useContext(OrderContext);
   if (context === undefined) {
-    throw new Error('useOrders must be used within an OrderProvider');
+    throw new Error('useOrders must be used within a OrderProvider');
   }
   return context;
 }
