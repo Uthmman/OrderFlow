@@ -49,6 +49,7 @@ export type OrderChatMessage = {
     text: string;
     imageUrl?: string;
     timestamp: string; // ISO String
+    isSystemMessage?: boolean;
 }
 
 export type Order = {
@@ -61,7 +62,7 @@ export type Order = {
   incomeAmount: number;
   prepaidAmount?: number;
   isUrgent: boolean;
-  creationDate: string; // ISO string
+  creationDate: any; // Can be string or Firestore Timestamp
   attachments?: { type: 'image' | 'voice'; url: string; fileName: string }[];
   colors?: string[];
   material?: string;

@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode } from 'react';
-import type { Order } from '@/lib/types';
+import type { Order, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCollection } from '@/firebase';
 import { useFirestore, useUser } from '@/firebase';
@@ -19,7 +19,7 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-export function OrderProvider({ children }: { children: React.ReactNode }) {
+export function OrderProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { data: orders, loading } = useCollection<Order>(firestore ? collection(firestore, 'orders') : null);
@@ -37,10 +37,46 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateOrder = async (updatedOrder: Order) => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
+
+    const originalOrder = orders?.find(o => o.id === updatedOrder.id);
+    if (!originalOrder) return;
+    
+    const newChatMessages: OrderChatMessage[] = updatedOrder.chatMessages ? [...updatedOrder.chatMessages] : [];
+    let hasChanges = false;
+
+    // Check for status change
+    if (originalOrder.status !== updatedOrder.status) {
+        newChatMessages.push({
+            user: { id: 'system', name: 'System', avatarUrl: '' },
+            text: `${user.name} changed status from '${originalOrder.status}' to '${updatedOrder.status}'`,
+            timestamp: new Date().toISOString(),
+            isSystemMessage: true,
+        });
+        hasChanges = true;
+    }
+
+    // A simple check for general edits.
+    // This is not exhaustive, but good for a high-level "edited" message.
+    const originalString = JSON.stringify({ ...originalOrder, chatMessages: [], status: '' });
+    const updatedString = JSON.stringify({ ...updatedOrder, chatMessages: [], status: '' });
+    
+    if (!hasChanges && originalString !== updatedString) {
+       newChatMessages.push({
+            user: { id: 'system', name: 'System', avatarUrl: '' },
+            text: `${user.name} edited the order details`,
+            timestamp: new Date().toISOString(),
+            isSystemMessage: true,
+        });
+    }
+
+    const orderWithSystemMessages = {
+        ...updatedOrder,
+        chatMessages: newChatMessages
+    };
+    
     const orderRef = doc(firestore, 'orders', updatedOrder.id);
-    // Don't include id, creationDate in the update payload
-    const { id, creationDate, ...rest } = updatedOrder;
+    const { id, creationDate, ...rest } = orderWithSystemMessages;
     await updateDoc(orderRef, rest);
   };
 

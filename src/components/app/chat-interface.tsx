@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send } from "lucide-react"
+import { Loader2, Paperclip, Send, Info } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useUser } from "@/firebase"
 import { useState } from "react"
@@ -46,6 +46,14 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
     </div>
 );
 
+const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
+    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
+        <Info className="h-3 w-3" />
+        <span>{message.text}</span>
+        <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
+    </div>
+);
+
 
 export function ChatInterface({ order }: { order: Order }) {
   const { user } = useUser();
@@ -62,8 +70,8 @@ export function ChatInterface({ order }: { order: Order }) {
     const userMessage: OrderChatMessage = {
         user: {
             id: user.id,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
+            name: user.displayName,
+            avatarUrl: user.photoURL,
         },
         text: inputValue,
         timestamp: new Date().toISOString(),
@@ -87,12 +95,15 @@ export function ChatInterface({ order }: { order: Order }) {
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Team Chat</CardTitle>
-        <CardDescription>Chat about order #{order.id.slice(-5)}</CardDescription>
+        <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-        {(order.chatMessages || []).map((message, index) => (
-            <UserMessage key={index} message={message} />
-        ))}
+        {(order.chatMessages || []).map((message, index) => {
+            if(message.isSystemMessage) {
+                return <SystemMessage key={index} message={message} />;
+            }
+            return <UserMessage key={index} message={message} />;
+        })}
       </CardContent>
       <CardFooter className="p-4">
         <form onSubmit={handleSendMessage} className="relative w-full">
@@ -107,7 +118,7 @@ export function ChatInterface({ order }: { order: Order }) {
             <Button variant="ghost" size="icon" type="button" disabled>
               <Paperclip className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" type="submit" disabled={loading}>
+            <Button variant="ghost" size="icon" type="submit" disabled={loading || !inputValue.trim()}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
