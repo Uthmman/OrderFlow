@@ -28,7 +28,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     const customersCollection = collection(firestore, 'customers');
     const newCustomerDoc = await addDoc(customersCollection, {
       ...customerData,
-      ownerId: user.uid,
+      ownerId: user.id,
     });
     return newCustomerDoc.id;
   };
