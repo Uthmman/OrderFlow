@@ -8,6 +8,7 @@ import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 
 import type { Role } from '@/lib/types';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from './use-toast';
+import { firebaseConfig } from '@/firebase/config';
 
 interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
@@ -27,6 +28,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
+    // Explicitly set the authDomain to prevent "unauthorized-domain" errors in some environments.
+    provider.setCustomParameters({
+      authDomain: firebaseConfig.authDomain
+    });
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -51,6 +56,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             variant: "destructive",
             title: "Popup Blocked",
             description: "Your browser blocked the sign-in popup. Please allow popups for this site and try again."
+        });
+      } else {
+        toast({
+            variant: "destructive",
+            title: "Sign-in Error",
+            description: error.message
         });
       }
     }
