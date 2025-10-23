@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, UserPlus, X } from "lucide-react"
+import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, UserPlus, X, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -45,6 +46,16 @@ import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -69,16 +80,18 @@ interface OrderFormProps {
   order?: Order;
   onSubmit: (data: Omit<Order, 'id' | 'creationDate'>) => void;
   submitButtonText?: string;
+  isSubmitting?: boolean;
 }
 
 
-export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }: OrderFormProps) {
+export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
@@ -99,6 +112,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
     },
   })
 
+  const { formState: { isDirty } } = form;
+
   function handleFormSubmit(values: OrderFormValues) {
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     
@@ -107,7 +122,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
       finalColors = ["As Attached Picture"];
     }
 
-    const newOrderData: Omit<Order, 'id' | 'creationDate'> = {
+    const newOrderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'> = {
         ...values,
         colors: finalColors,
         customerName,
@@ -133,7 +148,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
             avatarUrl: `https://i.pravatar.cc/150?u=${newCustomerEmail}`,
             orderIds: []
         });
-        form.setValue("customerId", newCustomerId);
+        form.setValue("customerId", newCustomerId, { shouldValidate: true, shouldDirty: true });
         setIsCreatingNewCustomer(false);
         setNewCustomerName("");
         setNewCustomerEmail("");
@@ -143,6 +158,14 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
     }
   }
   
+  const handleCancelClick = () => {
+    if (isDirty) {
+      setShowCancelDialog(true);
+    } else {
+      router.back();
+    }
+  };
+
   const isColorAsAttachment = form.watch("colorAsAttachment");
 
   const filteredWoodFinishes = woodFinishOptions.filter(option =>
@@ -154,6 +177,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
   );
 
   return (
+    <>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -627,12 +651,30 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
           </div>
         </div>
         <div className="flex justify-end gap-2">
-            <Button variant="outline" type="button" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">{submitButtonText}</Button>
+            <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {submitButtonText}
+            </Button>
         </div>
       </form>
     </Form>
+    <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Are you sure you want to leave? Your changes will be lost.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Stay on page</AlertDialogCancel>
+                <AlertDialogAction onClick={() => router.back()}>
+                    Discard changes
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }
-
-    

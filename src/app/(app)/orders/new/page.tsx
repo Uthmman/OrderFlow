@@ -1,3 +1,4 @@
+
 "use client";
 
 import { OrderForm } from "@/components/app/order-form";
@@ -6,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 import { useUser } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 
 export default function NewOrderPage() {
@@ -13,6 +15,7 @@ export default function NewOrderPage() {
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>) => {
     if (!user) {
@@ -24,12 +27,21 @@ export default function NewOrderPage() {
         return;
     }
     
+    setIsSubmitting(true);
     addOrder(newOrderData).then((newId) => {
         toast({
             title: "Order Created",
-            description: `New order ${newId} has been added.`,
+            description: `New order has been added.`,
         });
-        router.push("/orders");
+        router.push(`/orders/${newId}`);
+    }).catch((error) => {
+        console.error("Failed to create order:", error);
+        toast({
+            variant: "destructive",
+            title: "Creation Failed",
+            description: "There was a problem creating the order.",
+        });
+        setIsSubmitting(false);
     });
   };
 
@@ -43,7 +55,7 @@ export default function NewOrderPage() {
           Fill out the form below to add a new order to the system.
         </p>
       </div>
-      <OrderForm onSubmit={handleCreateOrder} />
+      <OrderForm onSubmit={handleCreateOrder} isSubmitting={isSubmitting} />
     </div>
   );
 }

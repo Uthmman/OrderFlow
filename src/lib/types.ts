@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer';
