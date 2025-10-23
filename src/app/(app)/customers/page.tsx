@@ -6,7 +6,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -24,6 +23,27 @@ import { DataTableColumnHeader } from "@/components/app/data-table/data-table-co
 import { DataTableViewOptions } from "@/components/app/data-table/data-table-view-options"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Link from "next/link"
+
+function CustomerActions({ customer }: { customer: Customer }) {
+    return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem>View Customer</DropdownMenuItem>
+            <DropdownMenuItem>Edit</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
+
 
 export const columns: ColumnDef<Customer>[] = [
   {
@@ -87,20 +107,7 @@ export const columns: ColumnDef<Customer>[] = [
     cell: ({ row }) => {
       return (
         <div className="text-right">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View Customer</DropdownMenuItem>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <CustomerActions customer={row.original} />
         </div>
       )
     },
@@ -131,6 +138,52 @@ function CustomerTableToolbar({ table }: { table: ReturnType<typeof useReactTabl
   )
 }
 
+function MobileCustomerList({ customers }: { customers: Customer[] }) {
+    return (
+        <div className="space-y-4">
+             <div className="flex items-center justify-between gap-2">
+                <Input
+                    placeholder="Filter by customer..."
+                    className="h-9 flex-1"
+                />
+                 <Link href="/customers/new">
+                    <Button size="sm" className="h-9">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">New</span>
+                    </Button>
+                </Link>
+            </div>
+            {customers.map(customer => (
+                 <Card key={customer.id}>
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={customer.avatarUrl} />
+                                    <AvatarFallback>{customer.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
+                                    <CardDescription>{customer.company}</CardDescription>
+                                </div>
+                            </div>
+                           <CustomerActions customer={customer} />
+                        </div>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                        <p className="text-muted-foreground">{customer.email}</p>
+                        <p className="text-muted-foreground">{customer.phone}</p>
+                        <p>
+                            <span className="font-medium">{customer.orderIds.length}</span>{" "}
+                            <span className="text-muted-foreground">orders</span>
+                        </p>
+                    </CardContent>
+                 </Card>
+            ))}
+        </div>
+    )
+}
+
 export default function CustomersPage() {
     const data = React.useMemo(() => mockCustomers, []);
 
@@ -142,7 +195,10 @@ export default function CustomersPage() {
                     Manage your customer profiles and view their order history.
                 </p>
             </div>
-            <Card>
+            <div className="md:hidden">
+                <MobileCustomerList customers={data} />
+            </div>
+            <Card className="hidden md:block">
                 <CardContent className="pt-6">
                     <DataTable columns={columns} data={data}>
                         <CustomerTableToolbar />
