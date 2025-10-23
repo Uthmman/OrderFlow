@@ -19,12 +19,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 
-export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail } = useAuth();
+export default function RegisterPage() {
+  const { signUpWithEmail, signInWithGoogle } = useAuth();
   const { user, loading } = useUser();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+
 
   useEffect(() => {
     if(!loading && user) {
@@ -40,9 +42,9 @@ export default function LoginPage() {
       )
   }
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signInWithEmail(email, password);
+    await signUpWithEmail(email, password, name);
   }
 
   return (
@@ -54,13 +56,23 @@ export default function LoginPage() {
                  <Boxes className="h-8 w-8 text-primary" />
                  <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
             </div>
-             <CardTitle className="text-2xl font-bold">Login</CardTitle>
+             <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
             <CardDescription>
-              Enter your email below to login to your account
+              Enter your information to create an account
             </CardDescription>
           </div>
-          <form onSubmit={handleEmailSignIn}>
+          <form onSubmit={handleEmailSignUp}>
             <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  placeholder="John Doe"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -73,9 +85,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input 
                     id="password" 
                     type="password" 
@@ -85,7 +95,7 @@ export default function LoginPage() {
                 />
               </div>
               <Button type="submit" className="w-full">
-                Login
+                Create account
               </Button>
             </div>
           </form>
@@ -105,16 +115,16 @@ export default function LoginPage() {
             </Button>
           
            <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="underline">
-              Sign up
+            Already have an account?{" "}
+            <Link href="/login" className="underline">
+              Sign in
             </Link>
           </div>
         </div>
       </div>
       <div className="hidden bg-muted lg:block">
         <Image
-          src="https://picsum.photos/seed/login-bg/1200/1000"
+          src="https://picsum.photos/seed/register-bg/1200/1000"
           data-ai-hint="abstract geometric"
           alt="Image"
           width="1200"
