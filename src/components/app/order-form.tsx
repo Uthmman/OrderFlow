@@ -44,6 +44,7 @@ import { woodFinishOptions, customColorOptions } from "@/lib/colors"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -59,6 +60,7 @@ const formSchema = z.object({
   paymentDetails: z.string().optional(),
   deadline: z.date({ required_error: "A deadline is required." }),
   isUrgent: z.boolean().default(false),
+  colorAsAttachment: z.boolean().default(false),
 })
 
 type OrderFormValues = z.infer<typeof formSchema>
@@ -76,7 +78,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
-  
+  const [colorSearch, setColorSearch] = useState("");
+
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: order ? {
@@ -85,20 +88,28 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
         width: order.dimensions?.width,
         height: order.dimensions?.height,
         depth: order.dimensions?.depth,
+        colorAsAttachment: order.colors?.includes("As Attached Picture")
     } : {
       isUrgent: false,
       status: "Pending",
       incomeAmount: 0,
       prepaidAmount: 0,
       colors: [],
+      colorAsAttachment: false,
     },
   })
 
   function handleFormSubmit(values: OrderFormValues) {
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     
+    let finalColors = values.colors;
+    if (values.colorAsAttachment) {
+      finalColors = ["As Attached Picture"];
+    }
+
     const newOrderData: Omit<Order, 'id' | 'creationDate'> = {
         ...values,
+        colors: finalColors,
         customerName,
         deadline: values.deadline.toISOString(),
         dimensions: values.width && values.height && values.depth ? {
@@ -131,6 +142,16 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
       }
     }
   }
+  
+  const isColorAsAttachment = form.watch("colorAsAttachment");
+
+  const filteredWoodFinishes = woodFinishOptions.filter(option =>
+    option.name.toLowerCase().includes(colorSearch.toLowerCase())
+  );
+
+  const filteredCustomColors = customColorOptions.filter(option =>
+    option.name.toLowerCase().includes(colorSearch.toLowerCase())
+  );
 
   return (
     <Form {...form}>
@@ -238,93 +259,143 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                   name="colors"
                   render={() => (
                     <FormItem>
-                      <div>
+                      <div className="space-y-2">
                         <FormLabel>Color</FormLabel>
-                        <FormDescription>Select one or more colors.</FormDescription>
+                        <FormDescription>Select one or more colors, search, or specify color via attachment.</FormDescription>
                       </div>
 
-                      <h4 className="font-medium text-sm pt-2">Wood Finishes</h4>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                        {woodFinishOptions.map((option) => (
-                          <FormField
-                            key={option.name}
-                            control={form.control}
-                            name="colors"
-                            render={({ field }) => {
-                              return (
-                                <FormItem key={option.name} className="flex items-center space-x-2 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(option.name)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...(field.value || []), option.name])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== option.name
-                                              )
-                                            )
-                                      }}
-                                      className="sr-only"
-                                      id={option.name}
-                                    />
-                                  </FormControl>
-                                  <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
-                                      <Image 
-                                        src={option.imageUrl} 
-                                        alt={option.name} 
-                                        width={80} 
-                                        height={80}
-                                        className={cn("rounded-md h-20 w-20 object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
-                                      />
-                                      <span className="text-xs text-center">{option.name}</span>
-                                  </Label>
-                                </FormItem>
-                              )
-                            }}
-                          />
-                        ))}
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          placeholder="Search colors..."
+                          value={colorSearch}
+                          onChange={(e) => setColorSearch(e.target.value)}
+                          className="max-w-xs"
+                          disabled={isColorAsAttachment}
+                        />
                       </div>
+                      
+                       <FormField
+                        control={form.control}
+                        name="colorAsAttachment"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
+                            <FormControl>
+                                <Checkbox
+                                checked={field.value}
+                                onCheckedChange={(checked) => {
+                                    field.onChange(checked);
+                                    if (checked) {
+                                        form.setValue("colors", []);
+                                    }
+                                }}
+                                />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                Color as Attached Picture
+                                </FormLabel>
+                                <FormDescription>
+                                Select this if the color specifications are provided in an image attachment.
+                                </FormDescription>
+                            </div>
+                            </FormItem>
+                        )}
+                        />
 
-                      <Separator className="my-6" />
 
-                      <h4 className="font-medium text-sm">Custom Colors</h4>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                        {customColorOptions.map((option) => (
-                          <FormField
-                            key={option.name}
-                            control={form.control}
-                            name="colors"
-                            render={({ field }) => {
-                              return (
-                                <FormItem key={option.name} className="flex items-center space-x-2 space-y-0">
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(option.name)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...(field.value || []), option.name])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== option.name
-                                              )
-                                            )
-                                      }}
-                                      className="sr-only"
-                                      id={option.name}
-                                    />
-                                  </FormControl>
-                                  <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
-                                      <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-20", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                      <span className="text-xs text-center">{option.name}</span>
-                                  </Label>
-                                </FormItem>
-                              )
-                            }}
-                          />
-                        ))}
+                      <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
+                          <div>
+                            <h4 className="font-medium text-sm pt-2">Wood Finishes</h4>
+                             <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                              <CarouselContent className="-ml-2">
+                                {filteredWoodFinishes.map((option) => (
+                                  <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
+                                     <FormField
+                                        control={form.control}
+                                        name="colors"
+                                        render={({ field }) => (
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Checkbox
+                                                checked={field.value?.includes(option.name)}
+                                                onCheckedChange={(checked) => {
+                                                    return checked
+                                                    ? field.onChange([...(field.value || []), option.name])
+                                                    : field.onChange(
+                                                        field.value?.filter(
+                                                            (value) => value !== option.name
+                                                        )
+                                                        )
+                                                }}
+                                                className="sr-only"
+                                                id={option.name}
+                                                />
+                                            </FormControl>
+                                            <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                                                <Image 
+                                                    src={option.imageUrl} 
+                                                    alt={option.name} 
+                                                    width={80} 
+                                                    height={80}
+                                                    className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
+                                                />
+                                                <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                            </Label>
+                                            </FormItem>
+                                        )}
+                                        />
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+                              <CarouselPrevious />
+                              <CarouselNext />
+                            </Carousel>
+                          </div>
+
+                          <Separator className="my-6" />
+
+                          <div>
+                            <h4 className="font-medium text-sm">Custom Colors</h4>
+                             <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                              <CarouselContent className="-ml-2">
+                                {filteredCustomColors.map((option) => (
+                                  <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
+                                      <FormField
+                                        control={form.control}
+                                        name="colors"
+                                        render={({ field }) => (
+                                            <FormItem className="flex items-center space-x-2 space-y-0">
+                                            <FormControl>
+                                                <Checkbox
+                                                checked={field.value?.includes(option.name)}
+                                                onCheckedChange={(checked) => {
+                                                    return checked
+                                                    ? field.onChange([...(field.value || []), option.name])
+                                                    : field.onChange(
+                                                        field.value?.filter(
+                                                            (value) => value !== option.name
+                                                        )
+                                                        )
+                                                }}
+                                                className="sr-only"
+                                                id={option.name}
+                                                />
+                                            </FormControl>
+                                            <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                                                <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-full", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                                <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                            </Label>
+                                            </FormItem>
+                                        )}
+                                        />
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+                              <CarouselPrevious />
+                              <CarouselNext />
+                            </Carousel>
+                          </div>
                       </div>
-
                       <FormMessage />
                     </FormItem>
                   )}
@@ -563,3 +634,5 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
     </Form>
   )
 }
+
+    

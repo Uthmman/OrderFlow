@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
@@ -152,6 +152,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             </div>
                         </div>
                     )}
+                    {order.colors?.includes("As Attached Picture") && (
+                        <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color to be determined by attached picture.</span></div>
+                    )}
                     {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
                 </CardContent>
             </Card>
@@ -255,3 +258,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
