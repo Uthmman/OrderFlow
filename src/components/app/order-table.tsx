@@ -169,6 +169,8 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
 }
 
 function MobileOrderList({ orders }: { orders: Order[] }) {
+    const router = useRouter();
+
     return (
         <div className="space-y-4">
              <div className="flex items-center justify-between">
@@ -178,31 +180,35 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                 />
             </div>
             {orders.map(order => (
-                 <Card key={order.id}>
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <CardTitle className="text-base font-bold">
-                                    <Link href={`/orders/${order.id}`} className="hover:underline">{order.id}</Link>
-                                </CardTitle>
-                                <CardDescription>{order.customerName}</CardDescription>
+                 <Card key={order.id} className="hover:bg-muted/50 transition-colors">
+                    <Link href={`/orders/${order.id}`} className="block">
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <CardTitle className="text-base font-bold">
+                                        {order.id}
+                                    </CardTitle>
+                                    <CardDescription>{order.customerName}</CardDescription>
+                                </div>
+                                <div onClick={(e) => e.stopPropagation()}>
+                                    <OrderActions order={order} />
+                                </div>
                             </div>
-                           <OrderActions order={order} />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex justify-between items-center">
-                            <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
-                            <div className="text-sm text-muted-foreground">
-                                Due: {new Date(order.deadline).toLocaleDateString()}
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex justify-between items-center">
+                                <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                                <div className="text-sm text-muted-foreground">
+                                    Due: {new Date(order.deadline).toLocaleDateString()}
+                                </div>
                             </div>
-                        </div>
-                    </CardContent>
-                    <CardFooter>
-                         <div className="text-base font-medium w-full text-right">
-                            {formatCurrency(order.incomeAmount)}
-                        </div>
-                    </CardFooter>
+                        </CardContent>
+                        <CardFooter>
+                            <div className="text-base font-medium w-full text-right">
+                                {formatCurrency(order.incomeAmount)}
+                            </div>
+                        </CardFooter>
+                    </Link>
                  </Card>
             ))}
         </div>
