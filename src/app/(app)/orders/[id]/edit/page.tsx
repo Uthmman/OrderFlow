@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, use } from "react";
@@ -29,9 +28,9 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>) => {
+  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
     setIsSubmitting(true);
-    updateOrder({ ...order, ...updatedOrderData}).then(() => {
+    updateOrder({ ...order, ...updatedOrderData}, newFiles).then(() => {
         toast({
         title: "Order Updated",
         description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
@@ -61,5 +60,3 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-
-    

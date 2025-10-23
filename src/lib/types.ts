@@ -52,6 +52,13 @@ export type OrderChatMessage = {
     isSystemMessage?: boolean;
 }
 
+export type OrderAttachment = {
+  fileName: string;
+  url: string;
+  storagePath: string;
+};
+
+
 export type Order = {
   id:string;
   customerName: string;
@@ -63,7 +70,7 @@ export type Order = {
   prepaidAmount?: number;
   isUrgent: boolean;
   creationDate: any; // Can be string or Firestore Timestamp
-  attachments?: { type: 'image' | 'voice'; url: string; fileName: string }[];
+  attachments?: OrderAttachment[];
   colors?: string[];
   material?: string;
   dimensions?: { width: number; height: number; depth: number };

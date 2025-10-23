@@ -17,7 +17,7 @@ export default function NewOrderPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>) => {
+  const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
     if (!user) {
         toast({
             variant: "destructive",
@@ -28,7 +28,7 @@ export default function NewOrderPage() {
     }
     
     setIsSubmitting(true);
-    addOrder(newOrderData).then((newId) => {
+    addOrder(newOrderData, newFiles).then((newId) => {
         toast({
             title: "Order Created",
             description: `New order has been added.`,

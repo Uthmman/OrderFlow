@@ -72,7 +72,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const customer = getCustomerById(order.customerId);
 
   const handleDelete = () => {
-    deleteOrder(order.id);
+    deleteOrder(order.id, order.attachments);
     toast({
         title: "Order Deleted",
         description: `${formatOrderId(order.id)} has been deleted.`,
@@ -236,16 +236,18 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {order.attachments.map(att => (
                             <div key={att.fileName} className="group relative">
-                                <Image 
-                                    src={att.url} 
-                                    alt={att.fileName}
-                                    width={200}
-                                    height={150}
-                                    className="rounded-lg object-cover aspect-video"
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                    <Button variant="secondary" size="sm">View</Button>
-                                </div>
+                                <Link href={att.url} target="_blank" rel="noopener noreferrer">
+                                    <Image 
+                                        src={att.url} 
+                                        alt={att.fileName}
+                                        width={200}
+                                        height={150}
+                                        className="rounded-lg object-cover aspect-video"
+                                    />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                        <Button variant="secondary" size="sm">View</Button>
+                                    </div>
+                                </Link>
                                 <p className="text-xs text-muted-foreground truncate mt-1">{att.fileName}</p>
                             </div>
                         ))}

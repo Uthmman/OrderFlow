@@ -32,14 +32,14 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, UserPlus, X, Loader2 } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order } from "@/lib/types"
+import { Order, OrderAttachment } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import Image from "next/image"
 import { woodFinishOptions, customColorOptions } from "@/lib/colors"
 import { Checkbox } from "../ui/checkbox"
@@ -56,6 +56,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Progress } from "../ui/progress"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -78,7 +79,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>) => void;
+  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => void;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -92,6 +93,10 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  
+  const [existingAttachments, setExistingAttachments] = useState<OrderAttachment[]>(order?.attachments || []);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
@@ -124,6 +129,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
 
     const newOrderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'> = {
         ...values,
+        attachments: existingAttachments,
         colors: finalColors,
         customerName,
         deadline: values.deadline.toISOString(),
@@ -134,7 +140,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         } : undefined,
         assignedTo: order?.assignedTo || [],
     };
-    onSubmit(newOrderData);
+    onSubmit(newOrderData, newFiles);
   }
 
   const handleAddNewCustomer = async () => {
@@ -159,11 +165,25 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   }
   
   const handleCancelClick = () => {
-    if (isDirty) {
+    if (isDirty || newFiles.length > 0) {
       setShowCancelDialog(true);
     } else {
       router.back();
     }
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      setNewFiles(prev => [...prev, ...Array.from(event.target.files!)]);
+    }
+  };
+
+  const removeNewFile = (index: number) => {
+    setNewFiles(prev => prev.filter((_, i) => i !== index));
+  };
+  
+  const removeExistingAttachment = (index: number) => {
+    setExistingAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
@@ -468,33 +488,61 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
             </Card>
 
             <Card>
-                 <CardHeader>
+                <CardHeader>
                     <CardTitle>Attachments</CardTitle>
-                    <CardDescription>Upload relevant images or voice notes.</CardDescription>
-                 </CardHeader>
-                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CardDescription>Upload relevant images or other files.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                     <FormItem>
-                        <FormLabel>Image Attachments</FormLabel>
                         <FormControl>
-                            <div className="flex items-center gap-2 p-2 border rounded-md">
-                                <ImageIcon className="text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground flex-1">Click to upload or drag & drop</span>
-                                <Button type="button" variant="outline" size="sm">Upload</Button>
+                            <div 
+                                className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                <p className="text-muted-foreground">Click to upload or drag & drop</p>
+                                <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    onChange={handleFileChange}
+                                    className="hidden"
+                                />
                             </div>
                         </FormControl>
                     </FormItem>
-                     <FormItem>
-                        <FormLabel>Voice Memos</FormLabel>
-                        <FormControl>
-                            <div className="flex items-center gap-2 p-2 border rounded-md">
-                                <Mic className="text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground flex-1">Click to upload or drag & drop</span>
-                                <Button type="button" variant="outline" size="sm">Upload</Button>
-                            </div>
-                        </FormControl>
-                    </FormItem>
-                 </CardContent>
+
+                    {(existingAttachments.length > 0 || newFiles.length > 0) && (
+                        <div className="space-y-2">
+                             <h4 className="text-sm font-medium">Files to be uploaded:</h4>
+                             {existingAttachments.map((file, index) => (
+                                <div key={`existing-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <FileIcon className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm truncate">{file.fileName}</span>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => removeExistingAttachment(index)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))}
+                            {newFiles.map((file, index) => (
+                                <div key={`new-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <FileIcon className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm truncate">{file.name}</span>
+                                    </div>
+                                    <Button variant="ghost" size="icon" onClick={() => removeNewFile(index)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </CardContent>
             </Card>
+
           </div>
 
           <div className="space-y-8">
