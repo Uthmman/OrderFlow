@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -9,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, AlertTriangle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -61,7 +62,7 @@ function OrderActions({ order }: { order: Order }) {
     const { deleteOrder, updateOrder } = useOrders();
     const { toast } = useToast();
 
-    const handleDelete = (e: React.MouseEvent) => {
+    const handleCancel = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent card click
         updateOrder({ ...order, status: "Cancelled" });
         toast({
@@ -69,6 +70,15 @@ function OrderActions({ order }: { order: Order }) {
             description: `Order ${formatOrderId(order.id)} has been cancelled.`,
         });
     }
+
+    const handleToggleUrgent = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        updateOrder({ ...order, isUrgent: !order.isUrgent });
+        toast({
+            title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
+            description: `Order ${formatOrderId(order.id)} has been updated.`,
+        });
+      };
 
     return (
         <AlertDialog>
@@ -86,6 +96,10 @@ function OrderActions({ order }: { order: Order }) {
                 </DropdownMenuItem>
                  <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
                   Edit Order
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleUrgent(e); }}>
+                    <AlertTriangle />
+                    <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
                   Copy Order ID
@@ -107,7 +121,7 @@ function OrderActions({ order }: { order: Order }) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Back</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Cancel Order</AlertDialogAction>
+                    <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -299,3 +313,5 @@ export function OrderTable() {
     </>
   )
 }
+
+    

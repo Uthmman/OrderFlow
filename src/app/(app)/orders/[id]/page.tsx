@@ -1,14 +1,14 @@
 
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
@@ -54,7 +54,7 @@ const allColorOptions = [...woodFinishOptions, ...customColorOptions];
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder } = useOrders();
   const { getCustomerById } = useCustomers();
   const router = useRouter();
   const { toast } = useToast();
@@ -80,6 +80,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     router.push("/orders");
   };
 
+  const handleToggleUrgent = () => {
+    updateOrder({ ...order, isUrgent: !order.isUrgent });
+    toast({
+        title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
+        description: `Order ${formatOrderId(order.id)} has been updated.`,
+    });
+  };
+
   const prepaid = order.prepaidAmount || 0;
   const balance = order.incomeAmount - prepaid;
 
@@ -91,7 +99,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        Order {formatOrderId(order.id)}
+                        {formatOrderId(order.id)}
                     </h1>
                     <div className="flex items-center gap-2">
                       <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
@@ -116,6 +124,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleToggleUrgent}>
+                                <AlertTriangle /> 
+                                <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
+                            </DropdownMenuItem>
                             <DropdownMenuItem>Mark as Complete</DropdownMenuItem>
                             <DropdownMenuItem>Duplicate Order</DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -165,26 +177,26 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
                         <div className="flex items-start gap-3">
                             <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
-                            <div className="flex flex-wrap items-center gap-4">
-                                <span className="text-sm">Colors:</span>
+                            <div className="flex flex-wrap items-start gap-4">
+                                <span className="text-sm pt-4">Colors:</span>
                                 {order.colors.map(colorName => {
                                     const colorOption = allColorOptions.find(c => c.name === colorName);
                                     if (!colorOption) return <Badge key={colorName} variant="secondary">{colorName}</Badge>;
 
                                     if ('imageUrl' in colorOption) {
                                         return (
-                                            <div key={colorName} className="flex items-center gap-2" title={colorName}>
-                                                <Image src={colorOption.imageUrl} alt={colorName} width={32} height={32} className="rounded-md object-cover h-8 w-8"/>
-                                                <span className="text-sm font-medium">{colorName}</span>
+                                            <div key={colorName} className="flex flex-col items-center gap-2" title={colorName}>
+                                                <Image src={colorOption.imageUrl} alt={colorName} width={64} height={64} className="rounded-md object-cover h-16 w-16"/>
+                                                <span className="text-xs font-medium">{colorName}</span>
                                             </div>
                                         )
                                     }
 
                                     if ('colorValue' in colorOption) {
                                         return (
-                                             <div key={colorName} className="flex items-center gap-2" title={colorName}>
-                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-8 w-8 rounded-md border" />
-                                                <span className="text-sm font-medium">{colorName}</span>
+                                             <div key={colorName} className="flex flex-col items-center gap-2" title={colorName}>
+                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-16 w-16 rounded-md border" />
+                                                <span className="text-xs font-medium">{colorName}</span>
                                             </div>
                                         )
                                     }
@@ -284,3 +296,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
