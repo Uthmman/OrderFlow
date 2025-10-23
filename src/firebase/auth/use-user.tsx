@@ -1,77 +1,88 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
-import { onAuthStateChanged, User as FirebaseAuthUser } from 'firebase/auth';
-import { useAuth, useFirestore } from '../provider';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { FirebaseUser, User } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { User } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 export interface UseUserHook {
   user: User | null;
-  firebaseUser: FirebaseAuthUser | null;
   loading: boolean;
 }
 
+const MOCK_USERS: Record<string, User> = {
+  Admin: {
+    id: 'admin-user-id',
+    name: 'Admin User',
+    email: 'admin@example.com',
+    avatarUrl: 'https://i.pravatar.cc/150?u=admin',
+    role: 'Admin',
+    verified: true,
+  },
+  Manager: {
+    id: 'manager-user-id',
+    name: 'Manager User',
+    email: 'manager@example.com',
+    avatarUrl: 'https://i.pravatar.cc/150?u=manager',
+    role: 'Manager',
+    verified: true,
+  },
+  Sales: {
+    id: 'sales-user-id',
+    name: 'Sales User',
+    email: 'sales@example.com',
+    avatarUrl: 'https://i.pravatar.cc/150?u=sales',
+    role: 'Sales',
+    verified: true,
+  },
+  Designer: {
+    id: 'designer-user-id',
+    name: 'Designer User',
+    email: 'designer@example.com',
+    avatarUrl: 'https://i.pravatar.cc/150?u=designer',
+    role: 'Designer',
+    verified: true,
+  },
+};
+
+
 export function useUser(): UseUserHook {
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(auth?.currentUser || null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Effect for handling real Firebase auth state
-  useEffect(() => {
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-    
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      setFirebaseUser(authUser);
-    });
-
-    return () => unsubscribe();
-  }, [auth]);
-
-  const userRef = useMemo(() => {
-      if (!firestore || !firebaseUser) return null;
-      return doc(firestore, 'users', firebaseUser.uid);
-  }, [firestore, firebaseUser]);
-
+  const router = useRouter();
 
   useEffect(() => {
-    if (!userRef) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const unsubscribe = onSnapshot(userRef, (snapshot) => {
-        if(snapshot.exists()) {
-             const data = snapshot.data() as FirebaseUser;
-             setUser({
-                 id: snapshot.id,
-                 name: data.displayName || 'No Name',
-                 email: data.email || 'No Email',
-                 avatarUrl: data.photoURL || '',
-                 role: data.role || 'Designer',
-                 verified: data.verified || false,
-                 customClaims: data.customClaims
-             });
+    const checkUser = () => {
+      try {
+        const storedUserRole = localStorage.getItem('demoUserRole');
+        if (storedUserRole && MOCK_USERS[storedUserRole]) {
+          setUser(MOCK_USERS[storedUserRole]);
         } else {
-            setUser(null);
+          setUser(null);
         }
-        setLoading(false);
-    }, (error) => {
-        console.error("Error fetching user document:", error);
+      } catch (error) {
+        console.error("Could not access localStorage:", error);
         setUser(null);
+      } finally {
         setLoading(false);
-    });
+      }
+    };
+    
+    checkUser();
 
-    return () => unsubscribe();
-  }, [userRef]);
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'demoUserRole') {
+        checkUser();
+      }
+    };
 
-  return { user, firebaseUser, loading };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+
+  }, [router]);
+
+  return { user, loading };
 }

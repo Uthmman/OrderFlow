@@ -10,44 +10,34 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
-import { Boxes, Chrome } from "lucide-react"
-import { useEffect, useState } from "react"
+import { Boxes } from "lucide-react"
+import { useEffect } from "react"
 import Image from "next/image"
 import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import Link from "next/link"
+import type { Role } from "@/lib/types"
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithEmail } = useAuth();
+  const { signInAsDemoUser } = useAuth();
   const { user, loading } = useUser();
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
 
   useEffect(() => {
     if (!loading && user) {
       router.push("/dashboard");
     }
   }, [user, loading, router]);
-  
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await signInWithEmail(email, password);
-  }
 
-  if (loading) {
+  const handleDemoLogin = (role: Role) => {
+    signInAsDemoUser(role);
+  };
+  
+  if (loading || user) {
     return (
       <div className="flex h-screen items-center justify-center">
           <div className="text-xl">Loading...</div>
       </div>
     )
-  }
-
-  // If the user is already logged in, don't render the form
-  if (user) {
-    return null;
   }
 
   return (
@@ -59,62 +49,23 @@ export default function LoginPage() {
                  <Boxes className="h-8 w-8 text-primary" />
                  <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
             </div>
-             <CardTitle className="text-2xl font-bold">Login</CardTitle>
+             <CardTitle className="text-2xl font-bold">Demo Login</CardTitle>
             <CardDescription>
-              Enter your email below to login to your account
+              Select a role to log in as a demo user.
             </CardDescription>
           </div>
-          <form onSubmit={handleEmailSignIn}>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                </div>
-                <Input 
-                    id="password" 
-                    type="password" 
-                    required 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                Login
-              </Button>
-            </div>
-          </form>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-                </span>
-            </div>
-          </div>
-            <Button variant="outline" onClick={signInWithGoogle} className="w-full">
-                <Chrome className="mr-2 h-4 w-4" />
-                Sign in with Google
-            </Button>
-          
-           <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="underline">
-              Sign up
-            </Link>
-          </div>
+          <Card>
+            <CardHeader>
+                <CardTitle>Select a Role</CardTitle>
+                <CardDescription>Log in as a demo user with a specific role to see different views of the application.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+                <Button onClick={() => handleDemoLogin('Admin')}>Log in as Admin</Button>
+                <Button onClick={() => handleDemoLogin('Manager')} variant="secondary">Log in as Manager</Button>
+                <Button onClick={() => handleDemoLogin('Sales')} variant="secondary">Log in as Sales</Button>
+                <Button onClick={() => handleDemoLogin('Designer')} variant="secondary">Log in as Designer</Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
       <div className="hidden bg-muted lg:block">
