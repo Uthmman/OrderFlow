@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -22,7 +23,7 @@ import type { Role } from "@/lib/types"
 import { Boxes } from "lucide-react"
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { useUser } from "@/firebase"
+import { useUser } from "@/firebase/auth/use-user";
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
@@ -43,7 +44,7 @@ export default function LoginPage() {
     signInAsMockUser(role);
   };
   
-  if (loading) {
+  if (loading || user) {
       return (
         <div className="flex h-screen items-center justify-center">
             <div className="text-xl">Loading...</div>

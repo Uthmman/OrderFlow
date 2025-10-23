@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect } from "react";
@@ -6,7 +7,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
 import { OrderProvider } from "@/hooks/use-orders";
-import { useUser } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
 import { CustomerProvider } from "@/hooks/use-customers";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

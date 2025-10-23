@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -17,7 +18,7 @@ const MOCK_USER_STORAGE_KEY = 'mockUser';
 export function useUser(): UseUserHook {
   const auth = useAuth();
   const firestore = useFirestore();
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(null);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseAuthUser | null>(auth?.currentUser || null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,26 +31,28 @@ export function useUser(): UseUserHook {
           const mockUser = JSON.parse(mockUserJson);
           setUser(mockUser);
           setFirebaseUser(null);
+          setLoading(false);
         } else {
-          // If mock user is cleared, let the real auth state take over
-          if (!auth?.currentUser) {
+          // If mock user is cleared, rely on Firebase auth state
+          if (auth?.currentUser) {
+            setFirebaseUser(auth.currentUser);
+          } else {
             setUser(null);
+            setFirebaseUser(null);
+            setLoading(false);
           }
         }
       } catch (error) {
         console.error("Failed to parse mock user from localStorage", error);
         localStorage.removeItem(MOCK_USER_STORAGE_KEY);
         setUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    // Check initial state
-    handleStorageChange();
+    handleStorageChange(); // Initial check
 
-    // Listen for changes to localStorage (e.g., from other tabs)
     window.addEventListener('storage', handleStorageChange);
-    // Also listen for a custom event for same-tab updates
     window.addEventListener('mock-user-change', handleStorageChange);
 
     return () => {
@@ -64,14 +67,13 @@ export function useUser(): UseUserHook {
       setLoading(false);
       return;
     }
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      // If there's a mock user, don't override it with the real auth state
+    
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      // If a mock user is active, don't process the real auth state change
       if (localStorage.getItem(MOCK_USER_STORAGE_KEY)) {
-        setLoading(false);
         return;
       }
-      setFirebaseUser(user);
+      setFirebaseUser(authUser);
     });
 
     return () => unsubscribe();
@@ -84,13 +86,15 @@ export function useUser(): UseUserHook {
 
 
   useEffect(() => {
+    // This effect runs when userRef changes (i.e., a real user logs in/out)
+    // or when the mock user is cleared.
+    if (localStorage.getItem(MOCK_USER_STORAGE_KEY)) {
+      // Mock user is handled by the other effect, so we do nothing here.
+      return;
+    }
+
     if (!userRef) {
-      // If there's no real user ref, it might be a mock user or no user at all.
-      // The mock user effect already handles setting the user.
-      // If no mock user and no real user, set user to null.
-      if (!localStorage.getItem(MOCK_USER_STORAGE_KEY)) {
-        setUser(null);
-      }
+      setUser(null);
       setLoading(false);
       return;
     }
@@ -108,11 +112,15 @@ export function useUser(): UseUserHook {
                  customClaims: data.customClaims
              });
         } else {
+            // This can happen if the user exists in Auth but not in Firestore.
+            // You might want to create the user document here.
+            // For now, we'll treat them as not fully logged in.
             setUser(null);
         }
         setLoading(false);
-    }, () => {
-        // On error, also set loading to false.
+    }, (error) => {
+        console.error("Error fetching user document:", error);
+        setUser(null);
         setLoading(false);
     });
 
