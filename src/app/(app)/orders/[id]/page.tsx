@@ -1,15 +1,17 @@
 
+
 import { mockOrders, mockCustomers } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, AlertCircle } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, AlertCircle, Pencil } from "lucide-react";
 import Image from "next/image";
 import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -29,22 +31,33 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   }
 
   const customer = mockCustomers.find(c => c.id === order.customerId);
+  const prepaid = order.prepaidAmount || 0;
+  const balance = order.incomeAmount - prepaid;
+
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <div className="flex items-center gap-4 flex-wrap">
-            <h1 className="text-3xl font-bold font-headline tracking-tight">
-                Order {order.id}
-            </h1>
-            <div className="flex items-center gap-2">
-              <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
-              {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
+        <div className="flex justify-between items-start">
+            <div>
+                <div className="flex items-center gap-4 flex-wrap">
+                    <h1 className="text-3xl font-bold font-headline tracking-tight">
+                        Order {order.id}
+                    </h1>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                      {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
+                    </div>
+                </div>
+                <p className="text-muted-foreground mt-1">
+                  Detailed view of order from {order.customerName}.
+                </p>
             </div>
+            <Button>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Order
+            </Button>
         </div>
-        <p className="text-muted-foreground mt-1">
-          Detailed view of order from {order.customerName}.
-        </p>
       </div>
 
       <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
@@ -57,6 +70,17 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground">{order.description}</p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Specifications</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
+                    {order.color && <div className="flex items-center gap-3"><Palette className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color: {order.color}</span></div>}
+                    {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
                 </CardContent>
             </Card>
 
@@ -106,23 +130,23 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         <span className="text-sm">Deadline: {new Date(order.deadline).toLocaleDateString()}</span>
                     </div>
                     <Separator />
-                     <div className="flex items-center gap-3">
-                        <DollarSign className="h-4 w-4 text-muted-foreground"/>
-                        <span className="text-sm font-semibold">Income: ${order.incomeAmount.toLocaleString()}</span>
+                     <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-muted-foreground">Total Price</span>
+                        <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount)}</span>
                     </div>
-                    <p className="text-sm text-muted-foreground">{order.paymentDetails}</p>
+                     <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm text-muted-foreground">Pre-paid</span>
+                        <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
+                    </div>
+                      <div className="flex items-center justify-between gap-3 font-bold">
+                        <span className="text-sm">Balance Due</span>
+                        <span className="text-sm">{formatCurrency(balance)}</span>
+                    </div>
+                    <Separator />
+                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Specifications</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
-                    {order.color && <div className="flex items-center gap-3"><Palette className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color: {order.color}</span></div>}
-                    {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
-                </CardContent>
-            </Card>
+
             {customer && (
                 <Card>
                     <CardHeader>

@@ -35,6 +35,7 @@ export type Order = {
   status: OrderStatus;
   deadline: string;
   incomeAmount: number;
+  prepaidAmount?: number;
   isUrgent: boolean;
   creationDate: string;
   attachments?: { type: 'image' | 'voice'; url: string; fileName: string }[];
