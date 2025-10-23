@@ -16,7 +16,6 @@ import { Loader2, Paperclip, Send } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useUser } from "@/firebase"
 import { useState } from "react"
-import { generateOrderChatResponse } from "@/ai/flows/order-chat-flow"
 import Image from "next/image"
 import { Order, OrderChatMessage } from "@/lib/types"
 
@@ -29,26 +28,6 @@ const UserAvatar = ({ message }: { message: OrderChatMessage }) => (
     </Avatar>
 );
 
-const AIMessage = ({ message }: { message: OrderChatMessage }) => (
-    <div className="flex items-start gap-3">
-        <Avatar>
-            <AvatarFallback>AI</AvatarFallback>
-        </Avatar>
-        <div>
-            <div className="flex items-center gap-2">
-                <p className="font-semibold">AI Assistant</p>
-                <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
-            </div>
-            <p className="text-sm text-muted-foreground">{message.text}</p>
-            {message.imageUrl && (
-                <div className="mt-2">
-                    <Image src={message.imageUrl} alt="Generated Design" width={300} height={300} className="rounded-md"/>
-                </div>
-            )}
-        </div>
-    </div>
-);
-
 const UserMessage = ({ message }: { message: OrderChatMessage }) => (
      <div className="flex items-start gap-3">
         <UserAvatar message={message} />
@@ -58,6 +37,11 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
             <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
             </div>
             <p className="text-sm text-muted-foreground">{message.text}</p>
+            {message.imageUrl && (
+                <div className="mt-2">
+                    <Image src={message.imageUrl} alt="User Upload" width={300} height={300} className="rounded-md"/>
+                </div>
+            )}
         </div>
     </div>
 );
@@ -73,6 +57,8 @@ export function ChatInterface({ order }: { order: Order }) {
     e.preventDefault();
     if (!inputValue.trim() || !user || loading) return;
 
+    setLoading(true);
+
     const userMessage: OrderChatMessage = {
         user: {
             id: user.id,
@@ -83,51 +69,14 @@ export function ChatInterface({ order }: { order: Order }) {
         timestamp: new Date().toISOString(),
     };
     
-    setLoading(true);
-    setInputValue("");
-    
     const updatedMessages = [...(order.chatMessages || []), userMessage];
-    await updateOrder({ ...order, chatMessages: updatedMessages });
-
-
+    
     try {
-        // Create a plain order object for the server action
-        const toISODate = (date: any) => {
-            if (!date) return new Date().toISOString();
-            if (typeof date.toDate === 'function') { // Firestore Timestamp
-                return date.toDate().toISOString();
-            }
-            return new Date(date).toISOString();
-        };
-
-        const plainOrder = {
-          ...order,
-          creationDate: toISODate(order.creationDate),
-          deadline: toISODate(order.deadline),
-        };
-
-        const aiResponse = await generateOrderChatResponse({
-            order: plainOrder,
-            message: inputValue,
-        });
-
-        const aiMessage: OrderChatMessage = {
-            user: { id: "ai", name: "AI Assistant", avatarUrl: "" },
-            text: aiResponse.text,
-            imageUrl: aiResponse.imageUrl,
-            timestamp: new Date().toISOString(),
-        };
-        
-        await updateOrder({ ...order, chatMessages: [...updatedMessages, aiMessage]});
-
+        await updateOrder({ ...order, chatMessages: updatedMessages });
+        setInputValue("");
     } catch (error) {
-        console.error("Error generating AI response:", error);
-        const errorMessage: OrderChatMessage = {
-            user: { id: "ai", name: "AI Assistant", avatarUrl: "" },
-            text: "Sorry, I encountered an error. Please try again.",
-            timestamp: new Date().toISOString(),
-        };
-         await updateOrder({ ...order, chatMessages: [...updatedMessages, errorMessage]});
+        console.error("Error sending message:", error);
+        // Optionally, show a toast notification for the error
     } finally {
         setLoading(false);
     }
@@ -138,28 +87,17 @@ export function ChatInterface({ order }: { order: Order }) {
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Team Chat</CardTitle>
-        <CardDescription>AI-powered chat for order #{order.id.slice(-5)}</CardDescription>
+        <CardDescription>Chat about order #{order.id.slice(-5)}</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
         {(order.chatMessages || []).map((message, index) => (
-            message.user.id === 'ai' ? <AIMessage key={index} message={message} /> : <UserMessage key={index} message={message} />
+            <UserMessage key={index} message={message} />
         ))}
-         {loading && (
-          <div className="flex items-start gap-3">
-             <Avatar>
-                <AvatarFallback>AI</AvatarFallback>
-            </Avatar>
-            <div className="flex items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>
-                <p className="text-sm text-muted-foreground">AI is thinking...</p>
-            </div>
-          </div>
-        )}
       </CardContent>
       <CardFooter className="p-4">
         <form onSubmit={handleSendMessage} className="relative w-full">
           <Input 
-            placeholder="Ask the AI for a design or an update..." 
+            placeholder="Send a message..." 
             className="pr-20"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -170,7 +108,7 @@ export function ChatInterface({ order }: { order: Order }) {
               <Paperclip className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" type="submit" disabled={loading}>
-              <Send className="h-4 w-4" />
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </form>
