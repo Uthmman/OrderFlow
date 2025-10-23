@@ -1,16 +1,12 @@
+
 "use client"
 
 import * as React from "react"
 import {
   ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
   useReactTable,
 } from "@tanstack/react-table"
 import {
-  ArrowUpDown,
-  ChevronDown,
   MoreHorizontal,
   PlusCircle,
 } from "lucide-react"
@@ -26,14 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus } from "@/lib/types"
 import { mockOrders } from "@/lib/mock-data"
@@ -43,6 +31,7 @@ import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -52,6 +41,31 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+}
+
+function OrderActions({ order }: { order: Order }) {
+    const router = useRouter();
+    return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
+              Copy Order ID
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive">Cancel Order</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+    )
 }
 
 export const columns: ColumnDef<Order>[] = [
@@ -124,32 +138,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => {
-      const order = row.original
-      const router = useRouter();
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
-              Copy Order ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">Cancel Order</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
+    cell: ({ row }) => <OrderActions order={row.original} />,
   },
 ]
 
@@ -179,13 +168,63 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
   )
 }
 
+function MobileOrderList({ orders }: { orders: Order[] }) {
+    return (
+        <div className="space-y-4">
+             <div className="flex items-center justify-between">
+                <Input
+                    placeholder="Filter by customer..."
+                    className="h-8 w-full"
+                />
+            </div>
+            {orders.map(order => (
+                 <Card key={order.id}>
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <CardTitle className="text-base font-bold">
+                                    <Link href={`/orders/${order.id}`} className="hover:underline">{order.id}</Link>
+                                </CardTitle>
+                                <CardDescription>{order.customerName}</CardDescription>
+                            </div>
+                           <OrderActions order={order} />
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex justify-between items-center">
+                            <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                            <div className="text-sm text-muted-foreground">
+                                Due: {new Date(order.deadline).toLocaleDateString()}
+                            </div>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                         <div className="text-base font-medium w-full text-right">
+                            {formatCurrency(order.incomeAmount)}
+                        </div>
+                    </CardFooter>
+                 </Card>
+            ))}
+        </div>
+    )
+}
+
 
 export function OrderTable() {
   const data = React.useMemo(() => mockOrders, []);
   
   return (
-    <DataTable columns={columns} data={data}>
-        <OrderTableToolbar />
-    </DataTable>
+    <>
+        <div className="hidden md:block">
+            <DataTable columns={columns} data={data}>
+                <OrderTableToolbar />
+            </DataTable>
+        </div>
+         <div className="block md:hidden">
+            <MobileOrderList orders={data} />
+        </div>
+    </>
   )
 }
+
+  
