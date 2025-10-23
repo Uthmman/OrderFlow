@@ -14,7 +14,6 @@ import { AIPrediction } from "@/components/app/ai-prediction";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { mockCustomers } from "@/lib/mock-data";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -37,6 +36,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useCustomers } from "@/hooks/use-customers";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -51,14 +51,21 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(Promise.resolve(params));
   const { getOrderById, deleteOrder } = useOrders();
+  const { getCustomerById } = useCustomers();
   const router = useRouter();
   const { toast } = useToast();
   
   const order = getOrderById(id);
   
   if (!order) {
+    // Return loading or not found, but handle async nature
+    const { loading: ordersLoading } = useOrders();
+    if(ordersLoading) return <div>Loading order...</div>
     notFound();
   }
+
+  const { customers, loading: customersLoading } = useCustomers();
+  const customer = getCustomerById(order.customerId);
 
   const handleDelete = () => {
     deleteOrder(order.id);
@@ -69,7 +76,6 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     router.push("/orders");
   };
 
-  const customer = mockCustomers.find(c => c.id === order.customerId);
   const prepaid = order.prepaidAmount || 0;
   const balance = order.incomeAmount - prepaid;
 
@@ -205,7 +211,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </CardContent>
             </Card>
 
-            {customer && (
+            {customersLoading ? (
+                <Card><CardContent>Loading customer...</CardContent></Card>
+            ) : customer ? (
                 <Card>
                     <CardHeader>
                         <CardTitle>Customer</CardTitle>
@@ -216,6 +224,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         <p className="text-sm text-muted-foreground">{customer.phone}</p>
                     </CardContent>
                 </Card>
+            ) : (
+                 <Card><CardContent>Customer not found.</CardContent></Card>
             )}
         </div>
       </div>

@@ -21,17 +21,36 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import type { Role } from "@/lib/types"
 import { Boxes } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
+import { useUser } from "@/firebase"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { signInWithGoogle, signInAsMockUser } = useAuth();
+  const { user, loading } = useUser();
   const [role, setRole] = useState<Role>("Manager");
+  const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+
+  useEffect(() => {
+    if(!loading && user) {
+        router.push('/dashboard');
+    }
+  }, [user, loading, router])
+
+  const handleMockLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    login(role);
+    signInAsMockUser(role);
   };
+  
+  if (loading || user) {
+      return (
+        <div className="flex h-screen items-center justify-center">
+            <div className="text-xl">Loading...</div>
+        </div>
+      )
+  }
 
   return (
     <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2 xl:min-h-[100vh]">
@@ -43,58 +62,44 @@ export default function LoginPage() {
                  <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
             </div>
             <p className="text-balance text-muted-foreground">
-              Enter your credentials to access your account
+              Sign in to your account to continue
             </p>
           </div>
-          <form onSubmit={handleLogin}>
             <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  defaultValue="m@example.com"
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline"
-                  >
-                    Forgot your password?
-                  </a>
-                </div>
-                <Input id="password" type="password" defaultValue="password" required />
-              </div>
-               <div className="grid gap-2">
-                 <Label>Login As</Label>
-                <Select onValueChange={(value: Role) => setRole(value)} defaultValue={role}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Select a role to log in as" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Admin">Admin</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="Sales">Sales</SelectItem>
-                        <SelectItem value="Designer">Designer</SelectItem>
-                    </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">This is for demonstration purposes.</p>
-               </div>
-              <Button type="submit" className="w-full">
-                Login
+              <Button variant="outline" onClick={signInWithGoogle}>
+                Login with Google
               </Button>
-            </div>
-          </form>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{" "}
-            <a href="#" className="underline">
-              Sign up
-            </a>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                    </span>
+                </div>
+              </div>
+            
+              <form onSubmit={handleMockLogin} className="grid gap-4">
+                <div className="grid gap-2">
+                    <Label>Login As (for Demo)</Label>
+                    <Select onValueChange={(value: Role) => setRole(value)} defaultValue={role}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a role to log in as" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Admin">Admin</SelectItem>
+                            <SelectItem value="Manager">Manager</SelectItem>
+                            <SelectItem value="Sales">Sales</SelectItem>
+                            <SelectItem value="Designer">Designer</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <Button type="submit" className="w-full">
+                    Login as {role}
+                </Button>
+              </form>
           </div>
         </div>
       </div>

@@ -3,10 +3,6 @@
 import * as React from "react"
 import {
   ColumnDef,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle } from "lucide-react"
@@ -21,7 +17,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Customer } from "@/lib/types"
-import { mockCustomers } from "@/lib/mock-data"
 import { DataTable } from "@/components/app/data-table/data-table"
 import { DataTableColumnHeader } from "@/components/app/data-table/data-table-column-header"
 import { DataTableViewOptions } from "@/components/app/data-table/data-table-view-options"
@@ -29,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { useOrders } from "@/hooks/use-orders"
+import { useCustomers } from "@/hooks/use-customers"
 
 function CustomerActions({ customer }: { customer: Customer }) {
     return (
@@ -104,7 +100,7 @@ export const columns: ColumnDef<Customer>[] = [
     header: "Total Orders",
     cell: ({ row }) => {
       const orders = row.getValue("orderIds") as string[]
-      return <div className="text-center font-medium">{orders.length}</div>
+      return <div className="text-center font-medium">{orders?.length || 0}</div>
     },
   },
   {
@@ -196,7 +192,8 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
 }
 
 export default function CustomersPage() {
-    const data = React.useMemo(() => mockCustomers, []);
+    const { customers, loading } = useCustomers();
+    const data = React.useMemo(() => customers, [customers]);
 
     const table = useReactTable({
         data,
@@ -207,6 +204,9 @@ export default function CustomersPage() {
         getFilteredRowModel: getFilteredRowModel(),
     })
 
+    if (loading) {
+        return <div>Loading...</div>
+    }
 
     return (
         <div className="flex flex-col gap-8">

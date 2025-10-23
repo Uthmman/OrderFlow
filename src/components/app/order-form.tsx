@@ -35,9 +35,9 @@ import { CalendarIcon, Image as ImageIcon, Mic, DollarSign } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { mockCustomers } from "@/lib/mock-data"
 import { Order } from "@/lib/types"
 import { useRouter } from "next/navigation"
+import { useCustomers } from "@/hooks/use-customers"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -59,13 +59,15 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Order) => void;
+  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>) => void;
   submitButtonText?: string;
 }
 
 
 export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }: OrderFormProps) {
   const router = useRouter();
+  const { customers, loading: customersLoading } = useCustomers();
+  
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: order ? {
@@ -83,14 +85,12 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
   })
 
   function handleFormSubmit(values: OrderFormValues) {
-    const customerName = mockCustomers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     
-    const newOrderData: Order = {
-        id: order?.id || `ORD-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+    const newOrderData: Omit<Order, 'id' | 'creationDate'> = {
         ...values,
         customerName,
         deadline: values.deadline.toISOString(),
-        creationDate: order?.creationDate || new Date().toISOString(),
         dimensions: values.width && values.height && values.depth ? {
             width: values.width,
             height: values.height,
@@ -120,14 +120,14 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={customersLoading}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a customer" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {mockCustomers.map(customer => (
+                          {customers.map(customer => (
                              <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
                           ))}
                         </SelectContent>
@@ -384,7 +384,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date < new Date() || date < new Date("1900-01-01")
+                              date < new Date(new Date().setHours(0,0,0,0))
                             }
                             initialFocus
                           />

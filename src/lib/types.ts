@@ -1,12 +1,23 @@
+import { Timestamp } from "firebase/firestore";
+
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer';
 
 export type User = {
-  id: string;
+  id: string; // This is the uid from Firebase Auth
   name: string;
   email: string;
   avatarUrl: string;
   role: Role;
+  customClaims?: { [key: string]: any };
 };
+
+export type FirebaseUser = {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+    customClaims?: { [key: string]: any };
+}
 
 export type Customer = {
   id: string;
@@ -16,6 +27,7 @@ export type Customer = {
   company: string;
   avatarUrl: string;
   orderIds: string[];
+  ownerId: string;
 };
 
 export type OrderStatus =
@@ -33,15 +45,16 @@ export type Order = {
   customerId: string;
   description: string;
   status: OrderStatus;
-  deadline: string;
+  deadline: string; // ISO string
   incomeAmount: number;
   prepaidAmount?: number;
   isUrgent: boolean;
-  creationDate: string;
+  creationDate: string; // ISO string
   attachments?: { type: 'image' | 'voice'; url: string; fileName: string }[];
   color?: string;
   material?: string;
   dimensions?: { width: number; height: number; depth: number };
   paymentDetails: string;
   assignedTo: string[];
+  ownerId: string;
 };

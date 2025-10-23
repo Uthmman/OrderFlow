@@ -22,6 +22,7 @@ import {
   LogOut,
   Boxes,
 } from "lucide-react";
+import { useUser } from "@/firebase";
 
 const navItems = {
   Admin: [
@@ -46,7 +47,8 @@ const navItems = {
 };
 
 export function AppSidebar() {
-  const { user, logout } = useAuth();
+  const { user } = useUser();
+  const { signOut } = useAuth();
   const pathname = usePathname();
 
   const getInitials = (name: string) => {
@@ -55,6 +57,8 @@ export function AppSidebar() {
       .map((n) => n[0])
       .join("");
   };
+
+  const role = user?.customClaims?.role as keyof typeof navItems || "Designer";
 
   return (
     <Sidebar>
@@ -70,7 +74,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {(navItems[user?.role ?? "Designer"] || []).map((item) => (
+          {(navItems[role] || []).map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
@@ -89,14 +93,14 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <div className="flex items-center gap-3 rounded-md bg-background/10 p-2">
            <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-              <AvatarFallback>{user ? getInitials(user.name) : 'U'}</AvatarFallback>
+              <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || ''} />
+              <AvatarFallback>{user ? getInitials(user.displayName || 'U') : 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-sm">
-                <span className="font-semibold text-sidebar-foreground">{user?.name}</span>
-                <span className="text-muted-foreground">{user?.role}</span>
+                <span className="font-semibold text-sidebar-foreground">{user?.displayName}</span>
+                <span className="text-muted-foreground">{role}</span>
             </div>
-            <SidebarMenuButton variant="ghost" className="ml-auto h-8 w-8" onClick={logout} tooltip="Logout">
+            <SidebarMenuButton variant="ghost" className="ml-auto h-8 w-8" onClick={signOut} tooltip="Logout">
               <LogOut className="h-4 w-4" />
             </SidebarMenuButton>
         </div>

@@ -6,11 +6,14 @@ import { DollarSign, Package, Users, Activity } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo } from "react"
 import { formatCurrency } from "@/lib/utils"
+import { useCustomers } from "@/hooks/use-customers"
 
 export default function Dashboard() {
-  const { orders } = useOrders();
+  const { orders, loading: ordersLoading } = useOrders();
+  const { customers, loading: customersLoading } = useCustomers();
 
   const stats = useMemo(() => {
+    if (!orders) return { totalRevenue: 0, ordersInProgress: 0, urgentOrders: 0 };
     const totalRevenue = orders.reduce((acc, order) => acc + order.incomeAmount, 0);
     const ordersInProgress = orders.filter(o => o.status === "In Progress" || o.status === "Designing" || o.status === "Manufacturing").length;
     const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
@@ -21,6 +24,10 @@ export default function Dashboard() {
       urgentOrders
     }
   }, [orders]);
+
+  if (ordersLoading || customersLoading) {
+    return <div>Loading...</div>;
+  }
 
 
   return (
@@ -49,13 +56,13 @@ export default function Dashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">New Customers</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+23</div>
+            <div className="text-2xl font-bold">+{customers.length}</div>
             <p className="text-xs text-muted-foreground">
-              +12.2% from last month
+              All time customers
             </p>
           </CardContent>
         </Card>

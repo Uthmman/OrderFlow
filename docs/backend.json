@@ -1,0 +1,95 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user of the application.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The user's unique ID from Firebase Authentication." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "displayName": { "type": "string", "description": "The user's display name." },
+        "photoURL": { "type": "string", "format": "uri", "description": "URL of the user's profile picture." },
+        "customClaims": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string", "enum": ["Admin", "Manager", "Sales", "Designer"] }
+          }
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Represents a customer.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "avatarUrl": { "type": "string", "format": "uri" },
+        "orderIds": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this customer record." }
+      },
+      "required": ["name", "email", "ownerId"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents an order.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "customerId": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"] },
+        "deadline": { "type": "string", "format": "date-time" },
+        "incomeAmount": { "type": "number" },
+        "prepaidAmount": { "type": "number" },
+        "isUrgent": { "type": "boolean" },
+        "creationDate": { "type": "string", "format": "date-time" },
+        "attachments": { 
+            "type": "array", 
+            "items": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "enum": ["image", "voice"]},
+                    "url": {"type": "string", "format": "uri"},
+                    "fileName": {"type": "string"}
+                }
+            }
+        },
+        "color": { "type": "string" },
+        "material": { "type": "string" },
+        "dimensions": {
+            "type": "object",
+            "properties": {
+                "width": {"type": "number"},
+                "height": {"type": "number"},
+                "depth": {"type": "number"}
+            }
+        },
+        "paymentDetails": { "type": "string" },
+        "assignedTo": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string", "description": "The UID of the user who owns this order." }
+      },
+      "required": ["customerName", "customerId", "description", "status", "deadline", "incomeAmount", "isUrgent", "creationDate", "paymentDetails", "ownerId"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores public profiles for users."
+    },
+    "/customers/{customerId}": {
+        "schema": { "$ref": "#/entities/Customer" },
+        "description": "Stores customer information."
+    },
+    "/orders/{orderId}": {
+        "schema": { "$ref": "#/entities/Order" },
+        "description": "Stores order details."
+    }
+  }
+}

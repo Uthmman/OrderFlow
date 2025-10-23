@@ -1,7 +1,7 @@
 
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
 import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound } from "next/navigation";
@@ -11,23 +11,29 @@ import { Order } from "@/lib/types";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
   const { id } = use(Promise.resolve(params));
-  const { getOrderById, updateOrder } = useOrders();
+  const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
 
+  // The hook returns the order, but it might be undefined initially while loading.
   const order = getOrderById(id);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (!order) {
     notFound();
   }
 
-  const handleUpdateOrder = (updatedOrder: Order) => {
-    updateOrder(updatedOrder);
-    toast({
-      title: "Order Updated",
-      description: `Order ${updatedOrder.id} has been successfully updated.`,
+  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>) => {
+    updateOrder({ ...order, ...updatedOrderData}).then(() => {
+        toast({
+        title: "Order Updated",
+        description: `Order ${order.id} has been successfully updated.`,
+        });
+        router.push(`/orders/${order.id}`);
     });
-    router.push(`/orders/${updatedOrder.id}`);
   };
 
   return (

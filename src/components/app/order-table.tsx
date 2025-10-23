@@ -58,12 +58,12 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 
 function OrderActions({ order }: { order: Order }) {
     const router = useRouter();
-    const { deleteOrder } = useOrders();
+    const { deleteOrder, updateOrder } = useOrders();
     const { toast } = useToast();
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent card click
-        deleteOrder(order.id);
+        updateOrder({ ...order, status: "Cancelled" });
         toast({
             title: "Order Cancelled",
             description: `Order ${order.id} has been cancelled.`,
@@ -267,8 +267,11 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
 
 
 export function OrderTable() {
-  const { orders } = useOrders();
-  const sortedOrders = React.useMemo(() => [...orders].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime()), [orders]);
+  const { orders, loading } = useOrders();
+  const sortedOrders = React.useMemo(() => {
+    if (!orders) return [];
+    return [...orders].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime())
+  }, [orders]);
 
   const table = useReactTable({
     data: sortedOrders,
@@ -278,6 +281,10 @@ export function OrderTable() {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
   });
+
+  if (loading) {
+      return <div className="text-center p-8">Loading orders...</div>
+  }
   
   return (
     <>
