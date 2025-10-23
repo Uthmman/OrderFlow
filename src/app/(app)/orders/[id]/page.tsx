@@ -1,3 +1,4 @@
+
 import { mockOrders, mockCustomers } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
