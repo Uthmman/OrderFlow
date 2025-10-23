@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode } from 'react';
@@ -18,7 +19,7 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-export function OrderProvider({ children }: { children: ReactNode }) {
+export function OrderProvider({ children }: { children: React.ReactNode }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { data: orders, loading } = useCollection<Order>(firestore ? collection(firestore, 'orders') : null);
@@ -30,7 +31,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const newOrderDoc = await addDoc(ordersCollection, {
       ...orderData,
       creationDate: serverTimestamp(),
-      ownerId: user.uid,
+      ownerId: user.id,
     });
     return newOrderDoc.id;
   };
