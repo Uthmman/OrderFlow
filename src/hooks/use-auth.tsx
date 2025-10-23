@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useUser, useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import type { Role, User } from '@/lib/types';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useToast } from './use-toast';
 
 interface AuthContextType {
@@ -34,11 +34,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   const signInWithGoogle = async () => {
-    toast({
-        variant: "destructive",
-        title: "Feature Unavailable",
-        description: "Google Sign-In is temporarily disabled. Please use the demo login.",
-    });
+    if (!auth || !firestore) {
+        toast({ variant: "destructive", title: "Firebase not initialized."});
+        return;
+    }
+
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const firebaseUser = result.user;
+
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (!userSnap.exists()) {
+            // New user, create a document in Firestore
+            await setDoc(userRef, {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName,
+                photoURL: firebaseUser.photoURL,
+                customClaims: { role: 'Designer' } // Default role
+            });
+             toast({ title: "Account Created", description: "Your account has been successfully created."});
+        }
+        
+        router.push('/dashboard');
+
+    } catch (error: any) {
+        console.error("Error during Google sign-in:", error);
+        toast({
+            variant: "destructive",
+            title: "Sign-in Failed",
+            description: error.message || "An unexpected error occurred."
+        });
+    }
   };
 
   const signOut = async () => {

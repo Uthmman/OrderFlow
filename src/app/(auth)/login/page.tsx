@@ -6,30 +6,19 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
-import type { Role } from "@/lib/types"
-import { Boxes } from "lucide-react"
-import { useState, useEffect } from "react"
+import { Boxes, Chrome } from "lucide-react"
+import { useEffect } from "react"
 import Image from "next/image"
-import { useUser } from "@/firebase/auth/use-user";
+import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInAsMockUser } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const { user, loading } = useUser();
-  const [role, setRole] = useState<Role>("Manager");
   const router = useRouter();
 
 
@@ -38,11 +27,6 @@ export default function LoginPage() {
         router.push('/dashboard');
     }
   }, [user, loading, router])
-
-  const handleMockLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    signInAsMockUser(role);
-  };
   
   if (loading || user) {
       return (
@@ -62,29 +46,14 @@ export default function LoginPage() {
                  <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
             </div>
             <p className="text-balance text-muted-foreground">
-              Sign in to your account to continue (Demo Mode)
+              Sign in to your account to continue
             </p>
           </div>
             
-              <form onSubmit={handleMockLogin} className="grid gap-4">
-                <div className="grid gap-2">
-                    <Label>Login As</Label>
-                    <Select onValueChange={(value: Role) => setRole(value)} defaultValue={role}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a role to log in as" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Admin">Admin</SelectItem>
-                            <SelectItem value="Manager">Manager</SelectItem>
-                            <SelectItem value="Sales">Sales</SelectItem>
-                            <SelectItem value="Designer">Designer</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button type="submit" className="w-full">
-                    Login as {role}
-                </Button>
-              </form>
+            <Button onClick={signInWithGoogle} className="w-full">
+                <Chrome className="mr-2 h-4 w-4" />
+                Sign in with Google
+            </Button>
           
         </div>
       </div>
