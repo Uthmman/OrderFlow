@@ -8,7 +8,6 @@ import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 
 import type { Role } from '@/lib/types';
 import { doc, setDoc } from 'firebase/firestore';
 import { useToast } from './use-toast';
-import { firebaseConfig } from '@/firebase/config';
 
 interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
@@ -28,23 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     if (!auth) return;
     const provider = new GoogleAuthProvider();
-    // Explicitly set the authDomain to prevent "unauthorized-domain" errors in some environments.
-    provider.setCustomParameters({
-      authDomain: firebaseConfig.authDomain
-    });
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       if (user && firestore) {
-        // This is a simplified user profile creation.
-        // In a real app, you'd check if the user doc exists first.
         const userRef = doc(firestore, "users", user.uid);
         await setDoc(userRef, {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
           photoURL: user.photoURL,
-          // You might want a default role or a more complex role assignment logic
           customClaims: { role: 'Designer' } 
         }, { merge: true });
       }
