@@ -143,7 +143,15 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
-                    {order.color && <div className="flex items-center gap-3"><Palette className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color: {order.color}</span></div>}
+                    {order.colors && order.colors.length > 0 && (
+                        <div className="flex items-start gap-3">
+                            <Palette className="h-4 w-4 text-muted-foreground mt-0.5"/>
+                            <div className="flex flex-wrap gap-2">
+                                <span className="text-sm">Colors:</span>
+                                {order.colors.map(color => <Badge key={color} variant="secondary">{color}</Badge>)}
+                            </div>
+                        </div>
+                    )}
                     {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
                 </CardContent>
             </Card>

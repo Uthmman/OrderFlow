@@ -51,7 +51,7 @@ export type Order = {
   isUrgent: boolean;
   creationDate: string; // ISO string
   attachments?: { type: 'image' | 'voice'; url: string; fileName: string }[];
-  color?: string;
+  colors?: string[];
   material?: string;
   dimensions?: { width: number; height: number; depth: number };
   paymentDetails: string;

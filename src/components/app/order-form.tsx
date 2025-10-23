@@ -31,25 +31,25 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, PlusCircle, UserPlus } from "lucide-react"
+import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, UserPlus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
 import { useState } from "react"
 import Image from "next/image"
-import { colorOptions } from "@/lib/colors"
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
+import { woodFinishOptions, customColorOptions } from "@/lib/colors"
+import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
+import { Separator } from "../ui/separator"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
-  color: z.string().optional(),
+  colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
   height: z.coerce.number().optional(),
@@ -75,7 +75,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
-  const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
+  const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
@@ -90,6 +90,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
       status: "Pending",
       incomeAmount: 0,
       prepaidAmount: 0,
+      colors: [],
     },
   })
 
@@ -122,7 +123,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
             orderIds: []
         });
         form.setValue("customerId", newCustomerId);
-        setIsNewCustomerDialogOpen(false);
+        setIsCreatingNewCustomer(false);
         setNewCustomerName("");
         setNewCustomerEmail("");
       } catch (error) {
@@ -130,7 +131,6 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
       }
     }
   }
-
 
   return (
     <Form {...form}>
@@ -145,56 +145,50 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="customerId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Customer</FormLabel>
-                      <div className="flex items-center gap-2">
-                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={customersLoading}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {customers.map(customer => (
-                               <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Dialog open={isNewCustomerDialogOpen} onOpenChange={setIsNewCustomerDialogOpen}>
-                           <DialogTrigger asChild>
-                            <Button type="button" variant="outline" size="icon" className="shrink-0">
-                              <UserPlus className="h-4 w-4" />
-                            </Button>
-                           </DialogTrigger>
-                           <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Create New Customer</DialogTitle>
-                                <DialogDescription>
-                                    Add a new customer to the system. They will be automatically selected for this order.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="new-customer-name">Customer Name</Label>
-                                  <Input id="new-customer-name" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. John Doe" />
-                                </div>
-                                 <div className="space-y-2">
-                                  <Label htmlFor="new-customer-email">Customer Email</Label>
-                                  <Input id="new-customer-email" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="e.g. john@example.com"/>
-                                </div>
-                              </div>
-                              <Button onClick={handleAddNewCustomer} disabled={!newCustomerName || !newCustomerEmail}>Add Customer</Button>
-                           </DialogContent>
-                        </Dialog>
+                {isCreatingNewCustomer ? (
+                  <div className="space-y-4 p-4 border rounded-lg relative">
+                      <Button variant="ghost" size="icon" className="absolute top-2 right-2" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                      <h3 className="font-medium">New Customer</h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="new-customer-name">Customer Name</Label>
+                        <Input id="new-customer-name" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. John Doe" />
                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <div className="space-y-2">
+                        <Label htmlFor="new-customer-email">Customer Email</Label>
+                        <Input id="new-customer-email" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="e.g. john@example.com"/>
+                      </div>
+                      <Button type="button" onClick={handleAddNewCustomer} disabled={!newCustomerName || !newCustomerEmail}>Add and Select Customer</Button>
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer</FormLabel>
+                        <div className="flex items-center gap-2">
+                          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={customersLoading}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a customer" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {customers.map(customer => (
+                                <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            New
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <FormField
                   control={form.control}
                   name="description"
@@ -222,7 +216,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                   Provide product specifications like material, color, and dimensions.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -237,42 +231,105 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="color"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Color</FormLabel>
-                           <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4"
-                            >
-                              {colorOptions.map(option => (
+                 </div>
+                 
+                <FormField
+                  control={form.control}
+                  name="colors"
+                  render={() => (
+                    <FormItem>
+                      <div>
+                        <FormLabel>Color</FormLabel>
+                        <FormDescription>Select one or more colors.</FormDescription>
+                      </div>
+
+                      <h4 className="font-medium text-sm pt-2">Wood Finishes</h4>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                        {woodFinishOptions.map((option) => (
+                          <FormField
+                            key={option.name}
+                            control={form.control}
+                            name="colors"
+                            render={({ field }) => {
+                              return (
                                 <FormItem key={option.name} className="flex items-center space-x-2 space-y-0">
                                   <FormControl>
-                                    <RadioGroupItem value={option.name} id={option.name} className="sr-only" />
+                                    <Checkbox
+                                      checked={field.value?.includes(option.name)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), option.name])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== option.name
+                                              )
+                                            )
+                                      }}
+                                      className="sr-only"
+                                      id={option.name}
+                                    />
                                   </FormControl>
-                                  <FormLabel htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
+                                  <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
                                       <Image 
                                         src={option.imageUrl} 
                                         alt={option.name} 
                                         width={80} 
                                         height={80}
-                                        className={cn("rounded-md h-20 w-20 object-cover", field.value === option.name && "ring-2 ring-primary ring-offset-2")}
+                                        className={cn("rounded-md h-20 w-20 object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
                                       />
                                       <span className="text-xs text-center">{option.name}</span>
-                                  </FormLabel>
+                                  </Label>
                                 </FormItem>
-                              ))}
-                            </RadioGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                 </div>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <Separator className="my-6" />
+
+                      <h4 className="font-medium text-sm">Custom Colors</h4>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                        {customColorOptions.map((option) => (
+                          <FormField
+                            key={option.name}
+                            control={form.control}
+                            name="colors"
+                            render={({ field }) => {
+                              return (
+                                <FormItem key={option.name} className="flex items-center space-x-2 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(option.name)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), option.name])
+                                          : field.onChange(
+                                              field.value?.filter(
+                                                (value) => value !== option.name
+                                              )
+                                            )
+                                      }}
+                                      className="sr-only"
+                                      id={option.name}
+                                    />
+                                  </FormControl>
+                                  <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
+                                      <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-20", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                      <span className="text-xs text-center">{option.name}</span>
+                                  </Label>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 
                  <FormLabel>Dimensions (cm)</FormLabel>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
