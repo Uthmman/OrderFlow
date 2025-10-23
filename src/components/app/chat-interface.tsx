@@ -92,10 +92,18 @@ export function ChatInterface({ order }: { order: Order }) {
 
     try {
         // Create a plain order object for the server action
+        const toISODate = (date: any) => {
+            if (!date) return new Date().toISOString();
+            if (typeof date.toDate === 'function') { // Firestore Timestamp
+                return date.toDate().toISOString();
+            }
+            return new Date(date).toISOString();
+        };
+
         const plainOrder = {
           ...order,
-          creationDate: new Date(order.creationDate).toISOString(),
-          deadline: new Date(order.deadline).toISOString(),
+          creationDate: toISODate(order.creationDate),
+          deadline: toISODate(order.deadline),
         };
 
         const aiResponse = await generateOrderChatResponse({
