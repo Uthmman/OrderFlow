@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
@@ -6,6 +7,7 @@ import { useUser, useAuth as useFirebaseAuth, useFirestore, useFirebase } from '
 import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import type { Role } from '@/lib/types';
 import { doc, setDoc } from 'firebase/firestore';
+import { useToast } from './use-toast';
 
 interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
@@ -20,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { user, loading } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const signInWithGoogle = async () => {
     if (!auth) return;
@@ -41,8 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }, { merge: true });
       }
       router.push('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error during Google sign-in:", error);
+      if (error.code === 'auth/popup-blocked') {
+        toast({
+            variant: "destructive",
+            title: "Popup Blocked",
+            description: "Your browser blocked the sign-in popup. Please allow popups for this site and try again."
+        });
+      }
     }
   };
 
@@ -57,33 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInAsMockUser = async (role: Role) => {
-    if (!auth || !firestore) return;
-    
-    // This is a simplified mock user login. 
-    // It creates a "mock" user in Auth and Firestore for demo purposes.
-    const mockUid = `mock-${role.toLowerCase()}`;
-    const mockEmail = `${role.toLowerCase()}@example.com`;
-    
-    // We can't create a user on the client-side, so we just set the doc
-    // This will not create a real Firebase Auth user, but it will let us
-    // simulate one for the purpose of Firestore rules and UI.
-    // In a real app, you'd have a backend function to create test users.
-    
-    const userRef = doc(firestore, "users", mockUid);
-    await setDoc(userRef, {
-        uid: mockUid,
-        email: mockEmail,
-        displayName: `${role} User`,
-        photoURL: `https://i.pravatar.cc/150?u=${mockUid}`,
-        customClaims: { role: role }
-    }, { merge: true });
-
-    // The `useUser` hook will pick up on the logged in user state.
-    // For a true mock, you'd need to use Firebase's client-side testing utilities
-    // to sign in as this user, but that's more complex.
-    // For now, we'll just use Google sign-in for real auth.
-    alert(`To test as a ${role}, please sign in with Google. Role-based access is configured in Firestore rules, and a 'users' document will be created on first sign-in.`);
-    await signInWithGoogle();
+    toast({
+        title: "Feature Unavailable",
+        description: `To test as a ${role}, please sign in with Google. Role-based access is configured via Firestore security rules.`,
+    });
   };
 
 
