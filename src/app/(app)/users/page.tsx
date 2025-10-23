@@ -175,19 +175,6 @@ export default function UsersPage() {
         getFilteredRowModel: getFilteredRowModel(),
     })
 
-    if (currentUser?.email !== 'zenbabafurniture@gmail.com') {
-      return (
-          <div className="flex flex-col gap-8">
-              <div>
-                  <h1 className="text-3xl font-bold font-headline tracking-tight">Access Denied</h1>
-                  <p className="text-muted-foreground">
-                      You do not have permission to view this page.
-                  </p>
-              </div>
-          </div>
-      )
-    }
-
     if (loading) {
         return <div>Loading...</div>
     }
