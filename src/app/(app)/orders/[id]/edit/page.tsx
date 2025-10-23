@@ -8,11 +8,12 @@ import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { getOrderById, updateOrder } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
 
-  const order = getOrderById(params.id);
+  const order = getOrderById(id);
 
   if (!order) {
     notFound();

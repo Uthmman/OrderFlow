@@ -47,11 +47,12 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { getOrderById, deleteOrder } = useOrders();
   const router = useRouter();
   const { toast } = useToast();
   
-  const order = getOrderById(params.id);
+  const order = getOrderById(id);
   
   if (!order) {
     notFound();
