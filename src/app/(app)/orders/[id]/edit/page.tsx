@@ -1,5 +1,7 @@
+
 "use client";
 
+import { use } from "react";
 import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound } from "next/navigation";
@@ -8,11 +10,12 @@ import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
+  const { id } = use(Promise.resolve(params));
   const { getOrderById, updateOrder } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
 
-  const order = getOrderById(params.id);
+  const order = getOrderById(id);
 
   if (!order) {
     notFound();
