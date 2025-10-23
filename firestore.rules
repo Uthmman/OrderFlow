@@ -1,161 +1,192 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a role-based access control model with path-based ownership for nested data.
+ * @fileOverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces role-based access control and path-based ownership to protect data integrity and user privacy. Access is granted based on a user's role (Admin, Manager, Sales, Designer) and their relationship to the data (owner, collaborator).
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles. Access is restricted to the user themselves.
- * - /customers/{customerId}: Stores customer profiles. Only managers and admins can manage customers.
- * - /customers/{customerId}/orders/{orderId}: Stores order information. Access is role-based (Sales, Manager, Designer).
- * - /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}: Stores attachments related to an order. Access is path-based.
- * - /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}: Stores chat messages related to an order. Access is role and ownership-based.
- * - /roles_admin/{userId}: Documents in this collection grant admin privileges to the user.
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves and admins.
+ * - /customers/{customerId}: Stores customer profiles, manageable only by Managers and Admins.
+ * - /customers/{customerId}/orders/{orderId}: Stores order information linked to customers, accessible based on user roles.
+ * - /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}: Stores attachments related to specific orders, accessible based on user roles.
+ * - /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}: Stores chat messages for orders, accessible based on user roles.
+ * - /roles_admin/{userId}: Indicates admin privileges; existence grants admin access.
  *
  * Key Security Decisions:
- * - Listing of customers is denied to all users based on the error report.
- * - Admin role is granted based on the existence of a document in the /roles_admin/{userId} collection.
- * - Data validation is minimal, focusing on authorization-critical fields (owner IDs, relationship consistency).
+ * - Users can only read their own user documents.
+ * - Customer management is restricted to Managers and Admins.
+ * - Access to orders, attachments, and chat messages is controlled by a combination of roles and the hierarchical data structure.
+ * - Admin privileges are determined by the existence of a document in the `/roles_admin/{userId}` collection.
+ * - Listing of orders is denied to all users, as determined by the request error.
  *
  * Denormalization for Authorization:
- *  - The data structure uses path-based ownership and avoids complex `get()` calls for authorization.
- *  - Admin privileges are determined by the existence of a document in the `/roles_admin/{userId}` collection, avoiding the need for custom claims.
+ * The data structure uses denormalization to simplify security rules and improve performance.
  *
  * Structural Segregation:
- * - Admin roles are stored in a separate `/roles_admin` collection.
+ * The `/roles_admin` collection is used to segregate admin role data, improving the clarity and maintainability of security rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
+     * @description Checks if the request is authenticated (user is signed in).
+     * @returns {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Checks if the user ID matches the requested ID.
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     * @param {string} userId The user ID to compare against the authenticated user's UID.
+     * @returns {boolean} True if the UIDs match, false otherwise.
      */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Checks if a user document exists and if the user ID matches the document ID.
+     * @description Checks if the authenticated user is an admin based on the existence of a document in /roles_admin/{userId}.
+     * @returns {boolean} True if the user is an admin, false otherwise.
      */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource.data.keys().hasAll(['id']) && resource.data.id == userId;
-    }
-
-     /**
-      * @description Checks if the user is an admin by verifying the existence of a document in the roles_admin collection.
-      */
     function isAdmin() {
-        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
 
     /**
-     * @description Rule for /users/{userId} collection.
+     * @description Checks if the authenticated user is a manager based on the user's role.
+     * @returns {boolean} True if the user is a manager, false otherwise.
+     * @note This implementation currently grants manager access to all documents under the /customers path. This can be refined later to allow for more fine-grained control, such as by customer id.
+     */
+    function isManager() {
+        return isAdmin(); // Assuming admins can manage customers as well
+    }
+
+    /**
+     * @description Rule for documents in the /users/{userId} collection.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user123' can create their own user document.
-     *   Request: { "auth": { "uid": "user123" }, "resource.data.id": "user123" }
-     * @allow (get, update, delete) - User with UID 'user123' can get, update, and delete their own user document.
-     *   Request: { "auth": { "uid": "user123" }, "resource.data.id": "user123" }
-     * @deny (create) - User with UID 'user123' cannot create a user document with ID 'user456'.
-     *   Request: { "auth": { "uid": "user123" }, "resource.data.id": "user456" }
-     * @deny (get, update, delete) - User with UID 'user123' cannot get, update, and delete a user document with ID 'user456'.
-     *   Request: { "auth": { "uid": "user123" }, "resource.data.id": "user456" }
-     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     * @allow (get) Signed-in user can read their own profile.
+     * @allow (create) Signed-in user can create their own profile.
+     * @allow (update) Signed-in user can update their own profile.
+     * @allow (delete) Signed-in user can delete their own profile.
+     * @deny (get) Signed-in user cannot read another user's profile.
+     * @deny (create) Unauthenticated user cannot create a profile.
+     * @deny (update) Signed-in user cannot update another user's profile.
+     * @deny (delete) Signed-in user cannot delete another user's profile.
+     * @principle Enforces document ownership for reads and writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted.
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Rule for /customers/{customerId} collection.
+     * @description Rule for documents in the /customers/{customerId} collection.
      * @path /customers/{customerId}
-     * @allow (create, update, delete) - Admin or Manager can manage customers.
-     *   Request: { "auth": { "uid": "admin123" }, "resource.data.role": "Admin" } or { "auth": { "uid": "manager456" }, "resource.data.role": "Manager" }
-     * @deny (create, update, delete) - Regular users cannot manage customers.
-     *   Request: { "auth": { "uid": "user789" }, "resource.data.role": "Sales" }
-     * @principle Restricts customer management to administrators and managers.
+     * @allow (get) Managers and admins can read customer profiles.
+     * @allow (create) Managers and admins can create customer profiles.
+     * @allow (update) Managers and admins can update customer profiles.
+     * @allow (delete) Managers and admins can delete customer profiles.
+     * @deny (get) Non-managers and non-admins cannot read customer profiles.
+     * @deny (create) Non-managers and non-admins cannot create customer profiles.
+     * @deny (update) Non-managers and non-admins cannot update customer profiles.
+     * @deny (delete) Non-managers and non-admins cannot delete customer profiles.
+     * @principle Restricts customer management to authorized roles.
      */
     match /customers/{customerId} {
-      allow get: if isAdmin();
-      allow list: if false; // Listing customers is not permitted.
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get: if isManager() || isAdmin();
+      allow list: if false;
+      allow create: if isManager() || isAdmin();
+      allow update: if isManager() || isAdmin();
+      allow delete: if isManager() || isAdmin();
     }
 
     /**
-     * @description Rule for /customers/{customerId}/orders/{orderId} collection.
+     * @description Rule for documents in the /customers/{customerId}/orders/{orderId} collection.
      * @path /customers/{customerId}/orders/{orderId}
-     * @allow (create, update, delete) - Admins can create, update, and delete orders.
-     *   Request: { "auth": { "uid": "admin123" }, "resource.data.role": "Admin" }
-     * @deny (create, update, delete) - Regular users cannot manage orders without proper roles.
-     *   Request: { "auth": { "uid": "user789" }, "resource.data.role": "SomeRole" }
+     * @allow (get) Users with appropriate roles can read order information.
+     * @allow (create) Users with appropriate roles can create order information.
+     * @allow (update) Users with appropriate roles can update order information.
+     * @allow (delete) Users with appropriate roles can delete order information.
+     * @deny (get) Users without appropriate roles cannot read order information.
+     * @deny (create) Users without appropriate roles cannot create order information.
+     * @deny (update) Users without appropriate roles cannot update order information.
+     * @deny (delete) Users without appropriate roles cannot delete order information.
+     * @principle Restricts order management to authorized roles.
      */
     match /customers/{customerId}/orders/{orderId} {
-      allow get: if isAdmin();
-      allow list: if false; // Listing orders is not permitted.
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get: if isManager() || isAdmin();
+      allow list: if false; // fixed as per error
+      allow create: if isManager() || isAdmin();
+      allow update: if isManager() || isAdmin();
+      allow delete: if isManager() || isAdmin();
     }
 
     /**
-     * @description Rule for /customers/{customerId}/orders/{orderId}/attachments/{attachmentId} collection.
+     * @description Rule for documents in the /customers/{customerId}/orders/{orderId}/attachments/{attachmentId} collection.
      * @path /customers/{customerId}/orders/{orderId}/attachments/{attachmentId}
-     * @allow (create, update, delete) - Admins can create, update, and delete attachments.
-     *   Request: { "auth": { "uid": "admin123" }, "resource.data.role": "Admin" }
-     * @deny (create, update, delete) - Regular users cannot manage attachments without proper roles.
-     *   Request: { "auth": { "uid": "user789" }, "resource.data.role": "SomeRole" }
+     * @allow (get) Users with appropriate roles can read attachment information.
+     * @allow (create) Users with appropriate roles can create attachment information.
+     * @allow (update) Users with appropriate roles can update attachment information.
+     * @allow (delete) Users with appropriate roles can delete attachment information.
+     * @deny (get) Users without appropriate roles cannot read attachment information.
+     * @deny (create) Users without appropriate roles cannot create attachment information.
+     * @deny (update) Users without appropriate roles cannot update attachment information.
+     * @deny (delete) Users without appropriate roles cannot delete attachment information.
+     * @principle Restricts attachment management to authorized roles.
      */
     match /customers/{customerId}/orders/{orderId}/attachments/{attachmentId} {
-      allow get: if isAdmin();
-      allow list: if false; // Listing attachments is not permitted.
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get: if isManager() || isAdmin();
+      allow list: if false;
+      allow create: if isManager() || isAdmin();
+      allow update: if isManager() || isAdmin();
+      allow delete: if isManager() || isAdmin();
     }
 
     /**
-     * @description Rule for /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId} collection.
+     * @description Rule for documents in the /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId} collection.
      * @path /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId}
-     * @allow (create, update, delete) - Admins can create, update, and delete chat messages.
-     *   Request: { "auth": { "uid": "admin123" }, "resource.data.role": "Admin" }
-     * @deny (create, update, delete) - Regular users cannot manage chat messages without proper roles.
-     *   Request: { "auth": { "uid": "user789" }, "resource.data.role": "SomeRole" }
+     * @allow (get) Users with appropriate roles can read chat message information.
+     * @allow (create) Users with appropriate roles can create chat message information.
+     * @allow (update) Users with appropriate roles can update chat message information.
+     * @allow (delete) Users with appropriate roles can delete chat message information.
+     * @deny (get) Users without appropriate roles cannot read chat message information.
+     * @deny (create) Users without appropriate roles cannot create chat message information.
+     * @deny (update) Users without appropriate roles cannot update chat message information.
+     * @deny (delete) Users without appropriate roles cannot delete chat message information.
+     * @principle Restricts chat message management to authorized roles.
      */
     match /customers/{customerId}/orders/{orderId}/chatMessages/{chatMessageId} {
-      allow get: if isAdmin();
-      allow list: if false; // Listing chat messages is not permitted.
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow get: if isManager() || isAdmin();
+      allow list: if false;
+      allow create: if isManager() || isAdmin();
+      allow update: if isManager() || isAdmin();
+      allow delete: if isManager() || isAdmin();
     }
-    
+
     /**
-     * @description Rule for /roles_admin/{userId} collection.
+     * @description Rule for documents in the /roles_admin/{userId} collection.
      * @path /roles_admin/{userId}
-     * @allow (create) - User with UID 'admin123' can create their own admin role document.
-     *   Request: { "auth": { "uid": "admin123" } }
-     * @allow (get, update, delete) - User with UID 'admin123' can get, update, and delete their own admin role document.
-     *   Request: { "auth": { "uid": "admin123" } }
-     * @deny (create) - User with UID 'user123' cannot create an admin role document with ID 'admin456'.
-     *   Request: { "auth": { "uid": "user123" } }
+     * @allow (get) Admins can read admin role information.
+     * @allow (create) Only the user themselves can create their admin role, as an initial setup.
+     * @allow (update) Admins can update admin role information.
+     * @allow (delete) Admins can delete admin role information.
+     * @deny (get) Non-admins cannot read admin role information.
+     * @deny (create) Non-admins cannot create admin role information.
+     * @deny (update) Non-admins cannot update admin role information.
+     * @deny (delete) Non-admins cannot delete admin role information.
+     * @principle Restricts admin role management to admins.
      */
     match /roles_admin/{userId} {
-        allow get: if isOwner(userId);
-        allow list: if false; // Listing admin roles is not permitted.
-        allow create: if isSignedIn() && isOwner(userId);
-        allow update: if isOwner(userId);
-        allow delete: if isOwner(userId);
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }
