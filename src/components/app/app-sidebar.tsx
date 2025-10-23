@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -21,6 +22,7 @@ import {
   Settings,
   LogOut,
   Boxes,
+  ShieldCheck,
 } from "lucide-react";
 import { useUser } from "@/firebase";
 
@@ -29,6 +31,7 @@ const navItems = {
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/orders", icon: Package, label: "Orders" },
     { href: "/customers", icon: Users, label: "Customers" },
+    { href: "/users", icon: ShieldCheck, label: "Users" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ],
   Manager: [
@@ -58,7 +61,7 @@ export function AppSidebar() {
       .join("");
   };
 
-  const role = user?.customClaims?.role as keyof typeof navItems || "Designer";
+  const role = user?.role as keyof typeof navItems || "Designer";
 
   return (
     <Sidebar>
@@ -93,11 +96,11 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <div className="flex items-center gap-3 rounded-md bg-background/10 p-2">
            <Avatar className="h-10 w-10">
-              <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || ''} />
-              <AvatarFallback>{user ? getInitials(user.displayName || 'U') : 'U'}</AvatarFallback>
+              <AvatarImage src={user?.avatarUrl || ''} alt={user?.name || ''} />
+              <AvatarFallback>{user ? getInitials(user.name || 'U') : 'U'}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-sm">
-                <span className="font-semibold text-sidebar-foreground">{user?.displayName}</span>
+                <span className="font-semibold text-sidebar-foreground">{user?.name}</span>
                 <span className="text-muted-foreground">{role}</span>
             </div>
             <SidebarMenuButton variant="ghost" className="ml-auto h-8 w-8" onClick={signOut} tooltip="Logout">

@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer';
@@ -9,6 +10,7 @@ export type User = {
   email: string;
   avatarUrl: string;
   role: Role;
+  verified: boolean;
   customClaims?: { [key: string]: any };
 };
 
@@ -17,7 +19,9 @@ export type FirebaseUser = {
     email: string | null;
     displayName: string | null;
     photoURL: string | null;
-    customClaims?: { [key: string]: any };
+    customClaims?: { [key:string]: any };
+    role?: Role;
+    verified?: boolean;
 }
 
 export type Customer = {

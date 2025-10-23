@@ -56,7 +56,8 @@ export function useUser(): UseUserHook {
                  name: data.displayName || 'No Name',
                  email: data.email || 'No Email',
                  avatarUrl: data.photoURL || '',
-                 role: data.customClaims?.role || 'Designer',
+                 role: data.role || 'Designer',
+                 verified: data.verified || false,
                  customClaims: data.customClaims
              });
         } else {

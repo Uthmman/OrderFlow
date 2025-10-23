@@ -32,12 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
      const userSnap = await getDoc(userRef);
 
      if (!userSnap.exists()) {
+        const isAdmin = firebaseUser.email === 'zenbabafurniture@gmail.com';
          const newUser = {
              uid: firebaseUser.uid,
              email: firebaseUser.email,
              displayName: firebaseUser.displayName || additionalData.displayName,
              photoURL: firebaseUser.photoURL || `https://avatar.vercel.sh/${firebaseUser.email}.png`,
-             customClaims: { role: 'Designer' }
+             role: isAdmin ? 'Admin' : 'Designer',
+             verified: isAdmin,
          };
          setDoc(userRef, newUser)
            .then(() => {
@@ -136,5 +138,3 @@ export function useAuth() {
   }
   return context;
 }
-
-    
