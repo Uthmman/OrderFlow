@@ -32,17 +32,22 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
   
-  if (loading) {
-      return (
-        <div className="flex h-screen items-center justify-center">
-            <div className="text-xl">Loading...</div>
-        </div>
-      )
-  }
-
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     await signInWithEmail(email, password);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+          <div className="text-xl">Loading...</div>
+      </div>
+    )
+  }
+
+  // If the user is already logged in, don't render the form
+  if (user) {
+    return null;
   }
 
   return (

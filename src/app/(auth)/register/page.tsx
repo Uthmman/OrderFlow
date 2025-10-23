@@ -34,12 +34,17 @@ export default function RegisterPage() {
     }
   }, [user, loading, router]);
   
-  if (loading || user) {
+  if (loading) {
       return (
         <div className="flex h-screen items-center justify-center">
             <div className="text-xl">Loading...</div>
         </div>
       )
+  }
+
+  // If the user is already logged in, don't render the form
+  if (user) {
+    return null;
   }
 
   const handleEmailSignUp = async (e: React.FormEvent) => {

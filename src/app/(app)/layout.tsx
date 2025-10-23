@@ -20,12 +20,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-xl">Loading...</div>
       </div>
     );
+  }
+
+  // If loading is false and there's still no user, we'll be redirecting,
+  // so we can render null or a loading indicator to prevent flashing content.
+  if (!user) {
+    return null;
   }
 
   return (
