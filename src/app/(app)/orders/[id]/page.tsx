@@ -49,7 +49,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = use(params);
   const { getOrderById, deleteOrder } = useOrders();
   const { getCustomerById } = useCustomers();
   const router = useRouter();

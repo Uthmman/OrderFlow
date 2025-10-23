@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = use(params);
   const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
