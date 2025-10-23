@@ -31,13 +31,18 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Image as ImageIcon, Mic, DollarSign } from "lucide-react"
+import { CalendarIcon, Image as ImageIcon, Mic, DollarSign, PlusCircle, UserPlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog"
+import { useState } from "react"
+import Image from "next/image"
+import { colorOptions } from "@/lib/colors"
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -66,7 +71,10 @@ interface OrderFormProps {
 
 export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }: OrderFormProps) {
   const router = useRouter();
-  const { customers, loading: customersLoading } = useCustomers();
+  const { customers, loading: customersLoading, addCustomer } = useCustomers();
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
+  const [isNewCustomerDialogOpen, setIsNewCustomerDialogOpen] = useState(false);
   
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
@@ -101,6 +109,28 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
     onSubmit(newOrderData);
   }
 
+  const handleAddNewCustomer = async () => {
+    if (newCustomerName && newCustomerEmail) {
+      try {
+        const newCustomerId = await addCustomer({ 
+            name: newCustomerName, 
+            email: newCustomerEmail,
+            phone: '',
+            company: '',
+            avatarUrl: `https://i.pravatar.cc/150?u=${newCustomerEmail}`,
+            orderIds: []
+        });
+        form.setValue("customerId", newCustomerId);
+        setIsNewCustomerDialogOpen(false);
+        setNewCustomerName("");
+        setNewCustomerEmail("");
+      } catch (error) {
+        console.error("Failed to add new customer", error)
+      }
+    }
+  }
+
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
@@ -120,18 +150,46 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} disabled={customersLoading}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a customer" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {customers.map(customer => (
-                             <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-2">
+                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={customersLoading}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {customers.map(customer => (
+                               <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Dialog open={isNewCustomerDialogOpen} onOpenChange={setIsNewCustomerDialogOpen}>
+                           <DialogTrigger asChild>
+                            <Button type="button" variant="outline" size="icon" className="shrink-0">
+                              <UserPlus className="h-4 w-4" />
+                            </Button>
+                           </DialogTrigger>
+                           <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Create New Customer</DialogTitle>
+                                <DialogDescription>
+                                    Add a new customer to the system. They will be automatically selected for this order.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="new-customer-name">Customer Name</Label>
+                                  <Input id="new-customer-name" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. John Doe" />
+                                </div>
+                                 <div className="space-y-2">
+                                  <Label htmlFor="new-customer-email">Customer Email</Label>
+                                  <Input id="new-customer-email" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="e.g. john@example.com"/>
+                                </div>
+                              </div>
+                              <Button onClick={handleAddNewCustomer} disabled={!newCustomerName || !newCustomerEmail}>Add Customer</Button>
+                           </DialogContent>
+                        </Dialog>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -184,10 +242,31 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order" }
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Color</FormLabel>
-                          <div className="flex items-center gap-2">
-                             <Input type="color" className="w-12 h-10 p-1" {...field} value={field.value || '#000000'} />
-                             <Input placeholder="e.g., #FF0000 or 'Cherry Red'" {...field} className="w-auto flex-1" value={field.value || ''} />
-                          </div>
+                           <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4"
+                            >
+                              {colorOptions.map(option => (
+                                <FormItem key={option.name} className="flex items-center space-x-2 space-y-0">
+                                  <FormControl>
+                                    <RadioGroupItem value={option.name} id={option.name} className="sr-only" />
+                                  </FormControl>
+                                  <FormLabel htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer">
+                                      <Image 
+                                        src={option.imageUrl} 
+                                        alt={option.name} 
+                                        width={80} 
+                                        height={80}
+                                        className={cn("rounded-md h-20 w-20 object-cover", field.value === option.name && "ring-2 ring-primary ring-offset-2")}
+                                      />
+                                      <span className="text-xs text-center">{option.name}</span>
+                                  </FormLabel>
+                                </FormItem>
+                              ))}
+                            </RadioGroup>
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
