@@ -29,10 +29,10 @@ export default function RegisterPage() {
 
 
   useEffect(() => {
-    if(!loading && user) {
-        router.push('/dashboard');
+    if (!loading && user) {
+      router.push("/dashboard");
     }
-  }, [user, loading, router])
+  }, [user, loading, router]);
   
   if (loading || user) {
       return (
@@ -135,5 +135,3 @@ export default function RegisterPage() {
     </div>
   )
 }
-
-    
