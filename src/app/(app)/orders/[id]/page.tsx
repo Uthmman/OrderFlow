@@ -1,7 +1,6 @@
 
 "use client";
 
-import { use } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +48,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = use(Promise.resolve(params));
+  const { id } = params;
   const { getOrderById, deleteOrder } = useOrders();
   const { getCustomerById } = useCustomers();
   const router = useRouter();
