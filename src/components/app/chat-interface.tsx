@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2 } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useUser } from "@/firebase/auth/use-user"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage } from "@/lib/types"
@@ -62,7 +61,6 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
 
 
 export function ChatInterface({ order }: { order: Order }) {
-  const { user } = useUser();
   const { updateOrder } = useOrders();
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -106,15 +104,15 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && !audioBlob) || !user || loading) return;
+    if ((!inputValue.trim() && !audioBlob) || loading) return;
 
     setLoading(true);
     
     const userMessage: OrderChatMessage = {
         user: {
-            id: user.id,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
+            id: 'anonymous',
+            name: 'Guest',
+            avatarUrl: `https://i.pravatar.cc/150?u=guest`,
         },
         text: inputValue,
         timestamp: new Date().toISOString(),

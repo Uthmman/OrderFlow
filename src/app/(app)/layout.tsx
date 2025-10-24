@@ -1,37 +1,14 @@
 
 "use client";
 
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
 import { OrderProvider } from "@/hooks/use-orders";
-import { useUser } from "@/firebase/auth/use-user";
 import { CustomerProvider } from "@/hooks/use-customers";
-import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-xl">Loading...</div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    return null;
-  }
 
   return (
     <SidebarProvider>
