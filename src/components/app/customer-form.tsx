@@ -47,12 +47,15 @@ import {
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Invalid email address."),
-  company: z.string().min(2, "Company name is required."),
-  phone: z.string().min(5, "A phone number is required."),
+  email: z.string().email("Invalid email address.").optional().or(z.literal('')),
+  company: z.string().optional(),
+  phone: z.string().min(5, "A primary phone number is required."),
+  phone2: z.string().optional(),
   telegram: z.string().optional(),
   gender: z.enum(["Male", "Female", "Other"]),
   town: z.string().min(2, "Town/City is required."),
+  lat: z.coerce.number().optional(),
+  lng: z.coerce.number().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof formSchema>;
@@ -80,27 +83,41 @@ export function CustomerForm({
           name: customer.name,
           email: customer.email,
           company: customer.company,
-          phone: customer.phoneNumbers[0]?.number || "",
+          phone: customer.phoneNumbers.find(p => p.type === 'Mobile')?.number || "",
+          phone2: customer.phoneNumbers.find(p => p.type === 'Secondary')?.number || "",
           telegram: customer.telegram,
           gender: customer.gender,
           town: customer.location.town,
+          lat: customer.location.mapCoordinates.lat,
+          lng: customer.location.mapCoordinates.lng
         }
       : {
           gender: "Other",
+          lat: 0,
+          lng: 0,
         },
   });
 
   const { formState: { isDirty } } = form;
 
   const handleFormSubmit = (values: CustomerFormValues) => {
+    const phoneNumbers = [{ type: 'Mobile' as const, number: values.phone }];
+    if (values.phone2) {
+        phoneNumbers.push({ type: 'Secondary' as const, number: values.phone2 });
+    }
+
     const customerData = {
-        ...values,
-        phoneNumbers: [{ type: 'Mobile', number: values.phone }],
+        name: values.name,
+        email: values.email,
+        company: values.company,
+        telegram: values.telegram,
+        gender: values.gender,
+        phoneNumbers,
         location: {
             town: values.town,
-            mapCoordinates: { lat: 0, lng: 0 } // Placeholder
+            mapCoordinates: { lat: values.lat || 0, lng: values.lng || 0 }
         },
-        avatarUrl: `https://i.pravatar.cc/150?u=${values.email}`
+        avatarUrl: `https://i.pravatar.cc/150?u=${values.email || values.name}`
     };
     onSubmit(customerData);
   };
@@ -136,59 +153,7 @@ export function CustomerForm({
                             </FormItem>
                         )}
                     />
-                    <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Email Address</FormLabel>
-                            <FormControl>
-                                <Input type="email" placeholder="e.g. jane.doe@example.com" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="company"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Company</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Acme Inc." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="phone"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. +1 555-123-4567" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
                      <FormField
-                        control={form.control}
-                        name="telegram"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Telegram</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. @jane.doe (optional)" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
                         control={form.control}
                         name="gender"
                         render={({ field }) => (
@@ -212,9 +177,75 @@ export function CustomerForm({
                     />
                     <FormField
                         control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Email Address (Optional)</FormLabel>
+                            <FormControl>
+                                <Input type="email" placeholder="e.g. jane.doe@example.com" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="company"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Company (Optional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Acme Inc." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Primary Phone</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. +1 555-123-4567" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="phone2"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Secondary Phone (Optional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. +1 555-987-6543" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="telegram"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Telegram (Optional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. @jane.doe" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    
+                    <FormField
+                        control={form.control}
                         name="town"
                         render={({ field }) => (
-                            <FormItem className="md:col-span-2">
+                            <FormItem>
                             <FormLabel>Town/City</FormLabel>
                             <FormControl>
                                 <Input placeholder="e.g. San Francisco" {...field} />
@@ -223,6 +254,34 @@ export function CustomerForm({
                             </FormItem>
                         )}
                     />
+                     <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                            control={form.control}
+                            name="lat"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Latitude (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g. 34.0522" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="lng"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Longitude (Optional)</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="e.g. -118.2437" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 

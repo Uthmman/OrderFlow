@@ -132,7 +132,13 @@ export const MOCK_ORDERS: Order[] = [
     prepaidAmount: 10000,
     isUrgent: false,
     creationDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    attachments: [],
+    attachments: [
+        {
+            fileName: "voice-memo-1.webm",
+            url: "https://firebasestorage.googleapis.com/v0/b/course-registration-cce07.appspot.com/o/seed%2FAudio-1.mp3?alt=media&token=85483961-a477-44a3-832f-b472f153a553",
+            storagePath: "seed/Audio-1.mp3"
+        }
+    ],
     colors: ['Black Walnut'],
     material: 'Solid Walnut Wood',
     dimensions: { width: 240, height: 75, depth: 120 },

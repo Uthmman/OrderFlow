@@ -35,10 +35,10 @@ export type CustomerReview = {
 export type Customer = {
   id: string;
   name: string;
-  email: string;
-  phoneNumbers: { type: 'Mobile' | 'Work' | 'Home'; number: string }[];
+  email?: string;
+  phoneNumbers: { type: 'Mobile' | 'Work' | 'Home' | 'Secondary'; number: string }[];
   telegram?: string;
-  company: string;
+  company?: string;
   avatarUrl: string;
   gender: 'Male' | 'Female' | 'Other';
   location: {

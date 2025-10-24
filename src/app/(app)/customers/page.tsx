@@ -105,7 +105,7 @@ export const columns: ColumnDef<Customer>[] = [
     header: "Phone",
     cell: ({ row }) => {
         const phoneNumbers = row.getValue("phoneNumbers") as Customer['phoneNumbers'];
-        return <span>{phoneNumbers[0]?.number}</span>
+        return <span>{phoneNumbers.find(p => p.type === 'Mobile')?.number}</span>
     }
   },
   {
@@ -197,7 +197,7 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
                         </CardHeader>
                         <CardContent className="text-sm space-y-2">
                             <p className="text-muted-foreground">{customer.email}</p>
-                            <p className="text-muted-foreground">{customer.phoneNumbers[0]?.number}</p>
+                            <p className="text-muted-foreground">{customer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</p>
                             <p>
                                 <span className="font-medium">{getCustomerOrderCount(customer.id)}</span>{" "}
                                 <span className="text-muted-foreground">orders</span>

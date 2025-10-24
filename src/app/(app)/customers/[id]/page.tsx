@@ -60,9 +60,11 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
           </Avatar>
           <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight">{customer.name}</h1>
-            <p className="text-muted-foreground flex items-center gap-2">
-                <Building className="h-4 w-4" /> {customer.company}
-            </p>
+            {customer.company && (
+              <p className="text-muted-foreground flex items-center gap-2">
+                  <Building className="h-4 w-4" /> {customer.company}
+              </p>
+            )}
             <p className="text-muted-foreground flex items-center gap-2 mt-1">
                 <User className="h-4 w-4" /> {customer.gender}
             </p>
@@ -85,13 +87,15 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <CardTitle>Contact Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
-                   <div className="flex items-start gap-3">
-                        <Mail className="h-4 w-4 text-muted-foreground mt-1" />
-                        <div>
-                            <p className="font-medium">Email</p>
-                            <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>
+                    {customer.email && (
+                        <div className="flex items-start gap-3">
+                                <Mail className="h-4 w-4 text-muted-foreground mt-1" />
+                                <div>
+                                    <p className="font-medium">Email</p>
+                                    <a href={`mailto:${customer.email}`} className="text-primary hover:underline">{customer.email}</a>
+                                </div>
                         </div>
-                   </div>
+                    )}
                    <div className="flex items-start gap-3">
                         <Phone className="h-4 w-4 text-muted-foreground mt-1" />
                         <div>
