@@ -7,13 +7,14 @@ import { useToast } from './use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { 
     useFirestore, 
+    useCollection,
     addDocumentNonBlocking, 
     updateDocumentNonBlocking, 
     deleteDocumentNonBlocking, 
+    useMemoFirebase,
 } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { MOCK_ORDERS } from '@/lib/mock-data';
 
 interface OrderContextType {
   orders: Order[];
@@ -32,8 +33,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const loading = false;
+  
+  const ordersCollection = useMemoFirebase(() => {
+    if (firestore) {
+        return collection(firestore, 'orders');
+    }
+    return null;
+  }, [firestore]);
+
+  const { data: orders, isLoading: loading } = useCollection<Order>(ordersCollection);
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
     const storage = getStorage();
@@ -79,44 +87,47 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
-    if (!user) {
+    if (!user || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to create an order.' });
       return;
     }
     
-    const newId = `order-${Date.now()}`;
-    const newAttachments = await handleFileUploads(newId, newFiles);
+    // We need a temporary ID for file uploads before the doc exists
+    const tempId = doc(collection(firestore, 'orders')).id;
+    const newAttachments = await handleFileUploads(tempId, newFiles);
     
-    const newOrder: Order = {
-      id: newId,
+    const newOrder = {
       ...orderData,
-      creationDate: new Date().toISOString(),
+      creationDate: serverTimestamp(),
       ownerId: user.id,
       attachments: [...(orderData.attachments || []), ...newAttachments],
     };
 
-    setOrders(prev => [newOrder, ...prev]);
-    return newId;
+    const docRef = doc(firestore, 'orders', tempId);
+    await addDocumentNonBlocking(collection(firestore, 'orders'), newOrder);
+
+    return tempId;
   };
 
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
-    if (!user) {
-      console.error("User not available");
+    if (!user || !firestore) {
+      console.error("User or firestore not available");
       return;
     }
 
     const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
+    const orderRef = doc(firestore, "orders", updatedOrderData.id);
 
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
         const finalAttachments = [...(updatedOrderData.attachments || []), ...newAttachments];
-        const newChatMessages: OrderChatMessage[] = updatedOrderData.chatMessages ? [...updatedOrderData.chatMessages] : [];
         
+        const newChatMessages: OrderChatMessage[] = updatedOrderData.chatMessages ? [...updatedOrderData.chatMessages] : [];
         if (originalOrder && originalOrder.status !== updatedOrderData.status) {
             newChatMessages.push({
                 user: { id: 'system', name: 'System', avatarUrl: '' },
                 text: `${user.name} changed status from '${originalOrder.status}' to '${updatedOrderData.status}'`,
-                timestamp: new Date().toISOString(),
+                timestamp: serverTimestamp(),
                 isSystemMessage: true,
             });
         }
@@ -127,7 +138,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             chatMessages: newChatMessages
         };
 
-        setOrders(prev => prev.map(o => o.id === finalOrderData.id ? finalOrderData : o));
+        updateDocumentNonBlocking(orderRef, finalOrderData);
 
     } catch (error) {
         console.error("Error updating order: ", error);
@@ -136,15 +147,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-    setOrders(prev => prev.filter(o => o.id !== orderId));
+    if (!firestore) return;
+
+    const orderRef = doc(firestore, 'orders', orderId);
+    deleteDocumentNonBlocking(orderRef);
     
     const storage = getStorage();
     attachments.forEach(att => {
-        const fileRef = ref(storage, att.storagePath);
-        deleteObject(fileRef).catch(error => {
-            console.error("Failed to delete attachment: ", error);
-            // Non-critical, so maybe don't toast
-        });
+        if (att.storagePath) {
+            const fileRef = ref(storage, att.storagePath);
+            deleteObject(fileRef).catch(error => {
+                console.error("Failed to delete attachment: ", error);
+            });
+        }
     })
   };
 

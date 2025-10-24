@@ -1,11 +1,18 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Customer } from '@/lib/types';
 import { useUser } from '@/firebase/auth/use-user';
 import { useToast } from './use-toast';
-import { MOCK_CUSTOMERS } from '@/lib/mock-data';
+import { 
+    useFirestore, 
+    useCollection,
+    addDocumentNonBlocking, 
+    updateDocumentNonBlocking, 
+    useMemoFirebase,
+} from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -20,22 +27,27 @@ const CustomerContext = createContext<CustomerContextType | undefined>(undefined
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const { toast } = useToast();
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
-  const loading = false;
+  const firestore = useFirestore();
 
+  const customersCollection = useMemoFirebase(() => {
+    if (firestore) {
+        return collection(firestore, 'customers');
+    }
+    return null;
+  }, [firestore]);
+
+  const { data: customers, isLoading: loading } = useCollection<Customer>(customersCollection);
 
   const getCustomerById = (id: string) => {
     return customers?.find(customer => customer.id === id);
   };
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
-    if (!user) {
-      throw new Error("User not available");
+    if (!user || !firestore) {
+      throw new Error("User or Firestore not available");
     }
     
-    const newId = `cust-${Date.now()}`;
-    const newCustomer: Customer = {
-      id: newId,
+    const newCustomerData = {
       name: customerData.name,
       email: customerData.email || '',
       phoneNumbers: customerData.phoneNumbers || [{type: "Mobile", number: "Not provided"}],
@@ -48,12 +60,16 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       ...customerData,
     };
     
-    setCustomers(prev => [newCustomer, ...prev]);
-    return newId;
+    const docRef = await addDocumentNonBlocking(collection(firestore, 'customers'), newCustomerData);
+    return docRef.id;
   };
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
-      setCustomers(prev => prev.map(c => c.id === customerData.id ? customerData : c));
+      if (!firestore) {
+          throw new Error("Firestore not available");
+      }
+      const customerRef = doc(firestore, 'customers', customerData.id);
+      updateDocumentNonBlocking(customerRef, customerData);
   }
 
   const value = useMemo(() => ({
