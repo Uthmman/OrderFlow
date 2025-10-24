@@ -3,11 +3,10 @@
 
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Role, User } from '@/lib/types';
+import type { Role } from '@/lib/types';
 import { useToast } from './use-toast';
-import { useAuth as useFirebaseAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { signInAnonymously, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, serverTimestamp } from 'firebase/firestore';
+import { useAuth as useFirebaseAuth } from '@/firebase';
+import { signInAnonymously, signOut as firebaseSignOut, updateProfile } from 'firebase/auth';
 
 interface AuthContextType {
   signInAsDemoUser: (role: Role) => void;
@@ -20,28 +19,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   const auth = useFirebaseAuth();
-  const firestore = useFirestore();
 
   const signInAsDemoUser = async (role: Role) => {
     try {
       const userCredential = await signInAnonymously(auth);
-      const user = userCredential.user;
-
-      // Create a user profile in Firestore
-      const userProfileRef = doc(firestore, `users/${user.uid}/profile/${user.uid}`);
-      setDocumentNonBlocking(userProfileRef, {
-        firstName: role,
-        lastName: 'User',
-        email: user.email || `${role.toLowerCase()}@example.com`,
-        role: role,
-        createdAt: serverTimestamp(),
-      }, { merge: true });
+      // We are using displayName to persist the role for anonymous auth
+      await updateProfile(userCredential.user, { displayName: role });
       
       toast({
           title: "Logged In",
           description: `You are now logged in as ${role}.`,
       });
+      // Force a reload to ensure all contexts are reset and using the new auth state
       router.push('/dashboard');
+      router.refresh();
+
     } catch (error) {
       console.error("Anonymous sign-in failed:", error);
       toast({

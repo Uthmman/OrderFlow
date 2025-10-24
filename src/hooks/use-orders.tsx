@@ -7,14 +7,13 @@ import { useToast } from './use-toast';
 import { useUser } from '@/firebase/auth/use-user';
 import { 
     useFirestore, 
-    useCollection, 
     addDocumentNonBlocking, 
     updateDocumentNonBlocking, 
     deleteDocumentNonBlocking, 
-    useMemoFirebase
 } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { MOCK_ORDERS } from '@/lib/mock-data';
 
 interface OrderContextType {
   orders: Order[];
@@ -33,9 +32,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const firestore = useFirestore();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-
-  const ordersCollection = useMemoFirebase(() => user ? collection(firestore, 'orders') : null, [firestore, user]);
-  const { data: orders, isLoading: loading } = useCollection<Order>(ordersCollection);
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const loading = false;
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
     const storage = getStorage();
@@ -63,17 +61,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           },
           async () => {
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            uploadedAttachments.push({
-              fileName: file.name,
-              url: downloadURL,
-              storagePath: storagePath
-            });
+            const attachment = { fileName: file.name, url: downloadURL, storagePath };
+            uploadedAttachments.push(attachment);
             setUploadProgress(prev => {
                 const newProgress = { ...prev };
                 delete newProgress[file.name];
                 return newProgress;
             });
-            resolve({ fileName: file.name, url: downloadURL, storagePath });
+            resolve(attachment);
           }
         );
       });
@@ -88,29 +83,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to create an order.' });
       return;
     }
-    const collectionRef = collection(firestore, 'orders');
-
-    // Create a temporary doc to get an ID
-    const tempDocRef = doc(collectionRef);
-    const orderId = tempDocRef.id;
     
-    try {
-      const newAttachments = await handleFileUploads(orderId, newFiles);
-      
-      const newOrder = {
-        ...orderData,
-        creationDate: serverTimestamp(),
-        ownerId: user.id,
-        attachments: [...(orderData.attachments || []), ...newAttachments],
-      };
-      
-      updateDocumentNonBlocking(doc(firestore, 'orders', orderId), newOrder);
-      return orderId;
+    const newId = `order-${Date.now()}`;
+    const newAttachments = await handleFileUploads(newId, newFiles);
+    
+    const newOrder: Order = {
+      id: newId,
+      ...orderData,
+      creationDate: new Date().toISOString(),
+      ownerId: user.id,
+      attachments: [...(orderData.attachments || []), ...newAttachments],
+    };
 
-    } catch (error) {
-       console.error("Error creating order: ", error);
-       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create order.' });
-    }
+    setOrders(prev => [newOrder, ...prev]);
+    return newId;
   };
 
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
@@ -119,7 +105,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const docRef = doc(firestore, `orders/${updatedOrderData.id}`);
     const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
 
     try {
@@ -142,7 +127,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             chatMessages: newChatMessages
         };
 
-        updateDocumentNonBlocking(docRef, finalOrderData);
+        setOrders(prev => prev.map(o => o.id === finalOrderData.id ? finalOrderData : o));
 
     } catch (error) {
         console.error("Error updating order: ", error);
@@ -151,15 +136,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-    const docRef = doc(firestore, `orders/${orderId}`);
-    deleteDocumentNonBlocking(docRef);
-
+    setOrders(prev => prev.filter(o => o.id !== orderId));
+    
     const storage = getStorage();
     attachments.forEach(att => {
         const fileRef = ref(storage, att.storagePath);
         deleteObject(fileRef).catch(error => {
             console.error("Failed to delete attachment: ", error);
-            toast({ variant: 'destructive', title: 'File Deletion Error', description: `Could not delete ${att.fileName}`});
+            // Non-critical, so maybe don't toast
         });
     })
   };
