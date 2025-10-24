@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2 } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -56,7 +56,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Progress } from "../ui/progress"
+import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -98,6 +98,12 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { toast } = useToast();
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
+
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: order ? {
@@ -118,6 +124,50 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   })
 
   const { formState: { isDirty } } = form;
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      const chunks: BlobPart[] = [];
+      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+      };
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setAudioBlob(null); // Clear previous recording
+    } catch (err) {
+      console.error("Error starting recording:", err);
+      toast({
+        variant: "destructive",
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check permissions."
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      // Stop all media tracks to release the microphone
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+    }
+  };
+
+  const saveAudio = () => {
+    if (audioBlob) {
+      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
+      setNewFiles(prev => [...prev, audioFile]);
+      setAudioBlob(null); // Clear the blob after adding it to the files list
+    }
+  };
+
+  const discardAudio = () => {
+    setAudioBlob(null);
+  };
 
   function handleFormSubmit(values: OrderFormValues) {
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
@@ -490,32 +540,58 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
             <Card>
                 <CardHeader>
                     <CardTitle>Attachments</CardTitle>
-                    <CardDescription>Upload relevant images or other files.</CardDescription>
+                    <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <FormItem>
-                        <FormControl>
-                            <div 
-                                className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                <p className="text-muted-foreground">Click to upload or drag & drop</p>
-                                <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    multiple
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
+                    <div className="space-y-4">
+                        <FormItem>
+                            <FormControl>
+                                <div 
+                                    className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                    <p className="text-muted-foreground">Click to upload or drag & drop files</p>
+                                    <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        multiple
+                                        onChange={handleFileChange}
+                                        className="hidden"
+                                    />
+                                </div>
+                            </FormControl>
+                        </FormItem>
+                        <div className="relative">
+                            <Separator />
+                            <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
+                        </div>
+                        {audioBlob && audioUrl ? (
+                             <div className="p-4 border rounded-lg space-y-4">
+                                <h4 className="font-medium text-sm">Voice Memo Preview</h4>
+                                <audio controls src={audioUrl} className="w-full"></audio>
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" onClick={discardAudio}>Discard</Button>
+                                    <Button onClick={saveAudio}>Save Audio</Button>
+                                </div>
                             </div>
-                        </FormControl>
-                    </FormItem>
+                        ) : (
+                            <Button 
+                                type="button" 
+                                variant={isRecording ? "destructive" : "outline"} 
+                                className="w-full"
+                                onClick={isRecording ? stopRecording : startRecording}
+                            >
+                                {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
+                            </Button>
+                        )}
+                    </div>
 
                     {(existingAttachments.length > 0 || newFiles.length > 0) && (
-                        <div className="space-y-2">
-                             <h4 className="text-sm font-medium">Files to be uploaded:</h4>
+                        <div className="space-y-2 pt-4">
+                             <h4 className="text-sm font-medium">Attached Files:</h4>
                              {existingAttachments.map((file, index) => (
                                 <div key={`existing-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
                                     <div className="flex items-center gap-2 truncate">
@@ -726,3 +802,5 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
+
+    
