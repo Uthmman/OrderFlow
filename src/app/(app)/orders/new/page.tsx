@@ -5,7 +5,7 @@ import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
 import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
-import { useUser } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
@@ -41,6 +41,7 @@ export default function NewOrderPage() {
             title: "Creation Failed",
             description: "There was a problem creating the order.",
         });
+    }).finally(() => {
         setIsSubmitting(false);
     });
   };

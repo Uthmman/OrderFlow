@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Paperclip, Send, Info } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useUser } from "@/firebase"
+import { useUser } from "@/firebase/auth/use-user"
 import { useState } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage } from "@/lib/types"
@@ -70,8 +70,8 @@ export function ChatInterface({ order }: { order: Order }) {
     const userMessage: OrderChatMessage = {
         user: {
             id: user.id,
-            name: user.displayName,
-            avatarUrl: user.photoURL,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
         },
         text: inputValue,
         timestamp: new Date().toISOString(),

@@ -1,8 +1,13 @@
+
 "use client"
 
 import * as React from "react"
 import {
   ColumnDef,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle } from "lucide-react"

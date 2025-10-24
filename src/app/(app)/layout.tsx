@@ -27,9 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  // If loading is false and there's still no user, we'll be redirecting,
-  // so we can render null or a loading indicator to prevent flashing content.
+  
   if (!user) {
     return null;
   }

@@ -1,12 +1,11 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import type { Customer } from '@/lib/types';
-import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { useUser } from '@/firebase/auth/use-user';
+import { v4 as uuidv4 } from 'uuid';
+import { MOCK_CUSTOMERS } from '@/lib/mock-data';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -18,50 +17,33 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
-  const firestore = useFirestore();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
   const { user } = useUser();
-  
-  const customersCollection = useMemoFirebase(
-    () => (firestore && user ? collection(firestore, 'customers') : null),
-    [firestore, user]
-  );
-  const { data: customers, loading } = useCollection<Customer>(customersCollection);
+
+  useEffect(() => {
+    setCustomers(MOCK_CUSTOMERS);
+    setLoading(false);
+  }, []);
 
   const getCustomerById = (id: string) => {
-    return customers?.find(customer => customer.id === id);
+    return customers.find(customer => customer.id === id);
   };
   
   const addCustomer = async (customerData: Omit<Customer, 'id'| 'ownerId'>): Promise<string | undefined> => {
-    if (!firestore || !user) {
-      console.error("Firestore or user not available");
+    if (!user) {
+      console.error("User not available");
       return;
     };
-
-    const customersCollectionRef = collection(firestore, 'customers');
-    const newCustomerData = {
-      ...customerData,
-      ownerId: user.id,
-    };
     
-    try {
-      const newCustomerDoc = await addDoc(customersCollectionRef, newCustomerData)
-        .catch(error => {
-            errorEmitter.emit(
-              'permission-error',
-              new FirestorePermissionError({
-                path: customersCollectionRef.path,
-                operation: 'create',
-                requestResourceData: newCustomerData,
-              })
-            );
-            // Re-throw to be caught by the outer try-catch and prevent returning an id
-            throw error;
-        });
-      return newCustomerDoc.id;
-    } catch (error) {
-      console.error("Failed to add customer", error);
-      return undefined;
-    }
+    const newCustomer: Customer = {
+      ...customerData,
+      id: uuidv4(),
+      ownerId: user.id
+    };
+
+    setCustomers(prev => [newCustomer, ...prev]);
+    return newCustomer.id;
   };
 
   return (

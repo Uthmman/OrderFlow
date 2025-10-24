@@ -24,7 +24,7 @@ import {
   Boxes,
   ShieldCheck,
 } from "lucide-react";
-import { useUser } from "@/firebase";
+import { useUser } from "@/firebase/auth/use-user";
 
 const navItems = {
   Admin: [
@@ -55,6 +55,7 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   const getInitials = (name: string) => {
+    if (!name) return 'U';
     return name
       .split(" ")
       .map((n) => n[0])
@@ -81,7 +82,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === item.href}
+                isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
                 tooltip={item.label}
               >
                 <Link href={item.href}>
@@ -97,7 +98,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-3 rounded-md bg-background/10 p-2">
            <Avatar className="h-10 w-10">
               <AvatarImage src={user?.avatarUrl || ''} alt={user?.name || ''} />
-              <AvatarFallback>{user ? getInitials(user.name || 'U') : 'U'}</AvatarFallback>
+              <AvatarFallback>{getInitials(user?.name || 'U')}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-sm">
                 <span className="font-semibold text-sidebar-foreground">{user?.name}</span>
