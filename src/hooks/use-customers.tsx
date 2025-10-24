@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
@@ -11,7 +12,7 @@ interface CustomerContextType {
   customers: Customer[];
   loading: boolean;
   getCustomerById: (id: string) => Customer | undefined;
-  addCustomer: (customer: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>) => Promise<string | undefined>;
+  addCustomer: (customer: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews' | 'phoneNumbers' | 'gender' | 'location' | 'company' | 'avatarUrl' | 'telegram'>) => Promise<string>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
@@ -30,10 +31,9 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     return customers.find(customer => customer.id === id);
   };
   
-  const addCustomer = async (customerData: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>): Promise<string | undefined> => {
+  const addCustomer = async (customerData: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews' | 'phoneNumbers' | 'gender' | 'location' | 'company' | 'avatarUrl' | 'telegram'>): Promise<string> => {
     if (!user) {
-      console.error("User not available");
-      return;
+      throw new Error("User not available");
     };
     
     const newCustomer: Customer = {
@@ -42,6 +42,11 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       ownerId: user.id,
       orderIds: [],
       reviews: [],
+      phoneNumbers: [{ type: 'Mobile', number: '' }],
+      gender: 'Other',
+      location: { town: 'Unknown', mapCoordinates: { lat: 0, lng: 0 } },
+      company: customerData.name,
+      avatarUrl: `https://i.pravatar.cc/150?u=${customerData.email}`,
     };
 
     setCustomers(prev => [newCustomer, ...prev]);
