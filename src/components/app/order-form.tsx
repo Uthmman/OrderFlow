@@ -255,13 +255,24 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {isCreatingNewCustomer ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold">Create New Customer</h2>
-                     <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
-                </div>
-                <CustomerForm onSubmit={handleAddNewCustomer} isSubmitting={newCustomerSubmitting} />
-              </div>
+               <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>Create New Customer</CardTitle>
+                    <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                  </div>
+                   <CardDescription>
+                      Fill in the details for the new customer. They will be automatically selected.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CustomerForm 
+                    onSubmit={handleAddNewCustomer} 
+                    isSubmitting={newCustomerSubmitting}
+                    submitButtonText="Create and Select Customer" 
+                   />
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardHeader>
@@ -798,6 +809,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
+
+    
 
     
 
