@@ -232,6 +232,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
 }
 
 function MobileOrderList({ orders }: { orders: Order[] }) {
+    const router = useRouter();
     return (
         <div className="space-y-4">
              <div className="flex items-center justify-between gap-2">
@@ -248,7 +249,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
             </div>
             {orders.map(order => (
                  <Card key={order.id} className="hover:bg-muted/50 transition-colors">
-                    <Link href={`/orders/${order.id}`} className="block">
+                    <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <div>
@@ -261,7 +262,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                         </Link>
                                     </CardDescription>
                                 </div>
-                                <div onClick={(e) => e.preventDefault()}>
+                                <div onClick={(e) => e.stopPropagation()}>
                                     <OrderActions order={order} />
                                 </div>
                             </div>
@@ -274,12 +275,12 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                 </div>
                             </div>
                         </CardContent>
-                        <CardFooter>
-                            <div className="text-base font-medium w-full text-right">
-                                {formatCurrency(order.incomeAmount)}
-                            </div>
-                        </CardFooter>
-                    </Link>
+                    </div>
+                    <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
+                        <div className="text-base font-medium w-full text-right">
+                            {formatCurrency(order.incomeAmount)}
+                        </div>
+                    </CardFooter>
                  </Card>
             ))}
         </div>
