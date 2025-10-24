@@ -143,10 +143,12 @@ function CustomerTableToolbar({ table }: { table: ReturnType<typeof useReactTabl
       </div>
       <div className="flex items-center gap-2">
         <DataTableViewOptions table={table} />
-        <Button size="sm" className="h-8">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            New Customer
-        </Button>
+        <Link href="/customers/new">
+          <Button size="sm" className="h-8">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              New Customer
+          </Button>
+        </Link>
       </div>
     </div>
   )
