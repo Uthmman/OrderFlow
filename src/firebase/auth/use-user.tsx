@@ -31,15 +31,21 @@ const mapFirebaseUserToAppUser = (
 
 export function useUser(): UseUserHook {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseUserHook();
+  const firestore = useFirestore();
+
+  const userProfileRef = useMemoFirebase(
+    () => (firebaseUser ? doc(firestore, `users/${firebaseUser.uid}`) : null),
+    [firestore, firebaseUser]
+  );
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   const user = useMemo(() => {
     if (firebaseUser) {
-      // For now, we are not fetching the profile from Firestore to avoid the permission error.
-      // We will construct a basic user object from the auth data.
-      return mapFirebaseUserToAppUser(firebaseUser, {});
+      return mapFirebaseUserToAppUser(firebaseUser, userProfile);
     }
     return null;
-  }, [firebaseUser]);
+  }, [firebaseUser, userProfile]);
 
-  return { user, loading: isAuthLoading };
+  return { user, loading: isAuthLoading || isProfileLoading };
 }

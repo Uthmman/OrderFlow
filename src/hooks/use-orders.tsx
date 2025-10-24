@@ -15,7 +15,6 @@ import {
 } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
-import { MOCK_ORDERS } from '@/lib/mock-data';
 
 interface OrderContextType {
   orders: Order[];
@@ -31,25 +30,57 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  
-  // MOCK DATA IMPLEMENTATION
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const loading = false;
+
+  const ordersCollection = useMemoFirebase(() => user ? collection(firestore, 'orders') : null, [firestore, user]);
+  const { data: orders, isLoading: loading } = useCollection<Order>(ordersCollection);
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
-    // This is a mock implementation and will not actually upload files.
-    console.warn("File upload is mocked. Files are not saved.");
-    toast({
-        title: "Mock Upload",
-        description: "File uploads are disabled in this demo."
-    })
-    return files.map(file => ({
-        fileName: file.name,
-        url: `https://picsum.photos/seed/${file.name}/200/150`,
-        storagePath: `mock/orders/${orderId}/${file.name}`
-    }));
+    const storage = getStorage();
+    const uploadedAttachments: OrderAttachment[] = [];
+
+    const uploadPromises = files.map(file => {
+      return new Promise<OrderAttachment>((resolve, reject) => {
+        const storagePath = `orders/${orderId}/${file.name}`;
+        const storageRef = ref(storage, storagePath);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+          },
+          (error) => {
+            console.error("Upload failed for ", file.name, error);
+            toast({
+                variant: 'destructive',
+                title: 'Upload Failed',
+                description: `Could not upload ${file.name}.`
+            })
+            reject(error);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            uploadedAttachments.push({
+              fileName: file.name,
+              url: downloadURL,
+              storagePath: storagePath
+            });
+            setUploadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[file.name];
+                return newProgress;
+            });
+            resolve({ fileName: file.name, url: downloadURL, storagePath });
+          }
+        );
+      });
+    });
+
+    await Promise.all(uploadPromises);
+    return uploadedAttachments;
   };
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
@@ -57,25 +88,28 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to create an order.' });
       return;
     }
-    const orderId = `mock-order-${Math.random().toString(36).substring(2, 9)}`;
+    const collectionRef = collection(firestore, 'orders');
+
+    // Create a temporary doc to get an ID
+    const tempDocRef = doc(collectionRef);
+    const orderId = tempDocRef.id;
     
     try {
       const newAttachments = await handleFileUploads(orderId, newFiles);
       
-      const newOrder: Order = {
-        id: orderId,
+      const newOrder = {
         ...orderData,
-        creationDate: new Date().toISOString(),
+        creationDate: serverTimestamp(),
         ownerId: user.id,
         attachments: [...(orderData.attachments || []), ...newAttachments],
       };
       
-      setOrders(prev => [newOrder, ...prev]);
+      updateDocumentNonBlocking(doc(firestore, 'orders', orderId), newOrder);
       return orderId;
 
     } catch (error) {
-       console.error("Error creating mock order: ", error);
-       toast({ variant: 'destructive', title: 'Mock Error', description: 'Failed to create mock order.' });
+       console.error("Error creating order: ", error);
+       toast({ variant: 'destructive', title: 'Error', description: 'Failed to create order.' });
     }
   };
 
@@ -85,6 +119,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const docRef = doc(firestore, `orders/${updatedOrderData.id}`);
     const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
 
     try {
@@ -107,17 +142,26 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             chatMessages: newChatMessages
         };
 
-        setOrders(prev => prev.map(o => o.id === finalOrderData.id ? finalOrderData : o));
+        updateDocumentNonBlocking(docRef, finalOrderData);
 
     } catch (error) {
-        console.error("Error updating mock order: ", error);
-        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update mock order.' });
+        console.error("Error updating order: ", error);
+        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update order.' });
     }
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-     setOrders(prev => prev.filter(o => o.id !== orderId));
-     console.warn(`Mock delete for order ${orderId}. Associated files not actually deleted.`);
+    const docRef = doc(firestore, `orders/${orderId}`);
+    deleteDocumentNonBlocking(docRef);
+
+    const storage = getStorage();
+    attachments.forEach(att => {
+        const fileRef = ref(storage, att.storagePath);
+        deleteObject(fileRef).catch(error => {
+            console.error("Failed to delete attachment: ", error);
+            toast({ variant: 'destructive', title: 'File Deletion Error', description: `Could not delete ${att.fileName}`});
+        });
+    })
   };
 
   const getOrderById = (orderId: string) => {
