@@ -92,7 +92,15 @@ export function CustomerForm({
           mapUrl: customer.location.mapUrl
         }
       : {
+          name: "",
+          email: "",
+          company: "",
+          phone: "",
+          phone2: "",
+          telegram: "",
           gender: "Other",
+          town: "",
+          mapUrl: "",
         },
   });
 
