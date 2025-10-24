@@ -7,6 +7,10 @@ import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
 import { OrderProvider } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
+import { initializeFirebase } from "@/firebase";
+
+// Initialize firebase once
+initializeFirebase();
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
 

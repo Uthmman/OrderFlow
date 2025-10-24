@@ -1,10 +1,12 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
+import { collection, doc, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { initializeFirebase } from '@/firebase';
 import type { Customer } from '@/lib/types';
 import { useToast } from './use-toast';
-import { MOCK_CUSTOMERS } from '@/lib/mock-data';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -12,35 +14,44 @@ interface CustomerContextType {
   getCustomerById: (id: string) => Customer | undefined;
   addCustomer: (customer: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }) => Promise<string>;
   updateCustomer: (customer: Customer) => Promise<void>;
+  addOrderToCustomer: (customerId: string, orderId: string) => Promise<void>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
+  const { firestore } = initializeFirebase();
   const { toast } = useToast();
-  const customers = MOCK_CUSTOMERS;
-  const loading = false;
 
-  const getCustomerById = (id: string) => {
+  const customersRef = useMemo(() => collection(firestore, 'customers'), [firestore]);
+  const { data: customers, loading } = useCollection<Customer>(customersRef);
+
+  const getCustomerById = useCallback((id: string): Customer | undefined => {
     return customers?.find(customer => customer.id === id);
-  };
+  }, [customers]);
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
-    console.log("Adding customer (mock):", customerData);
-    const newId = `cust-${Math.random().toString(36).substr(2, 9)}`;
-    toast({
-        title: "Mock Action",
-        description: "Customer creation is not implemented in mock mode.",
+    const docRef = await addDoc(customersRef, {
+      ...customerData,
+      orderIds: [],
+      reviews: [],
+      ownerId: 'anonymous' // Since there is no auth
     });
-    return newId;
+    // Now update the document with its own ID
+    await updateDoc(docRef, { id: docRef.id });
+    return docRef.id;
+  };
+
+  const addOrderToCustomer = async(customerId: string, orderId: string) => {
+    const customerRef = doc(firestore, 'customers', customerId);
+    await updateDoc(customerRef, {
+      orderIds: arrayUnion(orderId)
+    });
   };
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
-      console.log("Updating customer (mock):", customerData);
-        toast({
-            title: "Mock Action",
-            description: "Customer updates are not implemented in mock mode.",
-        });
+      const customerRef = doc(firestore, 'customers', customerData.id);
+      await updateDoc(customerRef, { ...customerData });
   }
 
   const value = useMemo(() => ({
@@ -48,8 +59,9 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     loading,
     getCustomerById,
     addCustomer,
-    updateCustomer
-  }), [customers, loading]);
+    updateCustomer,
+    addOrderToCustomer,
+  }), [customers, loading, getCustomerById]);
 
   return (
     <CustomerContext.Provider value={value}>
