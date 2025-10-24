@@ -37,7 +37,7 @@ import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud,
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment } from "@/lib/types"
+import { Order, OrderAttachment, Customer } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef } from "react"
@@ -58,6 +58,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { CustomerForm } from "./customer-form"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -89,9 +90,8 @@ interface OrderFormProps {
 export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
-  const [newCustomerName, setNewCustomerName] = useState("");
-  const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
+  const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   
@@ -194,20 +194,25 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     onSubmit(newOrderData, newFiles);
   }
 
-  const handleAddNewCustomer = async () => {
-    if (newCustomerName && newCustomerEmail) {
-      try {
-        const newCustomerId = await addCustomer({ 
-            name: newCustomerName, 
-            email: newCustomerEmail,
-        });
-        form.setValue("customerId", newCustomerId, { shouldValidate: true, shouldDirty: true });
-        setIsCreatingNewCustomer(false);
-        setNewCustomerName("");
-        setNewCustomerEmail("");
-      } catch (error) {
-        console.error("Failed to add new customer", error)
-      }
+  const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
+    setNewCustomerSubmitting(true);
+    try {
+      const newCustomerId = await addCustomer(customerData);
+      form.setValue("customerId", newCustomerId, { shouldValidate: true, shouldDirty: true });
+      toast({
+        title: "Customer Created",
+        description: `${customerData.name} has been successfully added.`,
+      });
+      setIsCreatingNewCustomer(false);
+    } catch (error) {
+      console.error("Failed to add new customer", error)
+      toast({
+        variant: "destructive",
+        title: "Creation Failed",
+        description: "There was a problem creating the customer.",
+      });
+    } finally {
+        setNewCustomerSubmitting(false);
     }
   }
   
@@ -250,26 +255,13 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {isCreatingNewCustomer ? (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>New Customer</CardTitle>
-                    <CardDescription>Create a new customer profile.</CardDescription>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-customer-name">Customer Name</Label>
-                    <Input id="new-customer-name" value={newCustomerName} onChange={(e) => setNewCustomerName(e.target.value)} placeholder="e.g. John Doe" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="new-customer-email">Customer Email</Label>
-                    <Input id="new-customer-email" type="email" value={newCustomerEmail} onChange={(e) => setNewCustomerEmail(e.target.value)} placeholder="e.g. john@example.com"/>
-                  </div>
-                  <Button type="button" onClick={handleAddNewCustomer} disabled={!newCustomerName || !newCustomerEmail}>Add and Select Customer</Button>
-                </CardContent>
-              </Card>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold">Create New Customer</h2>
+                     <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                </div>
+                <CustomerForm onSubmit={handleAddNewCustomer} isSubmitting={newCustomerSubmitting} />
+              </div>
             ) : (
               <Card>
                 <CardHeader>
@@ -806,5 +798,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
+
+    
 
     
