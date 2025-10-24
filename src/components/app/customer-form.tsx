@@ -54,8 +54,7 @@ const formSchema = z.object({
   telegram: z.string().optional(),
   gender: z.enum(["Male", "Female", "Other"]),
   town: z.string().min(2, "Town/City is required."),
-  lat: z.coerce.number().optional(),
-  lng: z.coerce.number().optional(),
+  mapUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
 });
 
 type CustomerFormValues = z.infer<typeof formSchema>;
@@ -88,13 +87,10 @@ export function CustomerForm({
           telegram: customer.telegram,
           gender: customer.gender,
           town: customer.location.town,
-          lat: customer.location.mapCoordinates.lat,
-          lng: customer.location.mapCoordinates.lng
+          mapUrl: customer.location.mapUrl
         }
       : {
           gender: "Other",
-          lat: 0,
-          lng: 0,
         },
   });
 
@@ -115,7 +111,7 @@ export function CustomerForm({
         phoneNumbers,
         location: {
             town: values.town,
-            mapCoordinates: { lat: values.lat || 0, lng: values.lng || 0 }
+            mapUrl: values.mapUrl
         },
         avatarUrl: `https://i.pravatar.cc/150?u=${values.email || values.name}`
     };
@@ -254,34 +250,19 @@ export function CustomerForm({
                             </FormItem>
                         )}
                     />
-                     <div className="grid grid-cols-2 gap-4">
-                        <FormField
-                            control={form.control}
-                            name="lat"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Latitude (Optional)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g. 34.0522" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="lng"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Longitude (Optional)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="e.g. -118.2437" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
+                    <FormField
+                        control={form.control}
+                        name="mapUrl"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Map Link (Optional)</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. https://maps.app.goo.gl/..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                    />
                 </CardContent>
             </Card>
 

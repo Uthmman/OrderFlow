@@ -8,9 +8,10 @@ import { useOrders } from "@/hooks/use-orders";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, MessageSquare, Star, Edit, MoreVertical, Building, User, Users } from "lucide-react";
+import { Mail, Phone, MapPin, MessageSquare, Star, Edit, MoreVertical, Building, User, Users, ExternalLink } from "lucide-react";
 import { OrderTable } from "@/components/app/order-table";
 import { Separator } from "@/components/ui/separator";
+import Link from "next/link";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -44,9 +45,6 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   
   const customerOrders = orders.filter(order => customer.orderIds.includes(order.id));
   const totalSpent = customerOrders.reduce((acc, order) => acc + order.incomeAmount, 0);
-
-  const googleMapsUrl = `https://www.google.com/maps/embed/v1/place?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&q=${customer.location.mapCoordinates.lat},${customer.location.mapCoordinates.lng}`;
-
 
   return (
     <div className="flex flex-col gap-8">
@@ -126,16 +124,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <p>{customer.location.town}</p>
                     </div>
-                    <div className="aspect-video w-full rounded-md overflow-hidden border">
-                         <iframe
-                            width="100%"
-                            height="100%"
-                            style={{ border: 0 }}
-                            loading="lazy"
-                            allowFullScreen
-                            src={googleMapsUrl}>
-                        </iframe>
-                    </div>
+                    {customer.location.mapUrl && (
+                        <Button asChild variant="outline" className="w-full">
+                            <Link href={customer.location.mapUrl} target="_blank">
+                                <ExternalLink className="mr-2" /> View on Map
+                            </Link>
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
             <Card>

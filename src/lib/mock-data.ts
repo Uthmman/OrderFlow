@@ -70,7 +70,7 @@ export const MOCK_CUSTOMERS: Customer[] = [
     gender: 'Other',
     location: {
       town: 'Tech City, CA',
-      mapCoordinates: { lat: 34.0522, lng: -118.2437 },
+      mapUrl: 'https://maps.app.goo.gl/BWK4KUwXzuBfNSpk7',
     },
     orderIds: ['order-1', 'order-3'],
     reviews: mockReviews,
@@ -86,7 +86,7 @@ export const MOCK_CUSTOMERS: Customer[] = [
     gender: 'Female',
     location: {
         town: 'Metropolis, NY',
-        mapCoordinates: { lat: 40.7128, lng: -74.0060 },
+        mapUrl: 'https://maps.app.goo.gl/BWK4KUwXzuBfNSpk7',
     },
     orderIds: ['order-2'],
     reviews: [],

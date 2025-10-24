@@ -43,7 +43,7 @@ export type Customer = {
   gender: 'Male' | 'Female' | 'Other';
   location: {
     town: string;
-    mapCoordinates: { lat: number; lng: number };
+    mapUrl?: string;
   };
   orderIds: string[];
   reviews: CustomerReview[];
