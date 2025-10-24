@@ -5,9 +5,9 @@ import React, { createContext, useContext, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Role, User } from '@/lib/types';
 import { useToast } from './use-toast';
-import { useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
+import { useAuth as useFirebaseAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { signInAnonymously, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
   signInAsDemoUser: (role: Role) => void;
@@ -27,21 +27,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userCredential = await signInAnonymously(auth);
       const user = userCredential.user;
 
-      const MOCK_USER_DATA: Omit<User, 'id' | 'email' | 'verified'> = {
-          name: `${role} User`,
-          avatarUrl: `https://i.pravatar.cc/150?u=${role}`,
-          role: role,
-      }
-
       // Create a user profile in Firestore
-      const userProfileRef = doc(firestore, `users/${user.uid}/profile`);
-      await setDoc(userProfileRef, {
+      const userProfileRef = doc(firestore, `users/${user.uid}/profile/${user.uid}`);
+      setDocumentNonBlocking(userProfileRef, {
         firstName: role,
         lastName: 'User',
         email: user.email || `${role.toLowerCase()}@example.com`,
         role: role,
         createdAt: serverTimestamp(),
-      });
+      }, { merge: true });
       
       toast({
           title: "Logged In",

@@ -43,7 +43,7 @@ function UserActions({ user: targetUser }: { user: User }) {
 
     const handleRoleChange = async (newRole: Role) => {
         if (!firestore) return;
-        const userProfileRef = doc(firestore, `users/${targetUser.id}/profile`);
+        const userProfileRef = doc(firestore, `users/${targetUser.id}/profile/${targetUser.id}`);
         updateDocumentNonBlocking(userProfileRef, { role: newRole });
         setRole(newRole);
     }
