@@ -34,7 +34,7 @@ export function useUser(): UseUserHook {
 
   const userProfileRef = useMemoFirebase(() => {
     if (!firestore || !firebaseUser) return null;
-    return doc(firestore, `users/${firebaseUser.uid}/profile`);
+    return doc(firestore, `users/${firebaseUser.uid}/profile/${firebaseUser.uid}`);
   }, [firestore, firebaseUser]);
 
   const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
