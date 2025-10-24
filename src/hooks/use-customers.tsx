@@ -11,7 +11,7 @@ interface CustomerContextType {
   customers: Customer[];
   loading: boolean;
   getCustomerById: (id: string) => Customer | undefined;
-  addCustomer: (customer: Omit<Customer, 'id'| 'ownerId'>) => Promise<string | undefined>;
+  addCustomer: (customer: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>) => Promise<string | undefined>;
 }
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
@@ -30,7 +30,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     return customers.find(customer => customer.id === id);
   };
   
-  const addCustomer = async (customerData: Omit<Customer, 'id'| 'ownerId'>): Promise<string | undefined> => {
+  const addCustomer = async (customerData: Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>): Promise<string | undefined> => {
     if (!user) {
       console.error("User not available");
       return;
@@ -39,7 +39,9 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     const newCustomer: Customer = {
       ...customerData,
       id: uuidv4(),
-      ownerId: user.id
+      ownerId: user.id,
+      orderIds: [],
+      reviews: [],
     };
 
     setCustomers(prev => [newCustomer, ...prev]);

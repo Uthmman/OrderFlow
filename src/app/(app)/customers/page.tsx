@@ -30,19 +30,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { useOrders } from "@/hooks/use-orders"
 import { useCustomers } from "@/hooks/use-customers"
+import { useRouter } from "next/navigation"
 
 function CustomerActions({ customer }: { customer: Customer }) {
+    const router = useRouter();
     return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>View Customer</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>
+              View Customer
+            </DropdownMenuItem>
             <DropdownMenuItem>Edit</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
           </DropdownMenuContent>
@@ -82,13 +86,13 @@ export const columns: ColumnDef<Customer>[] = [
     cell: ({ row }) => {
         const customer = row.original;
         return (
-            <div className="flex items-center gap-3">
+            <Link href={`/customers/${customer.id}`} className="flex items-center gap-3 group">
                 <Avatar className="h-8 w-8">
                     <AvatarImage src={customer.avatarUrl} />
                     <AvatarFallback>{customer.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
                 </Avatar>
-                <span className="font-medium">{customer.name}</span>
-            </div>
+                <span className="font-medium group-hover:underline">{customer.name}</span>
+            </Link>
         )
     },
   },
@@ -97,8 +101,12 @@ export const columns: ColumnDef<Customer>[] = [
     header: "Email",
   },
   {
-    accessorKey: "phone",
+    accessorKey: "phoneNumbers",
     header: "Phone",
+    cell: ({ row }) => {
+        const phoneNumbers = row.getValue("phoneNumbers") as Customer['phoneNumbers'];
+        return <span>{phoneNumbers[0]?.number}</span>
+    }
   },
   {
     accessorKey: "orderIds",
@@ -166,30 +174,34 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
                 </Link>
             </div>
             {customers.map(customer => (
-                 <Card key={customer.id}>
-                    <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-3">
-                                <Avatar className="h-10 w-10">
-                                    <AvatarImage src={customer.avatarUrl} />
-                                    <AvatarFallback>{customer.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
-                                    <CardDescription>{customer.company}</CardDescription>
+                 <Card key={customer.id} className="hover:bg-muted/50 transition-colors">
+                    <Link href={`/customers/${customer.id}`} className="block">
+                        <CardHeader>
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={customer.avatarUrl} />
+                                        <AvatarFallback>{customer.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <CardTitle className="text-base font-bold">{customer.name}</CardTitle>
+                                        <CardDescription>{customer.company}</CardDescription>
+                                    </div>
                                 </div>
+                               <div onClick={(e) => e.preventDefault()}>
+                                    <CustomerActions customer={customer} />
+                               </div>
                             </div>
-                           <CustomerActions customer={customer} />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="text-sm space-y-2">
-                        <p className="text-muted-foreground">{customer.email}</p>
-                        <p className="text-muted-foreground">{customer.phone}</p>
-                        <p>
-                            <span className="font-medium">{getCustomerOrderCount(customer.id)}</span>{" "}
-                            <span className="text-muted-foreground">orders</span>
-                        </p>
-                    </CardContent>
+                        </CardHeader>
+                        <CardContent className="text-sm space-y-2">
+                            <p className="text-muted-foreground">{customer.email}</p>
+                            <p className="text-muted-foreground">{customer.phoneNumbers[0]?.number}</p>
+                            <p>
+                                <span className="font-medium">{getCustomerOrderCount(customer.id)}</span>{" "}
+                                <span className="text-muted-foreground">orders</span>
+                            </p>
+                        </CardContent>
+                    </Link>
                  </Card>
             ))}
         </div>
@@ -199,6 +211,7 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
 export default function CustomersPage() {
     const { customers, loading } = useCustomers();
     const data = React.useMemo(() => customers, [customers]);
+    const router = useRouter();
 
     const table = useReactTable({
         data,

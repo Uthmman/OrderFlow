@@ -1,5 +1,5 @@
 
-import { User, Customer, Order } from './types';
+import { User, Customer, Order, CustomerReview } from './types';
 
 export const MOCK_USERS: Record<string, User> = {
   Admin: {
@@ -38,25 +38,58 @@ export const MOCK_USERS: Record<string, User> = {
 
 export const MOCK_USERS_LIST = Object.values(MOCK_USERS);
 
+const mockReviews: CustomerReview[] = [
+    {
+      id: 'review-1',
+      orderId: 'order-1',
+      rating: 5,
+      comment: 'The chairs are fantastic! Excellent quality and delivered on time.',
+      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+     {
+      id: 'review-2',
+      orderId: 'order-3',
+      rating: 4,
+      comment: 'Good work on the reception desk. There was a slight delay but the quality is top-notch.',
+      date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+];
+
 export const MOCK_CUSTOMERS: Customer[] = [
   {
     id: 'cust-1',
     name: 'Innovate Inc.',
     email: 'contact@innovateinc.com',
-    phone: '555-0101',
+    phoneNumbers: [
+      { type: 'Work', number: '555-0101' },
+      { type: 'Mobile', number: '555-0199' },
+    ],
+    telegram: '@innovate_contact',
     company: 'Innovate Inc.',
     avatarUrl: 'https://i.pravatar.cc/150?u=innovate',
+    gender: 'Other',
+    location: {
+      town: 'Tech City, CA',
+      mapCoordinates: { lat: 34.0522, lng: -118.2437 },
+    },
     orderIds: ['order-1', 'order-3'],
+    reviews: mockReviews,
     ownerId: 'sales-user-id',
   },
   {
     id: 'cust-2',
-    name: 'Solutions Co.',
-    email: 'support@solutionsco.com',
-    phone: '555-0102',
+    name: 'Samantha Solutions',
+    email: 'samantha@solutionsco.com',
+    phoneNumbers: [{ type: 'Mobile', number: '555-0102' }],
     company: 'Solutions Co.',
     avatarUrl: 'https://i.pravatar.cc/150?u=solutions',
+    gender: 'Female',
+    location: {
+        town: 'Metropolis, NY',
+        mapCoordinates: { lat: 40.7128, lng: -74.0060 },
+    },
     orderIds: ['order-2'],
+    reviews: [],
     ownerId: 'sales-user-id',
   },
 ];
@@ -67,8 +100,8 @@ export const MOCK_ORDERS: Order[] = [
     customerName: 'Innovate Inc.',
     customerId: 'cust-1',
     description: 'Custom ergonomic office chairs for the new headquarters. Upholstered in premium grey fabric with adjustable lumbar support.',
-    status: 'In Progress',
-    deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'Completed',
+    deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     incomeAmount: 15000,
     prepaidAmount: 7500,
     isUrgent: true,
@@ -90,7 +123,7 @@ export const MOCK_ORDERS: Order[] = [
   },
   {
     id: 'order-2',
-    customerName: 'Solutions Co.',
+    customerName: 'Samantha Solutions',
     customerId: 'cust-2',
     description: 'A set of 10 bespoke walnut conference tables. Rectangular shape with embedded power outlets.',
     status: 'Designing',
@@ -110,4 +143,24 @@ export const MOCK_ORDERS: Order[] = [
        { user: { id: 'sales-user-id', name: 'Sales User', avatarUrl: MOCK_USERS['Sales'].avatarUrl }, text: 'Order confirmed by client.', timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
     ]
   },
+  {
+    id: 'order-3',
+    customerName: 'Innovate Inc.',
+    customerId: 'cust-1',
+    description: 'Custom reception desk with integrated lighting.',
+    status: 'Completed',
+    deadline: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    incomeAmount: 8500,
+    prepaidAmount: 8500,
+    isUrgent: false,
+    creationDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+    attachments: [],
+    colors: ['Glossy White'],
+    material: 'MDF, LED lighting',
+    dimensions: { width: 300, height: 100, depth: 80 },
+    paymentDetails: '100% upfront.',
+    assignedTo: ['designer-user-id', 'manager-user-id'],
+    ownerId: 'sales-user-id',
+    chatMessages: []
+  }
 ];

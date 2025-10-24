@@ -98,7 +98,7 @@ function OrderActions({ order }: { order: Order }) {
                   Edit Order
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleUrgent(e); }}>
-                    <AlertTriangle />
+                    <AlertTriangle className="mr-2 h-4 w-4" />
                     <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
@@ -161,7 +161,10 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "customerName",
     header: "Customer",
-    cell: ({ row }) => <div>{row.getValue("customerName")}</div>,
+    cell: ({ row }) => {
+        const order = row.original;
+        return <Link className="hover:underline" href={`/customers/${order.customerId}`}>{row.getValue("customerName")}</Link>
+    },
   },
   {
     accessorKey: "status",
@@ -252,7 +255,11 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                     <CardTitle className="text-base font-bold">
                                         {formatOrderId(order.id)}
                                     </CardTitle>
-                                    <CardDescription>{order.customerName}</CardDescription>
+                                    <CardDescription>
+                                        <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>
+                                            {order.customerName}
+                                        </Link>
+                                    </CardDescription>
                                 </div>
                                 <div onClick={(e) => e.preventDefault()}>
                                     <OrderActions order={order} />
@@ -279,9 +286,15 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
     )
 }
 
+interface OrderTableProps {
+    orders?: Order[];
+}
 
-export function OrderTable() {
-  const { orders, loading } = useOrders();
+export function OrderTable({ orders: propOrders }: OrderTableProps) {
+  const { orders: contextOrders, loading } = useOrders();
+  
+  const orders = propOrders ?? contextOrders;
+
   const sortedOrders = React.useMemo(() => {
     if (!orders) return [];
     return [...orders].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime())
@@ -296,7 +309,7 @@ export function OrderTable() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  if (loading) {
+  if (loading && !propOrders) {
       return <div className="text-center p-8">Loading orders...</div>
   }
   
@@ -313,5 +326,3 @@ export function OrderTable() {
     </>
   )
 }
-
-    

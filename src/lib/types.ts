@@ -24,16 +24,32 @@ export type FirebaseUser = {
     verified?: boolean;
 }
 
+export type CustomerReview = {
+  id: string;
+  orderId: string;
+  rating: number;
+  comment: string;
+  date: string; // ISO string
+}
+
 export type Customer = {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phoneNumbers: { type: 'Mobile' | 'Work' | 'Home'; number: string }[];
+  telegram?: string;
   company: string;
   avatarUrl: string;
+  gender: 'Male' | 'Female' | 'Other';
+  location: {
+    town: string;
+    mapCoordinates: { lat: number; lng: number };
+  };
   orderIds: string[];
+  reviews: CustomerReview[];
   ownerId: string;
 };
+
 
 export type OrderStatus =
   | 'Pending'
