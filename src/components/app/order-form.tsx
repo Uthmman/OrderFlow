@@ -269,7 +269,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                   <CustomerForm 
                     onSubmit={handleAddNewCustomer} 
                     isSubmitting={newCustomerSubmitting}
-                    submitButtonText="Create and Select Customer" 
+                    submitButtonText="Create and Select Customer"
+                    isEmbedded={true}
                    />
                 </CardContent>
               </Card>
