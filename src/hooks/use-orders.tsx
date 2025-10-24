@@ -15,6 +15,7 @@ import {
 } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage";
+import { MOCK_ORDERS } from '@/lib/mock-data';
 
 interface OrderContextType {
   orders: Order[];
@@ -29,97 +30,68 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export function OrderProvider({ children }: { children: ReactNode }) {
-  const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   
-  const ordersCollectionRef = useMemoFirebase(() => {
-      if (!firestore) return null;
-      return collection(firestore, 'orders');
-  }, [firestore]);
-  
-  const { data: orders, isLoading: loading } = useCollection<Order>(ordersCollectionRef);
+  // MOCK DATA IMPLEMENTATION
+  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const loading = false;
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
-    const storage = getStorage();
-    const attachmentPromises = files.map(file => {
-      const storageRef = ref(storage, `orders/${orderId}/${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      return new Promise<OrderAttachment>((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-          },
-          (error) => {
-            console.error("Upload failed:", error);
-            reject(error);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            setUploadProgress(prev => {
-              const newState = { ...prev };
-              delete newState[file.name];
-              return newState;
-            });
-            resolve({
-              fileName: file.name,
-              url: downloadURL,
-              storagePath: uploadTask.snapshot.ref.fullPath,
-            });
-          }
-        );
-      });
-    });
-
-    return Promise.all(attachmentPromises);
+    // This is a mock implementation and will not actually upload files.
+    console.warn("File upload is mocked. Files are not saved.");
+    toast({
+        title: "Mock Upload",
+        description: "File uploads are disabled in this demo."
+    })
+    return files.map(file => ({
+        fileName: file.name,
+        url: `https://picsum.photos/seed/${file.name}/200/150`,
+        storagePath: `mock/orders/${orderId}/${file.name}`
+    }));
   };
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
-    if (!user || !firestore) {
+    if (!user) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to create an order.' });
       return;
     }
-
-    const orderRef = doc(collection(firestore, 'orders'));
-    const orderId = orderRef.id;
-
+    const orderId = `mock-order-${Math.random().toString(36).substring(2, 9)}`;
+    
     try {
       const newAttachments = await handleFileUploads(orderId, newFiles);
       
-      const newOrder: Omit<Order, 'id'> = {
+      const newOrder: Order = {
+        id: orderId,
         ...orderData,
-        creationDate: serverTimestamp(),
+        creationDate: new Date().toISOString(),
         ownerId: user.id,
         attachments: [...(orderData.attachments || []), ...newAttachments],
       };
       
-      addDocumentNonBlocking(collection(firestore, 'orders'), newOrder);
+      setOrders(prev => [newOrder, ...prev]);
       return orderId;
 
     } catch (error) {
-       console.error("Error creating order or uploading files: ", error);
-       toast({ variant: 'destructive', title: 'Upload Error', description: 'Failed to upload attachments.' });
+       console.error("Error creating mock order: ", error);
+       toast({ variant: 'destructive', title: 'Mock Error', description: 'Failed to create mock order.' });
     }
   };
 
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
-    if (!user || !firestore) {
-      console.error("User or Firestore not available");
+    if (!user) {
+      console.error("User not available");
       return;
     }
 
-    const orderRef = doc(firestore, 'orders', updatedOrderData.id);
     const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
 
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
-
         const finalAttachments = [...(updatedOrderData.attachments || []), ...newAttachments];
-
         const newChatMessages: OrderChatMessage[] = updatedOrderData.chatMessages ? [...updatedOrderData.chatMessages] : [];
+        
         if (originalOrder && originalOrder.status !== updatedOrderData.status) {
             newChatMessages.push({
                 user: { id: 'system', name: 'System', avatarUrl: '' },
@@ -135,27 +107,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             chatMessages: newChatMessages
         };
 
-        updateDocumentNonBlocking(orderRef, finalOrderData);
+        setOrders(prev => prev.map(o => o.id === finalOrderData.id ? finalOrderData : o));
 
     } catch (error) {
-        console.error("Error updating order or uploading files: ", error);
-        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update order.' });
+        console.error("Error updating mock order: ", error);
+        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update mock order.' });
     }
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-     if (!firestore) return;
-     const orderRef = doc(firestore, 'orders', orderId);
-     deleteDocumentNonBlocking(orderRef);
-     
-     // Delete associated files from storage
-     const storage = getStorage();
-     attachments.forEach(att => {
-        const fileRef = ref(storage, att.storagePath);
-        deleteObject(fileRef).catch(error => {
-            console.error(`Failed to delete attachment ${att.fileName}:`, error);
-        });
-     });
+     setOrders(prev => prev.filter(o => o.id !== orderId));
+     console.warn(`Mock delete for order ${orderId}. Associated files not actually deleted.`);
   };
 
   const getOrderById = (orderId: string) => {

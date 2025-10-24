@@ -1,13 +1,11 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useState } from 'react';
 import type { Customer } from '@/lib/types';
 import { useUser } from '@/firebase/auth/use-user';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useToast } from './use-toast';
+import { MOCK_CUSTOMERS } from '@/lib/mock-data';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -20,30 +18,27 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
-  const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
 
-  const customersCollectionRef = useMemoFirebase(() => {
-    if (!firestore) return null;
-    // Assuming you want to fetch all customers. 
-    // In a real app, you might want to scope this by user or role.
-    return collection(firestore, 'customers');
-  }, [firestore]);
+  // MOCK DATA IMPLEMENTATION
+  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const loading = false;
 
-  const { data: customers, isLoading: loading } = useCollection<Customer>(customersCollectionRef);
 
   const getCustomerById = (id: string) => {
     return customers?.find(customer => customer.id === id);
   };
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
-    if (!user || !firestore) {
-      throw new Error("User or Firestore not available");
+    if (!user) {
+      throw new Error("User not available");
     }
     
-    const customerRef = doc(collection(firestore, 'customers'));
-    const newCustomer: Omit<Customer, 'id'> = {
+    const customerId = `mock-cust-${Math.random().toString(36).substring(2, 9)}`;
+
+    const newCustomer: Customer = {
+      id: customerId,
       name: customerData.name,
       email: customerData.email || '',
       phoneNumbers: customerData.phoneNumbers || [{type: "Mobile", number: "Not provided"}],
@@ -56,15 +51,12 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       ...customerData,
     };
     
-    addDocumentNonBlocking(collection(firestore, 'customers'), newCustomer);
-    
-    return customerRef.id;
+    setCustomers(prev => [newCustomer, ...prev]);
+    return customerId;
   };
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
-      if (!firestore) throw new Error("Firestore not available");
-      const customerRef = doc(firestore, 'customers', customerData.id);
-      updateDocumentNonBlocking(customerRef, customerData);
+      setCustomers(prev => prev.map(c => c.id === customerData.id ? customerData : c));
   }
 
   const value = useMemo(() => ({
@@ -89,4 +81,3 @@ export function useCustomers() {
   }
   return context;
 }
-
