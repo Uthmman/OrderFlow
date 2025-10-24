@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderStatus } from "@/lib/types";
+import { OrderAttachment, OrderStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -51,6 +51,46 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 const allColorOptions = [...woodFinishOptions, ...customColorOptions];
+
+const AttachmentPreview = ({ att }: { att: OrderAttachment }) => {
+    const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
+
+    if (isImage) {
+        return (
+            <Link href={att.url} target="_blank" rel="noopener noreferrer">
+                <Image 
+                    src={att.url} 
+                    alt={att.fileName}
+                    width={200}
+                    height={150}
+                    className="rounded-lg object-cover aspect-video"
+                />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                    <Button variant="secondary" size="sm">View</Button>
+                </div>
+            </Link>
+        )
+    }
+
+    if (isAudio) {
+        return (
+             <div className="bg-muted rounded-lg flex flex-col items-center justify-center aspect-video p-4">
+                <Mic className="h-10 w-10 text-muted-foreground" />
+                <audio src={att.url} controls className="w-full mt-4 h-8" />
+            </div>
+        )
+    }
+
+    return (
+        <Link href={att.url} target="_blank" rel="noopener noreferrer">
+            <div className="bg-muted rounded-lg flex flex-col items-center justify-center aspect-video p-4 group-hover:bg-muted/80">
+                <File className="h-10 w-10 text-muted-foreground" />
+                <Button variant="link" size="sm" className="mt-2 text-center">View File</Button>
+            </div>
+        </Link>
+    )
+}
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -235,20 +275,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {order.attachments.map(att => (
-                            <div key={att.fileName} className="group relative">
-                                <Link href={att.url} target="_blank" rel="noopener noreferrer">
-                                    <Image 
-                                        src={att.url} 
-                                        alt={att.fileName}
-                                        width={200}
-                                        height={150}
-                                        className="rounded-lg object-cover aspect-video"
-                                    />
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                        <Button variant="secondary" size="sm">View</Button>
-                                    </div>
-                                </Link>
-                                <p className="text-xs text-muted-foreground truncate mt-1">{att.fileName}</p>
+                            <div key={att.storagePath} className="group relative">
+                               <AttachmentPreview att={att} />
+                               <p className="text-xs text-muted-foreground truncate mt-1">{att.fileName}</p>
                             </div>
                         ))}
                     </CardContent>
@@ -303,7 +332,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardContent className="space-y-3">
                         <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <span className="font-semibold">{customer.name}</span></div>
                         <p className="text-sm text-muted-foreground">{customer.email}</p>
-                        <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -313,5 +342,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       </div>
     </div>
   );
+
+    
+
 
     
