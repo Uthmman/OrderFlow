@@ -18,37 +18,28 @@ const mapFirebaseUserToAppUser = (
   profileData: any
 ): AppUser | null => {
   if (!firebaseUser) return null;
+  const role = profileData?.role || 'Designer';
   return {
     id: firebaseUser.uid,
     email: firebaseUser.email || 'No email',
-    name: profileData?.firstName ? `${profileData.firstName} ${profileData.lastName}` : firebaseUser.displayName || 'Anonymous User',
+    name: profileData?.firstName ? `${profileData.firstName} ${profileData.lastName}` : firebaseUser.displayName || `${role} User`,
     avatarUrl: profileData?.avatarUrl || firebaseUser.photoURL || `https://i.pravatar.cc/150?u=${firebaseUser.uid}`,
-    role: profileData?.role || 'Designer', // Default role
+    role: role,
     verified: firebaseUser.emailVerified,
   };
 };
 
 export function useUser(): UseUserHook {
   const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseUserHook();
-  const firestore = useFirestore();
-
-  const userProfileRef = useMemoFirebase(() => {
-    if (!firestore || !firebaseUser) return null;
-    return doc(firestore, `users/${firebaseUser.uid}/profile/${firebaseUser.uid}`);
-  }, [firestore, firebaseUser]);
-
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
   const user = useMemo(() => {
-    if (firebaseUser && userProfile) {
-      return mapFirebaseUserToAppUser(firebaseUser, userProfile);
-    }
-    // Return a temporary user object while profile is loading
     if (firebaseUser) {
-       return mapFirebaseUserToAppUser(firebaseUser, {});
+      // For now, we are not fetching the profile from Firestore to avoid the permission error.
+      // We will construct a basic user object from the auth data.
+      return mapFirebaseUserToAppUser(firebaseUser, {});
     }
     return null;
-  }, [firebaseUser, userProfile]);
+  }, [firebaseUser]);
 
-  return { user, loading: isAuthLoading || isProfileLoading };
+  return { user, loading: isAuthLoading };
 }
