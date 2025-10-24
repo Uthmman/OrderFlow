@@ -74,7 +74,7 @@ export const MOCK_ORDERS: Order[] = [
     isUrgent: true,
     creationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     attachments: [
-      { fileName: 'chair-design-spec.pdf', url: '#', storagePath: 'mock/path/1' },
+      { fileName: 'chair-design-spec.pdf', url: 'https://picsum.photos/seed/attachment1/200/150', storagePath: 'mock/path/1' },
       { fileName: 'fabric-sample.jpg', url: 'https://picsum.photos/seed/fabric/200/150', storagePath: 'mock/path/2' },
     ],
     colors: ['Charcoal Gray'],
