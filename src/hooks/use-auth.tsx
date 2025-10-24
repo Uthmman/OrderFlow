@@ -6,11 +6,19 @@ import { useRouter } from 'next/navigation';
 import type { Role } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useAuth as useFirebaseAuth } from '@/firebase';
-import { signInAnonymously, signOut as firebaseSignOut, updateProfile } from 'firebase/auth';
+import { 
+  signInAnonymously, 
+  signOut as firebaseSignOut, 
+  updateProfile,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+} from 'firebase/auth';
 
 interface AuthContextType {
   signInAsDemoUser: (role: Role) => void;
   signOut: () => void;
+  signInWithEmail: (email: string, pass: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,6 +52,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signInWithEmail = async (email: string, pass: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+      toast({
+          title: "Logged In",
+          description: "You have successfully signed in.",
+      });
+      router.push('/dashboard');
+    } catch(error: any) {
+       console.error("Sign in failed:", error);
+       toast({
+        variant: 'destructive',
+        title: "Login Failed",
+        description: error.message || "Could not sign in. Please check your credentials.",
+      });
+    }
+  }
+  
+  const signUpWithEmail = async (email: string, pass: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+      // You can set a default role or name here if you want
+      await updateProfile(userCredential.user, { displayName: 'Designer' });
+      toast({
+          title: "Account Created",
+          description: "You have been successfully signed up.",
+      });
+      router.push('/dashboard');
+    } catch(error: any) {
+       console.error("Sign up failed:", error);
+       toast({
+        variant: 'destructive',
+        title: "Sign Up Failed",
+        description: error.message || "Could not create account. Please try again.",
+      });
+    }
+  }
+
+
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
@@ -63,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ signInAsDemoUser, signOut }}>
+    <AuthContext.Provider value={{ signInAsDemoUser, signOut, signInWithEmail, signUpWithEmail }}>
       {children}
     </AuthContext.Provider>
   );

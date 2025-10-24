@@ -1,6 +1,7 @@
 
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -10,17 +11,41 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { useAuth } from "@/hooks/use-auth"
-import { Boxes } from "lucide-react"
+import { Boxes, Loader2 } from "lucide-react"
 import { useEffect } from "react"
 import Image from "next/image"
 import { useUser } from "@/firebase/auth/use-user"
 import { useRouter } from "next/navigation"
-import type { Role } from "@/lib/types"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
+const formSchema = z.object({
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: z.string().min(6, {
+    message: "Password must be at least 6 characters.",
+  }),
+})
 
 export default function LoginPage() {
-  const { signInAsDemoUser } = useAuth();
+  const { signInWithEmail, signUpWithEmail } = useAuth();
   const { user, loading } = useUser();
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   useEffect(() => {
     if (!loading && user) {
@@ -28,8 +53,15 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
-  const handleDemoLogin = (role: Role) => {
-    signInAsDemoUser(role);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
+    if (authMode === "login") {
+      await signInWithEmail(values.email, values.password);
+    } else {
+      await signUpWithEmail(values.email, values.password);
+    }
+    // Let the useEffect handle redirection
+    setIsSubmitting(false);
   };
   
   if (loading || user) {
@@ -41,43 +73,109 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="w-full lg:grid lg:min-h-[100vh] lg:grid-cols-2 xl:min-h-[100vh]">
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-                 <Boxes className="h-8 w-8 text-primary" />
-                 <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
-            </div>
-             <CardTitle className="text-2xl font-bold">Demo Login</CardTitle>
-            <CardDescription>
-              Select a role to log in as a demo user.
-            </CardDescription>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+      <Tabs value={authMode} onValueChange={(value) => setAuthMode(value as "login" | "signup")} className="w-full max-w-sm">
+        <div className="flex items-center justify-center gap-2 mb-4">
+            <Boxes className="h-8 w-8 text-primary" />
+            <h1 className="text-3xl font-bold font-headline">OrderFlow</h1>
+        </div>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="login">Login</TabsTrigger>
+          <TabsTrigger value="signup">Sign Up</TabsTrigger>
+        </TabsList>
+        <TabsContent value="login">
           <Card>
             <CardHeader>
-                <CardTitle>Select a Role</CardTitle>
-                <CardDescription>Log in as a demo user with a specific role to see different views of the application.</CardDescription>
+              <CardTitle className="text-2xl">Login</CardTitle>
+              <CardDescription>
+                Enter your email below to login to your account.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4">
-                <Button onClick={() => handleDemoLogin('Admin')}>Log in as Admin</Button>
-                <Button onClick={() => handleDemoLogin('Manager')} variant="secondary">Log in as Manager</Button>
-                <Button onClick={() => handleDemoLogin('Sales')} variant="secondary">Log in as Sales</Button>
-                <Button onClick={() => handleDemoLogin('Designer')} variant="secondary">Log in as Designer</Button>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="m@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Login
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
-        </div>
-      </div>
-      <div className="hidden bg-muted lg:block">
-        <Image
-          src="https://picsum.photos/seed/login-bg/1200/1000"
-          data-ai-hint="abstract geometric"
-          alt="Image"
-          width="1200"
-          height="1000"
-          className="h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-        />
-      </div>
+        </TabsContent>
+        <TabsContent value="signup">
+           <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">Sign Up</CardTitle>
+              <CardDescription>
+                Enter your information to create an account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+               <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="m@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Sign Up
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
