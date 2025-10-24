@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/app/app-header";
 import { OrderProvider } from "@/hooks/use-orders";
 import { useUser } from "@/firebase/auth/use-user";
 import { CustomerProvider } from "@/hooks/use-customers";
+import { FirebaseErrorListener } from "@/components/FirebaseErrorListener";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useUser();
@@ -41,6 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex flex-1 overflow-hidden">
               <AppSidebar />
               <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                <FirebaseErrorListener />
                 {children}
               </main>
             </div>

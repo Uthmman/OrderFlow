@@ -17,7 +17,7 @@ import { useUser } from "@/firebase/auth/use-user";
 import { CreditCard, LogOut, Settings, User as UserIcon } from "lucide-react";
 
 export function UserNav() {
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const { signOut } = useAuth();
 
   const getInitials = (name: string) => {
@@ -25,7 +25,7 @@ export function UserNav() {
     return name.split(' ').map((n) => n[0]).join('');
   }
 
-  if (!user) {
+  if (loading || !user) {
     return null;
   }
 

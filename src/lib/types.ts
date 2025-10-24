@@ -1,5 +1,4 @@
 
-
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer';
@@ -69,7 +68,7 @@ export type OrderChatMessage = {
     text: string;
     imageUrl?: string;
     audioUrl?: string;
-    timestamp: string; // ISO String
+    timestamp: any; // Can be string or Firestore Timestamp
     isSystemMessage?: boolean;
 }
 
@@ -86,7 +85,7 @@ export type Order = {
   customerId: string;
   description: string;
   status: OrderStatus;
-  deadline: string; // ISO string
+  deadline: any; // Can be string or Firestore Timestamp
   incomeAmount: number;
   prepaidAmount?: number;
   isUrgent: boolean;
@@ -95,7 +94,7 @@ export type Order = {
   colors?: string[];
   material?: string;
   dimensions?: { width: number; height: number; depth: number };
-  paymentDetails: string;
+  paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;
   chatMessages?: OrderChatMessage[];

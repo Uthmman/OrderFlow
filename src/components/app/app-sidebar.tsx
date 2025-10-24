@@ -50,7 +50,7 @@ const navItems = {
 };
 
 export function AppSidebar() {
-  const { user } = useUser();
+  const { user, loading } = useUser();
   const { signOut } = useAuth();
   const pathname = usePathname();
 
@@ -63,6 +63,24 @@ export function AppSidebar() {
   };
 
   const role = user?.role as keyof typeof navItems || "Designer";
+  
+  if (loading || !user) {
+      return (
+           <Sidebar>
+              <SidebarHeader className="border-b border-sidebar-border">
+                <div className="flex items-center gap-3 p-2">
+                  <Boxes className="h-8 w-8 text-primary" />
+                   <div className="flex flex-col">
+                      <h2 className="font-headline text-lg font-semibold text-sidebar-foreground">
+                        OrderFlow
+                      </h2>
+                    </div>
+                </div>
+              </SidebarHeader>
+              <SidebarContent />
+           </Sidebar>
+      )
+  }
 
   return (
     <Sidebar>

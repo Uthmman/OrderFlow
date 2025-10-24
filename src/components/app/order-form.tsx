@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -59,6 +58,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerForm } from "./customer-form"
+import { Timestamp } from "firebase/firestore"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -86,6 +86,19 @@ interface OrderFormProps {
   isSubmitting?: boolean;
 }
 
+const toDate = (timestamp: any): Date | undefined => {
+    if (timestamp instanceof Timestamp) {
+        return timestamp.toDate();
+    }
+    if (typeof timestamp === 'string') {
+        return new Date(timestamp);
+    }
+    if (timestamp && timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000);
+    }
+    return undefined;
+}
+
 
 export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
@@ -109,7 +122,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     resolver: zodResolver(formSchema),
     defaultValues: order ? {
         ...order,
-        deadline: new Date(order.deadline),
+        deadline: toDate(order.deadline),
         width: order.dimensions?.width,
         height: order.dimensions?.height,
         depth: order.dimensions?.depth,
@@ -183,7 +196,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         attachments: existingAttachments,
         colors: finalColors,
         customerName,
-        deadline: values.deadline.toISOString(),
+        deadline: values.deadline,
         dimensions: values.width && values.height && values.depth ? {
             width: values.width,
             height: values.height,
@@ -810,9 +823,3 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
-
-    
-
-    
-
-    

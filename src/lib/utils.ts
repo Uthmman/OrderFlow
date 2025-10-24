@@ -1,5 +1,7 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { Timestamp } from "firebase/firestore";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -20,4 +22,16 @@ export function formatOrderId(orderId: string) {
     return `#ZF-ORD-${numericPart}`;
 }
 
-    
+export function formatTimestamp(timestamp: any): string {
+  if (!timestamp) return '';
+  if (timestamp instanceof Timestamp) {
+    return timestamp.toDate().toLocaleDateString();
+  }
+  if (typeof timestamp === 'string') {
+    return new Date(timestamp).toLocaleDateString();
+  }
+   if (timestamp.seconds) {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+  return 'Invalid Date';
+}

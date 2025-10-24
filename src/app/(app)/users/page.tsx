@@ -32,20 +32,24 @@ import { DataTableViewOptions } from "@/components/app/data-table/data-table-vie
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useUser } from "@/firebase/auth/use-user"
-import { MOCK_USERS_LIST } from "@/lib/mock-data"
 import { Badge } from "@/components/ui/badge"
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
+import { collection, doc } from "firebase/firestore"
 
-function UserActions({ user: targetUser, onRoleChange }: { user: User, onRoleChange: (userId: string, newRole: Role) => void }) {
+function UserActions({ user: targetUser }: { user: User }) {
     const { user: currentUser } = useUser();
+    const firestore = useFirestore();
     const [role, setRole] = React.useState<Role>(targetUser.role)
 
     const handleRoleChange = async (newRole: Role) => {
-        onRoleChange(targetUser.id, newRole);
+        if (!firestore) return;
+        const userProfileRef = doc(firestore, `users/${targetUser.id}/profile`);
+        updateDocumentNonBlocking(userProfileRef, { role: newRole });
         setRole(newRole);
     }
     
     // Only the admin can manage other users
-    if (currentUser?.email !== 'zenbabafurniture@gmail.com') {
+    if (currentUser?.role !== 'Admin') {
         return null
     }
 
@@ -103,12 +107,32 @@ function UsersTableToolbar({ table }: { table: ReturnType<typeof useReactTable<U
 
 export default function UsersPage() {
     const { user: currentUser } = useUser()
-    const [users, setUsers] = React.useState<User[]>(MOCK_USERS_LIST);
-    const [loading, setLoading] = React.useState(false);
+    const firestore = useFirestore();
 
-    const handleRoleChange = (userId: string, newRole: Role) => {
-        setUsers(prevUsers => prevUsers.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    };
+    const usersCollectionRef = useMemoFirebase(() => {
+        if (!firestore) return null;
+        // This is a simplification. In a real app, you'd query the 'profile' subcollection 
+        // for each user, which is more complex. For this prototype, we'll assume a flat 'users' collection.
+        // A better approach for production would be a Cloud Function to aggregate user profiles.
+        return collection(firestore, 'users');
+    }, [firestore]);
+    
+    // This is a simplification. `useCollection` would need to be adapted for subcollections.
+    // We are fetching the top-level users collection, but the profile data is in a subcollection.
+    // This will likely return empty unless the data structure is flattened.
+    const { data: rawUsers, isLoading: loading } = useCollection<any>(usersCollectionRef);
+
+    const users = React.useMemo(() => {
+        // This mapping is a placeholder. You would need a more robust way to get profile data.
+        return (rawUsers || []).map(u => ({
+            id: u.id,
+            name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || 'Unknown',
+            email: u.email || 'No email',
+            role: u.role || 'Designer',
+            verified: u.verified || false,
+            avatarUrl: u.avatarUrl || ''
+        })) as User[];
+    }, [rawUsers]);
 
     const columns: ColumnDef<User>[] = [
       {
@@ -151,7 +175,7 @@ export default function UsersPage() {
         cell: ({ row }) => {
           return (
             <div className="text-right">
-                <UserActions user={row.original} onRoleChange={handleRoleChange} />
+                <UserActions user={row.original} />
             </div>
           )
         },

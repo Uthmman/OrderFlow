@@ -1,88 +1,54 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
-import type { User } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
+import type { User as AuthUser } from 'firebase/auth';
+import { useUser as useFirebaseUserHook, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import type { User as AppUser } from '@/lib/types';
+import { doc } from 'firebase/firestore';
 
 export interface UseUserHook {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
 }
 
-const MOCK_USERS: Record<string, User> = {
-  Admin: {
-    id: 'admin-user-id',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    avatarUrl: 'https://i.pravatar.cc/150?u=admin',
-    role: 'Admin',
-    verified: true,
-  },
-  Manager: {
-    id: 'manager-user-id',
-    name: 'Manager User',
-    email: 'manager@example.com',
-    avatarUrl: 'https://i.pravatar.cc/150?u=manager',
-    role: 'Manager',
-    verified: true,
-  },
-  Sales: {
-    id: 'sales-user-id',
-    name: 'Sales User',
-    email: 'sales@example.com',
-    avatarUrl: 'https://i.pravatar.cc/150?u=sales',
-    role: 'Sales',
-    verified: true,
-  },
-  Designer: {
-    id: 'designer-user-id',
-    name: 'Designer User',
-    email: 'designer@example.com',
-    avatarUrl: 'https://i.pravatar.cc/150?u=designer',
-    role: 'Designer',
-    verified: true,
-  },
+// This maps the Firebase Auth user to your application's user type.
+const mapFirebaseUserToAppUser = (
+  firebaseUser: AuthUser,
+  profileData: any
+): AppUser | null => {
+  if (!firebaseUser) return null;
+  return {
+    id: firebaseUser.uid,
+    email: firebaseUser.email || 'No email',
+    name: profileData?.firstName ? `${profileData.firstName} ${profileData.lastName}` : firebaseUser.displayName || 'Anonymous User',
+    avatarUrl: profileData?.avatarUrl || firebaseUser.photoURL || `https://i.pravatar.cc/150?u=${firebaseUser.uid}`,
+    role: profileData?.role || 'Designer', // Default role
+    verified: firebaseUser.emailVerified,
+  };
 };
 
-
 export function useUser(): UseUserHook {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const { user: firebaseUser, isUserLoading: isAuthLoading } = useFirebaseUserHook();
+  const firestore = useFirestore();
 
-  useEffect(() => {
-    const checkUser = () => {
-      try {
-        const storedUserRole = localStorage.getItem('demoUserRole');
-        if (storedUserRole && MOCK_USERS[storedUserRole]) {
-          setUser(MOCK_USERS[storedUserRole]);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Could not access localStorage:", error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkUser();
+  const userProfileRef = useMemoFirebase(() => {
+    if (!firestore || !firebaseUser) return null;
+    return doc(firestore, `users/${firebaseUser.uid}/profile`);
+  }, [firestore, firebaseUser]);
 
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'demoUserRole') {
-        checkUser();
-      }
-    };
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc(userProfileRef);
 
-    window.addEventListener('storage', handleStorageChange);
+  const user = useMemo(() => {
+    if (firebaseUser && userProfile) {
+      return mapFirebaseUserToAppUser(firebaseUser, userProfile);
+    }
+    // Return a temporary user object while profile is loading
+    if (firebaseUser) {
+       return mapFirebaseUserToAppUser(firebaseUser, {});
+    }
+    return null;
+  }, [firebaseUser, userProfile]);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-
-  }, [router]);
-
-  return { user, loading };
+  return { user, loading: isAuthLoading || isProfileLoading };
 }

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -25,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus } from "@/lib/types"
-import { formatCurrency, formatOrderId } from "@/lib/utils"
+import { formatCurrency, formatOrderId, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
@@ -180,8 +179,7 @@ export const columns: ColumnDef<Order>[] = [
       <DataTableColumnHeader column={column} title="Deadline" />
     ),
     cell: ({ row }) => {
-      const date = new Date(row.getValue("deadline"))
-      return <div>{date.toLocaleDateString()}</div>
+      return <div>{formatTimestamp(row.getValue("deadline"))}</div>
     },
     enableHiding: true,
   },
@@ -271,7 +269,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                             <div className="flex justify-between items-center">
                                 <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
                                 <div className="text-sm text-muted-foreground">
-                                    Due: {new Date(order.deadline).toLocaleDateString()}
+                                    Due: {formatTimestamp(order.deadline)}
                                 </div>
                             </div>
                         </CardContent>
@@ -298,7 +296,11 @@ export function OrderTable({ orders: propOrders }: OrderTableProps) {
 
   const sortedOrders = React.useMemo(() => {
     if (!orders) return [];
-    return [...orders].sort((a, b) => new Date(b.creationDate).getTime() - new Date(a.creationDate).getTime())
+    return [...orders].sort((a, b) => {
+        const dateA = a.creationDate?.seconds ? a.creationDate.seconds * 1000 : new Date(a.creationDate).getTime();
+        const dateB = b.creationDate?.seconds ? b.creationDate.seconds * 1000 : new Date(b.creationDate).getTime();
+        return dateB - dateA;
+    });
   }, [orders]);
 
   const table = useReactTable({
