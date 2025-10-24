@@ -52,6 +52,7 @@ export type OrderChatMessage = {
     };
     text: string;
     imageUrl?: string;
+    audioUrl?: string;
     timestamp: string; // ISO String
     isSystemMessage?: boolean;
 }

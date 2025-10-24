@@ -12,12 +12,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2 } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useUser } from "@/firebase/auth/use-user"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => (
     <Avatar>
@@ -36,10 +37,15 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
             <p className="font-semibold">{message.user.name}</p>
             <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
             </div>
-            <p className="text-sm text-muted-foreground">{message.text}</p>
+            {message.text && <p className="text-sm text-muted-foreground">{message.text}</p>}
             {message.imageUrl && (
                 <div className="mt-2">
                     <Image src={message.imageUrl} alt="User Upload" width={300} height={300} className="rounded-md"/>
+                </div>
+            )}
+             {message.audioUrl && (
+                <div className="mt-2">
+                    <audio controls src={message.audioUrl} className="w-full max-w-sm" />
                 </div>
             )}
         </div>
@@ -60,13 +66,50 @@ export function ChatInterface({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const { toast } = useToast();
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
+
+  const startRecording = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        const chunks: BlobPart[] = [];
+        mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            setAudioBlob(blob);
+        };
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        setAudioBlob(null);
+    } catch (err) {
+        console.error("Error starting recording:", err);
+        toast({
+            variant: "destructive",
+            title: "Microphone Error",
+            description: "Could not access microphone. Please check permissions."
+        })
+    }
+  };
+
+  const stopRecording = () => {
+      if (mediaRecorderRef.current && isRecording) {
+          mediaRecorderRef.current.stop();
+          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+          setIsRecording(false);
+      }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || !user || loading) return;
+    if ((!inputValue.trim() && !audioBlob) || !user || loading) return;
 
     setLoading(true);
-
+    
     const userMessage: OrderChatMessage = {
         user: {
             id: user.id,
@@ -75,6 +118,7 @@ export function ChatInterface({ order }: { order: Order }) {
         },
         text: inputValue,
         timestamp: new Date().toISOString(),
+        audioUrl: audioUrl || undefined
     };
     
     const updatedMessages = [...(order.chatMessages || []), userMessage];
@@ -82,14 +126,18 @@ export function ChatInterface({ order }: { order: Order }) {
     try {
         await updateOrder({ ...order, chatMessages: updatedMessages });
         setInputValue("");
+        setAudioBlob(null);
     } catch (error) {
         console.error("Error sending message:", error);
-        // Optionally, show a toast notification for the error
+         toast({
+            variant: "destructive",
+            title: "Send Error",
+            description: "Could not send message.",
+        });
     } finally {
         setLoading(false);
     }
   };
-
 
   return (
     <Card>
@@ -105,20 +153,37 @@ export function ChatInterface({ order }: { order: Order }) {
             return <UserMessage key={index} message={message} />;
         })}
       </CardContent>
-      <CardFooter className="p-4">
+      <CardFooter className="p-4 flex flex-col items-start gap-2">
+         {audioUrl && !isRecording && (
+            <div className="w-full p-2 border rounded-md flex items-center justify-between">
+               <audio controls src={audioUrl} className="flex-1" />
+               <Button variant="ghost" size="icon" onClick={() => setAudioBlob(null)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+            </div>
+        )}
         <form onSubmit={handleSendMessage} className="relative w-full">
           <Input 
-            placeholder="Send a message..." 
-            className="pr-20"
+            placeholder={isRecording ? "Recording in progress..." : "Send a message or record audio..."}
+            className="pr-28"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            disabled={loading}
+            disabled={loading || isRecording}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
             <Button variant="ghost" size="icon" type="button" disabled>
               <Paperclip className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" type="submit" disabled={loading || !inputValue.trim()}>
+             <Button 
+                variant={isRecording ? "destructive" : "ghost"} 
+                size="icon" 
+                type="button" 
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={loading}
+              >
+              {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" type="submit" disabled={loading || (!inputValue.trim() && !audioBlob)}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
