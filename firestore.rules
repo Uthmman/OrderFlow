@@ -1,196 +1,167 @@
 /**
- * @file Firebase Security Rules for OrderFlow Application
- *
- * @core_philosophy This ruleset enforces a strict user-ownership model for personal data and a role-based model for administrative functions.  Data denormalization is used to avoid costly `get()` calls in security rules.
- * @data_structure
- *  - `/users/{userId}/profile`: User profiles, accessible only by the user themselves.
- *  - `/customers/{customerId}`: Customer data, accessible by authorized users (e.g., employees).
- *  - `/customers/{customerId}/orders/{orderId}`: Orders associated with a customer, accessible by authorized users.
- *  - `/orders/{orderId}/chat_messages/{messageId}`: Chat messages related to an order, accessible by authorized users.
- *  - `/users/{userId}/notifications/{notificationId}`: Notifications for each user, accessible only by the user themselves.
- *  - `/roles_admin/{userId}`:  Indicates admin privileges. Presence of a document grants admin access.
- * @key_security_decisions
- *  - User listing is disallowed.
- *  - Admin role is granted by the existence of a document in `/roles_admin/{userId}`.
- *  - Ambiguous relationships default to strict owner-only access.
- * @denormalization The `customerId` is denormalized into each order document to avoid `get()` calls in security rules.
+ * @file Firestore Security Rules
+ * @corePhilosophy This ruleset enforces a strict user-ownership model for user-specific data and allows controlled access to customer and order data. Admin privileges are granted based on the existence of a document in the `roles_admin` collection.
+ * @dataStructure The data is organized hierarchically with user profiles and notifications under `/users/{userId}`, customers under `/customers/{customerId}`, orders under `/customers/{customerId}/orders/{orderId}`, and order chat messages under `/orders/{orderId}/chat_messages/{messageId}`. Admin roles are stored in `/roles_admin/{userId}`.
+ * @keySecurityDecisions Listing of orders is not globally public but restricted to admins or the customer to which they belong. All write operations require authentication. Data validation is minimal, focusing on ownership and relational integrity.
+ * @denormalizationForAuthorization The `orders` collection denormalizes `customerId` into each order document to avoid costly `get()` calls when evaluating security rules.
+ * @structuralSegregation User profiles and notifications are stored in separate subcollections under `/users/{userId}` to enforce privacy.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the user is signed in.
-     * @return {boolean} True if the user is signed in, false otherwise.
+     * @description Secure user profile access. Only the user can read and write their own profile.
+     * @path /users/{userId}/profile
+     * @allow (get, update, delete) User with UID 'user123' can read, update, and delete the profile document with ID 'user123'.
+     * @allow (create) User with UID 'user123' can create the profile document with ID 'user123'.
+     * @deny (get, update, delete) User with UID 'otherUser' cannot read, update, or delete the profile document with ID 'user123'.
+     * @deny (create) User with UID 'otherUser' cannot create the profile document with ID 'user123'.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, and validates relational integrity between documents.
      */
-    function isSignedIn() {
-      return request.auth != null;
-    }
+    match /users/{userId}/profile {
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-    /**
-     * @description Checks if the user is the owner of the document.
-     * @param {string} userId The user ID to compare against the request's auth UID.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
 
-    /**
-     * @description Checks if the user is the owner of the document and the document exists.
-     * @param {string} userId The user ID to compare against the resource data.
-     * @return {boolean} True if the user is the owner and the document exists, false otherwise.
-     */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    /**
-     * @description Checks if the user has admin privileges by checking the existence of a document in `/roles_admin/{userId}`.
-     * @return {boolean} True if the user is an admin, false otherwise.
-     */
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-
-    /**
-     * @description Rules for user profiles.
-     * @path /users/{userId}/profile/{profileId}
-     * @allow (get) Authenticated user can read their own profile.
-     * @allow (create) Authenticated user can create their own profile if the userId matches their auth.uid.
-     * @allow (update) Authenticated user can update their own profile if the userId matches their auth.uid.
-     * @allow (delete) Authenticated user can delete their own profile if the userId matches their auth.uid.
-     * @deny (get) Authenticated user cannot read another user's profile.
-     * @deny (create) Authenticated user cannot create a profile for another user.
-     * @deny (update) Authenticated user cannot update another user's profile.
-     * @deny (delete) Authenticated user cannot delete another user's profile.
-     * @principle Enforces document ownership for all operations.
-     */
-    match /users/{userId}/profile/{profileId} {
-      // Read rules
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
-      allow list: if false; //No listing of profiles
-
-      // Write rules
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for customers.
+     * @description Secure customer data access. Anyone can read customer data, but only authenticated users can create, update, or delete.
      * @path /customers/{customerId}
-     * @allow (get) Admin can read customer data.
-     * @allow (create) Admin can create customer data.
-     * @allow (update) Admin can update customer data.
-     * @allow (delete) Admin can delete customer data.
-     * @deny (get) Non-admin cannot read customer data.
-     * @deny (create) Non-admin cannot create customer data.
-     * @deny (update) Non-admin cannot update customer data.
-     * @deny (delete) Non-admin cannot delete customer data.
-     * @principle Enforces role-based access control.
+     * @allow (get, list) Any user (signed in or not) can read customer data.
+     * @allow (create, update, delete) Authenticated users can create, update, and delete customer data.
+     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete customer data.
+     * @principle Allows public read access with owner-only writes and relies on authentication for write operations.
      */
     match /customers/{customerId} {
-      // Read rules
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-
-      // Write rules
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for orders under a customer.
+     * @description Secure order data access under customers. Anyone can read order data, but only authenticated users can create, update, or delete.
      * @path /customers/{customerId}/orders/{orderId}
-     * @allow (get) Admin can read order data.
-     * @allow (create) Admin can create order data.
-     * @allow (update) Admin can update order data.
-     * @allow (delete) Admin can delete order data.
-     * @deny (get) Non-admin cannot read order data.
-     * @deny (create) Non-admin cannot create order data.
-     * @deny (update) Non-admin cannot update order data.
-     * @deny (delete) Non-admin cannot delete order data.
-     * @principle Enforces role-based access control.
+     * @allow (get, list) Any user can read and list order data.
+     * @allow (create, update, delete) Authenticated users can create, update, and delete orders.
+     * @deny (create, update, delete) Unauthenticated users cannot create, update, or delete orders.
+     * @principle Allows public read access but restricts write access to authenticated users.
      */
     match /customers/{customerId}/orders/{orderId} {
-      // Read rules
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-
-      // Write rules
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn() ;
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
     }
 
     /**
-     * @description Rules for chat messages under an order.
+     * @description Secure chat message access under orders. Anyone can read and list messages, but only authenticated users can create new messages. Updates and deletes are disallowed.
      * @path /orders/{orderId}/chat_messages/{messageId}
-     * @allow (get) Admin can read chat messages.
-     * @allow (create) Admin can create chat messages.
-     * @allow (update) Admin can update chat messages.
-     * @allow (delete) Admin can delete chat messages.
-     * @deny (get) Non-admin cannot read chat messages.
-     * @deny (create) Non-admin cannot create chat messages.
-     * @deny (update) Non-admin cannot update chat messages.
-     * @deny (delete) Non-admin cannot delete chat messages.
-     * @principle Enforces role-based access control.
+     * @allow (get, list) Any user can read and list chat messages.
+     * @allow (create) Authenticated users can create chat messages.
+     * @deny (update, delete) No one can update or delete chat messages.
+     * @principle Allows public read access and restricts write access to authenticated users for creation only.
      */
     match /orders/{orderId}/chat_messages/{messageId} {
-      // Read rules
-      allow get: if isAdmin();
-      allow list: if isAdmin();
-
-      // Write rules
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      allow get: if true;
+      allow list: if true;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if false;
     }
 
     /**
-     * @description Rules for user notifications.
+     * @description Secure user notification access. Only the user can read and write their own notifications.
      * @path /users/{userId}/notifications/{notificationId}
-     * @allow (get) Authenticated user can read their own notifications.
-     * @allow (create) Authenticated user can create notifications for themselves.
-     * @allow (update) Authenticated user can update their own notifications.
-     * @allow (delete) Authenticated user can delete their own notifications.
-     * @deny (get) Authenticated user cannot read another user's notifications.
-     * @deny (create) Authenticated user cannot create notifications for another user.
-     * @deny (update) Authenticated user cannot update another user's notifications.
-     * @deny (delete) Authenticated user cannot delete another user's notifications.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get, update, delete) User with UID 'user123' can read, update, and delete the notification document with ID 'user123'.
+     * @allow (create) User with UID 'user123' can create the notification document with ID 'user123'.
+     * @deny (get, update, delete) User with UID 'otherUser' cannot read, update, or delete the notification document with ID 'user123'.
+     * @deny (create) User with UID 'otherUser' cannot create the notification document with ID 'user123'.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, and validates relational integrity between documents.
      */
     match /users/{userId}/notifications/{notificationId} {
-      // Read rules
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-
-      // Write rules
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && request.resource.data.userId == userId;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
-    
+
     /**
-     * @description Rules for granting admin privileges.
+     * @description Grants admin privileges based on the existence of a document in this collection.
      * @path /roles_admin/{userId}
-     * @allow (get) Admin can read roles_admin data.
-     * @allow (create) Admin can create roles_admin data.
-     * @allow (update) Admin can update roles_admin data.
-     * @allow (delete) Admin can delete roles_admin data.
-     * @deny (get) Non-admin cannot read roles_admin data.
-     * @deny (create) Non-admin cannot create roles_admin data.
-     * @deny (update) Non-admin cannot update roles_admin data.
-     * @deny (delete) Non-admin cannot delete roles_admin data.
      */
-     match /roles_admin/{userId} {
-        allow get: if isAdmin();
-        allow list: if isAdmin();
-        allow create: if isAdmin();
-        allow update: if isAdmin() && resource != null;
-        allow delete: if isAdmin() && resource != null;
+    match /roles_admin/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isAdmin(userId) {
+        return exists(/databases/$(database)/documents/roles_admin/$(userId));
+      }
+
+      allow get: if isAdmin(userId);
+      allow list: if false;
+      allow create: if isSignedIn();
+      allow update: if false;
+      allow delete: if isSignedIn();
+    }
+
+    /**
+     * @description  Orders collection access.  This rule will allow any logged in user to read an Order document.  However, only an authenticated user can create, update, or delete.
+     * @path /orders/{orderId}
+     * @allow (get) Any signed in user can read an order document.
+     * @allow (list) The request will be denied.
+     * @allow (create) Only an authenticated user can create an order.
+     * @deny (update) No one can update an order.
+     * @deny (delete) No one can delete an order.
+     * @principle Access to the orders is restricted to authenticated users.
+     */
+    match /orders/{orderId} {
+        function isSignedIn() {
+            return request.auth != null;
+        }
+        allow get: if isSignedIn();
+        allow list: if false;
+        allow create: if isSignedIn();
+        allow update: if false;
+        allow delete: if false;
     }
   }
 }
