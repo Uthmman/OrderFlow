@@ -115,19 +115,23 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     const originalOrder = getOrderById(updatedOrderData.id);
+    
+    const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+
+    // If original order isn't found, just perform a simple update.
     if (!originalOrder) {
-        console.error("Original order not found for update.");
-        const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+        console.warn("Original order not found for update, performing blind update.");
         updateDocumentNonBlocking(orderRef, removeUndefined(updatedOrderData));
         return;
     }
 
     const systemMessages: OrderChatMessage[] = [];
     const timestamp = new Date().toISOString();
+    const currentUser = user.name || 'a user';
 
     const createSystemMessage = (text: string) => ({
       user: { id: 'system', name: 'System', avatarUrl: '' },
-      text: `${text} by ${user.name || 'a user'}.`,
+      text: `${text} by ${currentUser}.`,
       timestamp,
       isSystemMessage: true
     });
@@ -163,8 +167,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (systemMessages.length > 0) {
             finalOrderData.chatMessages = [...(updatedOrderData.chatMessages || []), ...systemMessages];
         }
-
-        const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+        
         updateDocumentNonBlocking(orderRef, removeUndefined(finalOrderData));
 
     } catch(error) {
