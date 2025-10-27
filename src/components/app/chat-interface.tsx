@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2 } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
@@ -20,14 +20,25 @@ import { Order, OrderChatMessage } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 
-const UserAvatar = ({ message }: { message: OrderChatMessage }) => (
-    <Avatar>
-        <AvatarImage src={message.user.avatarUrl} />
-        <AvatarFallback>
-            {message.user.name?.split(" ").map((n) => n[0])}
-        </AvatarFallback>
-    </Avatar>
-);
+const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
+    if (message.isSystemMessage) {
+        return (
+            <Avatar>
+                <AvatarFallback>
+                    <Info className="h-5 w-5" />
+                </AvatarFallback>
+            </Avatar>
+        );
+    }
+    return (
+        <Avatar>
+            <AvatarImage src={message.user.avatarUrl} />
+            <AvatarFallback>
+                {message.user.name?.split(" ").map((n) => n[0])}
+            </AvatarFallback>
+        </Avatar>
+    )
+};
 
 const UserMessage = ({ message }: { message: OrderChatMessage }) => (
      <div className="flex items-start gap-3">
@@ -55,7 +66,7 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
 const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
     <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
         <Info className="h-3 w-3" />
-        <span>{message.text}</span>
+        <span className="italic">{message.text}</span>
         <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
     </div>
 );
@@ -110,7 +121,7 @@ export function ChatInterface({ order }: { order: Order }) {
 
     setLoading(true);
     
-    const userMessage: OrderChatMessage = {
+    const userMessage: Omit<OrderChatMessage, 'id'> = {
         user: {
             id: user.id,
             name: user.name || 'User',
@@ -120,26 +131,42 @@ export function ChatInterface({ order }: { order: Order }) {
         timestamp: new Date().toISOString(),
     };
 
-    if (audioUrl) {
-      userMessage.audioUrl = audioUrl;
+    if (audioBlob) {
+        const audioFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`);
+        
+        try {
+            await updateOrder(order, [audioFile]);
+            
+            // The file upload is handled inside updateOrder which will add the URL
+            // to the last message if logic is set up that way.
+            // For now, let's assume updateOrder handles it.
+            // We just need to clear the state here.
+
+        } catch (error) {
+            console.error("Error sending message with audio:", error);
+            toast({
+                variant: "destructive",
+                title: "Send Error",
+                description: "Could not send message with audio.",
+            });
+        }
+    } else {
+        const updatedMessages = [...(order.chatMessages || []), userMessage as OrderChatMessage];
+        try {
+            await updateOrder({ ...order, chatMessages: updatedMessages });
+        } catch (error) {
+            console.error("Error sending message:", error);
+            toast({
+                variant: "destructive",
+                title: "Send Error",
+                description: "Could not send message.",
+            });
+        }
     }
-    
-    const updatedMessages = [...(order.chatMessages || []), userMessage];
-    
-    try {
-        await updateOrder({ ...order, chatMessages: updatedMessages });
-        setInputValue("");
-        setAudioBlob(null);
-    } catch (error) {
-        console.error("Error sending message:", error);
-         toast({
-            variant: "destructive",
-            title: "Send Error",
-            description: "Could not send message.",
-        });
-    } finally {
-        setLoading(false);
-    }
+
+    setInputValue("");
+    setAudioBlob(null);
+    setLoading(false);
   };
 
   return (

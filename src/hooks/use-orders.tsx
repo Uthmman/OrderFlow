@@ -4,13 +4,14 @@
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import type { Order, OrderAttachment } from '@/lib/types';
+import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useUser } from './use-user';
+import { createNotification } from '@/lib/notifications';
 
 
 interface OrderContextType {
@@ -111,14 +112,60 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
+    if (!user) throw new Error("User must be logged in to update an order.");
+    
+    const originalOrder = getOrderById(updatedOrderData.id);
+    if (!originalOrder) {
+        console.error("Original order not found for update.");
+        // Fallback to simple update if original is not found
+        const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+        updateDocumentNonBlocking(orderRef, removeUndefined(updatedOrderData));
+        return;
+    }
+
+    const systemMessages: OrderChatMessage[] = [];
+    const timestamp = new Date().toISOString();
+
+    const createSystemMessage = (text: string) => ({
+      user: { id: 'system', name: 'System', avatarUrl: '' },
+      text: `${text} by ${user.name || 'a user'}.`,
+      timestamp,
+      isSystemMessage: true
+    });
+
+    if (originalOrder.status !== updatedOrderData.status) {
+      systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
+      
+      // Create a notification for status change
+      createNotification(firestore, user.id, {
+        type: `Order ${updatedOrderData.status}`,
+        message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
+        orderId: updatedOrderData.id
+      });
+    }
+
+    if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
+      const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+      systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+       // Create a notification for urgency change
+      createNotification(firestore, user.id, {
+        type: `Order Urgency Changed`,
+        message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
+        orderId: updatedOrderData.id
+      });
+    }
+
+
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
         const finalAttachments = [...(updatedOrderData.attachments || []), ...newAttachments];
         
-        const finalOrderData = {
+        const finalOrderData: Order = {
             ...updatedOrderData,
-            attachments: finalAttachments
+            attachments: finalAttachments,
+            chatMessages: [...(updatedOrderData.chatMessages || []), ...systemMessages],
         };
+
         const orderRef = doc(firestore, 'orders', updatedOrderData.id);
         updateDocumentNonBlocking(orderRef, removeUndefined(finalOrderData));
 
