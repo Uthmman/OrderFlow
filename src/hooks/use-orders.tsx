@@ -117,7 +117,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const originalOrder = getOrderById(updatedOrderData.id);
     if (!originalOrder) {
         console.error("Original order not found for update.");
-        // Fallback to simple update if original is not found
         const orderRef = doc(firestore, 'orders', updatedOrderData.id);
         updateDocumentNonBlocking(orderRef, removeUndefined(updatedOrderData));
         return;
@@ -135,8 +134,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     if (originalOrder.status !== updatedOrderData.status) {
       systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
-      
-      // Create a notification for status change
       createNotification(firestore, user.id, {
         type: `Order ${updatedOrderData.status}`,
         message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
@@ -147,24 +144,25 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
       const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
       systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-       // Create a notification for urgency change
-      createNotification(firestore, user.id, {
+       createNotification(firestore, user.id, {
         type: `Order Urgency Changed`,
         message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
         orderId: updatedOrderData.id
       });
     }
 
-
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
-        const finalAttachments = [...(updatedOrderData.attachments || []), ...newAttachments];
         
-        const finalOrderData: Order = {
-            ...updatedOrderData,
-            attachments: finalAttachments,
-            chatMessages: [...(updatedOrderData.chatMessages || []), ...systemMessages],
-        };
+        const finalOrderData: Order = { ...updatedOrderData };
+        
+        if (newAttachments.length > 0) {
+            finalOrderData.attachments = [...(updatedOrderData.attachments || []), ...newAttachments];
+        }
+
+        if (systemMessages.length > 0) {
+            finalOrderData.chatMessages = [...(updatedOrderData.chatMessages || []), ...systemMessages];
+        }
 
         const orderRef = doc(firestore, 'orders', updatedOrderData.id);
         updateDocumentNonBlocking(orderRef, removeUndefined(finalOrderData));
@@ -179,10 +177,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderId);
     deleteDocumentNonBlocking(orderRef);
     
-    // In a real app, you would also delete from customer's orderIds array.
-    // This is more complex as it requires finding the customer first.
-
-    // Delete associated files from storage
     const deletePromises = (attachments || []).map(att => {
         if (!att.storagePath) return Promise.resolve();
         const fileRef = ref(storage, att.storagePath);
