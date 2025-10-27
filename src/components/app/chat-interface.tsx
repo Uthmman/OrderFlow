@@ -118,8 +118,11 @@ export function ChatInterface({ order }: { order: Order }) {
         },
         text: inputValue,
         timestamp: new Date().toISOString(),
-        audioUrl: audioUrl || undefined
     };
+
+    if (audioUrl) {
+      userMessage.audioUrl = audioUrl;
+    }
     
     const updatedMessages = [...(order.chatMessages || []), userMessage];
     
