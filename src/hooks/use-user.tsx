@@ -36,11 +36,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // --- Single User Logic (for the currently authenticated user) ---
   const userDocRef = useMemoFirebase(
     () => (authUser ? doc(firestore, 'users', authUser.uid) : null),
-    [firestore, authUser]
+    [firestore, authUser?.uid]
   );
   const { data: user, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
-  const loading = isAuthUserLoading || isUserDocLoading;
+  const loading = isAuthUserLoading || (authUser && isUserDocLoading);
   const role = user?.role || null;
   
   const singleUserValue = useMemo(() => ({
