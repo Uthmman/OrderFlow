@@ -1,12 +1,10 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { useCollection, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { initializeFirebase } from '@/firebase';
+import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import type { Customer } from '@/lib/types';
 import { useToast } from './use-toast';
+import { MOCK_CUSTOMERS } from '@/lib/mock-data';
 
 interface CustomerContextType {
   customers: Customer[];
@@ -20,48 +18,43 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: ReactNode }) {
-  const { firestore } = initializeFirebase();
   const { toast } = useToast();
-
-  const customersRef = useMemo(() => collection(firestore, 'customers'), [firestore]);
-  const { data: customers, loading } = useCollection<Customer>(customersRef);
+  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const [loading, setLoading] = useState(false);
 
   const getCustomerById = useCallback((id: string): Customer | undefined => {
     return customers?.find(customer => customer.id === id);
   }, [customers]);
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
-    const newCustomerRef = doc(customersRef);
-    const newCustomerId = newCustomerRef.id;
-    
-    const newCustomer = {
+    setLoading(true);
+    const newCustomerId = `cust-${Date.now()}`;
+    const newCustomer: Customer = {
       ...customerData,
       id: newCustomerId,
       orderIds: [],
       reviews: [],
-      ownerId: 'anonymous' // Since there is no auth
+      ownerId: 'anonymous'
     };
-
-    updateDocumentNonBlocking(newCustomerRef, newCustomer);
+    setCustomers(prev => [...prev, newCustomer]);
+    setLoading(false);
     return newCustomerId;
   };
 
   const addOrderToCustomer = async(customerId: string, orderId: string) => {
-    if (!firestore) return;
-    const customerRef = doc(firestore, 'customers', customerId);
-    updateDocumentNonBlocking(customerRef, {
-      orderIds: arrayUnion(orderId)
-    });
+    setCustomers(prev => prev.map(c => 
+        c.id === customerId ? { ...c, orderIds: [...c.orderIds, orderId] } : c
+    ));
   };
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
-      if (!firestore) return;
-      const customerRef = doc(firestore, 'customers', customerData.id);
-      updateDocumentNonBlocking(customerRef, { ...customerData });
+      setLoading(true);
+      setCustomers(prev => prev.map(c => c.id === customerData.id ? customerData : c));
+      setLoading(false);
   }
 
   const value = useMemo(() => ({
-    customers: customers || [],
+    customers,
     loading,
     getCustomerById,
     addCustomer,
