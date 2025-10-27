@@ -86,7 +86,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const createUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => {
     const userRef = doc(firestore, 'users', uid);
-    const isAdmin = data.email === 'zenbabfurniture@gmail.com';
+    const isAdmin = data.email === 'zenbabafurniture@gmail.com';
     const newUser: AppUser = {
       id: uid,
       name: data.name || 'New User',
