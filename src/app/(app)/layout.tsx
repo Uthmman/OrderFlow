@@ -13,13 +13,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/firebase";
 
+const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, role } = useUser();
   const router = useRouter();
   const auth = useAuth();
 
   useEffect(() => {
-    // If loading is finished and there's still no authenticated user, redirect to login.
+    // If loading is finished and there's no authenticated user, redirect to login.
     if (!loading && !user) {
       router.push("/login");
     }
@@ -35,7 +37,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
   
   // After loading, if a user's profile (which contains the role) exists...
-  if (user) {
+  if (user && role) {
     // ...but their role is 'Pending', show the pending approval screen.
     if (role === 'Pending') {
       return (
@@ -52,13 +54,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           </div>
       )
     }
-    // If the user has a valid role (not 'Pending'), show the app.
-    if (role) {
+    // If the user has a valid role, show the app.
+    if (ALLOWED_ROLES.includes(role)) {
         return <>{children}</>;
     }
   }
 
-  // If loading is done and we still don't have a user, the useEffect will redirect.
+  // If loading is done and we still don't have a user or a valid role, the useEffect will redirect.
   // This return null prevents rendering children that might depend on the user.
   return null;
 }
