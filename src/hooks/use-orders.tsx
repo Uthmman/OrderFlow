@@ -26,18 +26,6 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-// Helper function to remove undefined properties from an object
-const removeUndefined = (obj: any) => {
-    const newObj: any = {};
-    Object.keys(obj).forEach(key => {
-        const value = obj[key];
-        if (value !== undefined) {
-             newObj[key] = value;
-        }
-    });
-    return newObj;
-};
-
 // Helper to convert File to base64
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -63,31 +51,29 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { data: orders, isLoading: loading } = useCollection<Order>(ordersRef);
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
-    if (!files || files.length === 0) return Promise.resolve([]);
-
-    const uploadPromises = files.map(async (file) => {
-      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-      
-      const fileContent = await fileToBase64(file);
-      
-      setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
-
-      const result = await uploadFileFlow({
-        fileName: file.name,
-        fileContent: fileContent,
-        mimeType: file.type,
-      });
-      
-      setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-
-      return { 
-        fileName: file.name, 
-        url: result.webViewLink, 
-        storagePath: result.id, 
-      };
-    });
+    if (!files || files.length === 0) return [];
 
     try {
+        const uploadPromises = files.map(async (file) => {
+            setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+            const fileContent = await fileToBase64(file);
+            setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+
+            const result = await uploadFileFlow({
+                fileName: file.name,
+                fileContent: fileContent,
+                mimeType: file.type,
+            });
+            
+            setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+            
+            return {
+                fileName: file.name,
+                url: result.webViewLink,
+                storagePath: result.id,
+            };
+        });
+
         const results = await Promise.all(uploadPromises);
         return results;
     } catch (error: any) {
@@ -121,7 +107,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             ownerId: user.id
         };
 
-        setDocumentNonBlocking(newOrderRef, removeUndefined(finalOrderData), {});
+        setDocumentNonBlocking(newOrderRef, finalOrderData, {});
         await addOrderToCustomer(orderData.customerId, orderId);
         
         return orderId;
@@ -136,55 +122,60 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const updateOrder = async (orderData: Order, newFiles: File[] = []) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
-    const originalOrder = orders?.find(o => o.id === orderData.id);
-    const orderRef = doc(firestore, 'orders', orderData.id);
+    try {
+        const orderRef = doc(firestore, 'orders', orderData.id);
+        const originalOrder = orders?.find(o => o.id === orderData.id);
 
-    let dataForUpdate: Partial<Order> = { ...orderData };
+        let dataForUpdate: Partial<Order> = { ...orderData };
 
-    if (originalOrder) {
-        const systemMessages: OrderChatMessage[] = [];
-        const timestamp = new Date().toISOString();
-        const currentUser = user.name || 'a user';
-
-        const createSystemMessage = (text: string) => ({
-            user: { id: 'system', name: 'System', avatarUrl: '' },
-            text: `${text} by ${currentUser}.`,
-            timestamp,
-            isSystemMessage: true
-        });
-
-        if (originalOrder.status !== orderData.status) {
-            systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
-            createNotification(firestore, user.id, {
-                type: `Order ${orderData.status}`,
-                message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
-                orderId: orderData.id
-            });
+        // Handle file uploads first
+        const newAttachments = await handleFileUploads(orderData.id, newFiles);
+        if (newAttachments.length > 0) {
+            dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
         }
-        if (originalOrder.isUrgent !== orderData.isUrgent) {
-            const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-            systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+
+        // Generate system messages for changes, excluding chat message changes
+        if (originalOrder) {
+            const systemMessages: OrderChatMessage[] = [];
+            const timestamp = new Date().toISOString();
+            const currentUser = user.name || 'a user';
+
+            const createSystemMessage = (text: string) => ({
+                user: { id: 'system', name: 'System', avatarUrl: '' },
+                text: `${text} by ${currentUser}.`,
+                timestamp,
+                isSystemMessage: true
+            });
+
+            if (originalOrder.status !== orderData.status) {
+                systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
+                createNotification(firestore, user.id, {
+                    type: `Order ${orderData.status}`,
+                    message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
+                    orderId: orderData.id
+                });
+            }
+            if (originalOrder.isUrgent !== orderData.isUrgent) {
+                const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+                systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+            }
+            
+            if (systemMessages.length > 0) {
+                // Combine existing messages with new system messages
+                const existingChat = orderData.chatMessages || [];
+                const updatedChat = [...existingChat, ...systemMessages];
+                dataForUpdate.chatMessages = updatedChat;
+            }
         }
         
-        if (systemMessages.length > 0) {
-            dataForUpdate.chatMessages = [...(dataForUpdate.chatMessages || []), ...systemMessages];
-        }
-    }
-
-    try {
-      const newAttachments = await handleFileUploads(orderData.id, newFiles);
-      
-      if (newAttachments.length > 0) {
-        dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
-      }
-
-      updateDocumentNonBlocking(orderRef, removeUndefined(dataForUpdate));
+        // Non-blocking update to Firestore with the final combined data
+        updateDocumentNonBlocking(orderRef, dataForUpdate);
 
     } catch (error) {
-       // This catch block will now correctly trigger if handleFileUploads fails
-      console.error("Error updating order:", error);
-      // Re-throw so the UI layer can handle its submitting state
-      throw error; 
+       console.error("Error updating order:", error);
+       // The toast is already handled in handleFileUploads, but we re-throw
+       // so the UI layer can stop its submitting state.
+       throw error;
     }
   };
 
@@ -236,3 +227,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    
