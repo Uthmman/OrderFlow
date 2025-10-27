@@ -52,7 +52,7 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
     return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
@@ -145,6 +145,43 @@ function UserTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Ap
   )
 }
 
+function MobileUserList({ users }: { users: AppUser[] }) {
+    return (
+        <div className="space-y-4">
+             <div className="flex items-center justify-between gap-2">
+                <Input
+                    placeholder="Filter by user..."
+                    className="h-9 flex-1"
+                />
+            </div>
+            {users.map(user => (
+                 <Card key={user.id} className="hover:bg-muted/50 transition-colors">
+                    <CardHeader>
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10">
+                                    <AvatarImage src={user.avatarUrl} />
+                                    <AvatarFallback>{user.name?.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <CardTitle className="text-base font-bold">{user.name}</CardTitle>
+                                    <CardDescription>{user.email}</CardDescription>
+                                </div>
+                            </div>
+                           <div onClick={(e) => e.preventDefault()}>
+                                <UserActions user={user} />
+                           </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="text-sm space-y-2">
+                        <Badge variant={roleVariantMap[user.role]}>{user.role}</Badge>
+                    </CardContent>
+                 </Card>
+            ))}
+        </div>
+    )
+}
+
 
 export default function UsersPage() {
     const { users, loading, user: currentUser } = useUsers();
@@ -185,7 +222,10 @@ export default function UsersPage() {
                     Manage all users in the system.
                 </p>
             </div>
-            <Card>
+            <div className="md:hidden">
+                <MobileUserList users={users} />
+            </div>
+            <Card className="hidden md:block">
                 <CardContent className="pt-6">
                     <DataTable table={table} columns={columns} data={users}>
                         <UserTableToolbar table={table} />
