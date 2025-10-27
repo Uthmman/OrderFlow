@@ -122,9 +122,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-3">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <p>{customer.location.town}</p>
+                        <p>{customer.location?.town}</p>
                     </div>
-                    {customer.location.mapUrl && (
+                    {customer.location?.mapUrl && (
                         <Button asChild variant="outline" className="w-full">
                             <Link href={customer.location.mapUrl} target="_blank">
                                 <ExternalLink className="mr-2" /> View on Map
