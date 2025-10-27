@@ -2,11 +2,15 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { Timestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Order, OrderAttachment } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
-import { MOCK_ORDERS } from '@/lib/mock-data';
+import { useCollection } from '@/firebase/firestore/use-collection';
+import { useFirebase, useMemoFirebase } from '@/firebase/provider';
+import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
 
 interface OrderContextType {
   orders: Order[];
@@ -23,29 +27,52 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
+  const { firestore, firebaseApp } = useFirebase();
+  const storage = getStorage(firebaseApp);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
-  const [loading, setLoading] = useState(false);
 
-  const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
-    // This is a mock implementation
-    if (!files || files.length === 0) return [];
-    
-    const uploadedAttachments: OrderAttachment[] = [];
-    for (const file of files) {
-        uploadedAttachments.push({
-            fileName: file.name,
-            url: URL.createObjectURL(file),
-            storagePath: `mock/orders/${orderId}/${file.name}`,
-        });
-    }
-    return uploadedAttachments;
+  const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
+  const { data: orders, isLoading: loading } = useCollection<Order>(ordersRef);
+
+  const handleFileUploads = (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
+    if (!files || files.length === 0) return Promise.resolve([]);
+
+    const uploadPromises = files.map(file => {
+      const storagePath = `orders/${orderId}/${file.name}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      return new Promise<OrderAttachment>((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+          },
+          (error) => {
+            console.error("Upload failed:", error);
+            toast({ variant: "destructive", title: "Upload Failed", description: `Could not upload ${file.name}.` });
+            reject(error);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            setUploadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[file.name];
+              return newProgress;
+            });
+            resolve({ fileName: file.name, url: downloadURL, storagePath });
+          }
+        );
+      });
+    });
+
+    return Promise.all(uploadPromises);
   };
 
 
   const addOrder = async (orderData: Omit<Order, 'id'| 'creationDate' >, newFiles: File[]) => {
-    setLoading(true);
-    const orderId = `order-${Date.now()}`;
+    const newOrderRef = doc(collection(firestore, "orders"));
+    const orderId = newOrderRef.id;
     
     try {
         const newAttachments = await handleFileUploads(orderId, newFiles);
@@ -53,24 +80,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const finalOrderData: Order = {
             ...orderData,
             id: orderId,
-            creationDate: new Date().toISOString(),
+            creationDate: serverTimestamp(),
             attachments: [...(orderData.attachments || []), ...newAttachments]
         };
 
-        setOrders(prev => [...prev, finalOrderData]);
+        setDocumentNonBlocking(newOrderRef, finalOrderData);
         await addOrderToCustomer(orderData.customerId, orderId);
         
-        setLoading(false);
         return orderId;
     } catch(error) {
         console.error("Error creating order:", error);
-        setLoading(false);
         throw error;
     }
   };
 
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
-    setLoading(true);
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
         const finalAttachments = [...(updatedOrderData.attachments || []), ...newAttachments];
@@ -79,21 +103,33 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             ...updatedOrderData,
             attachments: finalAttachments
         };
+        const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+        updateDocumentNonBlocking(orderRef, finalOrderData);
 
-        setOrders(prev => prev.map(o => o.id === updatedOrderData.id ? finalOrderData : o));
-        setLoading(false);
     } catch(error) {
          console.error("Error updating order:", error);
-         setLoading(false);
          throw error;
     }
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-    setLoading(true);
-    setOrders(prev => prev.filter(o => o.id !== orderId));
-    // In a real app, you would also delete from customer's orderIds array
-    setLoading(false);
+    const orderRef = doc(firestore, 'orders', orderId);
+    deleteDocumentNonBlocking(orderRef);
+    
+    // In a real app, you would also delete from customer's orderIds array.
+    // This is more complex as it requires finding the customer first.
+
+    // Delete associated files from storage
+    const deletePromises = (attachments || []).map(att => {
+        const fileRef = ref(storage, att.storagePath);
+        return deleteObject(fileRef).catch(error => {
+            // It's okay if the file doesn't exist, so we catch and log without re-throwing
+            if (error.code !== 'storage/object-not-found') {
+                console.error(`Failed to delete attachment ${att.storagePath}:`, error);
+            }
+        });
+    });
+    await Promise.all(deletePromises);
   };
   
   const getOrderById = useCallback((orderId: string) => {
