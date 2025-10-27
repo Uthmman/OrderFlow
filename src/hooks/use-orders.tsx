@@ -30,8 +30,6 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 const removeUndefined = (obj: any) => {
     const newObj: any = {};
     Object.keys(obj).forEach(key => {
-        // We need to allow serverTimestamp, which is an object, but Firestore will reject plain empty objects.
-        // We'll also allow arrays, even if they're empty.
         const value = obj[key];
         if (value !== undefined) {
              newObj[key] = value;
@@ -74,7 +72,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       
       setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
 
-      // The try/catch is now in the calling function (addOrder/updateOrder)
       const result = await uploadFileFlow({
         fileName: file.name,
         fileContent: fileContent,
@@ -129,9 +126,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         
         return orderId;
     } catch(error) {
+        // This catch block will now correctly trigger if handleFileUploads fails
         console.error("Error creating order:", error);
-        // The toast is shown in handleFileUploads, so we just re-throw
-        // to stop the function execution and let the caller handle UI state.
+        // We re-throw so the UI layer can handle its submitting state
         throw error;
     }
   };
@@ -142,8 +139,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const originalOrder = orders?.find(o => o.id === orderData.id);
     const orderRef = doc(firestore, 'orders', orderData.id);
 
-    // This is the object that will be sent to Firestore.
-    // We start with the provided orderData.
     let dataForUpdate: Partial<Order> = { ...orderData };
 
     if (originalOrder) {
@@ -177,21 +172,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      // Step 1: Handle file uploads. This might throw an error if not configured.
       const newAttachments = await handleFileUploads(orderData.id, newFiles);
       
-      // Step 2: If uploads succeed, add the new attachments to our data object.
       if (newAttachments.length > 0) {
         dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
       }
 
-      // Step 3: Perform a single Firestore update with all the accumulated changes.
       updateDocumentNonBlocking(orderRef, removeUndefined(dataForUpdate));
 
     } catch (error) {
+       // This catch block will now correctly trigger if handleFileUploads fails
       console.error("Error updating order:", error);
-      // Let the caller's .catch() block handle UI state changes (e.g., isSubmitting)
-      // The toast is already displayed inside handleFileUploads.
+      // Re-throw so the UI layer can handle its submitting state
       throw error; 
     }
   };
@@ -201,12 +193,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     deleteDocumentNonBlocking(orderRef);
     
     const deletePromises = (attachments || []).map(att => {
-        if (!att.storagePath) return Promise.resolve(); // storagePath is now the Google Drive file ID
+        if (!att.storagePath) return Promise.resolve();
         return deleteFileFlow(att.storagePath).catch(error => {
+            // Log the error but don't let it stop other deletions.
             console.error(`Failed to delete attachment ${att.storagePath} from Google Drive:`, error);
         });
     });
-    await Promise.all(deletePromises);
+    
+    try {
+        await Promise.all(deletePromises);
+    } catch(error) {
+        // Even if some deletions fail, we don't crash the app. The main order document is already deleted.
+        console.error("One or more files could not be deleted from Google Drive.", error);
+    }
   };
   
   const getOrderById = useCallback((orderId: string) => {
@@ -237,5 +236,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
