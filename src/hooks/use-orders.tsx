@@ -86,9 +86,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           url: result.webViewLink, 
           storagePath: result.id, // Using the Drive file ID as the storagePath
         };
-      } catch (error) {
+      } catch (error: any) {
         console.error("Upload failed:", error);
-        toast({ variant: "destructive", title: "Upload Failed", description: `Could not upload ${file.name}.` });
+        toast({ 
+          variant: "destructive", 
+          title: "Upload Failed", 
+          description: error.message || `Could not upload ${file.name}. Please ensure file storage is configured.` 
+        });
+        // We re-throw the error to stop the order creation/update process if an upload fails.
         throw error;
       } finally {
          setUploadProgress(prev => {
@@ -126,6 +131,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return orderId;
     } catch(error) {
         console.error("Error creating order:", error);
+        // The toast is already shown in handleFileUploads, so we just re-throw
+        // to stop the function execution and let the caller handle UI state.
         throw error;
     }
   };
@@ -134,6 +141,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
+    if (!originalOrder) {
+        console.error("Original order not found for update. Cannot proceed.");
+        return;
+    }
     const orderRef = doc(firestore, 'orders', updatedOrderData.id);
 
     const systemMessages: OrderChatMessage[] = [];
@@ -147,45 +158,40 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       isSystemMessage: true
     });
     
-    // Only generate system messages if the original order exists to compare against
-    if (originalOrder) {
-      if (originalOrder.status !== updatedOrderData.status) {
-        systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
-        createNotification(firestore, user.id, {
-          type: `Order ${updatedOrderData.status}`,
-          message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
-          orderId: updatedOrderData.id
-        });
-      }
+    if (originalOrder.status !== updatedOrderData.status) {
+      systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
+      createNotification(firestore, user.id, {
+        type: `Order ${updatedOrderData.status}`,
+        message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
+        orderId: updatedOrderData.id
+      });
+    }
 
-      if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
-        const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-        systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-        createNotification(firestore, user.id, {
-          type: `Order Urgency Changed`,
-          message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
-          orderId: updatedOrderData.id
-        });
-      }
+    if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
+      const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+      systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+      createNotification(firestore, user.id, {
+        type: `Order Urgency Changed`,
+        message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
+        orderId: updatedOrderData.id
+      });
     }
 
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
         
-        let finalOrderData = { ...updatedOrderData };
-        
-        if (newAttachments.length > 0) {
-            finalOrderData.attachments = [...(finalOrderData.attachments || []), ...newAttachments];
-        }
-
-        if (systemMessages.length > 0) {
-            finalOrderData.chatMessages = [...(finalOrderData.chatMessages || []), ...systemMessages];
-        }
+        const finalOrderData: Order = {
+            ...updatedOrderData,
+            attachments: [...(updatedOrderData.attachments || []), ...newAttachments],
+            chatMessages: [...(updatedOrderData.chatMessages || []), ...systemMessages],
+        };
         
         await updateDoc(orderRef, removeUndefined(finalOrderData));
 
     } catch(error) {
          console.error("Error updating order:", error);
+         // The toast is already shown in handleFileUploads if that's the cause.
+         // Re-throw to let the caller handle UI state.
          throw error;
     }
   };
