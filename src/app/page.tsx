@@ -22,5 +22,9 @@ export default function Home() {
   }, [user, loading, router]);
 
   // Display a generic loading indicator while checking auth status
-  return <div>Loading...</div>;
+  return (
+    <div className="flex h-screen items-center justify-center">
+        <div>Loading...</div>
+    </div>
+  );
 }

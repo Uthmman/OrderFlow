@@ -20,35 +20,48 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = useAuth();
 
   useEffect(() => {
+    // If loading is finished and there's still no authenticated user, redirect to login.
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
+  // While Firebase is checking the auth state, show a loading screen.
+  // This is the key change: we wait until `loading` is false.
   if (loading) {
-    return <div>Loading session...</div>;
-  }
-  
-  if (role === 'Pending') {
     return (
         <div className="flex items-center justify-center h-screen">
-            <Card className="w-full max-w-md m-4">
-                <CardHeader>
-                    <CardTitle>Account Pending Approval</CardTitle>
-                    <CardDescription>Your account has been created but is currently awaiting administrator approval. Please check back later.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={() => auth.signOut()} className="w-full">Log Out</Button>
-                </CardContent>
-            </Card>
+            <div>Loading session...</div>
         </div>
-    )
+    );
   }
-
+  
+  // After loading, if a user exists...
   if (user) {
-    return <>{children}</>;
+    // ...but their role is 'Pending', show the pending approval screen.
+    if (role === 'Pending') {
+      return (
+          <div className="flex items-center justify-center h-screen">
+              <Card className="w-full max-w-md m-4">
+                  <CardHeader>
+                      <CardTitle>Account Pending Approval</CardTitle>
+                      <CardDescription>Your account has been created but is currently awaiting administrator approval. Please check back later.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <Button onClick={() => auth.signOut()} className="w-full">Log Out</Button>
+                  </CardContent>
+              </Card>
+          </div>
+      )
+    }
+    // If the user has a valid role (not 'Pending'), show the app.
+    if (role) {
+        return <>{children}</>;
+    }
   }
 
+  // If none of the above conditions are met (e.g., finished loading, no user),
+  // this will be null and the useEffect will handle the redirect.
   return null;
 }
 
