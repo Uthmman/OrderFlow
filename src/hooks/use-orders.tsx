@@ -25,6 +25,17 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+// Helper function to remove undefined properties from an object
+const removeUndefined = (obj: any) => {
+    const newObj: any = {};
+    Object.keys(obj).forEach(key => {
+        if (obj[key] !== undefined) {
+            newObj[key] = obj[key];
+        }
+    });
+    return newObj;
+};
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
@@ -89,7 +100,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             ownerId: user.id
         };
 
-        setDocumentNonBlocking(newOrderRef, finalOrderData, {});
+        setDocumentNonBlocking(newOrderRef, removeUndefined(finalOrderData), {});
         await addOrderToCustomer(orderData.customerId, orderId);
         
         return orderId;
@@ -109,7 +120,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             attachments: finalAttachments
         };
         const orderRef = doc(firestore, 'orders', updatedOrderData.id);
-        updateDocumentNonBlocking(orderRef, finalOrderData);
+        updateDocumentNonBlocking(orderRef, removeUndefined(finalOrderData));
 
     } catch(error) {
          console.error("Error updating order:", error);
