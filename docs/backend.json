@@ -1,66 +1,60 @@
-
 {
   "entities": {
-    "User": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "User",
-      "type": "object",
-      "description": "Represents a user in the system.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the user (Admin, Manager, Sales, Designer)."
-        }
-      },
-      "required": [
-        "id",
-        "email",
-        "role"
-      ]
-    },
     "Customer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Customer",
       "type": "object",
-      "description": "Represents a customer.",
+      "description": "Represents a customer profile within the OrderFlow application.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the customer."
+          "description": "Unique identifier for the Customer entity."
         },
-        "name": {
+        "firstName": {
           "type": "string",
-          "description": "Name of the customer."
+          "description": "The first name of the customer."
         },
-        "contactInformation": {
+        "lastName": {
           "type": "string",
-          "description": "Contact information of the customer."
+          "description": "The last name of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the customer.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "The physical address of the customer."
+        },
+        "orderIds": {
+          "type": "array",
+          "description": "References to Orders placed by this customer. (Relationship: Customer 1:N Order)",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
         "id",
-        "name",
-        "contactInformation"
+        "firstName",
+        "lastName",
+        "email"
       ]
     },
     "Order": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
       "type": "object",
-      "description": "Represents an order.",
+      "description": "Represents an order placed by a customer.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the order."
+          "description": "Unique identifier for the Order entity."
         },
         "customerId": {
           "type": "string",
@@ -68,133 +62,165 @@
         },
         "description": {
           "type": "string",
-          "description": "Description of the order."
+          "description": "A detailed description of the order."
         },
-        "imageAttachments": {
+        "attachments": {
           "type": "array",
-          "description": "Image attachments for the order.",
+          "description": "Array of URLs to attached files (images, voice recordings, etc.).",
           "items": {
             "type": "string"
           }
         },
-        "voiceAttachments": {
-          "type": "array",
-          "description": "Voice attachments for the order.",
-          "items": {
-            "type": "string"
-          }
-        },
-        "colorSelection": {
+        "color": {
           "type": "string",
-          "description": "Color selection for the order."
+          "description": "The color selected for the order."
         },
-        "materialSelection": {
+        "material": {
           "type": "string",
-          "description": "Material selection for the order."
+          "description": "The material selected for the order."
         },
-        "sizeDimensions": {
+        "size": {
           "type": "string",
-          "description": "Size dimensions for the order."
+          "description": "The size dimensions of the order."
         },
-        "pricing": {
+        "price": {
           "type": "number",
-          "description": "Pricing for the order."
+          "description": "The price of the order."
         },
         "paymentDetails": {
           "type": "string",
-          "description": "Payment details for the order."
+          "description": "Details of the payment for the order."
         },
         "deadline": {
           "type": "string",
-          "description": "Deadline for the order.",
+          "description": "The deadline for the order completion.",
           "format": "date-time"
         },
-        "urgent": {
+        "isUrgent": {
           "type": "boolean",
           "description": "Indicates if the order is urgent."
         },
         "status": {
           "type": "string",
-          "description": "Status of the order."
+          "description": "The current status of the order."
+        },
+        "chatChannelId": {
+          "type": "string",
+          "description": "Reference to ChatChannel associated with this order. (Relationship: Order 1:1 ChatChannel)"
         }
       },
       "required": [
         "id",
         "customerId",
         "description",
-        "pricing",
-        "paymentDetails",
         "deadline",
-        "urgent",
         "status"
+      ]
+    },
+    "ChatChannel": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatChannel",
+      "type": "object",
+      "description": "Represents a chat channel associated with an order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatChannel entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:1 ChatChannel)"
+        },
+        "messages": {
+          "type": "array",
+          "description": "Array of message IDs in the chat channel. (Relationship: ChatChannel 1:N ChatMessage)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "participants": {
+          "type": "array",
+          "description": "Array of user IDs participating in the chat channel.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "orderId"
       ]
     },
     "ChatMessage": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ChatMessage",
       "type": "object",
-      "description": "Represents a chat message.",
+      "description": "Represents a single message within a chat channel.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the chat message."
+          "description": "Unique identifier for the ChatMessage entity."
         },
-        "userId": {
+        "chatChannelId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ChatMessage)"
+          "description": "Reference to ChatChannel. (Relationship: ChatChannel 1:N ChatMessage)"
         },
-        "orderId": {
+        "senderId": {
           "type": "string",
-          "description": "Reference to Order. (Relationship: Order 1:N ChatMessage)"
+          "description": "The id of the user that sent this message"
         },
-        "message": {
+        "text": {
           "type": "string",
-          "description": "Content of the chat message."
+          "description": "The content of the message."
         },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp of the chat message.",
+          "description": "The timestamp of when the message was sent.",
           "format": "date-time"
         }
       },
       "required": [
         "id",
-        "userId",
-        "orderId",
-        "message",
+        "chatChannelId",
+        "senderId",
+        "text",
         "timestamp"
       ]
     },
-    "Notification": {
+    "UserNotification": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Notification",
+      "title": "UserNotification",
       "type": "object",
-      "description": "Represents a notification.",
+      "description": "Represents a notification for a specific user.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the notification."
+          "description": "Unique identifier for the UserNotification entity."
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Notification)"
+          "description": "Reference to the User who receives the notification."
         },
         "type": {
           "type": "string",
-          "description": "Type of notification (new order, approaching deadline, new chat message, order status update)."
+          "description": "The type of notification (e.g., new order, deadline approaching, new message, status update)."
         },
         "message": {
           "type": "string",
-          "description": "Message content of the notification."
+          "description": "The message content of the notification."
         },
         "timestamp": {
           "type": "string",
-          "description": "Timestamp of the notification.",
+          "description": "The timestamp of when the notification was created.",
           "format": "date-time"
+        },
+        "isRead": {
+          "type": "boolean",
+          "description": "Indicates if the notification has been read by the user."
         },
         "orderId": {
           "type": "string",
-          "description": "Reference to Order. (Relationship: Order 1:N Notification) Optional, as some notifications might not be order-related."
+          "description": "Reference to the Order associated with this notification (if applicable)."
         }
       },
       "required": [
@@ -202,112 +228,160 @@
         "userId",
         "type",
         "message",
-        "timestamp"
+        "timestamp",
+        "isRead"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The first name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (e.g., Admin, Manager, Sales, Designer)."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "role"
       ]
     }
   },
   "auth": {
-    "providers": []
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
     "structure": [
       {
-        "path": "users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user profiles. Uses path-based ownership for user data.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            }
-          ]
-        }
-      },
-      {
-        "path": "customers/{customerId}",
+        "path": "/customers/{customerId}",
         "definition": {
           "entityName": "Customer",
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Stores customer profiles.",
+          "description": "Stores customer profiles. Customer data is stored in a top-level `customers` collection.",
           "params": [
             {
               "name": "customerId",
-              "description": "The unique identifier of the customer."
+              "description": "The unique identifier for the customer."
             }
           ]
         }
       },
       {
-        "path": "customers/{customerId}/orders/{orderId}",
+        "path": "/orders/{orderId}",
         "definition": {
           "entityName": "Order",
           "schema": {
             "$ref": "#/backend/entities/Order"
           },
-          "description": "Stores orders associated with a specific customer. Includes denormalized 'customerId' for authorization independence.",
+          "description": "Stores order information.  Accessible based on customerId and orderId. The customerId is stored within the Order document to allow authorization independence.",
           "params": [
             {
-              "name": "customerId",
-              "description": "The unique identifier of the customer."
-            },
-            {
               "name": "orderId",
-              "description": "The unique identifier of the order."
+              "description": "The unique identifier for the order."
             }
           ]
         }
       },
       {
-        "path": "customers/{customerId}/orders/{orderId}/chat_messages/{chatMessageId}",
+        "path": "/chatChannels/{chatChannelId}",
+        "definition": {
+          "entityName": "ChatChannel",
+          "schema": {
+            "$ref": "#/backend/entities/ChatChannel"
+          },
+          "description": "Stores chat channel metadata. Includes denormalized 'participants' array for authorization independence.",
+          "params": [
+            {
+              "name": "chatChannelId",
+              "description": "The unique identifier for the chat channel."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chatChannels/{chatChannelId}/messages/{messageId}",
         "definition": {
           "entityName": "ChatMessage",
           "schema": {
             "$ref": "#/backend/entities/ChatMessage"
           },
-          "description": "Stores chat messages for a specific order. Includes denormalized 'orderId' and 'userId' for authorization independence.",
+          "description": "Stores individual chat messages within a channel.",
           "params": [
             {
-              "name": "customerId",
-              "description": "The unique identifier of the customer."
+              "name": "chatChannelId",
+              "description": "The unique identifier for the chat channel."
             },
             {
-              "name": "orderId",
-              "description": "The unique identifier of the order."
-            },
-            {
-              "name": "chatMessageId",
-              "description": "The unique identifier of the chat message."
+              "name": "messageId",
+              "description": "The unique identifier for the chat message."
             }
           ]
         }
       },
       {
-        "path": "users/{userId}/notifications/{notificationId}",
+        "path": "/users/{userId}/notifications/{notificationId}",
         "definition": {
-          "entityName": "Notification",
+          "entityName": "UserNotification",
           "schema": {
-            "$ref": "#/backend/entities/Notification"
+            "$ref": "#/backend/entities/UserNotification"
           },
-          "description": "Stores notifications for a specific user. Uses path-based ownership. The 'userId' is inherently available from the path.",
+          "description": "Stores user-specific notifications using path-based ownership.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user."
+              "description": "The unique identifier for the user."
             },
             {
               "name": "notificationId",
-              "description": "The unique identifier of the notification."
+              "description": "The unique identifier for the notification."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure security, scalability, and ease of debugging, following the principles of Authorization Independence, Clarity of Intent, and DBAC. It leverages denormalization and structural segregation to simplify security rules and enable secure list operations. The design also models access using consistent patterns, such as path-based ownership and membership maps. The use of explicit state modeling and predictable schema ensures data clarity and consistency.\n\n**Authorization Independence:**\n\n*   **Orders subcollection under Customers:** The `orders` subcollection under each `customer` includes a denormalized `customerId`. This eliminates the need for `get()` calls to the parent `customer` document in security rules, which would break atomic operations.\n\n*   **ChatMessages subcollection under Orders:** The `chat_messages` subcollection includes denormalized `orderId` and `userId`. This ensures security rules for chat messages can be written without relying on parent document reads.\n\n*   **Notifications subcollection under Users:** The `notifications` subcollection includes a `userId`. This design allows simple path based read and write rules for each user.\n\n**Structural Segregation:**\n\n*   Each top-level collection (`users`, `customers`) and subcollection (`/customers/{customerId}/orders`, `/users/{userId}/notifications`, `/customers/{customerId}/orders/{orderId}/chat_messages`) contains documents with a homogeneous security posture. This simplifies rules and enhances security.\n\n**Access Modeling:**\n\n*   **Private Data:** `/users/{userId}/notifications` follows path-based ownership, ensuring only the user can access their notifications.\n\n*   **Hierarchical Paths for User-Owned Data:** `/customers/{customerId}/orders/{orderId}/chat_messages` continues the path structure for nested data. This enables straightforward security rules based on user and customer relationships.\n\n**QAPs (Rules are not Filters):**\n\n*   The structure supports secure `list` operations. For instance, listing orders for a customer is achieved via the `/customers/{customerId}/orders` subcollection, which enforces security at the collection level rather than relying on filtering.\n\n**Invariants:**\n\n*   Timestamps are included in both chat messages and notifications.\n\nThis design provides a robust and secure foundation for the OrderFlow application, facilitating simple, clear, and maintainable security rules."
+    "reasoning": "The Firestore structure is designed to provide a secure, scalable, and easily maintainable database for the OrderFlow application. It leverages path-based ownership for user-specific data and membership maps for collaborative data access, ensuring authorization independence and simplifying security rules. \n\nSpecifically, the design implements authorization independence by denormalizing authorization data. For example, access to orders is controlled via the customer id, which is part of every order object, eliminating the need for rules to `get()` customer data to authorize order access. Similarly, the `participants` field in the `chatChannels` collection denormalizes the list of users that can access that chat channel, avoiding the need to check user roles in other collections.  User-owned data (notifications) are stored using path-based ownership.\n\nTo support secure `list` operations (QAPs), data with different access requirements are stored in separate collections. Customer data is stored in a top-level `customers` collection, Orders are stored in a top-level `orders` collection and linked to the customers with the `customerId`. Chat channels and messages are also stored in top-level collections. User-specific data like notifications, however, is stored in subcollections under the respective user document.\n\nThis structure avoids hierarchical authorization dependencies, making security rules simpler and more robust. It also enables atomic operations and simplifies debugging."
   }
 }

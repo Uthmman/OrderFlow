@@ -1,134 +1,200 @@
 /**
- * @description This ruleset enforces a strict user-ownership model for user-specific data (profiles, notifications),
- *              and a customer-centric model for orders and chat messages.  It prioritizes data locality
- *              and avoids costly `get()` operations by denormalizing key authorization fields within documents.
- * @dataStructure
- *   - /users/{userId}: Stores user profiles, accessible only by the owning user.
- *   - /customers/{customerId}: Stores customer profiles, with open read access and restricted write access.
- *   - /customers/{customerId}/orders/{orderId}: Stores orders, accessible only by authenticated users and requires customerId match.
- *   - /customers/{customerId}/orders/{orderId}/chat_messages/{chatMessageId}: Stores chat messages, accessible only by the user who created them and only if user matches customer and order.
- *   - /users/{userId}/notifications/{notificationId}: Stores user notifications, accessible only by the owning user.
- * @keySecurityDecisions
- *   - Users can only access their own profile and notifications.
- *   - Customers are publicly readable, but only admins can create, update, or delete them (TODO: Add admin role check).
- *   - Orders and chat messages are scoped to customers and require authentication.
- *   - Listing all users or customers is disallowed (explicitly denied).
- * @denormalizationForAuthorization
- *   - Orders contain a `customerId` field, avoiding the need to read the parent customer document for authorization.
- *   - ChatMessages contain `orderId` and `userId` fields, avoiding the need to read parent order or user documents.
- * @structuralSegregation
- *   - User-specific data (profiles, notifications) is stored under /users/{userId}, ensuring private access.
+ * @fileOverview Firestore Security Rules for OrderFlow Application
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user-specific data (notifications)
+ * and leverages denormalized access control lists for collaborative resources (chat channels).
+ * It prioritizes authorization independence to minimize `get()` calls and improve performance.
+ *
+ * Data Structure:
+ * - /customers/{customerId}: Stores customer profiles. Accessible to authenticated users.
+ * - /orders/{orderId}: Stores order information. Accessible to authenticated users.
+ * - /chatChannels/{chatChannelId}: Stores chat channels. Access controlled by the 'participants' array.
+ * - /chatChannels/{chatChannelId}/messages/{messageId}: Stores chat messages. Access inherited from the parent channel.
+ * - /users/{userId}/notifications/{notificationId}: Stores user-specific notifications. Owner-only access.
+ * - /users/{userId}: Stores user profiles. Owner-only access.
+ *
+ * Key Security Decisions:
+ * - User listing is implicitly denied by the rules structure.
+ * - All write operations require authentication.
+ * - Data validation is relaxed for rapid prototyping, focusing on authorization and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * - ChatChannel documents include a 'participants' array containing user IDs who have access. This avoids needing to query a separate membership collection.
+ *
+ * Structural Segregation:
+ * - User-specific notifications are stored in a private subcollection under /users/{userId} to ensure only the owner can access them.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Manages user profiles, ensuring only the authenticated user can access their own profile.
+     * @description Customer profiles. Accessible to authenticated users.
+     * @path /customers/{customerId}
+     * @allow (get, list): Any authenticated user can read customer profiles.
+     * @allow (create, update, delete): Only authenticated users can modify customer profiles.
+     * @deny (create, update, delete): An unauthenticated user cannot modify customer profiles.
+     * @principle Allows authenticated users to read customer profiles.
+     */
+    match /customers/{customerId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    /**
+     * @description Order information. Accessible to authenticated users.
+     * @path /orders/{orderId}
+     * @allow (get, list): Any authenticated user can read order information.
+     * @allow (create, update, delete): Only authenticated users can modify order information.
+     * @deny (create, update, delete): An unauthenticated user cannot modify order information.
+     * @principle Allows authenticated users to read order information.
+     */
+    match /orders/{orderId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    /**
+     * @description Chat channels. Access controlled by the 'participants' array.
+     * @path /chatChannels/{chatChannelId}
+     * @allow (get): User is a participant in the chat channel.
+     * @allow (list): User is authenticated.
+     * @allow (create): User is a participant in the chat channel.
+     * @allow (update): User is an existing participant in the chat channel. Only participants can update the channel.
+     * @allow (delete): User is an existing participant in the chat channel. Only participants can delete the channel.
+     * @deny (create, update, delete): User is not a participant.
+     * @principle Enforces access control based on the 'participants' array in the ChatChannel document.
+     */
+    match /chatChannels/{chatChannelId} {
+      allow get: if isSignedIn() && isParticipant(resource.data.participants);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isNewParticipant(request.resource.data.participants);
+      allow update: if isSignedIn() && isExistingParticipant(resource.data.participants);
+      allow delete: if isSignedIn() && isExistingParticipant(resource.data.participants);
+    }
+
+    /**
+     * @description Chat messages within a channel.
+     * @path /chatChannels/{chatChannelId}/messages/{messageId}
+     * @allow (get, list): User is a participant in the parent chat channel.
+     * @allow (create): User is a participant in the parent chat channel.
+     * @allow (update, delete): User is the sender of the message and a participant in the parent chat channel.
+     * @deny (create, update, delete): User is not a participant in the parent chat channel.
+     * @principle Inherits access control from the parent ChatChannel document.
+     */
+    match /chatChannels/{chatChannelId}/messages/{messageId} {
+      allow get, list: if isSignedIn() && isChatMessageParticipant(chatChannelId);
+      allow create: if isSignedIn() && isChatMessageParticipant(chatChannelId);
+      allow update: if isSignedIn() && isChatMessageSender(chatChannelId, resource.data.senderId) ;
+      allow delete: if isSignedIn() && isChatMessageSender(chatChannelId, resource.data.senderId);
+    }
+
+    /**
+     * @description User-specific notifications. Owner-only access.
+     * @path /users/{userId}/notifications/{notificationId}
+     * @allow (get, list): User ID matches the authenticated user ID.
+     * @allow (create): User ID matches the authenticated user ID.
+     * @allow (update, delete): User ID matches the authenticated user ID and the notification exists.
+     * @deny (create, update, delete): User ID does not match the authenticated user ID.
+     * @principle Enforces strict user ownership for notifications.
+     */
+    match /users/{userId}/notifications/{notificationId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == request.auth.uid;
+      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow delete: if isExistingOwner(userId) && resource.data.userId == userId;
+    }
+
+    /**
+     * @description User profiles. Owner-only access.
      * @path /users/{userId}
-     * @allow (create) - User 'Km9uE0xfT5TDC9M2w1Va0qAm6K43' can create their own profile at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43 if request.auth.uid == userId.
-     * @allow (get, update, delete) - User 'Km9uE0xfT5TDC9M2w1Va0qAm6K43' can read, update, or delete their profile at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43.
-     * @deny (create) - User 'Km9uE0xfT5TDC9M2w1Va0qAm6K43' cannot create a profile at /users/anotherUserId.
-     * @deny (get, update, delete) - User 'anotherUserId' cannot read, update, or delete the profile at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43.
-     * @principle Enforces document ownership for all operations.
+     * @allow (get): User ID matches the authenticated user ID.
+     * @allow (create): User ID matches the authenticated user ID. Allows user self-creation.
+     * @allow (update, delete): User ID matches the authenticated user ID and the user exists.
+     * @deny (create, update, delete): User ID does not match the authenticated user ID.
+     * @principle Enforces strict user ownership for user profiles.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.auth.uid == userId;
-      allow update: if isOwner(userId) && isExistingOwner(userId);
-      allow delete: if isOwner(userId) && isExistingOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.id == request.auth.uid;
+      allow update: if isExistingOwner(userId) && resource.data.id == userId;
+      allow delete: if isExistingOwner(userId) && resource.data.id == userId;
+    }
+
+    // --- Helper Functions ---
+
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     /**
-     * @description Manages customer profiles.  Allows public read access, but restricts creation, updates, and deletions.
-     * @path /customers/{customerId}
-     * @allow (get, list) - Any user can read customer profiles.
-     * @deny (create, update, delete) - No user can create, update, or delete customer profiles (TODO: Add admin role check).
-     * @principle Allows public read access with restricted write access (TODO: Implement admin roles).
+     * @description Checks if the user is the owner of the resource.
+     * @param {string} userId The user ID to compare against the authenticated user's ID.
+     * @return {boolean} True if the user is the owner, false otherwise.
      */
-    match /customers/{customerId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add admin role check
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Manages orders associated with a specific customer.  Requires the user to be authenticated to create, update, or delete orders.
-     * @path /customers/{customerId}/orders/{orderId}
-     * @allow (get, list) - Any authenticated user can read orders for a customer.
-     * @allow (create) - Any authenticated user can create an order for a customer if the order's customerId matches the path.
-     * @allow (update, delete) - Only the user who created the order can update or delete it (TODO: Implement creatorId and ownership check).
-     * @deny (create) - An unauthenticated user cannot create an order.
-     * @deny (update, delete) - A different user cannot update or delete an order (TODO: Implement creatorId and ownership check).
-     * @principle Enforces authentication for writes and validates the customerId on create.
+     * @description Checks if the user is the owner of the resource and the resource exists.
+     * @param {string} userId The user ID to compare against the authenticated user's ID.
+     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
      */
-    match /customers/{customerId}/orders/{orderId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.customerId == customerId;
-      allow update: if isSignedIn() && resource.data.customerId == customerId; // TODO: Add owner validation once the schema is updated with an ownership field.
-      allow delete: if isSignedIn() && resource.data.customerId == customerId; // TODO: Add owner validation once the schema is updated with an ownership field.
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Manages chat messages for a specific order. Requires authentication and validates that the message belongs to the correct order.
-     * @path /customers/{customerId}/orders/{orderId}/chat_messages/{chatMessageId}
-     * @allow (get, list) - Any authenticated user can read chat messages for an order.
-     * @allow (create) - Any authenticated user can create a chat message for an order if the message's orderId matches the path.
-     * @allow (update, delete) - No user can update or delete chat messages (for simplicity and immutability).
-     * @deny (create) - An unauthenticated user cannot create a chat message.
-     * @deny (update, delete) - Any user cannot update or delete a chat message.
-     * @principle Enforces authentication for writes and validates the orderId on create.
+     * @description Checks if the user is a participant in the chat channel.
+     * @param {array} participants An array of user IDs who are participants in the chat channel.
+     * @return {boolean} True if the user is a participant, false otherwise.
      */
-    match /customers/{customerId}/orders/{orderId}/chat_messages/{chatMessageId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.orderId == orderId && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+    function isParticipant(participants) {
+        return isSignedIn() && participants.hasAny([request.auth.uid]);
+    }
+
+      /**
+       * @description Checks if the user is a NEW participant in the chat channel for create operation.
+       * @param {array} participants An array of user IDs who are participants in the chat channel.
+       * @return {boolean} True if the user is a participant, false otherwise.
+       */
+    function isNewParticipant(participants) {
+      return isSignedIn() && participants.hasAny([request.auth.uid]);
+    }
+
+
+    /**
+     * @description Checks if the user is an EXISTING participant in the chat channel.
+     * @param {array} participants An array of user IDs who are participants in the chat channel.
+     * @return {boolean} True if the user is a participant, false otherwise.
+     */
+    function isExistingParticipant(participants) {
+        return isSignedIn() && resource != null && participants.hasAny([request.auth.uid]);
     }
 
     /**
-     * @description Manages notifications for a specific user.  Ensures only the authenticated user can access their own notifications.
-     * @path /users/{userId}/notifications/{notificationId}
-     * @allow (get, list) - The user 'Km9uE0xfT5TDC9M2w1Va0qAm6K43' can read their notifications at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43/notifications.
-     * @allow (create, update, delete) - User 'Km9uE0xfT5TDC9M2w1Va0qAm6K43' can create, update, or delete a notification at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43/notifications/{notificationId} if request.auth.uid == userId.
-     * @deny (get, list) - User 'anotherUserId' cannot read notifications at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43/notifications.
-     * @deny (create, update, delete) - User 'anotherUserId' cannot create, update, or delete notifications at /users/Km9uE0xfT5TDC9M2w1Va0qAm6K43/notifications/{notificationId}.
-     * @principle Enforces document ownership for all operations.
+     * @description Checks if the user is a participant in the chat channel, using a `get()` request.
+     * @param {string} chatChannelId The ID of the chat channel.
+     * @return {boolean} True if the user is a participant, false otherwise.
      */
-    match /users/{userId}/notifications/{notificationId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.auth.uid == userId;
-      allow update: if isOwner(userId) && isExistingOwner(userId);
-      allow delete: if isOwner(userId) && isExistingOwner(userId);
+    function isChatMessageParticipant(chatChannelId) {
+      return get(/databases/$(database)/documents/chatChannels/$(chatChannelId)).data.participants.hasAny([request.auth.uid]);
     }
 
     /**
-     * @description Denies listing all orders at the root level.  Listing orders must be done within the context of a customer.
-     * @path /orders
-     * @deny (list) - No user can list all orders at the root level.
-     * @principle Prevents global listing of orders; enforces customer-scoped access.
+     * @description Checks if the user is the sender of the chat message and a participant in the chat channel, using a `get()` request.
+     * @param {string} chatChannelId The ID of the chat channel.
+     * @param {string} senderId The ID of the message sender
+     * @return {boolean} True if the user is the sender, false otherwise.
      */
-    match /orders {
-        allow get: if false;
-        allow list: if false;
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
+    function isChatMessageSender(chatChannelId, senderId) {
+      return request.auth.uid == senderId && get(/databases/$(database)/documents/chatChannels/$(chatChannelId)).data.participants.hasAny([request.auth.uid]);
     }
-  }
-
-  // Helper function to determine if the user is signed in.
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  // Helper function to determine if the user is the owner of the document based on the userId.
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-    // Helper function to determine if the user is the owner of the document and the document exists.
-  function isExistingOwner(userId) {
-    return isOwner(userId) && resource != null;
   }
 }

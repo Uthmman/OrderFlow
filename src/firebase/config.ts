@@ -1,8 +1,8 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyDOOFzcKHx0D04z6S1Fqq85l-gX_MuZHmw",
-  authDomain: "studio-2408085976-b70c8.firebaseapp.com",
-  projectId: "studio-2408085976-b70c8",
-  storageBucket: "studio-2408085976-b70c8.appspot.com",
-  messagingSenderId: "829368331971",
-  appId: "1:829368331971:web:237e77e3235fade8803c76"
+  "projectId": "course-registration-cce07",
+  "appId": "1:117088413094:web:3aa53a2afe004846f65b67",
+  "apiKey": "AIzaSyCOTBiGBKbvXQYK1YE4tBVupjiPACDpN0Y",
+  "authDomain": "course-registration-cce07.firebaseapp.com",
+  "measurementId": "",
+  "messagingSenderId": "117088413094"
 };
