@@ -158,7 +158,8 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
     const { orders } = useOrders();
 
     const getCustomerOrderCount = (customerId: string) => {
-        return orders.filter(order => order.customerId === customerId).length;
+        const customer = customers.find(c => c.id === customerId);
+        return customer?.orderIds?.length || 0;
     }
 
     return (

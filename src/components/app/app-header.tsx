@@ -6,8 +6,13 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { UserNav } from "@/components/app/user-nav";
 import { Notifications } from "@/components/app/notifications";
+import { useUser } from "@/hooks/use-user";
 
 export function AppHeader() {
+  const { user } = useUser();
+
+  if (!user) return null;
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm md:px-6">
       <div className="md:hidden">

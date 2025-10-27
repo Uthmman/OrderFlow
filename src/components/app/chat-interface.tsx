@@ -18,12 +18,13 @@ import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
+import { useUser } from "@/hooks/use-user"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => (
     <Avatar>
         <AvatarImage src={message.user.avatarUrl} />
         <AvatarFallback>
-            {message.user.name.split(" ").map((n) => n[0])}
+            {message.user.name?.split(" ").map((n) => n[0])}
         </AvatarFallback>
     </Avatar>
 );
@@ -62,6 +63,7 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
 
 export function ChatInterface({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
+  const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const { toast } = useToast();
@@ -104,15 +106,15 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && !audioBlob) || loading) return;
+    if ((!inputValue.trim() && !audioBlob) || loading || !user) return;
 
     setLoading(true);
     
     const userMessage: OrderChatMessage = {
         user: {
-            id: 'anonymous',
-            name: 'Guest',
-            avatarUrl: `https://i.pravatar.cc/150?u=guest`,
+            id: user.id,
+            name: user.name || 'User',
+            avatarUrl: user.avatarUrl || '',
         },
         text: inputValue,
         timestamp: new Date().toISOString(),

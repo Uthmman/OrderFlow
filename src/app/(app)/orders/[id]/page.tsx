@@ -38,6 +38,7 @@ import { useCustomers } from "@/hooks/use-customers";
 import { customColorOptions, woodFinishOptions } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { useUser } from "@/hooks/use-user";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -94,22 +95,24 @@ const AttachmentPreview = ({ att }: { att: OrderAttachment }) => {
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder, updateOrder } = useOrders();
-  const { getCustomerById } = useCustomers();
+  const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
+  const { getCustomerById, loading: customersLoading } = useCustomers();
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  
+  if (ordersLoading || customersLoading || userLoading) {
+    return <div>Loading...</div>;
+  }
   
   const order = getOrderById(id);
   
   if (!order) {
-    // Return loading or not found, but handle async nature
-    const { loading: ordersLoading } = useOrders();
-    if(ordersLoading) return <div>Loading order...</div>
     notFound();
   }
 
-  const { customers, loading: customersLoading } = useCustomers();
   const customer = getCustomerById(order.customerId);
+  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
 
     const handleCancel = () => {
         if (!order) return;
@@ -155,7 +158,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
 
   const prepaid = order.prepaidAmount || 0;
-  const balance = order.incomeAmount - prepaid;
+  const balance = (order.incomeAmount || 0) - prepaid;
 
 
   return (
@@ -176,73 +179,75 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                   Detailed view of order from {order.customerName}.
                 </p>
             </div>
-            <div className="flex items-center gap-2">
-                <Link href={`/orders/${order.id}/edit`}>
-                    <Button>Edit Order</Button>
-                </Link>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <MoreVertical className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleToggleUrgent}>
-                            <AlertTriangle className="mr-2 h-4 w-4" /> 
-                            <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleMarkAsComplete}>
-                            Mark as Complete
-                        </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleDuplicate}>
-                            Duplicate Order
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                Cancel Order
+            {canEdit && (
+                <div className="flex items-center gap-2">
+                    <Link href={`/orders/${order.id}/edit`}>
+                        <Button>Edit Order</Button>
+                    </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleToggleUrgent}>
+                                <AlertTriangle className="mr-2 h-4 w-4" /> 
+                                <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
                             </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This will cancel the order. This can be undone by changing the order status.
-                                        To delete the order permanently, use the 'Delete Order' option.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Back</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onClick={handleMarkAsComplete}>
+                                Mark as Complete
+                            </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDuplicate}>
+                                Duplicate Order
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
                                 <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                    Delete Order
+                                    Cancel Order
                                 </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                        This action cannot be undone. This will permanently delete the order
-                                        and remove its data from our servers.
-                                    </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will cancel the order. This can be undone by changing the order status.
+                                            To delete the order permanently, use the 'Delete Order' option.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Back</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                        Delete Order
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This action cannot be undone. This will permanently delete the order
+                                            and remove its data from our servers.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )}
         </div>
       </div>
 
@@ -357,7 +362,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <Separator />
                      <div className="flex items-center justify-between gap-3">
                         <span className="text-sm text-muted-foreground">Total Price</span>
-                        <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount)}</span>
+                        <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
                     </div>
                      <div className="flex items-center justify-between gap-3">
                         <span className="text-sm text-muted-foreground">Pre-paid</span>
@@ -372,9 +377,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </CardContent>
             </Card>
 
-            {customersLoading ? (
-                <Card><CardContent>Loading customer...</CardContent></Card>
-            ) : customer ? (
+            {customer ? (
                 <Card>
                     <CardHeader>
                         <CardTitle>Customer</CardTitle>
@@ -386,14 +389,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     </CardContent>
                 </Card>
             ) : (
-                 <Card><CardContent>Customer not found.</CardContent></Card>
+                 <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
             )}
         </div>
       </div>
     </div>
   );
 }
-
-  
-
-    

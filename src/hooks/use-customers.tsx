@@ -8,6 +8,7 @@ import { useToast } from './use-toast';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from './use-user';
 
 
 interface CustomerContextType {
@@ -24,6 +25,7 @@ const CustomerContext = createContext<CustomerContextType | undefined>(undefined
 export function CustomerProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { firestore } = useFirebase();
+  const { user } = useUser();
 
   const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore]);
   const { data: customers, isLoading: loading } = useCollection<Customer>(customersRef);
@@ -33,6 +35,8 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, [customers]);
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
+    if (!user) throw new Error("User must be logged in to add a customer.");
+
     const newCustomerRef = doc(collection(firestore, "customers"));
     const newCustomerId = newCustomerRef.id;
 
@@ -41,10 +45,14 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       id: newCustomerId,
       orderIds: [],
       reviews: [],
-      ownerId: 'anonymous'
+      ownerId: user.id,
+      phoneNumbers: customerData.phoneNumbers || [],
+      location: customerData.location || { town: '' },
+      avatarUrl: customerData.avatarUrl || '',
+      gender: customerData.gender || 'Other',
     };
 
-    setDocumentNonBlocking(newCustomerRef, newCustomer);
+    setDocumentNonBlocking(newCustomerRef, newCustomer, {});
     
     return newCustomerId;
   };
@@ -70,7 +78,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     addCustomer,
     updateCustomer,
     addOrderToCustomer,
-  }), [customers, loading, getCustomerById]);
+  }), [customers, loading, getCustomerById, addCustomer, updateCustomer, addOrderToCustomer]);
 
   return (
     <CustomerContext.Provider value={value}>

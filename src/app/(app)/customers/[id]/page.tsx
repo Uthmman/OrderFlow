@@ -1,7 +1,7 @@
 
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { useCustomers } from "@/hooks/use-customers";
 import { useOrders } from "@/hooks/use-orders";
@@ -12,6 +12,7 @@ import { Mail, Phone, MapPin, MessageSquare, Star, Edit, MoreVertical, Building,
 import { OrderTable } from "@/components/app/order-table";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
+import { useUser } from "@/hooks/use-user";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -32,19 +33,23 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const { id } = use(params);
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { orders, loading: ordersLoading } = useOrders();
+  const { user, loading: userLoading } = useUser();
 
-  const customer = getCustomerById(id);
-
-  if (customersLoading || ordersLoading) {
+  if (customersLoading || ordersLoading || userLoading) {
     return <div>Loading...</div>;
   }
+
+  const customer = getCustomerById(id);
 
   if (!customer) {
     notFound();
   }
   
   const customerOrders = orders.filter(order => customer.orderIds?.includes(order.id));
-  const totalSpent = customerOrders.reduce((acc, order) => acc + order.incomeAmount, 0);
+  const totalSpent = customerOrders.reduce((acc, order) => acc + (order.incomeAmount || 0), 0);
+
+  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,14 +73,16 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-            <Button variant="outline">
-                <Edit className="mr-2" /> Edit
-            </Button>
-            <Button variant="ghost" size="icon">
-                <MoreVertical />
-            </Button>
-        </div>
+        {canEdit && (
+            <div className="flex items-center gap-2">
+                <Button variant="outline">
+                    <Edit className="mr-2" /> Edit
+                </Button>
+                <Button variant="ghost" size="icon">
+                    <MoreVertical />
+                </Button>
+            </div>
+        )}
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -168,7 +175,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <CardTitle>Customer Reviews</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {customer.reviews?.length > 0 ? customer.reviews.map(review => (
+                    {customer.reviews && customer.reviews.length > 0 ? customer.reviews.map(review => (
                         <div key={review.id}>
                             <div className="flex justify-between items-center mb-2">
                                 <StarRating rating={review.rating} />

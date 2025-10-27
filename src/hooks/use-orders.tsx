@@ -10,12 +10,13 @@ import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useUser } from './use-user';
 
 
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => Promise<string | undefined>;
+  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => Promise<string | undefined>;
   updateOrder: (order: Order, newFiles?: File[]) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -28,6 +29,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
   const { firestore, firebaseApp } = useFirebase();
+  const { user } = useUser();
   const storage = getStorage(firebaseApp);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -70,7 +72,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const addOrder = async (orderData: Omit<Order, 'id'| 'creationDate' >, newFiles: File[]) => {
+  const addOrder = async (orderData: Omit<Order, 'id'| 'creationDate' | 'ownerId'>, newFiles: File[]) => {
+    if (!user) throw new Error("User must be logged in to add an order.");
+
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
@@ -81,10 +85,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             ...orderData,
             id: orderId,
             creationDate: serverTimestamp(),
-            attachments: [...(orderData.attachments || []), ...newAttachments]
+            attachments: [...(orderData.attachments || []), ...newAttachments],
+            ownerId: user.id
         };
 
-        setDocumentNonBlocking(newOrderRef, finalOrderData);
+        setDocumentNonBlocking(newOrderRef, finalOrderData, {});
         await addOrderToCustomer(orderData.customerId, orderId);
         
         return orderId;
@@ -121,9 +126,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     // Delete associated files from storage
     const deletePromises = (attachments || []).map(att => {
+        if (!att.storagePath) return Promise.resolve();
         const fileRef = ref(storage, att.storagePath);
         return deleteObject(fileRef).catch(error => {
-            // It's okay if the file doesn't exist, so we catch and log without re-throwing
             if (error.code !== 'storage/object-not-found') {
                 console.error(`Failed to delete attachment ${att.storagePath}:`, error);
             }

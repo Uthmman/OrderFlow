@@ -19,17 +19,23 @@ import {
   Boxes,
   ShieldCheck,
 } from "lucide-react";
+import { useUser } from "@/hooks/use-user";
 
 const navItems = [
-    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { href: "/orders", icon: Package, label: "Orders" },
-    { href: "/customers", icon: Users, label: "Customers" },
-    { href: "/users", icon: ShieldCheck, label: "Users" },
-    { href: "/settings", icon: Settings, label: "Settings" },
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
+    { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
+    { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
+    { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin'] },
+    { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, role } = useUser();
+
+  if (!user) return null;
+
+  const filteredNavItems = navItems.filter(item => item.roles.includes(role || ''));
 
   return (
     <Sidebar>
@@ -45,7 +51,7 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild

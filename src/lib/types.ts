@@ -1,16 +1,14 @@
 
 import { Timestamp } from "firebase/firestore";
 
-export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer';
+export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
 
-export type User = {
+export type AppUser = {
   id: string; // This is the uid from Firebase Auth
   name: string;
   email: string;
   avatarUrl: string;
   role: Role;
-  verified: boolean;
-  customClaims?: { [key: string]: any };
 };
 
 export type FirebaseUser = {
@@ -18,9 +16,6 @@ export type FirebaseUser = {
     email: string | null;
     displayName: string | null;
     photoURL: string | null;
-    customClaims?: { [key:string]: any };
-    role?: Role;
-    verified?: boolean;
 }
 
 export type CustomerReview = {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { OrderTable } from "@/components/app/order-table"
@@ -5,7 +6,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { useOrders } from "@/hooks/use-orders"
 
 export default function OrdersPage() {
-  const { orders } = useOrders();
+  const { orders, loading } = useOrders();
+
+  if (loading) {
+    return <div>Loading orders...</div>
+  }
 
   return (
     <div className="flex flex-col gap-8">
