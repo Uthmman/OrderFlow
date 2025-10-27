@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, serverTimestamp, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -11,8 +12,6 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useUser } from './use-user';
 import { createNotification } from '@/lib/notifications';
-import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/google-drive-flow';
-import { Stream } from 'stream';
 
 interface OrderContextType {
   orders: Order[];
@@ -26,24 +25,10 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-// Helper to convert File to base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Remove the data URI prefix
-      resolve(result.split(',')[1]);
-    };
-    reader.onerror = error => reject(error);
-  });
-};
-
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
-  const { firestore } = useFirebase();
+  const { firestore, firebaseApp } = useFirebase();
   const { user } = useUser();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -52,70 +37,68 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
     if (!files || files.length === 0) return [];
+    
+    const storage = getStorage(firebaseApp);
 
     try {
-        const uploadPromises = files.map(async (file) => {
-            setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-            const fileContent = await fileToBase64(file);
-            setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+      const uploadPromises = files.map(async (file) => {
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+        const storagePath = `orders/${orderId}/${file.name}`;
+        const storageRef = ref(storage, storagePath);
 
-            const result = await uploadFileFlow({
-                fileName: file.name,
-                fileContent: fileContent,
-                mimeType: file.type,
-            });
-            
-            setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-            
-            return {
-                fileName: file.name,
-                url: result.webViewLink,
-                storagePath: result.id,
-            };
-        });
+        await uploadBytes(storageRef, file);
+        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
 
-        const results = await Promise.all(uploadPromises);
-        return results;
-    } catch (error: any) {
-        console.error("Upload failed:", error);
-        toast({ 
-          variant: "destructive", 
-          title: "Upload Failed", 
-          description: error.message || `Could not complete upload. Please ensure file storage is configured.` 
-        });
-        throw error; // Re-throw to be caught by the calling function
+        const downloadURL = await getDownloadURL(storageRef);
+        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+
+        return {
+          fileName: file.name,
+          url: downloadURL,
+          storagePath: storagePath,
+        };
+      });
+
+      const results = await Promise.all(uploadPromises);
+      return results;
+    } catch (error) {
+      console.error("Upload failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: "Could not upload files to Firebase Storage.",
+      });
+      throw error;
     } finally {
-        setUploadProgress({}); // Clear progress regardless of outcome
+        setUploadProgress({});
     }
   };
 
 
-  const addOrder = async (orderData: Omit<Order, 'id'| 'creationDate' | 'ownerId'>, newFiles: File[]) => {
+  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
     try {
-        const newAttachments = await handleFileUploads(orderId, newFiles);
-        
-        const finalOrderData: Order = {
-            ...orderData,
-            id: orderId,
-            creationDate: serverTimestamp(),
-            attachments: [...(orderData.attachments || []), ...newAttachments],
-            ownerId: user.id
-        };
+      const newAttachments = await handleFileUploads(orderId, newFiles);
+      
+      const finalOrderData: Order = {
+          ...orderData,
+          id: orderId,
+          creationDate: serverTimestamp(),
+          attachments: [...(orderData.attachments || []), ...newAttachments],
+          ownerId: user.id
+      };
 
-        setDocumentNonBlocking(newOrderRef, finalOrderData, {});
-        await addOrderToCustomer(orderData.customerId, orderId);
-        
-        return orderId;
+      setDocumentNonBlocking(newOrderRef, finalOrderData, {});
+      await addOrderToCustomer(orderData.customerId, orderId);
+      
+      return orderId;
     } catch(error) {
-        // This catch block will now correctly trigger if handleFileUploads fails
-        console.error("Error creating order:", error);
-        // We re-throw so the UI layer can handle its submitting state
-        throw error;
+      console.error("Error creating order:", error);
+      throw error;
     }
   };
 
@@ -123,79 +106,74 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     try {
-        const orderRef = doc(firestore, 'orders', orderData.id);
-        const originalOrder = orders?.find(o => o.id === orderData.id);
+      const orderRef = doc(firestore, 'orders', orderData.id);
+      const originalOrder = orders?.find(o => o.id === orderData.id);
 
-        let dataForUpdate: Partial<Order> = { ...orderData };
+      let dataForUpdate: Partial<Order> = { ...orderData };
 
-        // Handle file uploads first
-        const newAttachments = await handleFileUploads(orderData.id, newFiles);
-        if (newAttachments.length > 0) {
-            dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
-        }
+      const newAttachments = await handleFileUploads(orderData.id, newFiles);
+      if (newAttachments.length > 0) {
+        dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
+      }
 
-        // Generate system messages for changes, excluding chat message changes
-        if (originalOrder) {
-            const systemMessages: OrderChatMessage[] = [];
-            const timestamp = new Date().toISOString();
-            const currentUser = user.name || 'a user';
+      if (originalOrder) {
+        const systemMessages: OrderChatMessage[] = [];
+        const timestamp = new Date().toISOString();
+        const currentUser = user.name || 'a user';
 
-            const createSystemMessage = (text: string) => ({
-                user: { id: 'system', name: 'System', avatarUrl: '' },
-                text: `${text} by ${currentUser}.`,
-                timestamp,
-                isSystemMessage: true
+        const createSystemMessage = (text: string) => ({
+            user: { id: 'system', name: 'System', avatarUrl: '' },
+            text: `${text} by ${currentUser}.`,
+            timestamp,
+            isSystemMessage: true
+        });
+
+        if (originalOrder.status !== orderData.status) {
+            systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
+            createNotification(firestore, user.id, {
+                type: `Order ${orderData.status}`,
+                message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
+                orderId: orderData.id
             });
-
-            if (originalOrder.status !== orderData.status) {
-                systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
-                createNotification(firestore, user.id, {
-                    type: `Order ${orderData.status}`,
-                    message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
-                    orderId: orderData.id
-                });
-            }
-            if (originalOrder.isUrgent !== orderData.isUrgent) {
-                const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-                systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-            }
-            
-            if (systemMessages.length > 0) {
-                // Combine existing messages with new system messages
-                const existingChat = orderData.chatMessages || [];
-                const updatedChat = [...existingChat, ...systemMessages];
-                dataForUpdate.chatMessages = updatedChat;
-            }
+        }
+        if (originalOrder.isUrgent !== orderData.isUrgent) {
+            const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+            systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
         }
         
-        // Non-blocking update to Firestore with the final combined data
-        updateDocumentNonBlocking(orderRef, dataForUpdate);
+        if (systemMessages.length > 0) {
+            const existingChat = orderData.chatMessages || [];
+            const updatedChat = [...existingChat, ...systemMessages];
+            dataForUpdate.chatMessages = updatedChat;
+        }
+      }
+      
+      updateDocumentNonBlocking(orderRef, dataForUpdate);
 
     } catch (error) {
-       console.error("Error updating order:", error);
-       // The toast is already handled in handleFileUploads, but we re-throw
-       // so the UI layer can stop its submitting state.
-       throw error;
+      console.error("Error updating order:", error);
+      throw error;
     }
   };
 
-  const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
+ const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
     const orderRef = doc(firestore, 'orders', orderId);
     deleteDocumentNonBlocking(orderRef);
-    
+
+    const storage = getStorage(firebaseApp);
     const deletePromises = (attachments || []).map(att => {
-        if (!att.storagePath) return Promise.resolve();
-        return deleteFileFlow(att.storagePath).catch(error => {
-            // Log the error but don't let it stop other deletions.
-            console.error(`Failed to delete attachment ${att.storagePath} from Google Drive:`, error);
-        });
+      if (!att.storagePath) return Promise.resolve();
+      const fileRef = ref(storage, att.storagePath);
+      return deleteObject(fileRef).catch(error => {
+        // Log error but don't let it crash the whole operation
+        console.error(`Failed to delete attachment ${att.storagePath}:`, error);
+      });
     });
-    
+
     try {
-        await Promise.all(deletePromises);
-    } catch(error) {
-        // Even if some deletions fail, we don't crash the app. The main order document is already deleted.
-        console.error("One or more files could not be deleted from Google Drive.", error);
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.error("One or more files could not be deleted from Firebase Storage.", error);
     }
   };
   
@@ -211,7 +189,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       deleteOrder,
       getOrderById,
       uploadProgress,
-  }), [orders, loading, uploadProgress, getOrderById, addOrder, updateOrder, deleteOrder]);
+  }), [orders, loading, uploadProgress, getOrderById]);
 
   return (
     <OrderContext.Provider value={value}>
@@ -227,5 +205,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
