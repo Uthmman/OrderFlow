@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/firebase";
+import { NotificationProvider } from "@/hooks/use-notifications";
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
 
@@ -70,17 +71,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <CustomerProvider>
         <OrderProvider>
-          <div className="flex h-screen w-full flex-col">
-            <AppHeader />
-            <div className="flex flex-1 overflow-hidden">
-              <AppSidebar />
-              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                <AuthGuard>
-                  {children}
-                </AuthGuard>
-              </main>
+          <NotificationProvider>
+            <div className="flex h-screen w-full flex-col">
+              <AppHeader />
+              <div className="flex flex-1 overflow-hidden">
+                <AppSidebar />
+                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                  <AuthGuard>
+                    {children}
+                  </AuthGuard>
+                </main>
+              </div>
             </div>
-          </div>
+          </NotificationProvider>
         </OrderProvider>
       </CustomerProvider>
     </SidebarProvider>

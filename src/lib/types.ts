@@ -73,6 +73,15 @@ export type OrderAttachment = {
   storagePath: string;
 };
 
+export type UserNotification = {
+    id: string;
+    userId: string;
+    type: string;
+    message: string;
+    timestamp: any; // Can be string or Firestore Timestamp
+    isRead: boolean;
+    orderId?: string;
+}
 
 export type Order = {
   id:string;
