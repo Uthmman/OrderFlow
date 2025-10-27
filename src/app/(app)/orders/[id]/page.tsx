@@ -382,7 +382,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardContent className="space-y-3">
                         <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
                         <p className="text-sm text-muted-foreground">{customer.email}</p>
-                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</p>
+                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -395,3 +395,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 }
 
   
+
+    
