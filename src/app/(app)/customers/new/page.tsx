@@ -47,9 +47,11 @@ export default function NewCustomerPage() {
           Fill out the form below to add a new customer to the system.
         </p>
       </div>
-      <CustomerForm onSubmit={handleCreateCustomer} isSubmitting={isSubmitting} />
+      <CustomerForm 
+        onSubmit={handleCreateCustomer} 
+        isSubmitting={isSubmitting}
+        submitButtonText="Create Customer"
+      />
     </div>
   );
 }
-
-    

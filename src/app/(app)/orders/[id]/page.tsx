@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,10 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
@@ -93,6 +97,34 @@ const AttachmentPreview = ({ att }: { att: OrderAttachment }) => {
     )
 }
 
+function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
+  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"];
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2">
+          <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {statuses.map(status => (
+          <DropdownMenuItem
+            key={status}
+            disabled={order.status === status}
+            onSelect={() => onStatusChange(status)}
+          >
+            {status}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
@@ -142,12 +174,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         });
     };
 
-    const handleMarkAsComplete = () => {
+    const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
-        updateOrder({ ...order, status: "Completed" });
+        updateOrder({ ...order, status: newStatus });
         toast({
-            title: "Order Completed",
-            description: `Order ${formatOrderId(order.id)} has been marked as complete.`,
+            title: "Status Updated",
+            description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
         });
     };
     
@@ -171,8 +203,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         {formatOrderId(order.id)}
                     </h1>
                     <div className="flex items-center gap-2">
-                      {order.status && <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>}
-                      {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
+                        {canEdit ? (
+                           <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                        ) : (
+                          order.status && <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                        )}
+                        {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
                     </div>
                 </div>
                 <p className="text-muted-foreground mt-1">
@@ -182,7 +218,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             {canEdit && (
                 <div className="flex items-center gap-2">
                     <Link href={`/orders/${order.id}/edit`}>
-                        <Button>Edit Order</Button>
+                        <Button>
+                          <Edit className="mr-2" />
+                          Edit Order
+                        </Button>
                     </Link>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -196,9 +235,6 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                 <DropdownMenuItem onClick={handleToggleUrgent}>
                                 <AlertTriangle className="mr-2 h-4 w-4" /> 
                                 <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleMarkAsComplete}>
-                                Mark as Complete
                             </DropdownMenuItem>
                                 <DropdownMenuItem onClick={handleDuplicate}>
                                 Duplicate Order
