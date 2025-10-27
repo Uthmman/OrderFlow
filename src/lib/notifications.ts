@@ -11,11 +11,11 @@ type NotificationData = {
     orderId?: string;
 }
 
-export function createNotification(
+export async function createNotification(
     firestore: Firestore, 
     userId: string, 
     data: NotificationData
-): void {
+): Promise<void> {
     if (!userId) {
         console.error("Cannot create notification without a userId.");
         return;
