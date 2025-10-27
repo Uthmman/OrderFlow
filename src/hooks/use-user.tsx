@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
 import { collection, doc, setDoc, updateDoc } from 'firebase/firestore';
 import type { AppUser, Role } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -9,6 +9,8 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { onSnapshot } from 'firebase/firestore';
+import type { User as FirebaseAuthUser } from 'firebase/auth';
 
 // Main user hook return type
 interface UserHookReturnType {
@@ -21,7 +23,7 @@ interface UserHookReturnType {
 interface UsersContextType {
   users: AppUser[];
   loading: boolean;
-  user: AppUser | null;
+  user: AppUser | null; // The current user's profile
   createUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
   updateUserRole: (uid: string, role: Role) => Promise<void>;
 }
@@ -32,22 +34,51 @@ const UsersContext = createContext<UsersContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: ReactNode }) {
   const { firestore, user: authUser, isUserLoading: isAuthUserLoading } = useFirebase();
   const { toast } = useToast();
-
-  // --- Single User Logic (for the currently authenticated user) ---
-  const userDocRef = useMemoFirebase(
-    () => (authUser ? doc(firestore, 'users', authUser.uid) : null),
-    [firestore, authUser?.uid]
-  );
-  const { data: user, isLoading: isUserDocLoading } = useDoc<AppUser>(userDocRef);
   
-  const loading = isAuthUserLoading || (authUser && isUserDocLoading);
-  const role = user?.role || null;
+  const [userProfile, setUserProfile] = useState<AppUser | null>(null);
+  const [isProfileLoading, setProfileLoading] = useState(true);
+
+  // Effect to fetch user profile from Firestore when auth state changes
+  useEffect(() => {
+    if (isAuthUserLoading) {
+      setProfileLoading(true);
+      return;
+    }
+    
+    if (!authUser) {
+      setUserProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    const userDocRef = doc(firestore, 'users', authUser.uid);
+    const unsubscribe = onSnapshot(userDocRef, (doc) => {
+      if (doc.exists()) {
+        setUserProfile(doc.data() as AppUser);
+      } else {
+        // This case might happen if the user record wasn't created properly
+        setUserProfile(null); 
+      }
+      setProfileLoading(false);
+    }, (error) => {
+        console.error("Error fetching user profile:", error);
+        setUserProfile(null);
+        setProfileLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [authUser, firestore, isAuthUserLoading]);
+
+  
+  const loading = isAuthUserLoading || isProfileLoading;
+  const role = userProfile?.role || null;
   
   const singleUserValue = useMemo(() => ({
-    user: user || null,
+    user: userProfile,
     loading,
     role,
-  }), [user, loading, role]);
+  }), [userProfile, loading, role]);
 
   // --- All Users Logic (for admin user management) ---
   const usersColRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
@@ -79,10 +110,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const allUsersValue = useMemo(() => ({
     users: users || [],
     loading: areUsersLoading,
-    user: user || null,
+    user: userProfile || null,
     createUserProfile,
     updateUserRole,
-  }), [users, areUsersLoading, user, createUserProfile, updateUserRole]);
+  }), [users, areUsersLoading, userProfile, createUserProfile, updateUserRole]);
 
 
   return (

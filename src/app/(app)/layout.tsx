@@ -7,9 +7,8 @@ import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
 import { OrderProvider } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
-import { UserProvider, useUser } from "@/hooks/use-user";
+import { useUser } from "@/hooks/use-user";
 import { useRouter } from "next/navigation";
-import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/firebase";
@@ -35,7 +34,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
   
-  // After loading, if a user exists...
+  // After loading, if a user's profile (which contains the role) exists...
   if (user) {
     // ...but their role is 'Pending', show the pending approval screen.
     if (role === 'Pending') {
@@ -59,9 +58,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // If none of the above conditions are met (e.g., finished loading, no user),
-  // this will be null and the useEffect will handle the redirect.
-  // This prevents rendering children which might try to access user data.
+  // If loading is done and we still don't have a user, the useEffect will redirect.
+  // This return null prevents rendering children that might depend on the user.
   return null;
 }
 
