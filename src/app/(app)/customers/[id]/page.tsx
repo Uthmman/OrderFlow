@@ -98,7 +98,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <Phone className="h-4 w-4 text-muted-foreground mt-1" />
                         <div>
                             <p className="font-medium">Phone Numbers</p>
-                            {customer.phoneNumbers.map(p => (
+                            {customer.phoneNumbers?.map(p => (
                                 <p key={p.number} className="text-muted-foreground">{p.type}: {p.number}</p>
                             ))}
                         </div>
