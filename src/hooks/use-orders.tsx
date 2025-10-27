@@ -30,8 +30,11 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 const removeUndefined = (obj: any) => {
     const newObj: any = {};
     Object.keys(obj).forEach(key => {
-        if (obj[key] !== undefined) {
-            newObj[key] = obj[key];
+        // We need to allow serverTimestamp, which is an object, but Firestore will reject plain empty objects.
+        // We'll also allow arrays, even if they're empty.
+        const value = obj[key];
+        if (value !== undefined) {
+             newObj[key] = value;
         }
     });
     return newObj;
@@ -65,46 +68,42 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!files || files.length === 0) return Promise.resolve([]);
 
     const uploadPromises = files.map(async (file) => {
-      try {
-        setUploadProgress(prev => ({ ...prev, [file.name]: 0 })); // Start progress
-        
-        const fileContent = await fileToBase64(file);
-        
-        // Simulate progress as we don't have real-time progress from the flow
-        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      
+      const fileContent = await fileToBase64(file);
+      
+      setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
 
-        const result = await uploadFileFlow({
-          fileName: file.name,
-          fileContent: fileContent,
-          mimeType: file.type,
-        });
-        
-        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+      // The try/catch is now in the calling function (addOrder/updateOrder)
+      const result = await uploadFileFlow({
+        fileName: file.name,
+        fileContent: fileContent,
+        mimeType: file.type,
+      });
+      
+      setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
 
-        return { 
-          fileName: file.name, 
-          url: result.webViewLink, 
-          storagePath: result.id, // Using the Drive file ID as the storagePath
-        };
-      } catch (error: any) {
+      return { 
+        fileName: file.name, 
+        url: result.webViewLink, 
+        storagePath: result.id, 
+      };
+    });
+
+    try {
+        const results = await Promise.all(uploadPromises);
+        return results;
+    } catch (error: any) {
         console.error("Upload failed:", error);
         toast({ 
           variant: "destructive", 
           title: "Upload Failed", 
-          description: error.message || `Could not upload ${file.name}. Please ensure file storage is configured.` 
+          description: error.message || `Could not complete upload. Please ensure file storage is configured.` 
         });
-        // We re-throw the error to stop the order creation/update process if an upload fails.
-        throw error;
-      } finally {
-         setUploadProgress(prev => {
-            const newProgress = { ...prev };
-            delete newProgress[file.name];
-            return newProgress;
-        });
-      }
-    });
-
-    return Promise.all(uploadPromises);
+        throw error; // Re-throw to be caught by the calling function
+    } finally {
+        setUploadProgress({}); // Clear progress regardless of outcome
+    }
   };
 
 
@@ -131,68 +130,69 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return orderId;
     } catch(error) {
         console.error("Error creating order:", error);
-        // The toast is already shown in handleFileUploads, so we just re-throw
+        // The toast is shown in handleFileUploads, so we just re-throw
         // to stop the function execution and let the caller handle UI state.
         throw error;
     }
   };
 
-  const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
+  const updateOrder = async (orderData: Order, newFiles: File[] = []) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
-    const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
-    if (!originalOrder) {
-        console.error("Original order not found for update. Cannot proceed.");
-        return;
-    }
-    const orderRef = doc(firestore, 'orders', updatedOrderData.id);
+    const originalOrder = orders?.find(o => o.id === orderData.id);
+    const orderRef = doc(firestore, 'orders', orderData.id);
 
-    const systemMessages: OrderChatMessage[] = [];
-    const timestamp = new Date().toISOString();
-    const currentUser = user.name || 'a user';
+    // This is the object that will be sent to Firestore.
+    // We start with the provided orderData.
+    let dataForUpdate: Partial<Order> = { ...orderData };
 
-    const createSystemMessage = (text: string) => ({
-      user: { id: 'system', name: 'System', avatarUrl: '' },
-      text: `${text} by ${currentUser}.`,
-      timestamp,
-      isSystemMessage: true
-    });
-    
-    if (originalOrder.status !== updatedOrderData.status) {
-      systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
-      createNotification(firestore, user.id, {
-        type: `Order ${updatedOrderData.status}`,
-        message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
-        orderId: updatedOrderData.id
-      });
-    }
+    if (originalOrder) {
+        const systemMessages: OrderChatMessage[] = [];
+        const timestamp = new Date().toISOString();
+        const currentUser = user.name || 'a user';
 
-    if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
-      const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-      systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-      createNotification(firestore, user.id, {
-        type: `Order Urgency Changed`,
-        message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
-        orderId: updatedOrderData.id
-      });
+        const createSystemMessage = (text: string) => ({
+            user: { id: 'system', name: 'System', avatarUrl: '' },
+            text: `${text} by ${currentUser}.`,
+            timestamp,
+            isSystemMessage: true
+        });
+
+        if (originalOrder.status !== orderData.status) {
+            systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
+            createNotification(firestore, user.id, {
+                type: `Order ${orderData.status}`,
+                message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
+                orderId: orderData.id
+            });
+        }
+        if (originalOrder.isUrgent !== orderData.isUrgent) {
+            const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+            systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+        }
+        
+        if (systemMessages.length > 0) {
+            dataForUpdate.chatMessages = [...(dataForUpdate.chatMessages || []), ...systemMessages];
+        }
     }
 
     try {
-        const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
-        
-        const finalOrderData: Order = {
-            ...updatedOrderData,
-            attachments: [...(updatedOrderData.attachments || []), ...newAttachments],
-            chatMessages: [...(updatedOrderData.chatMessages || []), ...systemMessages],
-        };
-        
-        await updateDoc(orderRef, removeUndefined(finalOrderData));
+      // Step 1: Handle file uploads. This might throw an error if not configured.
+      const newAttachments = await handleFileUploads(orderData.id, newFiles);
+      
+      // Step 2: If uploads succeed, add the new attachments to our data object.
+      if (newAttachments.length > 0) {
+        dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
+      }
 
-    } catch(error) {
-         console.error("Error updating order:", error);
-         // The toast is already shown in handleFileUploads if that's the cause.
-         // Re-throw to let the caller handle UI state.
-         throw error;
+      // Step 3: Perform a single Firestore update with all the accumulated changes.
+      updateDocumentNonBlocking(orderRef, removeUndefined(dataForUpdate));
+
+    } catch (error) {
+      console.error("Error updating order:", error);
+      // Let the caller's .catch() block handle UI state changes (e.g., isSubmitting)
+      // The toast is already displayed inside handleFileUploads.
+      throw error; 
     }
   };
 
@@ -237,3 +237,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    
