@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
 import { collection, doc, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
+import { useCollection, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { initializeFirebase } from '@/firebase';
 import type { Customer } from '@/lib/types';
 import { useToast } from './use-toast';
@@ -31,27 +31,33 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
   }, [customers]);
   
   const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
-    const docRef = await addDoc(customersRef, {
+    const newCustomerRef = doc(customersRef);
+    const newCustomerId = newCustomerRef.id;
+    
+    const newCustomer = {
       ...customerData,
+      id: newCustomerId,
       orderIds: [],
       reviews: [],
       ownerId: 'anonymous' // Since there is no auth
-    });
-    // Now update the document with its own ID
-    await updateDoc(docRef, { id: docRef.id });
-    return docRef.id;
+    };
+
+    updateDocumentNonBlocking(newCustomerRef, newCustomer);
+    return newCustomerId;
   };
 
   const addOrderToCustomer = async(customerId: string, orderId: string) => {
+    if (!firestore) return;
     const customerRef = doc(firestore, 'customers', customerId);
-    await updateDoc(customerRef, {
+    updateDocumentNonBlocking(customerRef, {
       orderIds: arrayUnion(orderId)
     });
   };
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
+      if (!firestore) return;
       const customerRef = doc(firestore, 'customers', customerData.id);
-      await updateDoc(customerRef, { ...customerData });
+      updateDocumentNonBlocking(customerRef, { ...customerData });
   }
 
   const value = useMemo(() => ({
