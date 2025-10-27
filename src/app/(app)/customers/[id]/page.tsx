@@ -43,7 +43,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     notFound();
   }
   
-  const customerOrders = orders.filter(order => customer.orderIds.includes(order.id));
+  const customerOrders = orders.filter(order => customer.orderIds?.includes(order.id));
   const totalSpent = customerOrders.reduce((acc, order) => acc + order.incomeAmount, 0);
 
   return (
@@ -140,7 +140,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <CardContent className="space-y-2">
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Total Orders</span>
-                        <span className="font-bold">{customer.orderIds.length}</span>
+                        <span className="font-bold">{customer.orderIds?.length || 0}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Total Spent</span>
@@ -148,7 +148,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     </div>
                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Total Reviews</span>
-                        <span className="font-bold">{customer.reviews.length}</span>
+                        <span className="font-bold">{customer.reviews?.length || 0}</span>
                     </div>
                 </CardContent>
             </Card>
@@ -168,7 +168,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <CardTitle>Customer Reviews</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {customer.reviews.length > 0 ? customer.reviews.map(review => (
+                    {customer.reviews?.length > 0 ? customer.reviews.map(review => (
                         <div key={review.id}>
                             <div className="flex justify-between items-center mb-2">
                                 <StarRating rating={review.rating} />
