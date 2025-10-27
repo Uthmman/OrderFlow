@@ -2,8 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, writeBatch } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, doc, serverTimestamp, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -12,7 +11,8 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useUser } from './use-user';
 import { createNotification } from '@/lib/notifications';
-
+import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/google-drive-flow';
+import { Stream } from 'stream';
 
 interface OrderContextType {
   orders: Order[];
@@ -37,47 +37,66 @@ const removeUndefined = (obj: any) => {
     return newObj;
 };
 
+// Helper to convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove the data URI prefix
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = error => reject(error);
+  });
+};
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
-  const { firestore, firebaseApp } = useFirebase();
+  const { firestore } = useFirebase();
   const { user } = useUser();
-  const storage = getStorage(firebaseApp);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
   const { data: orders, isLoading: loading } = useCollection<Order>(ordersRef);
 
-  const handleFileUploads = (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
+  const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
     if (!files || files.length === 0) return Promise.resolve([]);
 
-    const uploadPromises = files.map(file => {
-      const storagePath = `orders/${orderId}/${file.name}`;
-      const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+    const uploadPromises = files.map(async (file) => {
+      try {
+        setUploadProgress(prev => ({ ...prev, [file.name]: 0 })); // Start progress
+        
+        const fileContent = await fileToBase64(file);
+        
+        // Simulate progress as we don't have real-time progress from the flow
+        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
 
-      return new Promise<OrderAttachment>((resolve, reject) => {
-        uploadTask.on('state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-          },
-          (error) => {
-            console.error("Upload failed:", error);
-            toast({ variant: "destructive", title: "Upload Failed", description: `Could not upload ${file.name}.` });
-            reject(error);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            setUploadProgress(prev => {
-              const newProgress = { ...prev };
-              delete newProgress[file.name];
-              return newProgress;
-            });
-            resolve({ fileName: file.name, url: downloadURL, storagePath });
-          }
-        );
-      });
+        const result = await uploadFileFlow({
+          fileName: file.name,
+          fileContent: fileContent,
+          mimeType: file.type,
+        });
+        
+        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+
+        return { 
+          fileName: file.name, 
+          url: result.webViewLink, 
+          storagePath: result.id, // Using the Drive file ID as the storagePath
+        };
+      } catch (error) {
+        console.error("Upload failed:", error);
+        toast({ variant: "destructive", title: "Upload Failed", description: `Could not upload ${file.name}.` });
+        throw error;
+      } finally {
+         setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[file.name];
+            return newProgress;
+        });
+      }
     });
 
     return Promise.all(uploadPromises);
@@ -114,16 +133,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const updateOrder = async (updatedOrderData: Order, newFiles: File[] = []) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
-    const originalOrder = getOrderById(updatedOrderData.id);
-    
+    const originalOrder = orders?.find(o => o.id === updatedOrderData.id);
     const orderRef = doc(firestore, 'orders', updatedOrderData.id);
-
-    // If original order isn't found, just perform a simple update.
-    if (!originalOrder) {
-        console.warn("Original order not found for update, performing blind update.");
-        updateDocumentNonBlocking(orderRef, removeUndefined(updatedOrderData));
-        return;
-    }
 
     const systemMessages: OrderChatMessage[] = [];
     const timestamp = new Date().toISOString();
@@ -135,40 +146,43 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       timestamp,
       isSystemMessage: true
     });
+    
+    // Only generate system messages if the original order exists to compare against
+    if (originalOrder) {
+      if (originalOrder.status !== updatedOrderData.status) {
+        systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
+        createNotification(firestore, user.id, {
+          type: `Order ${updatedOrderData.status}`,
+          message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
+          orderId: updatedOrderData.id
+        });
+      }
 
-    if (originalOrder.status !== updatedOrderData.status) {
-      systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${updatedOrderData.status}'`));
-      createNotification(firestore, user.id, {
-        type: `Order ${updatedOrderData.status}`,
-        message: `Order #${updatedOrderData.id.slice(-5)} status was updated to ${updatedOrderData.status}.`,
-        orderId: updatedOrderData.id
-      });
-    }
-
-    if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
-      const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-      systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-       createNotification(firestore, user.id, {
-        type: `Order Urgency Changed`,
-        message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
-        orderId: updatedOrderData.id
-      });
+      if (originalOrder.isUrgent !== updatedOrderData.isUrgent) {
+        const urgencyText = updatedOrderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
+        systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+        createNotification(firestore, user.id, {
+          type: `Order Urgency Changed`,
+          message: `Urgency for order #${updatedOrderData.id.slice(-5)} was ${updatedOrderData.isUrgent ? 'added' : 'removed'}.`,
+          orderId: updatedOrderData.id
+        });
+      }
     }
 
     try {
         const newAttachments = await handleFileUploads(updatedOrderData.id, newFiles);
         
-        const finalOrderData: Order = { ...updatedOrderData };
+        let finalOrderData = { ...updatedOrderData };
         
         if (newAttachments.length > 0) {
-            finalOrderData.attachments = [...(updatedOrderData.attachments || []), ...newAttachments];
+            finalOrderData.attachments = [...(finalOrderData.attachments || []), ...newAttachments];
         }
 
         if (systemMessages.length > 0) {
-            finalOrderData.chatMessages = [...(updatedOrderData.chatMessages || []), ...systemMessages];
+            finalOrderData.chatMessages = [...(finalOrderData.chatMessages || []), ...systemMessages];
         }
         
-        updateDocumentNonBlocking(orderRef, removeUndefined(finalOrderData));
+        await updateDoc(orderRef, removeUndefined(finalOrderData));
 
     } catch(error) {
          console.error("Error updating order:", error);
@@ -181,12 +195,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     deleteDocumentNonBlocking(orderRef);
     
     const deletePromises = (attachments || []).map(att => {
-        if (!att.storagePath) return Promise.resolve();
-        const fileRef = ref(storage, att.storagePath);
-        return deleteObject(fileRef).catch(error => {
-            if (error.code !== 'storage/object-not-found') {
-                console.error(`Failed to delete attachment ${att.storagePath}:`, error);
-            }
+        if (!att.storagePath) return Promise.resolve(); // storagePath is now the Google Drive file ID
+        return deleteFileFlow(att.storagePath).catch(error => {
+            console.error(`Failed to delete attachment ${att.storagePath} from Google Drive:`, error);
         });
     });
     await Promise.all(deletePromises);
@@ -204,7 +215,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       deleteOrder,
       getOrderById,
       uploadProgress,
-  }), [orders, loading, uploadProgress, getOrderById]);
+  }), [orders, loading, uploadProgress, getOrderById, addOrder, updateOrder, deleteOrder]);
 
   return (
     <OrderContext.Provider value={value}>
