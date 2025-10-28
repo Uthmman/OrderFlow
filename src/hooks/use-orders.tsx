@@ -3,7 +3,6 @@
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, serverTimestamp, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -12,6 +11,8 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useUser } from './use-user';
 import { createNotification } from '@/lib/notifications';
+import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
+
 
 interface OrderContextType {
   orders: Order[];
@@ -35,42 +36,62 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
   const { data: orders, isLoading: loading } = useCollection<Order>(ordersRef);
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URI prefix e.g., "data:image/jpeg;base64,"
+        const base64 = result.split(',')[1];
+        if (base64) {
+          resolve(base64);
+        } else {
+          reject(new Error("Failed to read file as base64."));
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
     if (!files || files.length === 0) return [];
-    
-    const storage = getStorage(firebaseApp);
+
+    setUploadProgress(
+      files.reduce((acc, file) => ({ ...acc, [file.name]: 0 }), {})
+    );
 
     try {
       const uploadPromises = files.map(async (file) => {
-        setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-        const storagePath = `orders/${orderId}/${file.name}`;
-        const storageRef = ref(storage, storagePath);
-
-        await uploadBytes(storageRef, file);
+        const fileContent = await fileToBase64(file);
         setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+        
+        const result = await uploadFileFlow({
+          fileContent,
+          contentType: file.type,
+        });
 
-        const downloadURL = await getDownloadURL(storageRef);
         setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
-
+        
         return {
-          fileName: file.name,
-          url: downloadURL,
-          storagePath: storagePath,
+          fileName: result.fileName,
+          url: result.url,
+          storagePath: result.fileName, // Use fileName as the storagePath identifier
         };
       });
 
       const results = await Promise.all(uploadPromises);
       return results;
     } catch (error) {
-      console.error("Upload failed:", error);
-      toast({
-        variant: "destructive",
-        title: "Upload Failed",
-        description: "Could not upload files to Firebase Storage.",
-      });
-      throw error;
+        console.error("Upload failed:", error);
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: (error as Error).message || "Could not upload files. Please ensure file storage is configured correctly on the server.",
+        });
+        throw error; // Re-throw to be caught by the calling function
     } finally {
-        setUploadProgress({});
+      setUploadProgress({});
     }
   };
 
@@ -98,6 +119,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       return orderId;
     } catch(error) {
       console.error("Error creating order:", error);
+      // The toast is already shown in handleFileUploads, no need to show another one here.
+      // Re-throwing to ensure the form's isSubmitting state is handled correctly.
       throw error;
     }
   };
@@ -152,6 +175,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     } catch (error) {
       console.error("Error updating order:", error);
+      // Toast is handled in handleFileUploads
       throw error;
     }
   };
@@ -160,12 +184,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderId);
     deleteDocumentNonBlocking(orderRef);
 
-    const storage = getStorage(firebaseApp);
     const deletePromises = (attachments || []).map(att => {
       if (!att.storagePath) return Promise.resolve();
-      const fileRef = ref(storage, att.storagePath);
-      return deleteObject(fileRef).catch(error => {
-        // Log error but don't let it crash the whole operation
+      // storagePath now holds the fileName in B2
+      return deleteFileFlow({ fileName: att.storagePath }).catch(error => {
         console.error(`Failed to delete attachment ${att.storagePath}:`, error);
       });
     });
@@ -173,7 +195,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     try {
       await Promise.all(deletePromises);
     } catch (error) {
-      console.error("One or more files could not be deleted from Firebase Storage.", error);
+      console.error("One or more files could not be deleted from Backblaze B2.", error);
     }
   };
   
