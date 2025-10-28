@@ -47,15 +47,15 @@ const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
 
     if (isImage) {
         return (
-            <Link href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+            <Link href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 block max-w-xs">
                 <Image src={attachment.url} alt="User Upload" width={300} height={200} className="rounded-md object-cover"/>
             </Link>
         )
     }
     if (isAudio) {
         return (
-            <div className="mt-2">
-                <audio controls src={attachment.url} className="w-full max-w-sm" />
+            <div className="mt-2 w-full max-w-sm">
+                <audio controls src={attachment.url} className="w-full h-10" />
             </div>
         )
     }

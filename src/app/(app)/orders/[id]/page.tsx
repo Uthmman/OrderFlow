@@ -31,8 +31,14 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { customColorOptions, woodFinishOptions } from "@/lib/colors";
@@ -67,54 +73,82 @@ const AttachmentPreview = ({ att, onDelete }: { att: OrderAttachment, onDelete: 
         <Card className="group relative overflow-hidden">
             <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted">
                 {isImage ? (
-                    <Image 
-                        src={att.url} 
-                        alt={att.fileName}
-                        width={200}
-                        height={150}
-                        className="w-full h-full object-cover"
-                    />
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <div className="relative w-full h-full cursor-pointer">
+                                <Image 
+                                    src={att.url} 
+                                    alt={att.fileName}
+                                    fill
+                                    className="object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <Eye className="h-8 w-8 text-white" />
+                                </div>
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl">
+                            <DialogHeader>
+                                <DialogTitle>{att.fileName}</DialogTitle>
+                            </DialogHeader>
+                            <div className="relative h-[80vh]">
+                                <Image 
+                                    src={att.url} 
+                                    alt={att.fileName}
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 ) : isAudio ? (
                     <div className="flex flex-col items-center gap-2 p-4 w-full">
                         <Mic className="h-10 w-10 text-muted-foreground" />
-                        <audio src={att.url} controls className="w-full h-8" />
+                        <audio src={att.url} controls className="w-full h-10" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 p-4">
                         <File className="h-10 w-10 text-muted-foreground" />
                         <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
+                         <Button size="sm" variant="outline" asChild className="mt-2">
+                            <a href={att.url} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" /> Download</a>
+                        </Button>
                     </div>
                 )}
-                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button size="icon" variant="secondary" asChild>
-                        <a href={att.url} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4" /></a>
-                    </Button>
-                    <Button size="icon" variant="secondary" onClick={copyToClipboard}>
-                        <LinkIcon className="h-4 w-4" />
-                    </Button>
-                 </div>
             </CardContent>
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
                  <p className="text-xs text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
+                 <div className="flex items-center">
+                    {isImage && (
+                        <>
+                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyToClipboard}>
+                            <LinkIcon className="h-4 w-4" />
                         </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the attachment '{att.fileName}'.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={onDelete}>Delete Attachment</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
+                            <a href={att.url} download={att.fileName}><Download className="h-4 w-4" /></a>
+                        </Button>
+                        </>
+                    )}
+                     <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the attachment '{att.fileName}'.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={onDelete}>Delete Attachment</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                 </div>
             </CardFooter>
         </Card>
     );
@@ -468,3 +502,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
