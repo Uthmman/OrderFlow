@@ -54,6 +54,12 @@ export type OrderStatus =
   | 'Shipped'
   | 'Cancelled';
 
+export type OrderAttachment = {
+  fileName: string;
+  url: string;
+  storagePath: string;
+};
+
 export type OrderChatMessage = {
     user: {
         id: string;
@@ -61,17 +67,10 @@ export type OrderChatMessage = {
         avatarUrl: string;
     };
     text: string;
-    imageUrl?: string;
-    audioUrl?: string;
+    attachment?: OrderAttachment;
     timestamp: any; // Can be string or Firestore Timestamp
     isSystemMessage?: boolean;
 }
-
-export type OrderAttachment = {
-  fileName: string;
-  url: string;
-  storagePath: string;
-};
 
 export type UserNotification = {
     id: string;
@@ -103,3 +102,5 @@ export type Order = {
   ownerId: string;
   chatMessages?: OrderChatMessage[];
 };
+
+    

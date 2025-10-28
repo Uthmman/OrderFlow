@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
@@ -57,44 +53,71 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 
 const allColorOptions = [...woodFinishOptions, ...customColorOptions];
 
-const AttachmentPreview = ({ att }: { att: OrderAttachment }) => {
+const AttachmentPreview = ({ att, onDelete }: { att: OrderAttachment, onDelete: () => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
+    const { toast } = useToast();
 
-    if (isImage) {
-        return (
-            <Link href={att.url} target="_blank" rel="noopener noreferrer" className="relative group">
-                <Image 
-                    src={att.url} 
-                    alt={att.fileName}
-                    width={200}
-                    height={150}
-                    className="rounded-lg object-cover aspect-video"
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                    <Button variant="secondary" size="sm">View</Button>
-                </div>
-            </Link>
-        )
-    }
-
-    if (isAudio) {
-        return (
-             <div className="bg-muted rounded-lg flex flex-col items-center justify-center aspect-video p-4">
-                <Mic className="h-10 w-10 text-muted-foreground" />
-                <audio src={att.url} controls className="w-full mt-4 h-8" />
-            </div>
-        )
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(att.url);
+        toast({ title: "Link Copied", description: "Attachment URL copied to clipboard." });
     }
 
     return (
-        <Link href={att.url} target="_blank" rel="noopener noreferrer" className="relative group">
-            <div className="bg-muted rounded-lg flex flex-col items-center justify-center aspect-video p-4 group-hover:bg-muted/80">
-                <File className="h-10 w-10 text-muted-foreground" />
-                <Button variant="link" size="sm" className="mt-2 text-center">View File</Button>
-            </div>
-        </Link>
-    )
+        <Card className="group relative overflow-hidden">
+            <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted">
+                {isImage ? (
+                    <Image 
+                        src={att.url} 
+                        alt={att.fileName}
+                        width={200}
+                        height={150}
+                        className="w-full h-full object-cover"
+                    />
+                ) : isAudio ? (
+                    <div className="flex flex-col items-center gap-2 p-4 w-full">
+                        <Mic className="h-10 w-10 text-muted-foreground" />
+                        <audio src={att.url} controls className="w-full h-8" />
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-2 p-4">
+                        <File className="h-10 w-10 text-muted-foreground" />
+                        <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
+                    </div>
+                )}
+                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <Button size="icon" variant="secondary" asChild>
+                        <a href={att.url} target="_blank" rel="noopener noreferrer"><Eye className="h-4 w-4" /></a>
+                    </Button>
+                    <Button size="icon" variant="secondary" onClick={copyToClipboard}>
+                        <LinkIcon className="h-4 w-4" />
+                    </Button>
+                 </div>
+            </CardContent>
+            <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
+                 <p className="text-xs text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the attachment '{att.fileName}'.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={onDelete}>Delete Attachment</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardFooter>
+        </Card>
+    );
 }
 
 function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
@@ -187,6 +210,18 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         if (!order) return;
         router.push(`/orders/new?duplicate=${order.id}`);
     }
+
+    const handleDeleteAttachment = (attachmentToDelete: OrderAttachment) => {
+        if (!order) return;
+        const updatedAttachments = order.attachments?.filter(
+            (att) => att.storagePath !== attachmentToDelete.storagePath
+        );
+        updateOrder({ ...order, attachments: updatedAttachments }, [], [attachmentToDelete]);
+        toast({
+            title: "Attachment Deleted",
+            description: `${attachmentToDelete.fileName} has been removed.`,
+        });
+    };
 
 
   const prepaid = order.prepaidAmount || 0;
@@ -364,12 +399,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardHeader>
                         <CardTitle>Attachments</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {order.attachments.map((att, index) => (
-                            <div key={index} className="group relative">
-                               <AttachmentPreview att={att} />
-                               <p className="text-xs text-muted-foreground truncate mt-1">{att.fileName}</p>
-                            </div>
+                           <AttachmentPreview 
+                                key={index} 
+                                att={att} 
+                                onDelete={() => handleDeleteAttachment(att)} 
+                            />
                         ))}
                     </CardContent>
                 </Card>
@@ -432,3 +468,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    

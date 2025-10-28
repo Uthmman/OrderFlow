@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -18,7 +18,7 @@ interface OrderContextType {
   orders: Order[];
   loading: boolean;
   addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => Promise<string | undefined>;
-  updateOrder: (order: Order, newFiles?: File[]) => Promise<void>;
+  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
@@ -29,7 +29,7 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
-  const { firestore, firebaseApp } = useFirebase();
+  const { firestore } = useFirebase();
   const { user } = useUser();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -54,7 +54,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const handleFileUploads = async (orderId: string, files: File[]): Promise<OrderAttachment[]> => {
+  const handleFileUploads = async (files: File[]): Promise<OrderAttachment[]> => {
     if (!files || files.length === 0) return [];
 
     setUploadProgress(
@@ -103,7 +103,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderId = newOrderRef.id;
     
     try {
-      const newAttachments = await handleFileUploads(orderId, newFiles);
+      const newAttachments = await handleFileUploads(newFiles);
       
       const finalOrderData: Order = {
           ...orderData,
@@ -125,7 +125,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateOrder = async (orderData: Order, newFiles: File[] = []) => {
+  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     try {
@@ -134,19 +134,44 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       let dataForUpdate: Partial<Order> = { ...orderData };
 
-      const newAttachments = await handleFileUploads(orderData.id, newFiles);
+      // Handle file deletions
+      if (filesToDelete.length > 0) {
+        const deletePromises = filesToDelete.map(att => deleteFileFlow({ fileName: att.storagePath }));
+        await Promise.all(deletePromises);
+      }
+
+      const newAttachments = await handleFileUploads(newFiles);
       if (newAttachments.length > 0) {
         dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
       }
 
-      if (originalOrder) {
-        const systemMessages: OrderChatMessage[] = [];
-        const timestamp = new Date().toISOString();
-        const currentUser = user.name || 'a user';
+      // Handle new chat message
+      const systemMessages: OrderChatMessage[] = [];
+      const timestamp = new Date().toISOString();
+      const currentUser = {
+          id: user.id,
+          name: user.name || 'User',
+          avatarUrl: user.avatarUrl || '',
+      };
+      
+      if (chatMessage && (chatMessage.text || newAttachments.length > 0)) {
+        const newChatMessage: OrderChatMessage = {
+            user: currentUser,
+            text: chatMessage.text,
+            timestamp,
+        };
+        // If a file was uploaded as part of the chat, attach it to the message
+        if (newAttachments.length === 1 && chatMessage.fileType) {
+            newChatMessage.attachment = newAttachments[0];
+        }
+        systemMessages.push(newChatMessage);
+      }
+      
 
+      if (originalOrder) {
         const createSystemMessage = (text: string) => ({
             user: { id: 'system', name: 'System', avatarUrl: '' },
-            text: `${text} by ${currentUser}.`,
+            text: `${text} by ${currentUser.name}.`,
             timestamp,
             isSystemMessage: true
         });
@@ -163,12 +188,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
             systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
         }
-        
-        if (systemMessages.length > 0) {
-            const existingChat = orderData.chatMessages || [];
-            const updatedChat = [...existingChat, ...systemMessages];
-            dataForUpdate.chatMessages = updatedChat;
-        }
+      }
+
+      if (systemMessages.length > 0) {
+        const existingChat = dataForUpdate.chatMessages || [];
+        dataForUpdate.chatMessages = [...existingChat, ...systemMessages];
       }
       
       updateDocumentNonBlocking(orderRef, dataForUpdate);
@@ -227,3 +251,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    

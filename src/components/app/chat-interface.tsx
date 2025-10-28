@@ -14,11 +14,12 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import Image from "next/image"
-import { Order, OrderChatMessage } from "@/lib/types"
+import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
+import Link from "next/link"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -40,6 +41,27 @@ const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     )
 };
 
+const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
+    const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = attachment.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
+
+    if (isImage) {
+        return (
+            <Link href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 block">
+                <Image src={attachment.url} alt="User Upload" width={300} height={200} className="rounded-md object-cover"/>
+            </Link>
+        )
+    }
+    if (isAudio) {
+        return (
+            <div className="mt-2">
+                <audio controls src={attachment.url} className="w-full max-w-sm" />
+            </div>
+        )
+    }
+    return null;
+}
+
 const UserMessage = ({ message }: { message: OrderChatMessage }) => (
      <div className="flex items-start gap-3">
         <UserAvatar message={message} />
@@ -49,16 +71,7 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
             <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
             </div>
             {message.text && <p className="text-sm text-muted-foreground">{message.text}</p>}
-            {message.imageUrl && (
-                <div className="mt-2">
-                    <Image src={message.imageUrl} alt="User Upload" width={300} height={300} className="rounded-md"/>
-                </div>
-            )}
-             {message.audioUrl && (
-                <div className="mt-2">
-                    <audio controls src={message.audioUrl} className="w-full max-w-sm" />
-                </div>
-            )}
+            {message.attachment && <ChatAttachment attachment={message.attachment} />}
         </div>
     </div>
 );
@@ -87,7 +100,7 @@ export function ChatInterface({ order }: { order: Order }) {
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         const chunks: BlobPart[] = [];
         mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
         mediaRecorderRef.current.onstop = () => {
@@ -120,49 +133,33 @@ export function ChatInterface({ order }: { order: Order }) {
     if ((!inputValue.trim() && !audioBlob) || loading || !user) return;
 
     setLoading(true);
-    
-    const userMessage: Omit<OrderChatMessage, 'id'> = {
-        user: {
-            id: user.id,
-            name: user.name || 'User',
-            avatarUrl: user.avatarUrl || '',
-        },
-        text: inputValue,
-        timestamp: new Date().toISOString(),
-    };
 
-    if (audioBlob) {
-        const audioFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`);
+    try {
+        let newFile: File | undefined = undefined;
+        let fileType: 'audio' | 'image' | 'file' | undefined = undefined;
+
+        if (audioBlob) {
+            newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
+            fileType = 'audio';
+        }
         
-        try {
-            await updateOrder(order, [audioFile]);
-            
-            // The file upload is handled inside updateOrder which will add the URL
-            // to the last message if logic is set up that way.
-            // For now, let's assume updateOrder handles it.
-            // We just need to clear the state here.
+        // This is a simplified version. A full implementation would use a file picker.
+        // For now, we only handle audio blobs.
+        
+        await updateOrder(order, newFile ? [newFile] : [], [], {
+            text: inputValue,
+            fileType,
+        });
 
-        } catch (error) {
-            console.error("Error sending message with audio:", error);
-            toast({
-                variant: "destructive",
-                title: "Send Error",
-                description: "Could not send message with audio.",
-            });
-        }
-    } else {
-        const updatedMessages = [...(order.chatMessages || []), userMessage as OrderChatMessage];
-        try {
-            await updateOrder({ ...order, chatMessages: updatedMessages });
-        } catch (error) {
-            console.error("Error sending message:", error);
-            toast({
-                variant: "destructive",
-                title: "Send Error",
-                description: "Could not send message.",
-            });
-        }
+    } catch (error) {
+        console.error("Error sending message:", error);
+        toast({
+            variant: "destructive",
+            title: "Send Error",
+            description: (error as Error).message || "Could not send message.",
+        });
     }
+
 
     setInputValue("");
     setAudioBlob(null);
@@ -186,7 +183,7 @@ export function ChatInterface({ order }: { order: Order }) {
       <CardFooter className="p-4 flex flex-col items-start gap-2">
          {audioUrl && !isRecording && (
             <div className="w-full p-2 border rounded-md flex items-center justify-between">
-               <audio controls src={audioUrl} className="flex-1" />
+               <audio controls src={audioUrl} className="flex-1 h-10" />
                <Button variant="ghost" size="icon" onClick={() => setAudioBlob(null)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -222,3 +219,5 @@ export function ChatInterface({ order }: { order: Order }) {
     </Card>
   )
 }
+
+    

@@ -7,7 +7,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { Order } from "@/lib/types";
+import { Order, OrderAttachment } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
@@ -28,14 +28,21 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
+  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = []) => {
     setIsSubmitting(true);
-    updateOrder({ ...order, ...updatedOrderData}, newFiles).then(() => {
+    updateOrder({ ...order, ...updatedOrderData}, newFiles, filesToDelete).then(() => {
         toast({
         title: "Order Updated",
         description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
         });
         router.push(`/orders/${order.id}`);
+    }).catch(error => {
+      console.error("Failed to update order", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: (error as Error).message || "There was a problem updating the order.",
+      })
     }).finally(() => {
         setIsSubmitting(false);
     });
@@ -60,3 +67,5 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
+
+    

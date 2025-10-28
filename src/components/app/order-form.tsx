@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -81,7 +81,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => void;
+  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[]) => void;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -110,6 +110,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   
   const [existingAttachments, setExistingAttachments] = useState<OrderAttachment[]>(order?.attachments || []);
   const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [filesToDelete, setFilesToDelete] = useState<OrderAttachment[]>([]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
@@ -142,7 +144,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       const chunks: BlobPart[] = [];
       mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
       mediaRecorderRef.current.onstop = () => {
@@ -204,7 +206,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         } : undefined,
         assignedTo: order?.assignedTo || [],
     };
-    onSubmit(newOrderData, newFiles);
+    onSubmit(newOrderData, newFiles, filesToDelete);
   }
 
   const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
@@ -247,8 +249,9 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     setNewFiles(prev => prev.filter((_, i) => i !== index));
   };
   
-  const removeExistingAttachment = (index: number) => {
-    setExistingAttachments(prev => prev.filter((_, i) => i !== index));
+  const removeExistingAttachment = (attachment: OrderAttachment) => {
+    setExistingAttachments(prev => prev.filter(att => att.storagePath !== attachment.storagePath));
+    setFilesToDelete(prev => [...prev, attachment]);
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
@@ -260,6 +263,41 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const filteredCustomColors = customColorOptions.filter(option =>
     option.name.toLowerCase().includes(colorSearch.toLowerCase())
   );
+  
+  const renderFilePreview = (file: File | OrderAttachment) => {
+    const isFile = file instanceof File;
+    const url = isFile ? URL.createObjectURL(file) : file.url;
+    const name = isFile ? file.name : file.fileName;
+    const isImage = name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = name.match(/\.(mp3|wav|ogg|webm)$/i);
+
+    return (
+        <div key={name} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
+            <div className="flex items-center gap-2 truncate">
+                {isImage ? (
+                    <Image src={url} alt={name} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
+                ) : isAudio ? (
+                    <Mic className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                ) : (
+                    <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                )}
+                <span className="text-sm truncate">{name}</span>
+            </div>
+            <div className="flex items-center flex-shrink-0">
+                 {!isFile && (
+                    <a href={url} download={name} target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <Download className="h-4 w-4" />
+                        </Button>
+                    </a>
+                )}
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isFile ? removeNewFile(newFiles.indexOf(file as File)) : removeExistingAttachment(file as OrderAttachment)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+            </div>
+        </div>
+    )
+  }
 
   return (
     <>
@@ -612,28 +650,10 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                     {(existingAttachments.length > 0 || newFiles.length > 0) && (
                         <div className="space-y-2 pt-4">
                              <h4 className="text-sm font-medium">Attached Files:</h4>
-                             {existingAttachments.map((file, index) => (
-                                <div key={`existing-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                                    <div className="flex items-center gap-2 truncate">
-                                        <FileIcon className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm truncate">{file.fileName}</span>
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => removeExistingAttachment(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </div>
-                            ))}
-                            {newFiles.map((file, index) => (
-                                <div key={`new-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-md">
-                                    <div className="flex items-center gap-2 truncate">
-                                        <FileIcon className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm truncate">{file.name}</span>
-                                    </div>
-                                    <Button variant="ghost" size="icon" onClick={() => removeNewFile(index)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                </div>
-                            ))}
+                             <div className="space-y-2">
+                                {existingAttachments.map((file) => renderFilePreview(file))}
+                                {newFiles.map((file) => renderFilePreview(file))}
+                             </div>
                         </div>
                     )}
                 </CardContent>
@@ -822,3 +842,5 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
+
+    
