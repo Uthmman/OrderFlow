@@ -133,17 +133,26 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const originalOrder = orders?.find(o => o.id === orderData.id);
 
       let dataForUpdate: Partial<Order> = { ...orderData };
+      let newAttachmentsForChat: OrderAttachment[] = [];
 
-      // Handle file deletions
+      // Handle file deletions from main attachments
       if (filesToDelete.length > 0) {
         const deletePromises = filesToDelete.map(att => deleteFileFlow({ fileName: att.storagePath }));
         await Promise.all(deletePromises);
       }
-
-      const newAttachments = await handleFileUploads(newFiles);
-      if (newAttachments.length > 0) {
-        dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...newAttachments];
+      
+      // Handle file uploads
+      if (newFiles.length > 0) {
+          const uploadedFiles = await handleFileUploads(newFiles);
+          // If the upload is NOT for a chat message, add it to general attachments
+          if (!chatMessage) {
+            dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...uploadedFiles];
+          } else {
+            // If it's for a chat message, keep it separate
+            newAttachmentsForChat = uploadedFiles;
+          }
       }
+      
 
       // Handle new chat message
       const systemMessages: OrderChatMessage[] = [];
@@ -154,15 +163,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           avatarUrl: user.avatarUrl || '',
       };
       
-      if (chatMessage && (chatMessage.text || newAttachments.length > 0)) {
+      if (chatMessage && (chatMessage.text || newAttachmentsForChat.length > 0)) {
         const newChatMessage: OrderChatMessage = {
             user: currentUser,
             text: chatMessage.text,
             timestamp,
         };
-        // If a file was uploaded as part of the chat, attach it to the message
-        if (newAttachments.length === 1 && chatMessage.fileType) {
-            newChatMessage.attachment = newAttachments[0];
+        // If a file was uploaded specifically for this chat, attach it to the message
+        if (newAttachmentsForChat.length === 1 && chatMessage.fileType) {
+            newChatMessage.attachment = newAttachmentsForChat[0];
         }
         systemMessages.push(newChatMessage);
       }
