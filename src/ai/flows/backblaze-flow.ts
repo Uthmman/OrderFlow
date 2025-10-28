@@ -68,8 +68,9 @@ export const uploadFileFlow = ai.defineFlow(
   async (input) => {
     const client = getB2Client();
     const bucketName = process.env.B2_BUCKET_NAME;
+    const publicUrlPrefix = process.env.B2_PUBLIC_URL_PREFIX;
 
-    if (!client || !bucketName) {
+    if (!client || !bucketName || !publicUrlPrefix) {
         throw new Error('Backblaze B2 storage is not configured on the server.');
     }
 
@@ -82,12 +83,12 @@ export const uploadFileFlow = ai.defineFlow(
       Key: fileName,
       Body: fileBuffer,
       ContentType: input.contentType,
+      ACL: 'public-read', // Make the file publicly readable
     });
 
     await client.send(command);
 
-    // Construct the correct public URL for a B2 bucket
-    const url = `https://f005.backblazeb2.com/file/${bucketName}/${fileName}`;
+    const url = `${publicUrlPrefix}/file/${bucketName}/${fileName}`;
 
     return {
       url: url,
