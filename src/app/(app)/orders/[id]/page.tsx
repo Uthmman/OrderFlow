@@ -31,6 +31,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -119,8 +120,8 @@ const AttachmentPreview = ({ att, onDelete }: { att: OrderAttachment, onDelete: 
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
                  <p className="text-xs text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
                  <div className="flex items-center">
-                    {isImage && (
-                        <>
+                    {!isAudio && (
+                         <>
                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyToClipboard}>
                             <LinkIcon className="h-4 w-4" />
                         </Button>
