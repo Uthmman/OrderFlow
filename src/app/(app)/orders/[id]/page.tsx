@@ -4,7 +4,7 @@
 import { use, useState } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
@@ -468,5 +468,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
