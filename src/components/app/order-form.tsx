@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { woodFinishOptions, customColorOptions } from "@/lib/colors"
 import { Checkbox } from "../ui/checkbox"
@@ -60,6 +60,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { CustomerForm } from "./customer-form"
 import { Timestamp } from "firebase/firestore"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -116,10 +117,21 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
+  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
+
+  useEffect(() => {
+    // Check for mic permission on component mount
+    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
+      setHasMicPermission(permissionStatus.state === 'granted');
+      permissionStatus.onchange = () => {
+        setHasMicPermission(permissionStatus.state === 'granted');
+      };
+    });
+  }, []);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
@@ -142,34 +154,50 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
 
   const { formState: { isDirty } } = form;
 
-  const startRecording = async () => {
+ const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        const chunks: BlobPart[] = [];
-        mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-        mediaRecorderRef.current.onstop = () => {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            setAudioBlob(blob);
-        };
-        mediaRecorderRef.current.start();
-        setIsRecording(true);
-        setAudioBlob(null); // Clear previous recording
+        setHasMicPermission(true);
+        return stream;
     } catch (err) {
-        console.error("Error starting recording:", err);
+        console.error("Microphone access denied:", err);
+        setHasMicPermission(false);
         toast({
             variant: "destructive",
             title: "Microphone Access Denied",
             description: "To record audio, you must allow microphone access in your browser settings."
         });
+        return null;
     }
   };
+
+  const startRecording = async () => {
+    let stream: MediaStream | null;
+    if (hasMicPermission) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } else {
+        stream = await requestMicPermission();
+    }
+
+    if (!stream) return;
+
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const chunks: BlobPart[] = [];
+    mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        stream.getTracks().forEach(track => track.stop());
+    };
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+    setAudioBlob(null);
+  };
+
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      // Stop all media tracks to release the microphone
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
       setIsRecording(false);
     }
   };
@@ -602,6 +630,14 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                     <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                     {hasMicPermission === false && (
+                        <Alert variant="destructive">
+                            <AlertTitle>Microphone Access Required</AlertTitle>
+                            <AlertDescription>
+                                Microphone access is disabled. You can re-enable it in your browser settings to record audio.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                     <div className="space-y-4">
                         <FormItem>
                             <FormControl>
@@ -641,6 +677,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                                 variant={isRecording ? "destructive" : "outline"} 
                                 className="w-full"
                                 onClick={isRecording ? stopRecording : startRecording}
+                                disabled={hasMicPermission === false}
                             >
                                 {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
                                 {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
@@ -843,5 +880,3 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
-
-    

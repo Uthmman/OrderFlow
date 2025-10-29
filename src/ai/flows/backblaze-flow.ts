@@ -87,6 +87,9 @@ export const uploadFileFlow = ai.defineFlow(
 
     await client.send(command);
 
+    // The B2 S3-compatible API returns the ETag header containing the fileId
+    // however Genkit/flow/S3Client does not seem to expose headers easily.
+    // Constructing URL directly is the fallback.
     const url = `${publicUrlPrefix}/file/${bucketName}/${fileName}`;
 
     return {

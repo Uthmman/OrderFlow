@@ -15,12 +15,13 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -93,38 +94,69 @@ export function ChatInterface({ order }: { order: Order }) {
   const [inputValue, setInputValue] = useState("");
   const { toast } = useToast();
 
+  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
 
-  const startRecording = async () => {
+   useEffect(() => {
+    // Check for mic permission on component mount
+    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
+      setHasMicPermission(permissionStatus.state === 'granted');
+      permissionStatus.onchange = () => {
+        setHasMicPermission(permissionStatus.state === 'granted');
+      };
+    });
+  }, []);
+
+  const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        const chunks: BlobPart[] = [];
-        mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-        mediaRecorderRef.current.onstop = () => {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            setAudioBlob(blob);
-        };
-        mediaRecorderRef.current.start();
-        setIsRecording(true);
-        setAudioBlob(null);
+        // We have permission, and we can start recording immediately
+        setHasMicPermission(true);
+        return stream;
     } catch (err) {
-        console.error("Error starting recording:", err);
+        console.error("Microphone access denied:", err);
+        setHasMicPermission(false);
         toast({
             variant: "destructive",
             title: "Microphone Access Denied",
             description: "To record audio, you must allow microphone access in your browser settings."
-        })
+        });
+        return null;
     }
   };
+
+  const startRecording = async () => {
+    let stream: MediaStream | null;
+    if (hasMicPermission) {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } else {
+        stream = await requestMicPermission();
+    }
+
+    if (!stream) return;
+
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    const chunks: BlobPart[] = [];
+    mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+    mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        setAudioBlob(blob);
+        // Important: stop the stream tracks to release the mic
+        stream.getTracks().forEach(track => track.stop());
+    };
+    mediaRecorderRef.current.start();
+    setIsRecording(true);
+    setAudioBlob(null);
+  };
+
 
   const stopRecording = () => {
       if (mediaRecorderRef.current && isRecording) {
           mediaRecorderRef.current.stop();
-          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+          // The stream is stopped in the `onstop` handler
           setIsRecording(false);
       }
   };
@@ -143,9 +175,6 @@ export function ChatInterface({ order }: { order: Order }) {
             newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
             fileType = 'audio';
         }
-        
-        // This is a simplified version. A full implementation would use a file picker.
-        // For now, we only handle audio blobs.
         
         await updateOrder(order, newFile ? [newFile] : [], [], {
             text: inputValue,
@@ -182,6 +211,14 @@ export function ChatInterface({ order }: { order: Order }) {
         })}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
+         {hasMicPermission === false && (
+            <Alert variant="destructive">
+                <AlertTitle>Microphone Access Required</AlertTitle>
+                <AlertDescription>
+                    Microphone access is disabled. You can re-enable it in your browser settings to record audio.
+                </AlertDescription>
+            </Alert>
+        )}
          {audioUrl && !isRecording && (
             <div className="w-full p-2 border rounded-md flex items-center justify-between">
                <audio controls src={audioUrl} className="flex-1 h-10" />
@@ -207,7 +244,7 @@ export function ChatInterface({ order }: { order: Order }) {
                 size="icon" 
                 type="button" 
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={loading}
+                disabled={loading || hasMicPermission === false}
               >
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
@@ -220,5 +257,3 @@ export function ChatInterface({ order }: { order: Order }) {
     </Card>
   )
 }
-
-    

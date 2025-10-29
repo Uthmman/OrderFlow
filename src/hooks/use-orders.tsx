@@ -74,9 +74,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
         
         return {
-          fileName: result.fileName,
+          fileName: file.name, // Use original file name for display
           url: result.url,
-          storagePath: result.fileName, // Use fileName as the storagePath identifier
+          storagePath: result.fileName, // Use unique file name for storage path
         };
       });
 
@@ -260,5 +260,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
