@@ -83,7 +83,6 @@ export const uploadFileFlow = ai.defineFlow(
       Key: fileName,
       Body: fileBuffer,
       ContentType: input.contentType,
-      ACL: 'public-read', // Make the file publicly readable
     });
 
     await client.send(command);
