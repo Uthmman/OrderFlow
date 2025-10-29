@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -143,24 +144,24 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-      const chunks: BlobPart[] = [];
-      mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioBlob(blob);
-      };
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-      setAudioBlob(null); // Clear previous recording
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        const chunks: BlobPart[] = [];
+        mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorderRef.current.onstop = () => {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            setAudioBlob(blob);
+        };
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        setAudioBlob(null); // Clear previous recording
     } catch (err) {
-      console.error("Error starting recording:", err);
-      toast({
-        variant: "destructive",
-        title: "Microphone Error",
-        description: "Could not access microphone. Please check permissions."
-      });
+        console.error("Error starting recording:", err);
+        toast({
+            variant: "destructive",
+            title: "Microphone Access Denied",
+            description: "To record audio, you must allow microphone access in your browser settings."
+        });
     }
   };
 

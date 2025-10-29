@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import {
@@ -114,8 +115,8 @@ export function ChatInterface({ order }: { order: Order }) {
         console.error("Error starting recording:", err);
         toast({
             variant: "destructive",
-            title: "Microphone Error",
-            description: "Could not access microphone. Please check permissions."
+            title: "Microphone Access Denied",
+            description: "To record audio, you must allow microphone access in your browser settings."
         })
     }
   };
