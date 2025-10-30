@@ -4,13 +4,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useUser, useUsers } from "@/hooks/use-user";
-import Image from "next/image";
 import { Loader2, UploadCloud } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
@@ -89,6 +87,10 @@ export default function ProfilePage() {
         try {
             await updateUserProfile(user.id, data);
             form.reset(data); // Resets the dirty state
+             toast({
+                title: "Profile Updated",
+                description: "Your changes have been saved.",
+            });
         } catch (error) {
             console.error("Failed to update profile", error);
              toast({
