@@ -112,6 +112,16 @@ export function CustomerForm({
         phoneNumbers.push({ type: 'Secondary' as const, number: values.phone2 });
     }
 
+    let avatarUrl;
+    if (values.gender === 'Male') {
+      avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${values.name || values.email}`;
+    } else if (values.gender === 'Female') {
+      avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${values.name || values.email}`;
+    } else {
+      avatarUrl = `https://i.pravatar.cc/150?u=${values.email || values.name}`;
+    }
+
+
     const customerData = {
         name: values.name,
         email: values.email,
@@ -123,7 +133,7 @@ export function CustomerForm({
             town: values.town,
             mapUrl: values.mapUrl
         },
-        avatarUrl: `https://i.pravatar.cc/150?u=${values.email || values.name}`
+        avatarUrl,
     };
     onSubmit(customerData);
   };

@@ -19,11 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other'>('Other');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
@@ -37,10 +39,19 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
+      let avatarUrl;
+      if (gender === 'Male') {
+        avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${name || email}`;
+      } else if (gender === 'Female') {
+        avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${name || email}`;
+      } else {
+        avatarUrl = `https://i.pravatar.cc/150?u=${email}`;
+      }
+
       await createUserProfile(firebaseUser.uid, {
         name,
         email,
-        avatarUrl: `https://i.pravatar.cc/150?u=${firebaseUser.uid}`,
+        avatarUrl: avatarUrl,
       });
 
       toast({
@@ -82,6 +93,19 @@ export default function SignupPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                 />
+              </div>
+              <div className="grid gap-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select onValueChange={(value: 'Male' | 'Female' | 'Other') => setGender(value)} defaultValue={gender}>
+                      <SelectTrigger id="gender">
+                          <SelectValue placeholder="Select a gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                  </Select>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -285,6 +285,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             </div>
             {canEdit && (
                 <div className="flex items-center gap-2">
+                    <Button asChild variant="outline">
+                        <Link href={`/orders/${order.id}/receipt`} target="_blank">
+                            <Printer className="mr-2" />
+                            Print Receipt
+                        </Link>
+                    </Button>
                     <Link href={`/orders/${order.id}/edit`}>
                         <Button>
                           <Edit className="mr-2" />
@@ -435,7 +441,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {order.attachments.map((att, index) => (
                            <AttachmentPreview 
-                                key={index} 
+                                key={`${att.storagePath}-${index}`} 
                                 att={att} 
                                 onDelete={() => handleDeleteAttachment(att)}
                                 onImageClick={handleImageClick}

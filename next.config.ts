@@ -34,6 +34,18 @@ const nextConfig: NextConfig = {
         hostname: '*.backblazeb2.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatar.iran.liara.run',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

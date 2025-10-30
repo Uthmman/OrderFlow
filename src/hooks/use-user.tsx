@@ -87,11 +87,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const createUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => {
     const userRef = doc(firestore, 'users', uid);
     const isAdmin = data.email === 'zenbabafurniture@gmail.com';
+
+    let avatarUrl = data.avatarUrl || '';
+    if (!avatarUrl) {
+      // Assuming gender is passed in data if available, otherwise defaulting
+      const gender = (data as any).gender; 
+      if (gender === 'Male') {
+        avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${data.name || data.email}`;
+      } else if (gender === 'Female') {
+        avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${data.name || data.email}`;
+      } else {
+        avatarUrl = `https://i.pravatar.cc/150?u=${data.email || data.name}`;
+      }
+    }
+
     const newUser: AppUser = {
       id: uid,
       name: data.name || 'New User',
       email: data.email || '',
-      avatarUrl: data.avatarUrl || '',
+      avatarUrl: avatarUrl,
       role: isAdmin ? 'Admin' : 'Pending',
     };
     // Use non-blocking write

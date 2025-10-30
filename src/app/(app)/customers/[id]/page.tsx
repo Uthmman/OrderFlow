@@ -106,7 +106,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <div>
                             <p className="font-medium">Phone Numbers</p>
                             {customer.phoneNumbers?.map(p => (
-                                <p key={p.number} className="text-muted-foreground">{p.type}: {p.number}</p>
+                                <a href={`tel:${p.number}`} key={p.number} className="text-primary hover:underline block">
+                                    <span className="text-muted-foreground">{p.type}: </span>{p.number}
+                                </a>
                             ))}
                         </div>
                    </div>
@@ -129,7 +131,13 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                 <CardContent className="space-y-4">
                     <div className="flex items-center gap-3">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <p>{customer.location?.town}</p>
+                        {customer.location?.mapUrl ? (
+                           <Link href={customer.location.mapUrl} target="_blank" className="hover:underline text-primary">
+                             {customer.location?.town}
+                           </Link>
+                        ) : (
+                             <p>{customer.location?.town}</p>
+                        )}
                     </div>
                     {customer.location?.mapUrl && (
                         <Button asChild variant="outline" className="w-full">
