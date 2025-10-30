@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer, OrderStatus } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
@@ -139,8 +139,10 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { getOrderById } = useOrders();
+  const { getOrderById, addOrder, updateOrder, deleteOrder } = useOrders();
   const [order, setOrder] = useState(initialOrder);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
@@ -162,6 +164,8 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   
   useEffect(() => {
     const duplicateOrderId = searchParams.get('duplicate');
+    const draftId = localStorage.getItem('orderDraftId');
+
     if (duplicateOrderId && !initialOrder) {
         const sourceOrder = getOrderById(duplicateOrderId);
         if (sourceOrder) {
@@ -173,7 +177,17 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                 id: undefined,
                 chatMessages: [],
             }
-            setOrder(duplicatedOrder);
+            // This is a duplication, not a draft, so we don't set it in state yet,
+            // we just use it to populate the form default values.
+             form.reset(mapOrderToFormValues(duplicatedOrder));
+        }
+    } else if (draftId && !initialOrder) {
+        const draftOrder = getOrderById(draftId);
+        if (draftOrder && draftOrder.status === 'Draft') {
+            setOrder(draftOrder);
+            toast({ title: "Draft Restored", description: "Your previous unfinished order has been loaded."});
+        } else {
+             localStorage.removeItem('orderDraftId');
         }
     }
   }, [searchParams, getOrderById, initialOrder]);
@@ -187,17 +201,20 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     });
   }, []);
 
+  const mapOrderToFormValues = (orderToMap: Order): OrderFormValues => {
+    return {
+        ...orderToMap,
+        deadline: toDate(orderToMap.deadline),
+        width: orderToMap.dimensions?.width,
+        height: orderToMap.dimensions?.height,
+        depth: orderToMap.dimensions?.depth,
+        colorAsAttachment: orderToMap.colors?.includes("As Attached Picture")
+    } as OrderFormValues;
+  }
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
-    values: initialOrder ? {
-            ...initialOrder,
-            deadline: toDate(initialOrder.deadline),
-            width: initialOrder.dimensions?.width,
-            height: initialOrder.dimensions?.height,
-            depth: initialOrder.dimensions?.depth,
-            colorAsAttachment: initialOrder.colors?.includes("As Attached Picture")
-        } : {
+    values: order ? mapOrderToFormValues(order) : {
       isUrgent: false,
       status: "Pending",
       incomeAmount: 0,
@@ -207,7 +224,28 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
   });
 
-  const { formState: { isDirty } } = form;
+  const { formState: { isDirty, dirtyFields } } = form;
+
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+    }
+    autoSaveTimeoutRef.current = setTimeout(() => {
+        form.handleSubmit((values) => handleFormSubmit(values, true, true))();
+    }, 2000); // Auto-save after 2 seconds of inactivity
+  }, [form]);
+
+  useEffect(() => {
+    if (!initialOrder && isDirty) { // Only auto-save for new orders
+      triggerAutoSave();
+    }
+    return () => {
+        if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current);
+        }
+    }
+  }, [isDirty, triggerAutoSave, initialOrder, form.watch()]); // Watch all form values for changes
+
 
  const requestMicPermission = async () => {
     try {
@@ -280,15 +318,41 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     setAudioBlob(null);
   };
 
-  function handleFormSubmit(values: OrderFormValues, isDraft = false) {
-    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+  async function handleFormSubmit(values: OrderFormValues, isDraft = false, isAuto = false) {
+    // For new orders, we need to create a draft first if it doesn't exist
+    if (!order && !initialOrder) {
+        if (isAuto) setIsAutoSaving(true);
+        try {
+            const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+            const orderId = await addOrder({ ...values, customerName, status: 'Draft' }, newFiles, true);
+
+            if (orderId) {
+                localStorage.setItem('orderDraftId', orderId);
+                const newDraftOrder = getOrderById(orderId);
+                if (newDraftOrder) setOrder(newDraftOrder);
+            }
+        } catch(e) {
+            // handle error
+        } finally {
+            if (isAuto) setIsAutoSaving(false);
+        }
+        return; // Don't proceed further on first auto-save
+    }
     
+    // For existing orders (or drafts that now exist)
+    const orderToUpdate = order || initialOrder;
+    if (!orderToUpdate) return;
+    
+    if (isAuto) setIsAutoSaving(true);
+
+    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     let finalColors = values.colors;
     if (values.colorAsAttachment) {
       finalColors = ["As Attached Picture"];
     }
 
-    const newOrderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'> = {
+    const updatedOrderData: Order = {
+        ...orderToUpdate,
         ...values,
         status: isDraft ? 'Draft' : values.status,
         attachments: existingAttachments,
@@ -300,9 +364,14 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             height: values.height,
             depth: values.depth,
         } : undefined,
-        assignedTo: order?.assignedTo || [],
     };
-    onSubmit(newOrderData, newFiles, filesToDelete, isDraft);
+    
+    await onSubmit(updatedOrderData, newFiles, filesToDelete, isDraft);
+
+    if (!isDraft) {
+        localStorage.removeItem('orderDraftId');
+    }
+    if (isAuto) setIsAutoSaving(false);
   }
 
   const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
@@ -336,6 +405,11 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   };
 
   const handleDiscard = () => {
+    const draftId = localStorage.getItem('orderDraftId');
+    if (draftId && !initialOrder) {
+        deleteOrder(draftId, order?.attachments);
+        localStorage.removeItem('orderDraftId');
+    }
     router.back();
   }
 
@@ -405,7 +479,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((values) => handleFormSubmit(values, false))} className="space-y-8">
+      <form onSubmit={form.handleSubmit((values) => handleFormSubmit(values, false, false))} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {isCreatingNewCustomer ? (
@@ -842,7 +916,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {initialOrder?.status === 'Draft' && <SelectItem value="Draft">Draft</SelectItem>}
+                                {order?.status === 'Draft' && <SelectItem value="Draft">Draft</SelectItem>}
                                 <SelectItem value="Pending">Pending</SelectItem>
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
@@ -921,26 +995,30 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             </Card>
           </div>
         </div>
-        <div className="flex justify-end gap-2">
-            {!initialOrder && 
-                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true))} disabled={isSubmitting}>
+        <div className="flex justify-between items-center gap-2">
+            <div>
+                 {isAutoSaving && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Auto-saving...</div>}
+            </div>
+            <div className="flex justify-end gap-2">
+                <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
+                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true, false))} disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save as Draft
                 </Button>
-            }
-            <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {submitButtonText}
-            </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {submitButtonText}
+                </Button>
+            </div>
         </div>
       </form>
     </Form>
     <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Are you sure you want to leave? Your changes will be lost.
+                    Any unsaved changes will be lost. If this is a new draft, it will be deleted.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -954,5 +1032,3 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     </>
   )
 }
-
-    

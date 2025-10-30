@@ -11,29 +11,33 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 
 function NewOrderPageContent() {
-  const { addOrder } = useOrders();
+  const { addOrder, updateOrder } = useOrders();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = [], isDraft: boolean = false) => {
+  const handleSubmitOrder = (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = [], isDraft: boolean = false) => {
     setIsSubmitting(true);
-    addOrder(newOrderData, newFiles, isDraft).then((newId) => {
+
+    const promise = orderData.id 
+        ? updateOrder(orderData as Order, newFiles, filesToDelete, undefined, isDraft)
+        : addOrder(orderData, newFiles, isDraft);
+
+    promise.then((result) => {
+        const orderId = typeof result === 'string' ? result : orderData.id;
         toast({
-            title: isDraft ? "Draft Saved" : "Order Created",
-            description: isDraft ? "Your order draft has been saved." : `New order has been added.`,
+            title: isDraft ? "Draft Saved" : "Order Submitted",
+            description: isDraft ? `Your draft for order #${orderId?.slice(-5)} has been saved.` : `Order #${orderId?.slice(-5)} has been successfully submitted.`,
         });
-        if (isDraft) {
-            router.push('/orders');
-        } else {
-            router.push(`/orders/${newId}`);
+        if (!isDraft) {
+            router.push(`/orders/${orderId}`);
         }
     }).catch((error) => {
-        console.error("Failed to create order:", error);
+        console.error("Failed to save order:", error);
         toast({
             variant: "destructive",
-            title: isDraft ? "Draft Failed" : "Creation Failed",
-            description: "There was a problem saving the order.",
+            title: isDraft ? "Draft Failed" : "Submission Failed",
+            description: (error as Error).message || "There was a problem saving the order.",
         });
     }).finally(() => {
         setIsSubmitting(false);
@@ -47,11 +51,15 @@ function NewOrderPageContent() {
           Create New Order
         </h1>
         <p className="text-muted-foreground">
-          Fill out the form below to add a new order to the system.
+          Fill out the form below to add a new order to the system. Your progress is saved automatically.
         </p>
       </div>
       <ColorSettingProvider>
-        <OrderForm onSubmit={handleCreateOrder} isSubmitting={isSubmitting} />
+        <OrderForm 
+            onSubmit={handleSubmitOrder} 
+            isSubmitting={isSubmitting} 
+            submitButtonText="Submit Order"
+        />
       </ColorSettingProvider>
     </div>
   );
@@ -65,5 +73,3 @@ export default function NewOrderPage() {
         </Suspense>
     )
 }
-
-    

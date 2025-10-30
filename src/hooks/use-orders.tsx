@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -18,7 +19,7 @@ interface OrderContextType {
   orders: Order[];
   loading: boolean;
   addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft?: boolean) => Promise<string | undefined>;
-  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
+  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }, isDraft?: boolean) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
@@ -150,7 +151,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
+  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }, isDraft = false) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     try {
@@ -226,7 +227,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         });
 
         // If a draft is being submitted for the first time
-        if (originalOrder.status === 'Draft' && orderData.status !== 'Draft') {
+        if (originalOrder.status === 'Draft' && orderData.status !== 'Draft' && !isDraft) {
             await addOrderToCustomer(orderData.customerId, orderData.id);
             const messageText = `Order submitted from Draft status`;
             systemMessages.push(createSystemMessage(messageText));
@@ -326,5 +327,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
