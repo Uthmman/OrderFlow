@@ -1,6 +1,4 @@
 
-"use server";
-
 import { addDoc, collection, doc, Firestore, serverTimestamp } from "firebase/firestore";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { UserNotification } from "./types";
