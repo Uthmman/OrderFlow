@@ -307,11 +307,12 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     const isFile = file instanceof File;
     const url = isFile ? URL.createObjectURL(file) : file.url;
     const name = isFile ? file.name : file.fileName;
+    const key = isFile ? `${file.name}-${file.size}` : file.storagePath;
     const isImage = name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = name.match(/\.(mp3|wav|ogg|webm)$/i);
 
     return (
-        <div key={name} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
+        <div key={key} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">
                 {isImage ? (
                     <Image src={url} alt={name} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
@@ -330,7 +331,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                         </Button>
                     </a>
                 )}
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isFile ? removeNewFile(newFiles.indexOf(file as File)) : removeExistingAttachment(file as OrderAttachment)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isFile ? removeNewFile(newFiles.findIndex(f => f.name === file.name && f.size === file.size)) : removeExistingAttachment(file as OrderAttachment)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
             </div>
@@ -700,7 +701,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                              <h4 className="text-sm font-medium">Attached Files:</h4>
                              <div className="space-y-2">
                                 {existingAttachments.map((file) => renderFilePreview(file))}
-                                {newFiles.map((file) => renderFilePreview(file))}
+                                {newFiles.map((file, index) => renderFilePreview(file))}
                              </div>
                         </div>
                     )}
