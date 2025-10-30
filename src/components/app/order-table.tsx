@@ -42,7 +42,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
@@ -56,6 +55,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+    "Draft": "outline",
 }
 
 function OrderActions({ order }: { order: Order }) {
@@ -172,7 +172,7 @@ export const columns: ColumnDef<Order>[] = [
     header: "Status",
     cell: ({ row }) => {
         const status = row.getValue("status") as OrderStatus;
-        return <Badge variant={statusVariantMap[status]}>{status}</Badge>
+        return <Badge variant={statusVariantMap[status] || 'outline'}>{status}</Badge>
     },
   },
   {
@@ -269,7 +269,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                         </CardHeader>
                         <CardContent>
                             <div className="flex justify-between items-center">
-                                <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                                <Badge variant={statusVariantMap[order.status] || 'outline'}>{order.status}</Badge>
                                 <div className="text-sm text-muted-foreground">
                                     Due: {formatTimestamp(order.deadline)}
                                 </div>

@@ -37,7 +37,7 @@ import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud,
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment, Customer } from "@/lib/types"
+import { Order, OrderAttachment, Customer, OrderStatus } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect } from "react"
@@ -66,7 +66,7 @@ import { useOrders } from "@/hooks/use-orders"
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
+  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled", "Draft"]),
   colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
@@ -84,7 +84,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[]) => void;
+  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[], isDraft?: boolean) => void;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -133,8 +133,6 @@ const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () 
         </div>
     );
 };
-
-const DRAFT_KEY = 'order-draft';
 
 export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
@@ -189,35 +187,17 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     });
   }, []);
 
-  const getInitialValues = () => {
-    if(order) {
-         return {
-            ...order,
-            deadline: toDate(order.deadline),
-            width: order.dimensions?.width,
-            height: order.dimensions?.height,
-            depth: order.dimensions?.depth,
-            colorAsAttachment: order.colors?.includes("As Attached Picture")
-        }
-    }
-    
-    if (typeof window !== 'undefined') {
-        const savedDraft = localStorage.getItem(DRAFT_KEY);
-        if (savedDraft) {
-            try {
-                const draft = JSON.parse(savedDraft);
-                // Dates need to be reconstructed
-                if (draft.deadline) {
-                    draft.deadline = new Date(draft.deadline);
-                }
-                return draft;
-            } catch (e) {
-                console.error("Failed to parse order draft", e);
-            }
-        }
-    }
 
-    return {
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(formSchema),
+    values: initialOrder ? {
+            ...initialOrder,
+            deadline: toDate(initialOrder.deadline),
+            width: initialOrder.dimensions?.width,
+            height: initialOrder.dimensions?.height,
+            depth: initialOrder.dimensions?.depth,
+            colorAsAttachment: initialOrder.colors?.includes("As Attached Picture")
+        } : {
       isUrgent: false,
       status: "Pending",
       incomeAmount: 0,
@@ -225,21 +205,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
       colors: [],
       colorAsAttachment: false,
     }
-  }
-
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(formSchema),
-    values: getInitialValues() // Use values instead of defaultValues to re-init on duplicate
   });
-  
-  const watchedValues = form.watch();
-
-  useEffect(() => {
-    if (initialOrder) return; // Don't save drafts when editing
-    
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
-  }, [watchedValues, initialOrder]);
-
 
   const { formState: { isDirty } } = form;
 
@@ -314,7 +280,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     setAudioBlob(null);
   };
 
-  function handleFormSubmit(values: OrderFormValues) {
+  function handleFormSubmit(values: OrderFormValues, isDraft = false) {
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     
     let finalColors = values.colors;
@@ -324,6 +290,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
 
     const newOrderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'> = {
         ...values,
+        status: isDraft ? 'Draft' : values.status,
         attachments: existingAttachments,
         colors: finalColors,
         customerName,
@@ -335,8 +302,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
         } : undefined,
         assignedTo: order?.assignedTo || [],
     };
-    onSubmit(newOrderData, newFiles, filesToDelete);
-    localStorage.removeItem(DRAFT_KEY);
+    onSubmit(newOrderData, newFiles, filesToDelete, isDraft);
   }
 
   const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
@@ -370,7 +336,6 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   };
 
   const handleDiscard = () => {
-    localStorage.removeItem(DRAFT_KEY);
     router.back();
   }
 
@@ -440,7 +405,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit((values) => handleFormSubmit(values, false))} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {isCreatingNewCustomer ? (
@@ -877,6 +842,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
+                                {initialOrder?.status === 'Draft' && <SelectItem value="Draft">Draft</SelectItem>}
                                 <SelectItem value="Pending">Pending</SelectItem>
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
@@ -956,7 +922,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
           </div>
         </div>
         <div className="flex justify-end gap-2">
-            <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
+            {!initialOrder && 
+                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true))} disabled={isSubmitting}>
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save as Draft
+                </Button>
+            }
             <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {submitButtonText}

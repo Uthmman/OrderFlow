@@ -69,8 +69,6 @@ interface CustomerFormProps {
   isEmbedded?: boolean;
 }
 
-const DRAFT_KEY = 'customer-draft';
-
 export function CustomerForm({
   customer,
   onSubmit,
@@ -97,17 +95,6 @@ export function CustomerForm({
         };
     }
     
-    if (typeof window !== 'undefined') {
-        const savedDraft = localStorage.getItem(DRAFT_KEY);
-        if (savedDraft) {
-            try {
-                return JSON.parse(savedDraft);
-            } catch (e) {
-                console.error("Failed to parse customer draft", e);
-            }
-        }
-    }
-    
     return {
           name: "",
           email: "",
@@ -127,17 +114,6 @@ export function CustomerForm({
     defaultValues: getInitialValues(),
   });
   
-  const watchedValues = form.watch();
-
-  useEffect(() => {
-    // Don't save drafts when editing or in an embedded form
-    if (customer || isEmbedded) return;
-    
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
-
-  }, [watchedValues, customer, isEmbedded]);
-
-
   const { formState: { isDirty } } = form;
 
   const handleFormSubmit = (values: CustomerFormValues) => {
@@ -171,7 +147,6 @@ export function CustomerForm({
         avatarUrl,
     };
     onSubmit(customerData);
-    localStorage.removeItem(DRAFT_KEY);
   };
   
   const handleCancelClick = () => {
@@ -183,7 +158,6 @@ export function CustomerForm({
   };
 
   const handleDiscard = () => {
-    localStorage.removeItem(DRAFT_KEY);
     router.back();
   }
 

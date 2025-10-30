@@ -4,7 +4,7 @@
 import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
 import { useRouter } from "next/navigation";
-import { Order } from "@/lib/types";
+import { Order, OrderAttachment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, Suspense } from "react";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
@@ -16,20 +16,24 @@ function NewOrderPageContent() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
+  const handleCreateOrder = (newOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = [], isDraft: boolean = false) => {
     setIsSubmitting(true);
-    addOrder(newOrderData, newFiles).then((newId) => {
+    addOrder(newOrderData, newFiles, isDraft).then((newId) => {
         toast({
-            title: "Order Created",
-            description: `New order has been added.`,
+            title: isDraft ? "Draft Saved" : "Order Created",
+            description: isDraft ? "Your order draft has been saved." : `New order has been added.`,
         });
-        router.push(`/orders/${newId}`);
+        if (isDraft) {
+            router.push('/orders');
+        } else {
+            router.push(`/orders/${newId}`);
+        }
     }).catch((error) => {
         console.error("Failed to create order:", error);
         toast({
             variant: "destructive",
-            title: "Creation Failed",
-            description: "There was a problem creating the order.",
+            title: isDraft ? "Draft Failed" : "Creation Failed",
+            description: "There was a problem saving the order.",
         });
     }).finally(() => {
         setIsSubmitting(false);

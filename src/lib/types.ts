@@ -53,7 +53,8 @@ export type OrderStatus =
   | 'Manufacturing'
   | 'Completed'
   | 'Shipped'
-  | 'Cancelled';
+  | 'Cancelled'
+  | 'Draft';
 
 export type OrderAttachment = {
   fileName: string;

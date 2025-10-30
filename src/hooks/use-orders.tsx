@@ -17,7 +17,7 @@ import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => Promise<string | undefined>;
+  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft?: boolean) => Promise<string | undefined>;
   updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -108,7 +108,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => {
+  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft = false) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
     const newOrderRef = doc(collection(firestore, "orders"));
@@ -122,20 +122,24 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           id: orderId,
           creationDate: serverTimestamp(),
           attachments: [...(orderData.attachments || []), ...newAttachments],
-          ownerId: user.id
+          ownerId: user.id,
+          status: isDraft ? 'Draft' : orderData.status,
       };
       
       const cleanData = removeUndefined(finalOrderData);
 
       setDocumentNonBlocking(newOrderRef, cleanData, {});
-      await addOrderToCustomer(orderData.customerId, orderId);
 
-      // Trigger notification for order creation for the current user
-      triggerNotification(firestore, [user.id], {
-        type: 'New Order Created',
-        message: `You created a new order: #${orderId.slice(-5)}.`,
-        orderId: orderId
-      });
+      if (!isDraft) {
+        await addOrderToCustomer(orderData.customerId, orderId);
+
+        // Trigger notification for order creation for the current user
+        triggerNotification(firestore, [user.id], {
+          type: 'New Order Created',
+          message: `You created a new order: #${orderId.slice(-5)}.`,
+          orderId: orderId
+        });
+      }
       
       return orderId;
     } catch(error) {
@@ -220,6 +224,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             timestamp,
             isSystemMessage: true
         });
+
+        // If a draft is being submitted for the first time
+        if (originalOrder.status === 'Draft' && orderData.status !== 'Draft') {
+            await addOrderToCustomer(orderData.customerId, orderData.id);
+            const messageText = `Order submitted from Draft status`;
+            systemMessages.push(createSystemMessage(messageText));
+            if (usersToNotify.length > 0) {
+                triggerNotification(firestore, usersToNotify, {
+                    type: `New Order Submitted`,
+                    message: `Order #${orderData.id.slice(-5)} was submitted from a draft.`,
+                    orderId: orderData.id
+                });
+            }
+        }
+
 
         if (originalOrder.status !== orderData.status) {
             const messageText = `Status changed from '${originalOrder.status}' to '${orderData.status}'`;
