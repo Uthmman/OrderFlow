@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/table"
 
 import { DataTablePagination } from "./data-table-pagination"
+import { useUser } from "@/hooks/use-user"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -45,6 +47,18 @@ export function DataTable<TData, TValue>({
     []
   )
   const [sorting, setSorting] = React.useState<SortingState>([])
+  const { role } = useUser();
+
+  const isDesigner = role === 'Designer';
+
+  React.useEffect(() => {
+    if (isDesigner) {
+        setColumnVisibility((prev) => ({
+            ...prev,
+            incomeAmount: false,
+        }));
+    }
+  }, [isDesigner]);
 
   const table = useReactTable({
     data,
@@ -125,3 +139,5 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
+
+    

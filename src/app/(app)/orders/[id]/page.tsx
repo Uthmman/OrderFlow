@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -31,7 +31,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -41,7 +40,6 @@ import {
   DialogTitle,
   DialogClose,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -323,7 +321,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -347,6 +345,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   const customer = getCustomerById(order.customerId);
   const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
+  const canViewSensitiveData = user?.role === 'Admin' 
+    || user?.role === 'Manager' 
+    || (user?.role === 'Sales' && order.ownerId === user.id);
+
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
@@ -435,7 +437,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     </div>
                 </div>
                 <p className="text-muted-foreground mt-1">
-                  Detailed view of order from {order.customerName}.
+                  {canViewSensitiveData ? `Detailed view of order from ${order.customerName}.` : 'Detailed view of order.'}
                 </p>
             </div>
             {canEdit && (
@@ -446,7 +448,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                 <Printer />
                             </Button>
                         </DialogTrigger>
-                        <OrderReceiptDialog order={order} customer={customer} />
+                        { canViewSensitiveData ? (
+                            <OrderReceiptDialog order={order} customer={customer} />
+                         ) : (
+                             <DialogContent><p>You do not have permission to view receipt details.</p></DialogContent>
+                         )}
                     </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
                         <Button>
@@ -628,37 +634,55 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         <Clock className="h-4 w-4 text-muted-foreground"/>
                         <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
                     </div>
-                    <Separator />
-                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-muted-foreground">Total Price</span>
-                        <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
-                    </div>
-                     <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-muted-foreground">Pre-paid</span>
-                        <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
-                    </div>
-                      <div className="flex items-center justify-between gap-3 font-bold">
-                        <span className="text-sm">Balance Due</span>
-                        <span className="text-sm">{formatCurrency(balance)}</span>
-                    </div>
-                    <Separator />
-                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                    
+                    {canViewSensitiveData && (
+                        <>
+                        <Separator />
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Total Price</span>
+                            <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-muted-foreground">Pre-paid</span>
+                            <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-3 font-bold">
+                            <span className="text-sm">Balance Due</span>
+                            <span className="text-sm">{formatCurrency(balance)}</span>
+                        </div>
+                        <Separator />
+                        <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
-            {customer ? (
+            {canViewSensitiveData ? (
+                <>
+                    {customer ? (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Customer</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
+                    )}
+                </>
+            ) : (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Customer</CardTitle>
+                        <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
-                        <p className="text-sm text-muted-foreground">{customer.email}</p>
-                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                    <CardContent>
+                        <p className="text-sm text-muted-foreground">You do not have permission to view customer and pricing information for this order.</p>
                     </CardContent>
                 </Card>
-            ) : (
-                 <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
             )}
         </div>
       </div>
@@ -710,3 +734,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
