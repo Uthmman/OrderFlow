@@ -13,7 +13,7 @@ import { useUser } from "@/hooks/use-user"
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
-  const { role } = useUser();
+  const { user, role, loading: userLoading } = useUser();
 
   const stats = useMemo(() => {
     if (!orders) return { totalRevenue: 0, ordersInProgress: 0, urgentOrders: 0 };
@@ -28,7 +28,7 @@ export default function Dashboard() {
     }
   }, [orders]);
 
-  if (ordersLoading || customersLoading) {
+  if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;
   }
 

@@ -209,7 +209,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: {formatOrderId(order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: ${formatOrderId(order.id)}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -323,7 +323,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, role } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -346,8 +346,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   ];
 
   const customer = getCustomerById(order.customerId);
-  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
-  const canViewSensitiveData = user?.role === 'Admin' || (user?.role === 'Sales' && order.ownerId === user.id);
+  const canEdit = role === 'Admin' || role === 'Manager';
+  const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
@@ -451,7 +451,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         { canViewSensitiveData ? (
                             <OrderReceiptDialog order={order} customer={customer} />
                          ) : (
-                             <DialogContent><DialogHeader><DialogTitle>Access Denied</DialogTitle></DialogHeader><p>You do not have permission to view receipt details.</p></DialogContent>
+                             <DialogContent>
+                               <DialogHeader>
+                                 <DialogTitle>Access Denied</DialogTitle>
+                               </DialogHeader>
+                               <p>You do not have permission to view receipt details.</p>
+                             </DialogContent>
                          )}
                     </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
