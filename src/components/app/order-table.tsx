@@ -45,7 +45,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { useColorSettings } from "@/hooks/use-color-settings"
+import { ColorSettingProvider, useColorSettings } from "@/hooks/use-color-settings"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -339,3 +339,4 @@ export function OrderTable(props: OrderTableProps) {
         </ColorSettingProvider>
     )
 }
+
