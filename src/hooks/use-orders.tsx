@@ -30,8 +30,9 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 const removeUndefined = (obj: any) => {
     const newObj: any = {};
     Object.keys(obj).forEach(key => {
-        if (obj[key] !== undefined) {
-            newObj[key] = obj[key];
+        const value = obj[key];
+        if (value !== undefined) {
+            newObj[key] = value;
         }
     });
     return newObj;
@@ -129,8 +130,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       setDocumentNonBlocking(newOrderRef, cleanData, {});
       await addOrderToCustomer(orderData.customerId, orderId);
 
-      // Trigger notification for order creation
-      triggerNotification(firestore, user.id, {
+      // Trigger notification for order creation for the current user
+      triggerNotification(firestore, [user.id], {
         type: 'New Order Created',
         message: `You created a new order: #${orderId.slice(-5)}.`,
         orderId: orderId
@@ -154,6 +155,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       let dataForUpdate: Partial<Order> = { ...orderData };
       let newAttachmentsForChat: OrderAttachment[] = [];
+      
+      // Determine list of users to notify
+      const usersToNotify = Array.from(new Set([
+        ...orderData.assignedTo,
+        orderData.ownerId,
+      ])).filter(id => id !== user.id); // Exclude the user performing the action
 
       // Handle file deletions from main attachments
       if (filesToDelete.length > 0) {
@@ -196,11 +203,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         systemMessages.push(newChatMessage);
         
         // Notify about the new message
-        triggerNotification(firestore, user.id, {
-            type: 'New Chat Message',
-            message: `${currentUser.name} sent a message in order #${orderData.id.slice(-5)}`,
-            orderId: orderData.id,
-        });
+         if (usersToNotify.length > 0) {
+            triggerNotification(firestore, usersToNotify, {
+                type: 'New Chat Message',
+                message: `${currentUser.name} sent a message in order #${orderData.id.slice(-5)}`,
+                orderId: orderData.id,
+            });
+        }
       }
       
 
@@ -215,20 +224,24 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (originalOrder.status !== orderData.status) {
             const messageText = `Status changed from '${originalOrder.status}' to '${orderData.status}'`;
             systemMessages.push(createSystemMessage(messageText));
-            triggerNotification(firestore, user.id, {
-                type: `Order ${orderData.status}`,
-                message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
-                orderId: orderData.id
-            });
+            if (usersToNotify.length > 0) {
+                triggerNotification(firestore, usersToNotify, {
+                    type: `Order ${orderData.status}`,
+                    message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
+                    orderId: orderData.id
+                });
+            }
         }
         if (originalOrder.isUrgent !== orderData.isUrgent) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
             systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
-             triggerNotification(firestore, user.id, {
-                type: `Order Urgency Changed`,
-                message: `Order #${orderData.id.slice(-5)} was ${urgencyText}.`,
-                orderId: orderData.id,
-             });
+             if (usersToNotify.length > 0) {
+                triggerNotification(firestore, usersToNotify, {
+                    type: `Order Urgency Changed`,
+                    message: `Order #${orderData.id.slice(-5)} was ${urgencyText}.`,
+                    orderId: orderData.id,
+                });
+            }
         }
       }
 
@@ -294,3 +307,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    

@@ -21,28 +21,31 @@ const playNotificationSound = () => {
 
 export function triggerNotification(
     firestore: Firestore, 
-    userId: string, 
+    userIds: string[], 
     data: NotificationData
 ): void {
-     if (!userId) {
-        console.error("Cannot create notification without a userId.");
+     if (!userIds || userIds.length === 0) {
+        console.error("Cannot create notification without userIds.");
         return;
     }
 
-    const notificationsRef = collection(firestore, 'users', userId, 'notifications');
-    const newNotification: Omit<UserNotification, 'id'> = {
-        userId,
-        type: data.type,
-        message: data.message,
-        orderId: data.orderId,
-        timestamp: serverTimestamp(),
-        isRead: false,
-    };
-    
-    // We use a non-blocking write so it doesn't slow down the main operation
-    addDocumentNonBlocking(notificationsRef, newNotification);
+    // Create a notification for each user
+    userIds.forEach(userId => {
+        const notificationsRef = collection(firestore, 'users', userId, 'notifications');
+        const newNotification: Omit<UserNotification, 'id'> = {
+            userId,
+            type: data.type,
+            message: data.message,
+            orderId: data.orderId,
+            timestamp: serverTimestamp(),
+            isRead: false,
+        };
+        
+        // We use a non-blocking write so it doesn't slow down the main operation
+        addDocumentNonBlocking(notificationsRef, newNotification);
+    });
 
-    // Show a toast notification
+    // Show a single toast notification for the person who triggered the event
     toast({
         title: data.type,
         description: data.message,
@@ -51,3 +54,5 @@ export function triggerNotification(
     // Play sound
     playNotificationSound();
 }
+
+    
