@@ -13,6 +13,9 @@ import { useColorSettings, ColorSettingProvider } from "@/hooks/use-color-settin
 import Image from "next/image";
 import { Loader2, Trash2, PlusCircle, UploadCloud } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
+import { useRef } from "react";
 
 const woodFinishSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -31,8 +34,28 @@ const formSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof formSchema>;
 
+
+function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            if (base64) {
+                resolve(base64);
+            } else {
+                reject(new Error("Failed to read file as base64."));
+            }
+        };
+        reader.onerror = error => reject(error);
+    });
+};
+
 function ColorSettingsForm() {
   const { settings, loading, updateSettings } = useColorSettings();
+  const { toast } = useToast();
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formSchema),
@@ -40,7 +63,6 @@ function ColorSettingsForm() {
         woodFinishes: settings?.woodFinishes || [],
         customColors: settings?.customColors || [],
     },
-    // Reset form when settings are loaded from the backend
     resetOptions: {
         keepDirtyValues: false,
     }
@@ -60,6 +82,29 @@ function ColorSettingsForm() {
     updateSettings(data);
   };
   
+  const handleImageUpload = async (file: File, index: number) => {
+    if (!file) return;
+
+    form.setValue(`woodFinishes.${index}.imageUrl`, 'uploading', { shouldDirty: true });
+
+    try {
+        const fileContent = await fileToBase64(file);
+        const result = await uploadFileFlow({
+            fileContent,
+            contentType: file.type,
+        });
+        form.setValue(`woodFinishes.${index}.imageUrl`, result.url, { shouldDirty: true });
+    } catch(e) {
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: (e as Error).message || "Could not upload image.",
+        })
+        form.setValue(`woodFinishes.${index}.imageUrl`, '', { shouldDirty: true });
+    }
+  }
+
+
   if (loading) {
       return (
           <div className="flex justify-center items-center h-48">
@@ -86,61 +131,75 @@ function ColorSettingsForm() {
               </Button>
             </div>
             <CardDescription>
-              Manage the wood finish options available for orders. URLs must be valid image links.
+              Manage the wood finish options available for orders. Click the preview to upload an image.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {woodFields.map((field, index) => (
-              <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
-                <div className="flex-shrink-0">
-                    <Label>Preview</Label>
-                    <div className="h-24 w-24 bg-muted rounded-md mt-2 flex items-center justify-center">
-                        {form.watch(`woodFinishes.${index}.imageUrl`) ? (
-                             <Image
-                                src={form.watch(`woodFinishes.${index}.imageUrl`)}
-                                alt="Preview"
-                                width={96}
-                                height={96}
-                                className="object-cover rounded-md h-full w-full"
-                             />
-                        ) : (
-                            <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                        )}
+            {woodFields.map((field, index) => {
+                const imageUrl = form.watch(`woodFinishes.${index}.imageUrl`);
+                const isUploading = imageUrl === 'uploading';
+
+                return (
+                    <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                        <div className="flex-shrink-0">
+                            <Label>Preview</Label>
+                             <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                ref={(el) => (fileInputRefs.current[index] = el)}
+                                onChange={(e) => e.target.files && handleImageUpload(e.target.files[0], index)}
+                            />
+                            <div 
+                                className="h-24 w-24 bg-muted rounded-md mt-2 flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
+                                onClick={() => fileInputRefs.current[index]?.click()}
+                            >
+                                {isUploading ? (
+                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                ) : imageUrl && imageUrl !== 'uploading' ? (
+                                    <Image
+                                        src={imageUrl}
+                                        alt="Preview"
+                                        width={96}
+                                        height={96}
+                                        className="object-cover rounded-md h-full w-full"
+                                    />
+                                ) : (
+                                    <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex-grow space-y-4">
+                        <FormField
+                            control={form.control}
+                            name={`woodFinishes.${index}.name`}
+                            render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Finish Name</FormLabel>
+                                <FormControl>
+                                <Input {...field} placeholder="e.g. White Oak" />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name={`woodFinishes.${index}.imageUrl`}
+                            render={({ field }) => (
+                                <FormItem className="hidden">
+                                    <FormControl><Input {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeWood(index)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                     </div>
-                </div>
-                <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name={`woodFinishes.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Finish Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. White Oak" />
-                        </FormControl>
-                         <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`woodFinishes.${index}.imageUrl`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Image URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="https://..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeWood(index)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            ))}
+                )
+            })}
              {woodFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No wood finishes added yet.</p>}
           </CardContent>
         </Card>
@@ -155,7 +214,7 @@ function ColorSettingsForm() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => appendColor({ name: "", colorValue: "#" })}
+                    onClick={() => appendColor({ name: "", colorValue: "#ffffff" })}
                     >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Add Custom Color
