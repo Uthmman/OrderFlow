@@ -38,7 +38,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -60,7 +59,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 
 const allColorOptions = [...woodFinishOptions, ...customColorOptions];
 
-const AttachmentPreview = ({ att, onDelete }: { att: OrderAttachment, onDelete: () => void }) => {
+const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
     const { toast } = useToast();
@@ -74,34 +73,17 @@ const AttachmentPreview = ({ att, onDelete }: { att: OrderAttachment, onDelete: 
         <Card className="group relative overflow-hidden">
             <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted">
                 {isImage ? (
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <div className="relative w-full h-full cursor-pointer">
-                                <Image 
-                                    src={att.url} 
-                                    alt={att.fileName}
-                                    fill
-                                    className="object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <Eye className="h-8 w-8 text-white" />
-                                </div>
-                            </div>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl">
-                            <DialogHeader>
-                                <DialogTitle>{att.fileName}</DialogTitle>
-                            </DialogHeader>
-                            <div className="relative h-[80vh]">
-                                <Image 
-                                    src={att.url} 
-                                    alt={att.fileName}
-                                    fill
-                                    className="object-contain"
-                                />
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                    <div onClick={() => onImageClick(att)} className="relative w-full h-full cursor-pointer">
+                        <Image 
+                            src={att.url} 
+                            alt={att.fileName}
+                            fill
+                            className="object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Eye className="h-8 w-8 text-white" />
+                        </div>
+                    </div>
                 ) : isAudio ? (
                     <div className="flex flex-col items-center gap-2 p-4 w-full">
                         <Mic className="h-10 w-10 text-muted-foreground" />
@@ -190,6 +172,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+
   
   if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;
@@ -203,6 +188,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   const customer = getCustomerById(order.customerId);
   const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
+  const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
         if (!order) return;
@@ -257,6 +243,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             description: `${attachmentToDelete.fileName} has been removed.`,
         });
     };
+
+    const handleImageClick = (clickedAttachment: OrderAttachment) => {
+        const imageIndex = imageAttachments.findIndex(img => img.url === clickedAttachment.url);
+        if (imageIndex !== -1) {
+            setGalleryStartIndex(imageIndex);
+            setGalleryOpen(true);
+        }
+    }
 
 
   const prepaid = order.prepaidAmount || 0;
@@ -439,7 +433,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                            <AttachmentPreview 
                                 key={index} 
                                 att={att} 
-                                onDelete={() => handleDeleteAttachment(att)} 
+                                onDelete={() => handleDeleteAttachment(att)}
+                                onImageClick={handleImageClick}
                             />
                         ))}
                     </CardContent>
@@ -500,6 +495,38 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             )}
         </div>
       </div>
+      
+      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+        <DialogContent className="max-w-6xl">
+            <DialogHeader>
+                <DialogTitle>Image Gallery</DialogTitle>
+            </DialogHeader>
+            <Carousel 
+                opts={{ align: "start", loop: true, startIndex: galleryStartIndex }} 
+                className="w-full"
+            >
+                <CarouselContent>
+                    {imageAttachments.map((att, index) => (
+                        <CarouselItem key={index}>
+                            <div className="relative h-[80vh]">
+                                <Image 
+                                    src={att.url} 
+                                    alt={att.fileName}
+                                    fill
+                                    className="object-contain"
+                                />
+                            </div>
+                            <p className="text-center text-sm text-muted-foreground mt-2">{att.fileName}</p>
+                        </CarouselItem>
+                    ))}
+                </CarouselContent>
+                <CarouselPrevious />
+                <CarouselNext />
+            </Carousel>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+    
