@@ -442,9 +442,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 <div className="flex items-center gap-2">
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline">
-                                <Printer className="mr-2" />
-                                Print/Download
+                            <Button variant="outline" size="icon">
+                                <Printer />
                             </Button>
                         </DialogTrigger>
                         <OrderReceiptDialog order={order} customer={customer} />
@@ -711,5 +710,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
