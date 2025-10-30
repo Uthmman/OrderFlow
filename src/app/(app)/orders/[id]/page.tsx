@@ -36,6 +36,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -174,7 +175,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                 printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Order Receipt</title>
+                            <title>Order Receipt - ${formatOrderId(order.id)}</title>
                             <script src="https://cdn.tailwindcss.com"></script>
                             <style>
                                 @media print {
@@ -183,7 +184,9 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                             </style>
                         </head>
                         <body>
-                            ${receiptContent}
+                            <div class="p-8">
+                                ${receiptContent}
+                            </div>
                         </body>
                     </html>
                 `);
@@ -203,6 +206,12 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
 
     return (
         <DialogContent className="max-w-4xl p-0">
+            <DialogHeader className="p-6 pb-0">
+                <DialogTitle>Order Receipt: {formatOrderId(order.id)}</DialogTitle>
+                <DialogDescription>
+                    A summary of the order for printing or saving as a PDF.
+                </DialogDescription>
+            </DialogHeader>
             <div id="receipt-content" className="bg-white text-black p-8 md:p-12 font-sans">
                 <header className="flex justify-between items-start mb-8">
                     <div className="flex items-center gap-3">
@@ -680,5 +689,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
 
     
