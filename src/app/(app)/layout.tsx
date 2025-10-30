@@ -25,7 +25,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // If loading is finished and there's no authenticated user, redirect to login.
     if (!loading && !user) {
-      router.push("/login");
+      router.push("/");
     }
   }, [user, loading, router]);
 
