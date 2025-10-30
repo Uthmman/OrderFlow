@@ -221,48 +221,54 @@ function ColorSettingsForm() {
                 </Button>
             </div>
             <CardDescription>
-              Manage the solid color options. Use standard hex color codes.
+              Manage the solid color options. Use the color picker or enter a hex code.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {colorFields.map((field, index) => (
-              <div key={field.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                <div className="flex-shrink-0">
-                    <Label>Preview</Label>
-                    <div 
-                        className="h-12 w-12 rounded-md mt-2 border" 
-                        style={{ backgroundColor: form.watch(`customColors.${index}.colorValue`) || '#FFFFFF' }} 
-                    />
-                </div>
-                <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name={`customColors.${index}.name`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Color Name</FormLabel>
+              <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
+                <FormField
+                    control={form.control}
+                    name={`customColors.${index}.name`}
+                    render={({ field }) => (
+                    <FormItem className="flex-grow">
+                        <FormLabel>Color Name</FormLabel>
+                        <FormControl>
+                        <Input {...field} placeholder="e.g. Crimson Red" />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name={`customColors.${index}.colorValue`}
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Hex Value</FormLabel>
+                        <div className="flex items-center gap-2">
+                             <div className="relative h-10 w-10">
+                                <FormControl>
+                                    <Input 
+                                        type="color" 
+                                        {...field}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </FormControl>
+                                <div 
+                                    className="h-10 w-10 rounded-md border pointer-events-none" 
+                                    style={{ backgroundColor: field.value || '#FFFFFF' }} 
+                                />
+                            </div>
                             <FormControl>
-                            <Input {...field} placeholder="e.g. Crimson Red" />
+                                <Input {...field} placeholder="#DC2626" className="w-32" />
                             </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name={`customColors.${index}.colorValue`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Hex Value</FormLabel>
-                            <FormControl>
-                            <Input {...field} placeholder="#DC2626" />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeColor(index)}>
+                        </div>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <Button type="button" variant="ghost" size="icon" onClick={() => removeColor(index)} className="mb-1">
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
