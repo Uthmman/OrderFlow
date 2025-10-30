@@ -41,7 +41,7 @@ function getB2Client() {
   const endpoint = process.env.B2_ENDPOINT;
 
   if (!keyId || !applicationKey || !endpoint) {
-    console.warn('Backblaze B2 credentials are not fully configured in environment variables. File operations will be disabled.');
+    // Return null if configuration is incomplete. The flow will handle this.
     return null;
   }
 
