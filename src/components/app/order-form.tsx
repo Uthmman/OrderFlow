@@ -139,7 +139,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { getOrderById, addOrder, updateOrder, deleteOrder } = useOrders();
+  const { getOrderById, deleteOrder } = useOrders();
   const [order, setOrder] = useState(initialOrder);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -162,37 +162,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   
-  useEffect(() => {
-    const duplicateOrderId = searchParams.get('duplicate');
-
-    if (duplicateOrderId && !initialOrder) {
-        const sourceOrder = getOrderById(duplicateOrderId);
-        if (sourceOrder) {
-            const duplicatedOrder = {
-                ...sourceOrder,
-                status: 'Pending' as const,
-                isUrgent: false,
-                creationDate: undefined,
-                id: undefined,
-                chatMessages: [],
-            }
-            // This is a duplication, not a draft, so we don't set it in state yet,
-            // we just use it to populate the form default values.
-             form.reset(mapOrderToFormValues(duplicatedOrder));
-        }
-    } 
-  }, [searchParams, getOrderById, initialOrder]);
-
-  useEffect(() => {
-    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
-      setHasMicPermission(permissionStatus.state === 'granted');
-      permissionStatus.onchange = () => {
-        setHasMicPermission(permissionStatus.state === 'granted');
-      };
-    });
-  }, []);
-
-  const mapOrderToFormValues = (orderToMap: Order): OrderFormValues => {
+  const mapOrderToFormValues = useCallback((orderToMap: Order): OrderFormValues => {
     return {
         ...orderToMap,
         deadline: toDate(orderToMap.deadline),
@@ -201,11 +171,11 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
         depth: orderToMap.dimensions?.depth,
         colorAsAttachment: orderToMap.colors?.includes("As Attached Picture")
     } as OrderFormValues;
-  }
+  }, []);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
-    values: order ? mapOrderToFormValues(order) : {
+    values: initialOrder ? mapOrderToFormValues(initialOrder) : {
       isUrgent: false,
       status: "Pending",
       incomeAmount: 0,
@@ -215,7 +185,56 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
   });
 
-  const { formState: { isDirty, dirtyFields } } = form;
+  const { formState: { isDirty } } = form;
+
+  useEffect(() => {
+    const duplicateOrderId = searchParams.get('duplicate');
+
+    if (duplicateOrderId && !initialOrder) {
+        const sourceOrder = getOrderById(duplicateOrderId);
+        if (sourceOrder) {
+            const duplicatedOrderData = {
+                ...sourceOrder,
+                status: 'Pending' as const,
+                isUrgent: false,
+                id: undefined, // Ensure it's treated as a new order
+                chatMessages: [],
+            }
+             form.reset(mapOrderToFormValues(duplicatedOrderData));
+        }
+    } 
+  }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
+  
+  const handleFormSubmit = useCallback(async (values: OrderFormValues, isDraft = false, isAuto = false) => {
+    if (isAuto) setIsAutoSaving(true);
+    
+    const draftId = !initialOrder ? localStorage.getItem('orderDraftId') : null;
+    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+    let finalColors = values.colors;
+    if (values.colorAsAttachment) {
+      finalColors = ["As Attached Picture"];
+    }
+
+    const orderPayload = {
+      ...(initialOrder || {}),
+      ...(draftId ? { id: draftId } : {}),
+      ...values,
+      status: isDraft ? 'Draft' : values.status,
+      attachments: existingAttachments,
+      colors: finalColors,
+      customerName,
+      deadline: values.deadline,
+      dimensions: values.width && values.height && values.depth ? {
+        width: values.width,
+        height: values.height,
+        depth: values.depth,
+      } : undefined,
+    }
+
+    await onSubmit(orderPayload as Omit<Order, 'creationDate'>, newFiles, filesToDelete, isDraft);
+    
+    if (isAuto) setIsAutoSaving(false);
+  }, [initialOrder, customers, existingAttachments, newFiles, filesToDelete, onSubmit, isAutoSaving]);
 
   const triggerAutoSave = useCallback(() => {
     if (autoSaveTimeoutRef.current) {
@@ -224,7 +243,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     autoSaveTimeoutRef.current = setTimeout(() => {
         form.handleSubmit((values) => handleFormSubmit(values, true, true))();
     }, 2000); // Auto-save after 2 seconds of inactivity
-  }, [form]);
+  }, [form, handleFormSubmit]);
 
   useEffect(() => {
     if (!initialOrder && isDirty) { // Only auto-save for new orders
@@ -237,6 +256,14 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
   }, [isDirty, triggerAutoSave, initialOrder, form.watch()]); // Watch all form values for changes
 
+  useEffect(() => {
+    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
+      setHasMicPermission(permissionStatus.state === 'granted');
+      permissionStatus.onchange = () => {
+        setHasMicPermission(permissionStatus.state === 'granted');
+      };
+    });
+  }, []);
 
  const requestMicPermission = async () => {
     try {
@@ -309,63 +336,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     setAudioBlob(null);
   };
 
-  async function handleFormSubmit(values: OrderFormValues, isDraft = false, isAuto = false) {
-    // For new orders, we need to create a draft first if it doesn't exist
-    if (!order && !initialOrder) {
-        if (isAuto) setIsAutoSaving(true);
-        try {
-            const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-            const orderId = await addOrder({ ...values, customerName, status: 'Draft' }, newFiles, true);
-
-            if (orderId) {
-                localStorage.setItem('orderDraftId', orderId);
-                const newDraftOrder = getOrderById(orderId);
-                if (newDraftOrder) setOrder(newDraftOrder);
-            }
-        } catch(e) {
-            // handle error
-        } finally {
-            if (isAuto) setIsAutoSaving(false);
-        }
-        return; // Don't proceed further on first auto-save
-    }
-    
-    // For existing orders (or drafts that now exist)
-    const orderToUpdate = order || initialOrder;
-    if (!orderToUpdate) return;
-    
-    if (isAuto) setIsAutoSaving(true);
-
-    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-    let finalColors = values.colors;
-    if (values.colorAsAttachment) {
-      finalColors = ["As Attached Picture"];
-    }
-
-    const updatedOrderData: Order = {
-        ...orderToUpdate,
-        ...values,
-        status: isDraft ? 'Draft' : values.status,
-        attachments: existingAttachments,
-        colors: finalColors,
-        customerName,
-        deadline: values.deadline,
-        dimensions: values.width && values.height && values.depth ? {
-            width: values.width,
-            height: values.height,
-            depth: values.depth,
-        } : undefined,
-    };
-    
-    await onSubmit(updatedOrderData, newFiles, filesToDelete, isDraft);
-
-    if (!isDraft) {
-        localStorage.removeItem('orderDraftId');
-    }
-    if (isAuto) setIsAutoSaving(false);
-  }
-
-  const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
+  async function handleAddNewCustomer(customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) {
     setNewCustomerSubmitting(true);
     try {
       const newCustomerId = await addCustomer(customerData);
@@ -992,12 +963,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             </div>
             <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true, false))} disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true, false))} disabled={isSubmitting || isAutoSaving}>
+                    {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Save as Draft
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Button type="submit" disabled={isSubmitting || isAutoSaving}>
+                    {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     {submitButtonText}
                 </Button>
             </div>
@@ -1023,3 +994,5 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     </>
   )
 }
+
+    

@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -73,6 +74,15 @@ function OrderActions({ order }: { order: Order }) {
         });
     }
 
+    const handleDelete = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        deleteOrder(order.id, order.attachments);
+        toast({
+            title: "Order Deleted",
+            description: `Order ${formatOrderId(order.id)} has been permanently deleted.`,
+        });
+    }
+
     const handleToggleUrgent = (e: React.MouseEvent) => {
         e.stopPropagation();
         updateOrder({ ...order, isUrgent: !order.isUrgent });
@@ -112,18 +122,24 @@ function OrderActions({ order }: { order: Order }) {
                         Cancel Order
                     </DropdownMenuItem>
                 </AlertDialogTrigger>
+                 <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                        Delete Order
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
               </DropdownMenuContent>
             </DropdownMenu>
-            <AlertDialogContent>
+             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will cancel the order. This action can be undone by changing the order status.
+                        This action cannot be undone. This will permanently delete the order
+                        and remove its data from our servers.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Back</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -340,3 +356,5 @@ export function OrderTable(props: OrderTableProps) {
         </ColorSettingProvider>
     )
 }
+
+    

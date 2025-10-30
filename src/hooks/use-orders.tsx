@@ -112,6 +112,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft = false) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
+    const draftId = localStorage.getItem('orderDraftId');
+    if (draftId && !orderData.id) {
+        // This is an update to an existing draft, not a new order
+        return updateOrder({ ...orderData, id: draftId } as Order, newFiles, [], undefined, isDraft);
+    }
+    
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
@@ -130,23 +136,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const cleanData = removeUndefined(finalOrderData);
 
       setDocumentNonBlocking(newOrderRef, cleanData, {});
-
-      if (!isDraft) {
+      
+      if (isDraft) {
+        localStorage.setItem('orderDraftId', orderId);
+      } else {
         await addOrderToCustomer(orderData.customerId, orderId);
-
-        // Trigger notification for order creation for the current user
         triggerNotification(firestore, [user.id], {
           type: 'New Order Created',
           message: `You created a new order: #${orderId.slice(-5)}.`,
           orderId: orderId
         });
+        localStorage.removeItem('orderDraftId');
       }
       
       return orderId;
     } catch(error) {
       console.error("Error creating order:", error);
-      // The toast is already shown in handleFileUploads, no need to show another one here.
-      // Re-throwing to ensure the form's isSubmitting state is handled correctly.
       throw error;
     }
   };
@@ -161,32 +166,26 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       let dataForUpdate: Partial<Order> = { ...orderData };
       let newAttachmentsForChat: OrderAttachment[] = [];
       
-      // Determine list of users to notify
       const usersToNotify = Array.from(new Set([
-        ...orderData.assignedTo,
+        ...(orderData.assignedTo || []),
         orderData.ownerId,
-      ])).filter(id => id !== user.id); // Exclude the user performing the action
+      ])).filter(id => id !== user.id); 
 
-      // Handle file deletions from main attachments
       if (filesToDelete.length > 0) {
         const deletePromises = filesToDelete.map(att => deleteFileFlow({ fileName: att.storagePath }));
         await Promise.all(deletePromises);
       }
       
-      // Handle file uploads
       if (newFiles.length > 0) {
           const uploadedFiles = await handleFileUploads(newFiles);
-          // If the upload is NOT for a chat message, add it to general attachments
           if (!chatMessage) {
             dataForUpdate.attachments = [...(dataForUpdate.attachments || []), ...uploadedFiles];
           } else {
-            // If it's for a chat message, keep it separate
             newAttachmentsForChat = uploadedFiles;
           }
       }
       
 
-      // Handle new chat message
       const systemMessages: OrderChatMessage[] = [];
       const timestamp = new Date().toISOString();
       const currentUser = {
@@ -201,13 +200,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             text: chatMessage.text,
             timestamp,
         };
-        // If a file was uploaded specifically for this chat, attach it to the message
         if (newAttachmentsForChat.length === 1 && chatMessage.fileType) {
             newChatMessage.attachment = newAttachmentsForChat[0];
         }
         systemMessages.push(newChatMessage);
         
-        // Notify about the new message
          if (usersToNotify.length > 0) {
             triggerNotification(firestore, usersToNotify, {
                 type: 'New Chat Message',
@@ -226,11 +223,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             isSystemMessage: true
         });
 
-        // If a draft is being submitted for the first time
         if (originalOrder.status === 'Draft' && orderData.status !== 'Draft' && !isDraft) {
             await addOrderToCustomer(orderData.customerId, orderData.id);
             const messageText = `Order submitted from Draft status`;
             systemMessages.push(createSystemMessage(messageText));
+            localStorage.removeItem('orderDraftId');
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, {
                     type: `New Order Submitted`,
@@ -272,10 +269,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       
       const cleanData = removeUndefined(dataForUpdate);
       updateDocumentNonBlocking(orderRef, cleanData);
+      
+      // If it was a non-draft action, clear the draft id
+      if (!isDraft) {
+          localStorage.removeItem('orderDraftId');
+      }
 
     } catch (error) {
       console.error("Error updating order:", error);
-      // Toast is handled in handleFileUploads
       throw error;
     }
   };
@@ -286,7 +287,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     const deletePromises = (attachments || []).map(att => {
       if (!att.storagePath) return Promise.resolve();
-      // storagePath now holds the fileName in B2
       return deleteFileFlow({ fileName: att.storagePath }).catch(error => {
         console.error(`Failed to delete attachment ${att.storagePath}:`, error);
       });
@@ -327,3 +327,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    

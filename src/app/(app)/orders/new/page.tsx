@@ -6,7 +6,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { useRouter } from "next/navigation";
 import { Order, OrderAttachment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 
@@ -16,18 +16,24 @@ function NewOrderPageContent() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Clear any stray draft IDs when mounting the new order page
+  useEffect(() => {
+    localStorage.removeItem('orderDraftId');
+  }, []);
+
+
   const handleSubmitOrder = (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = [], isDraft: boolean = false) => {
     setIsSubmitting(true);
 
-    const promise = orderData.id 
+    const promise = 'id' in orderData && orderData.id 
         ? updateOrder(orderData as Order, newFiles, filesToDelete, undefined, isDraft)
         : addOrder(orderData, newFiles, isDraft);
 
     promise.then((result) => {
-        const orderId = typeof result === 'string' ? result : orderData.id;
+        const orderId = typeof result === 'string' ? result : (orderData as Order).id;
         toast({
             title: isDraft ? "Draft Saved" : "Order Submitted",
-            description: isDraft ? `Your draft for order #${orderId?.slice(-5)} has been saved.` : `Order #${orderId?.slice(-5)} has been successfully submitted.`,
+            description: isDraft ? `Your draft has been saved.` : `Order #${orderId?.slice(-5)} has been successfully submitted.`,
         });
         if (!isDraft) {
             router.push(`/orders/${orderId}`);
@@ -51,7 +57,7 @@ function NewOrderPageContent() {
           Create New Order
         </h1>
         <p className="text-muted-foreground">
-          Fill out the form below to add a new order to the system. Your progress is saved automatically.
+          Fill out the form below to add a new order to the system. Your progress is saved automatically as a draft.
         </p>
       </div>
       <ColorSettingProvider>
@@ -73,3 +79,5 @@ export default function NewOrderPage() {
         </Suspense>
     )
 }
+
+    
