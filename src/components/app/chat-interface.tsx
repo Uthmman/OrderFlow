@@ -101,7 +101,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
 
    useEffect(() => {
-    // Check for mic permission on component mount
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
       setHasMicPermission(permissionStatus.state === 'granted');
       permissionStatus.onchange = () => {
@@ -113,7 +112,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // We have permission, and we can start recording immediately
         setHasMicPermission(true);
         return stream;
     } catch (err) {
@@ -131,7 +129,18 @@ export function ChatInterface({ order }: { order: Order }) {
   const startRecording = async () => {
     let stream: MediaStream | null;
     if (hasMicPermission) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (err) {
+            console.error("Error getting user media:", err);
+            setHasMicPermission(false);
+            toast({
+                variant: "destructive",
+                title: "Microphone Error",
+                description: "Could not access microphone. It might be in use by another application."
+            });
+            return;
+        }
     } else {
         stream = await requestMicPermission();
     }
@@ -144,7 +153,6 @@ export function ChatInterface({ order }: { order: Order }) {
     mediaRecorderRef.current.onstop = () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         setAudioBlob(blob);
-        // Important: stop the stream tracks to release the mic
         stream.getTracks().forEach(track => track.stop());
     };
     mediaRecorderRef.current.start();
@@ -156,7 +164,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const stopRecording = () => {
       if (mediaRecorderRef.current && isRecording) {
           mediaRecorderRef.current.stop();
-          // The stream is stopped in the `onstop` handler
           setIsRecording(false);
       }
   };
@@ -244,7 +251,7 @@ export function ChatInterface({ order }: { order: Order }) {
                 size="icon" 
                 type="button" 
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={loading || hasMicPermission === false}
+                disabled={loading}
               >
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>

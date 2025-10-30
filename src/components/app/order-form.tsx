@@ -124,7 +124,6 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
 
   useEffect(() => {
-    // Check for mic permission on component mount
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
       setHasMicPermission(permissionStatus.state === 'granted');
       permissionStatus.onchange = () => {
@@ -174,7 +173,18 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const startRecording = async () => {
     let stream: MediaStream | null;
     if (hasMicPermission) {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch(err) {
+            console.error("Error getting user media:", err);
+            setHasMicPermission(false);
+             toast({
+                variant: "destructive",
+                title: "Microphone Error",
+                description: "Could not access microphone. It might be in use by another application."
+            });
+            return;
+        }
     } else {
         stream = await requestMicPermission();
     }
@@ -206,7 +216,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     if (audioBlob) {
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       setNewFiles(prev => [...prev, audioFile]);
-      setAudioBlob(null); // Clear the blob after adding it to the files list
+      setAudioBlob(null);
     }
   };
 
@@ -677,7 +687,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                                 variant={isRecording ? "destructive" : "outline"} 
                                 className="w-full"
                                 onClick={isRecording ? stopRecording : startRecording}
-                                disabled={hasMicPermission === false}
+                                disabled={hasMicPermission === false && isRecording}
                             >
                                 {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
                                 {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
