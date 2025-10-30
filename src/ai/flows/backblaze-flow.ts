@@ -47,7 +47,7 @@ function getB2Client() {
 
   s3Client = new S3Client({
     endpoint: `https://${endpoint}`,
-    region: endpoint.split('.')[1], // e.g., us-west-004
+    region: endpoint.split('.')[1], // e.g., us-east-005
     credentials: {
       accessKeyId: keyId,
       secretAccessKey: applicationKey,
@@ -71,7 +71,7 @@ export const uploadFileFlow = ai.defineFlow(
     const endpoint = process.env.B2_ENDPOINT;
 
     if (!client || !bucketName || !endpoint) {
-        throw new Error('Backblaze B2 storage is not configured on the server.');
+        throw new Error('Backblaze B2 storage is not configured on the server. Please check environment variables.');
     }
 
     const fileBuffer = Buffer.from(input.fileContent, 'base64');
