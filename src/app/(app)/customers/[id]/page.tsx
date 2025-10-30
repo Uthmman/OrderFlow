@@ -8,7 +8,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, MessageSquare, Star, Edit, MoreVertical, Building, User, Users, ExternalLink } from "lucide-react";
+import { Mail, Phone, MapPin, MessageSquare, Star, Edit, MoreVertical, Building, User, Users, ExternalLink, StickyNote } from "lucide-react";
 import { OrderTable } from "@/components/app/order-table";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
@@ -117,7 +117,9 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                         <MessageSquare className="h-4 w-4 text-muted-foreground mt-1" />
                         <div>
                             <p className="font-medium">Telegram</p>
-                            <p className="text-muted-foreground">{customer.telegram}</p>
+                             <a href={`https://t.me/${customer.telegram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                {customer.telegram}
+                            </a>
                         </div>
                    </div>
                    )}
@@ -148,6 +150,20 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     )}
                 </CardContent>
             </Card>
+
+             <Card>
+                <CardHeader>
+                    <CardTitle>Customer Notes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                     {customer.notes ? (
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{customer.notes}</p>
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">No notes for this customer yet.</p>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle>Customer Stats</CardTitle>
@@ -201,3 +217,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
+
+    

@@ -15,7 +15,7 @@ interface CustomerContextType {
   customers: Customer[];
   loading: boolean;
   getCustomerById: (id: string) => Customer | undefined;
-  addCustomer: (customer: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }) => Promise<string>;
+  addCustomer: (customer: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>>) => Promise<string>;
   updateCustomer: (customer: Customer) => Promise<void>;
   addOrderToCustomer: (customerId: string, orderId: string) => Promise<void>;
 }
@@ -34,7 +34,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     return customers?.find(customer => customer.id === id);
   }, [customers]);
   
-  const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>> & { name: string }): Promise<string> => {
+  const addCustomer = async (customerData: Partial<Omit<Customer, 'id'| 'ownerId' | 'orderIds' | 'reviews'>>): Promise<string> => {
     if (!user) throw new Error("User must be logged in to add a customer.");
 
     const newCustomerRef = doc(collection(firestore, "customers"));
@@ -43,6 +43,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     const newCustomer: Customer = {
       ...customerData,
       id: newCustomerId,
+      name: customerData.name || 'Unknown Customer',
       orderIds: [],
       reviews: [],
       ownerId: user.id,
@@ -50,6 +51,7 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
       location: customerData.location || { town: '' },
       avatarUrl: customerData.avatarUrl || '',
       gender: customerData.gender || 'Other',
+      notes: customerData.notes || '',
     };
 
     setDocumentNonBlocking(newCustomerRef, newCustomer, {});
@@ -94,3 +96,5 @@ export function useCustomers() {
   }
   return context;
 }
+
+    

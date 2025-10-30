@@ -39,6 +39,7 @@ export type Customer = {
     town: string;
     mapUrl?: string;
   };
+  notes?: string;
   orderIds: string[];
   reviews: CustomerReview[];
   ownerId: string;
@@ -117,3 +118,5 @@ export type ColorSettings = {
     woodFinishes: WoodFinish[];
     customColors: CustomColor[];
 }
+
+    

@@ -288,7 +288,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <Button asChild variant="outline">
                         <Link href={`/orders/${order.id}/receipt`} target="_blank">
                             <Printer className="mr-2" />
-                            Print Receipt
+                            Print/Download
                         </Link>
                     </Button>
                     <Link href={`/orders/${order.id}/edit`}>
@@ -538,3 +538,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    

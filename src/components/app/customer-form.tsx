@@ -43,6 +43,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Textarea } from "../ui/textarea";
 
 
 const formSchema = z.object({
@@ -55,6 +56,7 @@ const formSchema = z.object({
   gender: z.enum(["Male", "Female", "Other"]),
   town: z.string().min(2, "Town/City is required."),
   mapUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
+  notes: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof formSchema>;
@@ -89,7 +91,8 @@ export function CustomerForm({
           telegram: customer.telegram,
           gender: customer.gender,
           town: customer.location.town,
-          mapUrl: customer.location.mapUrl
+          mapUrl: customer.location.mapUrl,
+          notes: customer.notes,
         }
       : {
           name: "",
@@ -101,6 +104,7 @@ export function CustomerForm({
           gender: "Other",
           town: "",
           mapUrl: "",
+          notes: "",
         },
   });
 
@@ -128,6 +132,7 @@ export function CustomerForm({
         company: values.company,
         telegram: values.telegram,
         gender: values.gender,
+        notes: values.notes,
         phoneNumbers,
         location: {
             town: values.town,
@@ -244,6 +249,7 @@ export function CustomerForm({
                 <FormControl>
                     <Input placeholder="e.g. @jane.doe" {...field} />
                 </FormControl>
+                <FormDescription>Username or handle, e.g., @janedoe</FormDescription>
                 <FormMessage />
                 </FormItem>
             )}
@@ -270,6 +276,23 @@ export function CustomerForm({
                 <FormLabel>Map Link (Optional)</FormLabel>
                 <FormControl>
                     <Input placeholder="e.g. https://maps.app.goo.gl/..." {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
+        />
+        <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                <FormLabel>Notes</FormLabel>
+                <FormControl>
+                    <Textarea
+                        placeholder="Add any internal notes about this customer..."
+                        rows={4}
+                        {...field}
+                    />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -319,3 +342,5 @@ export function CustomerForm({
     </>
   );
 }
+
+    
