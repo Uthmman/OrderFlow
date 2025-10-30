@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Customer } from "@/lib/types";
 import {
     AlertDialog,
@@ -69,6 +69,8 @@ interface CustomerFormProps {
   isEmbedded?: boolean;
 }
 
+const DRAFT_KEY = 'customer-draft';
+
 export function CustomerForm({
   customer,
   onSubmit,
@@ -79,10 +81,9 @@ export function CustomerForm({
   const router = useRouter();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: customer
-      ? {
+  const getInitialValues = () => {
+    if (customer) {
+      return {
           name: customer.name,
           email: customer.email,
           company: customer.company,
@@ -93,8 +94,21 @@ export function CustomerForm({
           town: customer.location.town,
           mapUrl: customer.location.mapUrl,
           notes: customer.notes,
+        };
+    }
+    
+    if (typeof window !== 'undefined') {
+        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        if (savedDraft) {
+            try {
+                return JSON.parse(savedDraft);
+            } catch (e) {
+                console.error("Failed to parse customer draft", e);
+            }
         }
-      : {
+    }
+    
+    return {
           name: "",
           email: "",
           company: "",
@@ -105,8 +119,24 @@ export function CustomerForm({
           town: "",
           mapUrl: "",
           notes: "",
-        },
+        };
+  }
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: getInitialValues(),
   });
+  
+  const watchedValues = form.watch();
+
+  useEffect(() => {
+    // Don't save drafts when editing or in an embedded form
+    if (customer || isEmbedded) return;
+    
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
+
+  }, [watchedValues, customer, isEmbedded]);
+
 
   const { formState: { isDirty } } = form;
 
@@ -141,6 +171,7 @@ export function CustomerForm({
         avatarUrl,
     };
     onSubmit(customerData);
+    localStorage.removeItem(DRAFT_KEY);
   };
   
   const handleCancelClick = () => {
@@ -150,6 +181,11 @@ export function CustomerForm({
       router.back();
     }
   };
+
+  const handleDiscard = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    router.back();
+  }
 
   const FormContent = (
     <>
@@ -333,7 +369,7 @@ export function CustomerForm({
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Stay on page</AlertDialogCancel>
-                <AlertDialogAction onClick={() => router.back()}>
+                <AlertDialogAction onClick={handleDiscard}>
                     Discard changes
                 </AlertDialogAction>
             </AlertDialogFooter>

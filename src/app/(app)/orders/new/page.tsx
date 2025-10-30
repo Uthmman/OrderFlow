@@ -6,11 +6,11 @@ import { useOrders } from "@/hooks/use-orders";
 import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 
-export default function NewOrderPage() {
+function NewOrderPageContent() {
   const { addOrder } = useOrders();
   const router = useRouter();
   const { toast } = useToast();
@@ -52,3 +52,14 @@ export default function NewOrderPage() {
     </div>
   );
 }
+
+
+export default function NewOrderPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <NewOrderPageContent />
+        </Suspense>
+    )
+}
+
+    

@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer } from "@/lib/types"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
@@ -61,6 +61,7 @@ import { CustomerForm } from "./customer-form"
 import { Timestamp } from "firebase/firestore"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useColorSettings } from "@/hooks/use-color-settings"
+import { useOrders } from "@/hooks/use-orders"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -133,11 +134,16 @@ const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () 
     );
 };
 
+const DRAFT_KEY = 'order-draft';
 
-export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
+  const { getOrderById } = useOrders();
+  const [order, setOrder] = useState(initialOrder);
+
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
@@ -155,6 +161,24 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
+  
+  useEffect(() => {
+    const duplicateOrderId = searchParams.get('duplicate');
+    if (duplicateOrderId && !initialOrder) {
+        const sourceOrder = getOrderById(duplicateOrderId);
+        if (sourceOrder) {
+            const duplicatedOrder = {
+                ...sourceOrder,
+                status: 'Pending' as const,
+                isUrgent: false,
+                creationDate: undefined,
+                id: undefined,
+                chatMessages: [],
+            }
+            setOrder(duplicatedOrder);
+        }
+    }
+  }, [searchParams, getOrderById, initialOrder]);
 
   useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -165,24 +189,57 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     });
   }, []);
 
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: order ? {
-        ...order,
-        deadline: toDate(order.deadline),
-        width: order.dimensions?.width,
-        height: order.dimensions?.height,
-        depth: order.dimensions?.depth,
-        colorAsAttachment: order.colors?.includes("As Attached Picture")
-    } : {
+  const getInitialValues = () => {
+    if(order) {
+         return {
+            ...order,
+            deadline: toDate(order.deadline),
+            width: order.dimensions?.width,
+            height: order.dimensions?.height,
+            depth: order.dimensions?.depth,
+            colorAsAttachment: order.colors?.includes("As Attached Picture")
+        }
+    }
+    
+    if (typeof window !== 'undefined') {
+        const savedDraft = localStorage.getItem(DRAFT_KEY);
+        if (savedDraft) {
+            try {
+                const draft = JSON.parse(savedDraft);
+                // Dates need to be reconstructed
+                if (draft.deadline) {
+                    draft.deadline = new Date(draft.deadline);
+                }
+                return draft;
+            } catch (e) {
+                console.error("Failed to parse order draft", e);
+            }
+        }
+    }
+
+    return {
       isUrgent: false,
       status: "Pending",
       incomeAmount: 0,
       prepaidAmount: 0,
       colors: [],
       colorAsAttachment: false,
-    },
-  })
+    }
+  }
+
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(formSchema),
+    values: getInitialValues() // Use values instead of defaultValues to re-init on duplicate
+  });
+  
+  const watchedValues = form.watch();
+
+  useEffect(() => {
+    if (initialOrder) return; // Don't save drafts when editing
+    
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(watchedValues));
+  }, [watchedValues, initialOrder]);
+
 
   const { formState: { isDirty } } = form;
 
@@ -279,6 +336,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
         assignedTo: order?.assignedTo || [],
     };
     onSubmit(newOrderData, newFiles, filesToDelete);
+    localStorage.removeItem(DRAFT_KEY);
   }
 
   const handleAddNewCustomer = async (customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) => {
@@ -310,6 +368,11 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
       router.back();
     }
   };
+
+  const handleDiscard = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    router.back();
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -911,7 +974,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
             </AlertDialogHeader>
             <AlertDialogFooter>
                 <AlertDialogCancel>Stay on page</AlertDialogCancel>
-                <AlertDialogAction onClick={() => router.back()}>
+                <AlertDialogAction onClick={handleDiscard}>
                     Discard changes
                 </AlertDialogAction>
             </AlertDialogFooter>
@@ -920,3 +983,5 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
     </>
   )
 }
+
+    
