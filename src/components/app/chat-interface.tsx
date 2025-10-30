@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
@@ -61,7 +61,13 @@ const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
             </div>
         )
     }
-    return null;
+    // Fallback for other file types
+    return (
+        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 p-2 bg-muted rounded-md max-w-xs hover:bg-muted/80">
+            <FileIcon className="h-6 w-6 text-muted-foreground" />
+            <span className="text-sm text-foreground truncate">{attachment.fileName}</span>
+        </a>
+    )
 }
 
 const UserMessage = ({ message }: { message: OrderChatMessage }) => (
@@ -93,12 +99,16 @@ export function ChatInterface({ order }: { order: Order }) {
   const [loading, setLoading] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const { toast } = useToast();
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
+  const fileUrl = fileToUpload ? URL.createObjectURL(fileToUpload) : null;
 
    useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -146,6 +156,8 @@ export function ChatInterface({ order }: { order: Order }) {
     }
 
     if (!stream) return;
+    
+    setFileToUpload(null); // Clear file if starting audio recording
 
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     const chunks: BlobPart[] = [];
@@ -168,9 +180,17 @@ export function ChatInterface({ order }: { order: Order }) {
       }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFileToUpload(file);
+      setAudioBlob(null); // Clear audio if a file is selected
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && !audioBlob) || loading || !user) return;
+    if ((!inputValue.trim() && !audioBlob && !fileToUpload) || loading || !user) return;
 
     setLoading(true);
 
@@ -181,6 +201,9 @@ export function ChatInterface({ order }: { order: Order }) {
         if (audioBlob) {
             newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
             fileType = 'audio';
+        } else if (fileToUpload) {
+            newFile = fileToUpload;
+            fileType = fileToUpload.type.startsWith('image/') ? 'image' : 'file';
         }
         
         await updateOrder(order, newFile ? [newFile] : [], [], {
@@ -200,6 +223,8 @@ export function ChatInterface({ order }: { order: Order }) {
 
     setInputValue("");
     setAudioBlob(null);
+    setFileToUpload(null);
+    if(fileInputRef.current) fileInputRef.current.value = "";
     setLoading(false);
   };
 
@@ -234,16 +259,43 @@ export function ChatInterface({ order }: { order: Order }) {
                 </Button>
             </div>
         )}
+         {fileToUpload && fileUrl && (
+            <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 truncate">
+                    {fileToUpload.type.startsWith('image/') ? (
+                        <Image src={fileUrl} alt={fileToUpload.name} width={40} height={40} className="h-10 w-10 rounded-sm object-cover" />
+                    ) : (
+                        <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                    )}
+                    <span className="text-sm truncate">{fileToUpload.name}</span>
+                </div>
+               <Button variant="ghost" size="icon" onClick={() => { setFileToUpload(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+            </div>
+        )}
         <form onSubmit={handleSendMessage} className="relative w-full">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
           <Input 
-            placeholder={isRecording ? "Recording in progress..." : "Send a message or record audio..."}
+            placeholder={isRecording ? "Recording in progress..." : "Send a message or attach a file..."}
             className="pr-28"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={loading || isRecording}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-            <Button variant="ghost" size="icon" type="button" disabled>
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading || isRecording}
+            >
               <Paperclip className="h-4 w-4" />
             </Button>
              <Button 
@@ -251,11 +303,11 @@ export function ChatInterface({ order }: { order: Order }) {
                 size="icon" 
                 type="button" 
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={loading}
+                disabled={loading || !!fileToUpload}
               >
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" type="submit" disabled={loading || (!inputValue.trim() && !audioBlob)}>
+            <Button variant="ghost" size="icon" type="submit" disabled={loading || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
