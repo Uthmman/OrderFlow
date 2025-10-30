@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { use, useState } from "react";
@@ -7,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -163,6 +163,144 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
+function OrderReceiptDialog({ order, customer }: { order: Order, customer: Customer | null }) {
+    
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            const receiptContent = document.getElementById('receipt-content')?.innerHTML;
+            if (receiptContent) {
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Order Receipt</title>
+                            <script src="https://cdn.tailwindcss.com"></script>
+                            <style>
+                                @media print {
+                                    body { -webkit-print-color-adjust: exact; }
+                                }
+                            </style>
+                        </head>
+                        <body>
+                            ${receiptContent}
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.focus();
+                // Delay print to ensure styles are applied
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
+            }
+        }
+    }
+    
+    const prepaid = order.prepaidAmount || 0;
+    const balance = (order.incomeAmount || 0) - prepaid;
+
+    return (
+        <DialogContent className="max-w-4xl p-0">
+            <div id="receipt-content" className="bg-white text-black p-8 md:p-12 font-sans">
+                <header className="flex justify-between items-start mb-8">
+                    <div className="flex items-center gap-3">
+                    <Boxes className="h-10 w-10 text-slate-800" />
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900">OrderFlow</h1>
+                        <p className="text-slate-500">Order Receipt</p>
+                    </div>
+                    </div>
+                    <div className="text-right">
+                    <h2 className="text-2xl font-bold">{formatOrderId(order.id)}</h2>
+                    <p className="text-slate-500">
+                        Order Date: {formatTimestamp(order.creationDate)}
+                    </p>
+                    </div>
+                </header>
+                <div className="grid grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h3 className="font-semibold text-slate-600 mb-2 border-b pb-1">Billed To</h3>
+                        {customer ? (
+                            <>
+                            <p className="font-bold text-lg">{customer.name}</p>
+                            {customer.location?.town && <p>{customer.location.town}</p>}
+                            {customer.email && <p>{customer.email}</p>}
+                            <p>{customer.phoneNumbers?.find((p) => p.type === "Mobile")?.number}</p>
+                            </>
+                        ) : (
+                            <p>Customer not found.</p>
+                        )}
+                    </div>
+                    <div className="text-right">
+                        <h3 className="font-semibold text-slate-600 mb-2 border-b pb-1">Payment Status</h3>
+                        <Badge
+                            className={`text-lg ${ balance <= 0 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                            {balance <= 0 ? "Paid in Full" : "Balance Due"}
+                        </Badge>
+                    </div>
+                </div>
+                <div className="mb-8">
+                    <h3 className="font-semibold text-slate-600 mb-2 border-b pb-1">Order Summary</h3>
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b">
+                            <th className="text-left py-2 font-semibold">Description</th>
+                            <th className="text-right py-2 font-semibold">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr className="border-b">
+                            <td className="py-4 align-top">
+                                <p className="font-semibold">{order.material || "Custom Product"}</p>
+                                <p className="text-sm text-slate-600 max-w-prose">
+                                {order.description}
+                                </p>
+                            </td>
+                            <td className="text-right py-4 font-semibold">
+                                {formatCurrency(order.incomeAmount)}
+                            </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div className="flex justify-end mb-8">
+                    <div className="w-full max-w-xs space-y-2">
+                        <div className="flex justify-between">
+                            <span className="text-slate-600">Subtotal</span>
+                            <span className="font-semibold">{formatCurrency(order.incomeAmount)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span className="text-slate-600">Pre-paid Amount</span>
+                            <span className="font-semibold text-green-600">-{formatCurrency(prepaid)}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between text-lg font-bold">
+                            <span>Balance Due</span>
+                            <span>{formatCurrency(balance)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 className="font-semibold text-slate-600 mb-2">Notes</h3>
+                    <p className="text-sm text-slate-500">
+                    Payment details: {order.paymentDetails || "Not specified."}
+                    <br />
+                    Thank you for your business!
+                    </p>
+                </div>
+                <footer className="text-center mt-12 text-xs text-slate-400 border-t pt-4">
+                    <p>OrderFlow Inc. | 123 Business Rd, Commerce City, USA</p>
+                    <p>This is a computer-generated receipt and does not require a signature.</p>
+                </footer>
+            </div>
+            <DialogFooter className="p-4 bg-muted border-t">
+                <Button onClick={handlePrint}><Printer className="mr-2"/> Print or Save as PDF</Button>
+            </DialogFooter>
+        </DialogContent>
+    );
+}
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
@@ -285,12 +423,15 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             </div>
             {canEdit && (
                 <div className="flex items-center gap-2">
-                    <Button asChild variant="outline">
-                        <Link href={`/orders/${order.id}/receipt`} target="_blank">
-                            <Printer className="mr-2" />
-                            Print/Download
-                        </Link>
-                    </Button>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Printer className="mr-2" />
+                                Print/Download
+                            </Button>
+                        </DialogTrigger>
+                        <OrderReceiptDialog order={order} customer={customer} />
+                    </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
                         <Button>
                           <Edit className="mr-2" />
@@ -439,9 +580,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         <CardTitle>Attachments</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {order.attachments.map((att, index) => (
+                        {order.attachments.map((att) => (
                            <AttachmentPreview 
-                                key={`${att.storagePath}-${index}`} 
+                                key={att.storagePath} 
                                 att={att} 
                                 onDelete={() => handleDeleteAttachment(att)}
                                 onImageClick={handleImageClick}
@@ -538,5 +679,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
