@@ -31,6 +31,7 @@ import Link from "next/link"
 import { useOrders } from "@/hooks/use-orders"
 import { useCustomers } from "@/hooks/use-customers"
 import { useRouter } from "next/navigation"
+import { useUser } from "@/hooks/use-user"
 
 function CustomerActions({ customer }: { customer: Customer }) {
     const router = useRouter();
@@ -213,6 +214,7 @@ function MobileCustomerList({ customers }: { customers: Customer[] }) {
 
 export default function CustomersPage() {
     const { customers, loading } = useCustomers();
+    const { role, loading: userLoading } = useUser();
     const data = React.useMemo(() => customers, [customers]);
     const router = useRouter();
 
@@ -225,8 +227,22 @@ export default function CustomersPage() {
         getFilteredRowModel: getFilteredRowModel(),
     })
 
-    if (loading) {
+    if (loading || userLoading) {
         return <div>Loading...</div>
+    }
+    
+    if (role === 'Designer') {
+        return (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                    <CardDescription>You do not have permission to view this page.</CardDescription>
+                </CardHeader>
+                 <CardContent>
+                    <p>Please contact an administrator if you believe this is a mistake.</p>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (
