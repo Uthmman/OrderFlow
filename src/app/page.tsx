@@ -31,8 +31,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('rememberedEmail');
-    if (savedEmail) {
+    const savedPassword = localStorage.getItem('rememberedPassword');
+    if (savedEmail && savedPassword) {
       setEmail(savedEmail);
+      setPassword(savedPassword);
       setRememberMe(true);
     }
   }, []);
@@ -45,8 +47,10 @@ export default function LoginPage() {
 
       if (rememberMe) {
         localStorage.setItem('rememberedEmail', email);
+        localStorage.setItem('rememberedPassword', password);
       } else {
         localStorage.removeItem('rememberedEmail');
+        localStorage.removeItem('rememberedPassword');
       }
 
       router.push('/dashboard');

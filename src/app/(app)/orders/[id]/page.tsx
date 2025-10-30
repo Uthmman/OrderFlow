@@ -37,10 +37,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -48,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { useUser } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -658,38 +660,49 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       </div>
       
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-6xl">
-            <DialogHeader>
-                <DialogTitle>Image Gallery</DialogTitle>
-            </DialogHeader>
-            <Carousel 
-                opts={{ align: "start", loop: true, startIndex: galleryStartIndex }} 
-                className="w-full"
+        <DialogContent className="max-w-6xl p-0">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle>Image Gallery</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[80vh] w-full">
+            <Carousel
+              opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
+              className="w-full"
             >
-                <CarouselContent>
-                    {imageAttachments.map((att, index) => (
-                        <CarouselItem key={index}>
-                            <div className="relative h-[80vh]">
-                                <Image 
-                                    src={att.url} 
-                                    alt={att.fileName}
-                                    fill
-                                    className="object-contain"
-                                />
-                            </div>
-                            <p className="text-center text-sm text-muted-foreground mt-2">{att.fileName}</p>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-                <CarouselPrevious />
-                <CarouselNext />
+              <CarouselContent>
+                {imageAttachments.map((att, index) => (
+                  <CarouselItem key={index}>
+                    <div className="relative h-[calc(80vh-4rem)]">
+                      <Image
+                        src={att.url}
+                        alt={att.fileName}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center bg-background p-2 border-t">
+                      <p className="text-sm text-muted-foreground">{att.fileName}</p>
+                      <a href={att.url} download={att.fileName} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      </a>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
             </Carousel>
+          </ScrollArea>
+           <DialogFooter className="p-4 border-t bg-muted">
+                <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                </DialogClose>
+            </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
-    
-
-    
