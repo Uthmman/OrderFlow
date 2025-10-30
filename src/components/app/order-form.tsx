@@ -164,7 +164,6 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   
   useEffect(() => {
     const duplicateOrderId = searchParams.get('duplicate');
-    const draftId = localStorage.getItem('orderDraftId');
 
     if (duplicateOrderId && !initialOrder) {
         const sourceOrder = getOrderById(duplicateOrderId);
@@ -181,15 +180,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             // we just use it to populate the form default values.
              form.reset(mapOrderToFormValues(duplicatedOrder));
         }
-    } else if (draftId && !initialOrder) {
-        const draftOrder = getOrderById(draftId);
-        if (draftOrder && draftOrder.status === 'Draft') {
-            setOrder(draftOrder);
-            toast({ title: "Draft Restored", description: "Your previous unfinished order has been loaded."});
-        } else {
-             localStorage.removeItem('orderDraftId');
-        }
-    }
+    } 
   }, [searchParams, getOrderById, initialOrder]);
 
   useEffect(() => {
