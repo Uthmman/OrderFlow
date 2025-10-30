@@ -344,7 +344,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   ];
 
   const customer = getCustomerById(order.customerId);
-  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
+  const canEdit = user?.role === 'Admin';
   const canViewSensitiveData = user?.role === 'Admin' || (user?.role === 'Sales' && order.ownerId === user.id);
 
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
@@ -732,3 +732,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
