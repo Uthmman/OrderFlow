@@ -222,7 +222,7 @@ export function ChatInterface({ order }: { order: Order }) {
             <Alert variant="destructive">
                 <AlertTitle>Microphone Access Required</AlertTitle>
                 <AlertDescription>
-                    Microphone access is disabled. You can re-enable it in your browser settings to record audio.
+                    To record audio, please enable microphone access in your browser settings.
                 </AlertDescription>
             </Alert>
         )}

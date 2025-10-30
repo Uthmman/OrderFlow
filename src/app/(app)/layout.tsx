@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/firebase";
 import { NotificationProvider } from "@/hooks/use-notifications";
+import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
 
@@ -70,21 +71,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <CustomerProvider>
-        <OrderProvider>
-          <NotificationProvider>
-            <div className="flex h-screen w-full flex-col">
-              <AppHeader />
-              <div className="flex flex-1 overflow-hidden">
-                <AppSidebar />
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                  <AuthGuard>
-                    {children}
-                  </AuthGuard>
-                </main>
-              </div>
-            </div>
-          </NotificationProvider>
-        </OrderProvider>
+          <ColorSettingProvider>
+            <OrderProvider>
+              <NotificationProvider>
+                <div className="flex h-screen w-full flex-col">
+                  <AppHeader />
+                  <div className="flex flex-1 overflow-hidden">
+                    <AppSidebar />
+                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                      <AuthGuard>
+                        {children}
+                      </AuthGuard>
+                    </main>
+                  </div>
+                </div>
+              </NotificationProvider>
+            </OrderProvider>
+          </ColorSettingProvider>
       </CustomerProvider>
     </SidebarProvider>
   );

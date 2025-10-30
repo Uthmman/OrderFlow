@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 
 export default function NewOrderPage() {
@@ -45,7 +46,9 @@ export default function NewOrderPage() {
           Fill out the form below to add a new order to the system.
         </p>
       </div>
-      <OrderForm onSubmit={handleCreateOrder} isSubmitting={isSubmitting} />
+      <ColorSettingProvider>
+        <OrderForm onSubmit={handleCreateOrder} isSubmitting={isSubmitting} />
+      </ColorSettingProvider>
     </div>
   );
 }

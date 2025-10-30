@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Order, OrderAttachment } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
+import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -58,14 +59,14 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
           Update the details of the order below.
         </p>
       </div>
-      <OrderForm
-        order={order}
-        onSubmit={handleUpdateOrder}
-        submitButtonText="Save Changes"
-        isSubmitting={isSubmitting}
-      />
+      <ColorSettingProvider>
+        <OrderForm
+            order={order}
+            onSubmit={handleUpdateOrder}
+            submitButtonText="Save Changes"
+            isSubmitting={isSubmitting}
+        />
+      </ColorSettingProvider>
     </div>
   );
 }
-
-    

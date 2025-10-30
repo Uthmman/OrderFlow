@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -44,6 +45,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useColorSettings } from "@/hooks/use-color-settings"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -289,7 +291,7 @@ interface OrderTableProps {
     orders?: Order[];
 }
 
-export function OrderTable({ orders: propOrders }: OrderTableProps) {
+function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
   
   const orders = propOrders ?? contextOrders;
@@ -328,4 +330,12 @@ export function OrderTable({ orders: propOrders }: OrderTableProps) {
         </div>
     </>
   )
+}
+
+export function OrderTable(props: OrderTableProps) {
+    return (
+        <ColorSettingProvider>
+            <OrderTableInternal {...props} />
+        </ColorSettingProvider>
+    )
 }

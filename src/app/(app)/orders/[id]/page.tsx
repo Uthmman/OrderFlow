@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useState } from "react";
@@ -41,10 +42,10 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
-import { customColorOptions, woodFinishOptions } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { useUser } from "@/hooks/use-user";
+import { useColorSettings } from "@/hooks/use-color-settings";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -56,8 +57,6 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Shipped": "default",
     "Cancelled": "destructive",
 }
-
-const allColorOptions = [...woodFinishOptions, ...customColorOptions];
 
 const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -85,9 +84,8 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                         </div>
                     </div>
                 ) : isAudio ? (
-                    <div className="flex flex-col items-center gap-2 p-4 w-full">
-                        <Mic className="h-10 w-10 text-muted-foreground" />
-                        <audio src={att.url} controls className="w-full h-10" />
+                    <div className="p-4 w-full">
+                       <audio src={att.url} controls className="w-full h-10" />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 p-4">
@@ -169,6 +167,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { id } = use(params);
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
+  const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -176,7 +175,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
 
   
-  if (ordersLoading || customersLoading || userLoading) {
+  if (ordersLoading || customersLoading || userLoading || colorsLoading) {
     return <div>Loading...</div>;
   }
   
@@ -185,6 +184,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   if (!order) {
     notFound();
   }
+
+  const allColorOptions = [
+    ...(colorSettings?.woodFinishes || []),
+    ...(colorSettings?.customColors || []),
+  ];
 
   const customer = getCustomerById(order.customerId);
   const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
@@ -528,5 +532,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    

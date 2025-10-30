@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -42,7 +42,6 @@ import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
-import { woodFinishOptions, customColorOptions } from "@/lib/colors"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
@@ -61,6 +60,7 @@ import { useToast } from "@/hooks/use-toast"
 import { CustomerForm } from "./customer-form"
 import { Timestamp } from "firebase/firestore"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useColorSettings } from "@/hooks/use-color-settings"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -102,9 +102,42 @@ const toDate = (timestamp: any): Date | undefined => {
 }
 
 
+const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () => void, onDiscard: () => void }) => {
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play();
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
+
+    return (
+        <div className="p-2 border rounded-lg space-y-2">
+            <div className="flex items-center gap-2">
+                <audio ref={audioRef} src={src} onEnded={() => setIsPlaying(false)} hidden />
+                <Button type="button" variant="ghost" size="icon" onClick={togglePlay}>
+                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                </Button>
+                <div className="text-sm text-muted-foreground">Voice Memo Preview</div>
+                <div className="flex-grow" />
+                <Button type="button" size="sm" variant="ghost" onClick={onDiscard}>Discard</Button>
+                <Button type="button" size="sm" onClick={onSave}>Save Audio</Button>
+            </div>
+        </div>
+    );
+};
+
+
 export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
+  const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
@@ -294,6 +327,8 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
+  const woodFinishOptions = colorSettings?.woodFinishes || [];
+  const customColorOptions = colorSettings?.customColors || [];
 
   const filteredWoodFinishes = woodFinishOptions.filter(option =>
     option.name.toLowerCase().includes(colorSearch.toLowerCase())
@@ -317,14 +352,14 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                 {isImage ? (
                     <Image src={url} alt={name} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
                 ) : isAudio ? (
-                    <Mic className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                     <div className="w-full"><audio controls src={url} className="w-full h-8" /></div>
                 ) : (
                     <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 )}
-                <span className="text-sm truncate">{name}</span>
+                {!isAudio && <span className="text-sm truncate">{name}</span>}
             </div>
             <div className="flex items-center flex-shrink-0">
-                 {!isFile && (
+                 {!isFile && !isAudio && (
                     <a href={url} download={name} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                             <Download className="h-4 w-4" />
@@ -462,8 +497,9 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                           value={colorSearch}
                           onChange={(e) => setColorSearch(e.target.value)}
                           className="max-w-xs"
-                          disabled={isColorAsAttachment}
+                          disabled={isColorAsAttachment || colorsLoading}
                         />
+                         {colorsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                       </div>
                       
                        <FormField
@@ -674,14 +710,7 @@ export function OrderForm({ order, onSubmit, submitButtonText = "Create Order", 
                             <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
                         </div>
                         {audioBlob && audioUrl ? (
-                             <div className="p-4 border rounded-lg space-y-4">
-                                <h4 className="font-medium text-sm">Voice Memo Preview</h4>
-                                <audio controls src={audioUrl} className="w-full"></audio>
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={discardAudio}>Discard</Button>
-                                    <Button onClick={saveAudio}>Save Audio</Button>
-                                </div>
-                            </div>
+                             <SleekAudioPlayer src={audioUrl} onSave={saveAudio} onDiscard={discardAudio} />
                         ) : (
                             <Button 
                                 type="button" 

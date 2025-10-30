@@ -103,4 +103,17 @@ export type Order = {
   chatMessages?: OrderChatMessage[];
 };
 
-    
+export type WoodFinish = {
+    name: string;
+    imageUrl: string;
+}
+
+export type CustomColor = {
+    name: string;
+    colorValue: string;
+}
+
+export type ColorSettings = {
+    woodFinishes: WoodFinish[];
+    customColors: CustomColor[];
+}
