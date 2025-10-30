@@ -1,27 +1,26 @@
 
 "use client";
 
-import { use } from "react";
+import { useEffect } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { useCustomers } from "@/hooks/use-customers";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { Boxes } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatOrderId, formatTimestamp } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 export default function OrderReceiptPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+  const { id } = params;
   const { getOrderById, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
 
   // Automatically trigger print dialog
-  use(() => {
-    if (typeof window !== "undefined") {
+  useEffect(() => {
+    if (typeof window !== "undefined" && !ordersLoading && !customersLoading) {
       setTimeout(() => window.print(), 500);
     }
-    return null;
-  });
+  }, [ordersLoading, customersLoading]);
 
   if (ordersLoading || customersLoading) {
     return (
@@ -66,8 +65,8 @@ export default function OrderReceiptPage({ params }: { params: { id: string } })
           {customer ? (
             <>
               <p className="font-bold text-lg">{customer.name}</p>
-              <p>{customer.location.town}</p>
-              <p>{customer.email}</p>
+              {customer.location?.town && <p>{customer.location.town}</p>}
+              {customer.email && <p>{customer.email}</p>}
               <p>{customer.phoneNumbers?.find((p) => p.type === "Mobile")?.number}</p>
             </>
           ) : (
