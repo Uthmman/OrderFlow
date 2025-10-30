@@ -40,6 +40,7 @@ import {
   DialogTitle,
   DialogClose,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -321,7 +322,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -344,7 +345,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   ];
 
   const customer = getCustomerById(order.customerId);
-  const canEdit = user?.role === 'Admin';
+  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
   const canViewSensitiveData = user?.role === 'Admin' || (user?.role === 'Sales' && order.ownerId === user.id);
 
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
@@ -733,4 +734,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   );
 }
 
-    
