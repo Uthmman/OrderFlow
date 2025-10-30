@@ -10,7 +10,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useUser } from './use-user';
-import { createNotification } from '@/lib/notifications';
+import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 
 
@@ -128,6 +128,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       setDocumentNonBlocking(newOrderRef, cleanData, {});
       await addOrderToCustomer(orderData.customerId, orderId);
+
+      // Trigger notification for order creation
+      triggerNotification(firestore, user.id, {
+        type: 'New Order Created',
+        message: `You created a new order: #${orderId.slice(-5)}.`,
+        orderId: orderId
+      });
       
       return orderId;
     } catch(error) {
@@ -187,6 +194,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             newChatMessage.attachment = newAttachmentsForChat[0];
         }
         systemMessages.push(newChatMessage);
+        
+        // Notify about the new message
+        triggerNotification(firestore, user.id, {
+            type: 'New Chat Message',
+            message: `${currentUser.name} sent a message in order #${orderData.id.slice(-5)}`,
+            orderId: orderData.id,
+        });
       }
       
 
@@ -199,8 +213,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         });
 
         if (originalOrder.status !== orderData.status) {
-            systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
-            createNotification(firestore, user.id, {
+            const messageText = `Status changed from '${originalOrder.status}' to '${orderData.status}'`;
+            systemMessages.push(createSystemMessage(messageText));
+            triggerNotification(firestore, user.id, {
                 type: `Order ${orderData.status}`,
                 message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`,
                 orderId: orderData.id
@@ -209,6 +224,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (originalOrder.isUrgent !== orderData.isUrgent) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
             systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+             triggerNotification(firestore, user.id, {
+                type: `Order Urgency Changed`,
+                message: `Order #${orderData.id.slice(-5)} was ${urgencyText}.`,
+                orderId: orderData.id,
+             });
         }
       }
 
@@ -274,7 +294,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
-
-    

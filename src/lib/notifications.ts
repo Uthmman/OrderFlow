@@ -4,6 +4,7 @@
 import { addDoc, collection, doc, Firestore, serverTimestamp } from "firebase/firestore";
 import { addDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 import { UserNotification } from "./types";
+import { toast } from "@/hooks/use-toast";
 
 type NotificationData = {
     type: string;
@@ -11,12 +12,21 @@ type NotificationData = {
     orderId?: string;
 }
 
-export async function createNotification(
+// Function to play a notification sound
+const playNotificationSound = () => {
+    if (typeof window !== 'undefined') {
+        // Use a simple data URI for a beep sound to avoid needing an external file
+        const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'//'//");
+        audio.play().catch(e => console.error("Error playing sound:", e));
+    }
+};
+
+export function triggerNotification(
     firestore: Firestore, 
     userId: string, 
     data: NotificationData
-): Promise<void> {
-    if (!userId) {
+): void {
+     if (!userId) {
         console.error("Cannot create notification without a userId.");
         return;
     }
@@ -33,4 +43,13 @@ export async function createNotification(
     
     // We use a non-blocking write so it doesn't slow down the main operation
     addDocumentNonBlocking(notificationsRef, newNotification);
+
+    // Show a toast notification
+    toast({
+        title: data.type,
+        description: data.message,
+    });
+    
+    // Play sound
+    playNotificationSound();
 }
