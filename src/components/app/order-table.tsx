@@ -42,6 +42,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
@@ -339,5 +340,3 @@ export function OrderTable(props: OrderTableProps) {
         </ColorSettingProvider>
     )
 }
-
-    
