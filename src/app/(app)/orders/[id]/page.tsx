@@ -345,9 +345,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   const customer = getCustomerById(order.customerId);
   const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
-  const canViewSensitiveData = user?.role === 'Admin' 
-    || user?.role === 'Manager' 
-    || (user?.role === 'Sales' && order.ownerId === user.id);
+  const canViewSensitiveData = user?.role === 'Admin' || (user?.role === 'Sales' && order.ownerId === user.id);
 
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
@@ -451,7 +449,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                         { canViewSensitiveData ? (
                             <OrderReceiptDialog order={order} customer={customer} />
                          ) : (
-                             <DialogContent><p>You do not have permission to view receipt details.</p></DialogContent>
+                             <DialogContent><DialogHeader><DialogTitle>Access Denied</DialogTitle></DialogHeader><p>You do not have permission to view receipt details.</p></DialogContent>
                          )}
                     </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
@@ -734,5 +732,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    

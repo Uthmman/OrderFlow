@@ -50,15 +50,16 @@ export function DataTable<TData, TValue>({
   const { role } = useUser();
 
   const isDesigner = role === 'Designer';
+  const isManager = role === 'Manager';
 
   React.useEffect(() => {
-    if (isDesigner) {
+    if (isDesigner || isManager) {
         setColumnVisibility((prev) => ({
             ...prev,
             incomeAmount: false,
         }));
     }
-  }, [isDesigner]);
+  }, [isDesigner, isManager]);
 
   const table = useReactTable({
     data,
@@ -139,5 +140,3 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
-
-    

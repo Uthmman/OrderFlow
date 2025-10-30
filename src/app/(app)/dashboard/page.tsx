@@ -8,10 +8,12 @@ import { useOrders } from "@/hooks/use-orders"
 import { useMemo } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
+import { useUser } from "@/hooks/use-user"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
+  const { role } = useUser();
 
   const stats = useMemo(() => {
     if (!orders) return { totalRevenue: 0, ordersInProgress: 0, urgentOrders: 0 };
@@ -30,6 +32,8 @@ export default function Dashboard() {
     return <div>Loading...</div>;
   }
 
+  const canViewRevenue = role === 'Admin';
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -41,20 +45,22 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Revenue
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Based on all orders
-            </p>
-          </CardContent>
-        </Card>
+        {canViewRevenue && (
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                Total Revenue
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground">
+                Based on all orders
+                </p>
+            </CardContent>
+            </Card>
+        )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
