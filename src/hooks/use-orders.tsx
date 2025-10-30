@@ -26,6 +26,17 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+// Helper function to remove undefined values from an object
+const removeUndefined = (obj: any) => {
+    const newObj: any = {};
+    Object.keys(obj).forEach(key => {
+        if (obj[key] !== undefined) {
+            newObj[key] = obj[key];
+        }
+    });
+    return newObj;
+}
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
@@ -112,8 +123,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           attachments: [...(orderData.attachments || []), ...newAttachments],
           ownerId: user.id
       };
+      
+      const cleanData = removeUndefined(finalOrderData);
 
-      setDocumentNonBlocking(newOrderRef, finalOrderData, {});
+      setDocumentNonBlocking(newOrderRef, cleanData, {});
       await addOrderToCustomer(orderData.customerId, orderId);
       
       return orderId;
@@ -204,7 +217,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         dataForUpdate.chatMessages = [...existingChat, ...systemMessages];
       }
       
-      updateDocumentNonBlocking(orderRef, dataForUpdate);
+      const cleanData = removeUndefined(dataForUpdate);
+      updateDocumentNonBlocking(orderRef, cleanData);
 
     } catch (error) {
       console.error("Error updating order:", error);
@@ -260,5 +274,7 @@ export function useOrders() {
   }
   return context;
 }
+
+    
 
     
