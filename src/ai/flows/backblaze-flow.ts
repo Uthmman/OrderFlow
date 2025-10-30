@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -68,9 +68,9 @@ export const uploadFileFlow = ai.defineFlow(
   async (input) => {
     const client = getB2Client();
     const bucketName = process.env.B2_BUCKET_NAME;
-    const publicUrlPrefix = process.env.B2_PUBLIC_URL_PREFIX;
+    const endpoint = process.env.B2_ENDPOINT;
 
-    if (!client || !bucketName || !publicUrlPrefix) {
+    if (!client || !bucketName || !endpoint) {
         throw new Error('Backblaze B2 storage is not configured on the server.');
     }
 
@@ -87,10 +87,8 @@ export const uploadFileFlow = ai.defineFlow(
 
     await client.send(command);
 
-    // The B2 S3-compatible API returns the ETag header containing the fileId
-    // however Genkit/flow/S3Client does not seem to expose headers easily.
-    // Constructing URL directly is the fallback.
-    const url = `${publicUrlPrefix}/file/${bucketName}/${fileName}`;
+    // Correct public URL structure for a public Backblaze B2 bucket
+    const url = `https://${bucketName}.${endpoint}/${fileName}`;
 
     return {
       url: url,
