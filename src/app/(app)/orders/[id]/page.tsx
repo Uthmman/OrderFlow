@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useState } from "react";
@@ -57,6 +58,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Pending": "outline",
     "In Progress": "secondary",
     "Designing": "secondary",
+    "Design Ready": "secondary",
     "Manufacturing": "secondary",
     "Completed": "default",
     "Shipped": "default",
@@ -141,7 +143,7 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
 }
 
 function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
-  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"];
+  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Completed", "Shipped", "Cancelled"];
 
   return (
     <DropdownMenu>

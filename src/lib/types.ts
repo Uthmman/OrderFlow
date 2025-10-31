@@ -51,6 +51,7 @@ export type OrderStatus =
   | 'Pending'
   | 'In Progress'
   | 'Designing'
+  | 'Design Ready'
   | 'Manufacturing'
   | 'Completed'
   | 'Shipped'

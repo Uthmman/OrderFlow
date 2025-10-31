@@ -66,7 +66,7 @@ import { useOrders } from "@/hooks/use-orders"
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
   colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
@@ -904,6 +904,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                                 <SelectItem value="Pending">Pending</SelectItem>
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
+                                <SelectItem value="Design Ready">Design Ready</SelectItem>
                                 <SelectItem value="Manufacturing">Manufacturing</SelectItem>
                                 <SelectItem value="Completed">Completed</SelectItem>
                                 <SelectItem value="Shipped">Shipped</SelectItem>

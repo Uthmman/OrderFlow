@@ -56,6 +56,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Pending": "outline",
     "In Progress": "secondary",
     "Designing": "secondary",
+    "Design Ready": "secondary",
     "Manufacturing": "secondary",
     "Completed": "default",
     "Shipped": "default",
@@ -387,4 +388,5 @@ export function OrderTable(props: OrderTableProps) {
     
 
     
+
 
