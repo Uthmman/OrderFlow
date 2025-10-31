@@ -113,16 +113,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft = false) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
+    // Check if we are updating an existing draft stored in localStorage
     const draftId = localStorage.getItem('orderDraftId');
-    if (draftId && !orderData.id) {
-        // This is an update to an existing draft, not a new order
-        return updateOrder({ ...orderData, id: draftId } as Order, newFiles, [], undefined, isDraft);
+    if (draftId) {
+        // If there's a draftId, we're updating an existing draft.
+        // The orderData from the form might not have an ID, so we use the draftId.
+        const orderToUpdate = { ...orderData, id: draftId } as Order;
+        // The rest of the logic is handled by updateOrder.
+        await updateOrder(orderToUpdate, newFiles, [], undefined, isDraft);
+        return draftId;
     }
     
+    // This is a brand new order.
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
-    // Save order data immediately
     const finalOrderData: Order = {
         ...orderData,
         id: orderId,
@@ -155,11 +160,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         updateDocumentNonBlocking(orderRef, { attachments: [...currentAttachments, ...newAttachments] });
       }).catch(error => {
         console.error("Background upload failed:", error);
-        toast({
-          variant: "destructive",
-          title: "Background Upload Failed",
-          description: "Some files could not be uploaded.",
-        });
       });
     }
     
@@ -178,7 +178,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     // Handle file deletions immediately
     if (filesToDelete.length > 0) {
         const deletePromises = filesToDelete.map(att => deleteFileFlow({ fileName: att.storagePath }));
-        // We can run this in the background, no need to await
         Promise.all(deletePromises).catch(err => console.error("Failed to delete some files from B2", err));
     }
     
@@ -187,7 +186,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       orderData.ownerId,
     ])).filter(id => id !== user.id); 
     
-    // --- Message Handling ---
     const systemMessages: OrderChatMessage[] = [];
     let newChatMessage: OrderChatMessage | null = null;
     const timestamp = new Date().toISOString();
@@ -197,21 +195,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         avatarUrl: user.avatarUrl || '',
     };
     
-    if (chatMessage && (chatMessage.text || newFiles.length > 0)) {
+    // --- Message Handling ---
+    if (chatMessage && (chatMessage.text.trim() || newFiles.length > 0)) {
         newChatMessage = {
-            id: uuidv4(), // Assign a unique ID to the message
+            id: uuidv4(),
             user: currentUser,
             text: chatMessage.text,
             timestamp,
         };
-
-        if (usersToNotify.length > 0) {
-          triggerNotification(firestore, usersToNotify, {
-              type: 'New Chat Message',
-              message: `${currentUser.name} sent a message in order #${orderData.id.slice(-5)}`,
-              orderId: orderData.id,
-          });
-        }
+        // Don't add attachment here yet
     }
     
     if (originalOrder) {
@@ -232,7 +224,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
         }
 
-
         if (originalOrder.status !== orderData.status) {
             systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
@@ -252,40 +243,55 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (newChatMessage) {
       allNewMessages.push(newChatMessage);
     }
-
+    
+    let chatMessagesToUpdate = dataForUpdate.chatMessages || [];
     if (allNewMessages.length > 0) {
-      const existingChat = dataForUpdate.chatMessages || [];
-      dataForUpdate.chatMessages = [...existingChat, ...allNewMessages];
+      chatMessagesToUpdate = [...chatMessagesToUpdate, ...allNewMessages];
+      dataForUpdate.chatMessages = chatMessagesToUpdate;
     }
     
-    // Perform the main document update
+    // If it's just a file without text for a chat, we need a placeholder message to update later
+    if(newFiles.length > 0 && chatMessage && !chatMessage.text.trim()) {
+        if (!newChatMessage) {
+            newChatMessage = { id: uuidv4(), user: currentUser, text: '', timestamp };
+            dataForUpdate.chatMessages = [...chatMessagesToUpdate, newChatMessage];
+        }
+    }
+
     const cleanData = removeUndefined(dataForUpdate);
     updateDocumentNonBlocking(orderRef, cleanData);
 
     // --- Background File Uploads ---
     if (newFiles.length > 0) {
         handleFileUploads(newFiles).then(uploadedFiles => {
-            const orderRef = doc(firestore, 'orders', orderData.id);
-            // This is safe because `orders` is updated by the `useCollection` hook.
-            const currentOrderData = orders?.find(o => o.id === orderData.id);
-            
+            const currentOrder = orders?.find(o => o.id === orderData.id);
+            if (!currentOrder) return;
+
+            // If it was a chat attachment, find the message and update it
             if (chatMessage && newChatMessage) {
-                // Find the specific message we just added and update it with the attachment
-                const updatedChatMessages = (currentOrderData?.chatMessages || []).map(msg => {
-                    if (msg.id === newChatMessage!.id) {
+                const messageId = newChatMessage.id;
+                const updatedMessages = currentOrder.chatMessages?.map(msg => {
+                    if (msg.id === messageId) {
                         return { ...msg, attachment: uploadedFiles[0] };
                     }
                     return msg;
-                });
-                updateDocumentNonBlocking(orderRef, { chatMessages: updatedChatMessages });
-            } else {
-                // If it was a general attachment, update the order's attachments array
-                const currentAttachments = currentOrderData?.attachments || [];
+                }) || [];
+                updateDocumentNonBlocking(orderRef, { chatMessages: updatedMessages });
+
+                if (usersToNotify.length > 0) {
+                   triggerNotification(firestore, usersToNotify, {
+                        type: 'New File in Chat',
+                        message: `${currentUser.name} added a file to order #${orderData.id.slice(-5)}`,
+                        orderId: orderData.id,
+                    });
+                }
+
+            } else { // It was a general order attachment
+                const currentAttachments = currentOrder.attachments || [];
                 updateDocumentNonBlocking(orderRef, { attachments: [...currentAttachments, ...uploadedFiles] });
             }
         }).catch(error => {
             console.error("Background upload failed:", error);
-            // Optionally, update the chat message to show an error
         });
     }
 
