@@ -71,7 +71,7 @@ const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
 }
 
 const UserMessage = ({ message }: { message: OrderChatMessage }) => (
-     <div className="flex items-start gap-3">
+     <>
         <UserAvatar message={message} />
         <div>
             <div className="flex items-center gap-2">
@@ -81,15 +81,15 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
             {message.text && <p className="text-sm text-muted-foreground">{message.text}</p>}
             {message.attachment && <ChatAttachment attachment={message.attachment} />}
         </div>
-    </div>
+    </>
 );
 
 const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
-    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
+    <>
         <Info className="h-3 w-3" />
         <span className="italic">{message.text}</span>
         <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
-    </div>
+    </>
 );
 
 
@@ -236,10 +236,18 @@ export function ChatInterface({ order }: { order: Order }) {
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
         {(order.chatMessages || []).map((message) => {
-            if(message.isSystemMessage) {
-                return <SystemMessage key={message.id} message={message} />;
-            }
-            return <UserMessage key={message.id} message={message} />;
+          if (message.isSystemMessage) {
+            return (
+              <div key={message.id} className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
+                <SystemMessage message={message} />
+              </div>
+            );
+          }
+          return (
+            <div key={message.id} className="flex items-start gap-3">
+              <UserMessage message={message} />
+            </div>
+          );
         })}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
