@@ -104,7 +104,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
-  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -115,11 +114,9 @@ export function ChatInterface({ order }: { order: Order }) {
   const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setHasMicPermission(true);
         return stream;
     } catch (err) {
         console.error("Microphone access denied:", err);
-        setHasMicPermission(false);
         toast({
             variant: "destructive",
             title: "Microphone Access Denied",
@@ -230,11 +227,7 @@ export function ChatInterface({ order }: { order: Order }) {
               message.isSystemMessage ? "justify-center text-xs text-muted-foreground my-2" : ""
             }`}
           >
-            {message.isSystemMessage ? (
-              <SystemMessage message={message} />
-            ) : (
-              <UserMessage message={message} />
-            )}
+            {message.isSystemMessage ? <SystemMessage message={message} /> : <UserMessage message={message} />}
           </div>
         ))}
       </CardContent>
