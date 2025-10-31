@@ -88,8 +88,8 @@ export default function OrdersPage() {
       </div>
 
        <Tabs defaultValue="all" className="w-full">
-            <div className="flex items-center gap-4 flex-wrap">
-                <ScrollArea className="w-full max-w-full sm:max-w-[calc(100vw-450px)] whitespace-nowrap">
+            <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap">
+                <ScrollArea className="w-full sm:w-auto sm:flex-1">
                     <TabsList className="w-max">
                         <TabsTrigger value="all">All ({allOrders.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
@@ -100,7 +100,7 @@ export default function OrdersPage() {
                         <TabsTrigger value="cancelled">Cancelled ({cancelledOrders.length})</TabsTrigger>
                     </TabsList>
                 </ScrollArea>
-                 <div className="flex items-center gap-2 ml-auto w-full sm:w-auto flex-wrap">
+                 <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
                     <Input
                         placeholder="Filter orders..."
                         value={filter}
@@ -162,3 +162,4 @@ export default function OrdersPage() {
     </div>
   );
 }
+
