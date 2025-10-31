@@ -87,9 +87,9 @@ export default function OrdersPage() {
       </div>
 
        <Tabs defaultValue="all" className="w-full">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="w-full sm:flex-1 overflow-x-auto pb-2">
-                    <TabsList className="w-max">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="w-full sm:flex-1">
+                    <TabsList className="flex-wrap h-auto">
                         <TabsTrigger value="all">All ({allOrders.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
                         <TabsTrigger value="designing">Designing ({designingOrders.length})</TabsTrigger>
@@ -161,5 +161,6 @@ export default function OrdersPage() {
     </div>
   );
 }
+
 
 
