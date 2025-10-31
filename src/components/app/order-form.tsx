@@ -265,15 +265,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }, [debouncedValues, isDirty, initialOrder, dirtyFields, getValues, form.formState.isValid, performSave]);
 
 
-  useEffect(() => {
-    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
-      setHasMicPermission(permissionStatus.state === 'granted');
-      permissionStatus.onchange = () => {
-        setHasMicPermission(permissionStatus.state === 'granted');
-      };
-    });
-  }, []);
-
  const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -293,23 +284,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const startRecording = async () => {
     let stream: MediaStream | null;
-    if (hasMicPermission) {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch(err) {
-            console.error("Error getting user media:", err);
-            setHasMicPermission(false);
-             toast({
-                variant: "destructive",
-                title: "Microphone Error",
-                description: "Could not access microphone. It might be in use by another application."
-            });
-            return;
-        }
-    } else {
-        stream = await requestMicPermission();
-    }
-
+    // We only request permission when the user clicks the button.
+    stream = await requestMicPermission();
+    
     if (!stream) return;
 
     mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -786,14 +763,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         </Alert>
                     ) : (
                         <>
-                         {hasMicPermission === false && (
-                            <Alert variant="destructive">
-                                <AlertTitle>Microphone Access Required</AlertTitle>
-                                <AlertDescription>
-                                    Microphone access is disabled. You can re-enable it in your browser settings to record audio.
-                                </AlertDescription>
-                            </Alert>
-                        )}
                         <div className="space-y-4">
                             <FormItem>
                                 <FormControl>
@@ -827,7 +796,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     variant={isRecording ? "destructive" : "outline"} 
                                     className="w-full"
                                     onClick={isRecording ? stopRecording : startRecording}
-                                    disabled={(!initialOrder || (hasMicPermission === false && !isRecording))}
+                                    disabled={!initialOrder}
                                 >
                                     {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
                                     {isRecording ? 'Stop Recording' : 'Record Audio Memo'}

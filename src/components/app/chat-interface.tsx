@@ -110,14 +110,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   const fileUrl = fileToUpload ? URL.createObjectURL(fileToUpload) : null;
 
-   useEffect(() => {
-    navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
-      setHasMicPermission(permissionStatus.state === 'granted');
-      permissionStatus.onchange = () => {
-        setHasMicPermission(permissionStatus.state === 'granted');
-      };
-    });
-  }, []);
 
   const requestMicPermission = async () => {
     try {
@@ -138,23 +130,9 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const startRecording = async () => {
     let stream: MediaStream | null;
-    if (hasMicPermission) {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        } catch (err) {
-            console.error("Error getting user media:", err);
-            setHasMicPermission(false);
-            toast({
-                variant: "destructive",
-                title: "Microphone Error",
-                description: "Could not access microphone. It might be in use by another application."
-            });
-            return;
-        }
-    } else {
-        stream = await requestMicPermission();
-    }
-
+    // We request permission only when the user clicks the button.
+    stream = await requestMicPermission();
+    
     if (!stream) return;
     
     setFileToUpload(null); // Clear file if starting audio recording
@@ -206,10 +184,7 @@ export function ChatInterface({ order }: { order: Order }) {
             fileType = fileToUpload.type.startsWith('image/') ? 'image' : 'file';
         }
         
-        await updateOrder(order, newFile ? [newFile] : [], [], {
-            text: inputValue,
-            fileType,
-        });
+        await updateOrder(order, { text: inputValue, fileType });
 
     } catch (error) {
         console.error("Error sending message:", error);
@@ -235,30 +210,22 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-        {(order.chatMessages || []).map((message) => {
-          if (message.isSystemMessage) {
-            return (
-              <div key={message.id} className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
-                <SystemMessage message={message} />
-              </div>
-            );
-          }
-          return (
-            <div key={message.id} className="flex items-start gap-3">
+        {(order.chatMessages || []).map((message) => (
+          <div
+            key={message.id}
+            className={`flex items-start gap-3 ${
+              message.isSystemMessage ? "justify-center text-xs text-muted-foreground my-2" : ""
+            }`}
+          >
+            {message.isSystemMessage ? (
+              <SystemMessage message={message} />
+            ) : (
               <UserMessage message={message} />
-            </div>
-          );
-        })}
+            )}
+          </div>
+        ))}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
-         {hasMicPermission === false && (
-            <Alert variant="destructive">
-                <AlertTitle>Microphone Access Required</AlertTitle>
-                <AlertDescription>
-                    To record audio, please enable microphone access in your browser settings.
-                </AlertDescription>
-            </Alert>
-        )}
          {audioUrl && !isRecording && (
             <div className="w-full p-2 border rounded-md flex items-center justify-between">
                <audio controls src={audioUrl} className="flex-1 h-10" />
