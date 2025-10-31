@@ -235,11 +235,11 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-        {(order.chatMessages || []).map((message, index) => {
+        {(order.chatMessages || []).map((message) => {
             if(message.isSystemMessage) {
-                return <SystemMessage key={index} message={message} />;
+                return <SystemMessage key={message.id} message={message} />;
             }
-            return <UserMessage key={index} message={message} />;
+            return <UserMessage key={message.id} message={message} />;
         })}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">

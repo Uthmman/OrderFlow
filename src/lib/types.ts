@@ -1,4 +1,5 @@
 
+
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
@@ -63,6 +64,7 @@ export type OrderAttachment = {
 };
 
 export type OrderChatMessage = {
+    id: string; // Unique ID for the message itself
     user: {
         id: string;
         name: string;

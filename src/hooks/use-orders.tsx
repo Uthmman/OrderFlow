@@ -13,6 +13,7 @@ import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlo
 import { useUser } from './use-user';
 import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
+import { v4 as uuidv4 } from 'uuid';
 
 
 interface OrderContextType {
@@ -188,6 +189,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     // --- Message Handling ---
     const systemMessages: OrderChatMessage[] = [];
+    let newChatMessage: OrderChatMessage | null = null;
     const timestamp = new Date().toISOString();
     const currentUser = {
         id: user.id,
@@ -196,14 +198,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     
     if (chatMessage && (chatMessage.text || newFiles.length > 0)) {
-        const newChatMessage: OrderChatMessage = {
+        newChatMessage = {
+            id: uuidv4(), // Assign a unique ID to the message
             user: currentUser,
             text: chatMessage.text,
             timestamp,
         };
-        // Add chat message optimistically without attachment
-        systemMessages.push(newChatMessage);
-        
+
         if (usersToNotify.length > 0) {
           triggerNotification(firestore, usersToNotify, {
               type: 'New Chat Message',
@@ -215,6 +216,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     if (originalOrder) {
         const createSystemMessage = (text: string) => ({
+            id: uuidv4(),
             user: { id: 'system', name: 'System', avatarUrl: '' },
             text: `${text} by ${currentUser.name}.`,
             timestamp,
@@ -245,10 +247,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
         }
     }
+    
+    const allNewMessages = [...systemMessages];
+    if (newChatMessage) {
+      allNewMessages.push(newChatMessage);
+    }
 
-    if (systemMessages.length > 0) {
+    if (allNewMessages.length > 0) {
       const existingChat = dataForUpdate.chatMessages || [];
-      dataForUpdate.chatMessages = [...existingChat, ...systemMessages];
+      dataForUpdate.chatMessages = [...existingChat, ...allNewMessages];
     }
     
     // Perform the main document update
@@ -259,16 +266,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (newFiles.length > 0) {
         handleFileUploads(newFiles).then(uploadedFiles => {
             const orderRef = doc(firestore, 'orders', orderData.id);
+            // This is safe because `orders` is updated by the `useCollection` hook.
             const currentOrderData = orders?.find(o => o.id === orderData.id);
             
-            if (chatMessage) {
-                // If it was a chat upload, update the last message
-                const updatedChatMessages = [...(currentOrderData?.chatMessages || [])];
-                const lastMessageIndex = updatedChatMessages.length - 1;
-                if(lastMessageIndex >= 0 && !updatedChatMessages[lastMessageIndex].isSystemMessage) {
-                    updatedChatMessages[lastMessageIndex].attachment = uploadedFiles[0];
-                    updateDocumentNonBlocking(orderRef, { chatMessages: updatedChatMessages });
-                }
+            if (chatMessage && newChatMessage) {
+                // Find the specific message we just added and update it with the attachment
+                const updatedChatMessages = (currentOrderData?.chatMessages || []).map(msg => {
+                    if (msg.id === newChatMessage!.id) {
+                        return { ...msg, attachment: uploadedFiles[0] };
+                    }
+                    return msg;
+                });
+                updateDocumentNonBlocking(orderRef, { chatMessages: updatedChatMessages });
             } else {
                 // If it was a general attachment, update the order's attachments array
                 const currentAttachments = currentOrderData?.attachments || [];
@@ -276,6 +285,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
         }).catch(error => {
             console.error("Background upload failed:", error);
+            // Optionally, update the chat message to show an error
         });
     }
 
@@ -330,4 +340,3 @@ export function useOrders() {
   }
   return context;
 }
-
