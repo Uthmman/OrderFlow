@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -418,6 +418,98 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const prepaid = order.prepaidAmount || 0;
   const balance = (order.incomeAmount || 0) - prepaid;
 
+  const orderDetailsContent = (
+    <div className="space-y-8">
+        <Card>
+            <CardHeader>
+                <CardTitle>Order Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">{order.description}</p>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Specifications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
+                
+                {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
+                    <div className="flex items-start gap-3">
+                        <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
+                        <div className="w-full">
+                            <span className="text-sm">Colors:</span>
+                            <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                                <CarouselContent className="-ml-2">
+                                    {order.colors.map(colorName => {
+                                        const colorOption = allColorOptions.find(c => c.name === colorName);
+                                        if (!colorOption) return (
+                                            <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                <Badge variant="secondary">{colorName}</Badge>
+                                            </CarouselItem>
+                                        );
+
+                                        if ('imageUrl' in colorOption) {
+                                            return (
+                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                        <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
+                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                    </div>
+                                                </CarouselItem>
+                                            )
+                                        }
+
+                                        if ('colorValue' in colorOption) {
+                                            return (
+                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                        <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
+                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                    </div>
+                                                </CarouselItem>
+                                            )
+                                        }
+                                        return null;
+                                    })}
+                                </CarouselContent>
+                                <CarouselPrevious className="ml-12" />
+                                <CarouselNext className="mr-12" />
+                            </Carousel>
+                        </div>
+                    </div>
+                )}
+
+                {order.colors?.includes("As Attached Picture") && (
+                    <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
+                )}
+
+                {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
+            </CardContent>
+        </Card>
+
+        {order.attachments && order.attachments.length > 0 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attachments</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {order.attachments.map((att) => (
+                    <AttachmentPreview 
+                            key={att.storagePath} 
+                            att={att} 
+                            onDelete={() => handleDeleteAttachment(att)}
+                            onImageClick={handleImageClick}
+                        />
+                    ))}
+                </CardContent>
+            </Card>
+        )}
+    </div>
+  )
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -529,7 +621,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         </div>
       </div>
 
-       <Tabs defaultValue="details" className="w-full">
+        {/* Mobile: Tabs */}
+       <Tabs defaultValue="details" className="w-full lg:hidden">
             <TabsList>
                 <TabsTrigger value="details">
                     <Info className="mr-2" /> Details
@@ -539,95 +632,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </TabsTrigger>
             </TabsList>
             <TabsContent value="details" className="mt-6">
-                <div className="grid gap-8 grid-cols-1 lg:grid-cols-3">
-                    <div className="lg:col-span-2 space-y-8">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Order Description</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">{order.description}</p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Specifications</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {order.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Material: {order.material}</span></div>}
-                                
-                                {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
-                                    <div className="flex items-start gap-3">
-                                        <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
-                                        <div className="w-full">
-                                            <span className="text-sm">Colors:</span>
-                                            <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                                                <CarouselContent className="-ml-2">
-                                                    {order.colors.map(colorName => {
-                                                        const colorOption = allColorOptions.find(c => c.name === colorName);
-                                                        if (!colorOption) return (
-                                                            <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                                <Badge variant="secondary">{colorName}</Badge>
-                                                            </CarouselItem>
-                                                        );
-
-                                                        if ('imageUrl' in colorOption) {
-                                                            return (
-                                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                                        <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
-                                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                                    </div>
-                                                                </CarouselItem>
-                                                            )
-                                                        }
-
-                                                        if ('colorValue' in colorOption) {
-                                                            return (
-                                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                                        <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
-                                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                                    </div>
-                                                                </CarouselItem>
-                                                            )
-                                                        }
-                                                        return null;
-                                                    })}
-                                                </CarouselContent>
-                                                <CarouselPrevious className="ml-12" />
-                                                <CarouselNext className="mr-12" />
-                                            </Carousel>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {order.colors?.includes("As Attached Picture") && (
-                                    <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
-                                )}
-
-                                {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
-                            </CardContent>
-                        </Card>
-
-                        {order.attachments && order.attachments.length > 0 && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Attachments</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                    {order.attachments.map((att) => (
-                                    <AttachmentPreview 
-                                            key={att.storagePath} 
-                                            att={att} 
-                                            onDelete={() => handleDeleteAttachment(att)}
-                                            onImageClick={handleImageClick}
-                                        />
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        )}
+                <div className="grid gap-8 grid-cols-1">
+                    <div className="space-y-8">
+                       {orderDetailsContent}
                     </div>
                     <div className="space-y-8">
                         <Card>
@@ -701,11 +708,86 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 </div>
             </TabsContent>
             <TabsContent value="chat" className="mt-6">
-                <div className="lg:max-w-2xl mx-auto">
-                    <ChatInterface order={order} />
-                </div>
+                <ChatInterface order={order} />
             </TabsContent>
         </Tabs>
+
+        {/* Desktop: Grid */}
+        <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+                {orderDetailsContent}
+            </div>
+            <div className="space-y-8">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Details</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <Hash className="h-4 w-4 text-muted-foreground"/>
+                            <span className="text-sm">ID: {formatOrderId(order.id)}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 text-muted-foreground"/>
+                            <span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Clock className="h-4 w-4 text-muted-foreground"/>
+                            <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
+                        </div>
+                        
+                        {canViewSensitiveData && (
+                            <>
+                            <Separator />
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Total Price</span>
+                                <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Pre-paid</span>
+                                <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 font-bold">
+                                <span className="text-sm">Balance Due</span>
+                                <span className="text-sm">{formatCurrency(balance)}</span>
+                            </div>
+                            <Separator />
+                            <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {canViewSensitiveData ? (
+                    <>
+                        {customer ? (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Customer</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                    <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
+                        )}
+                    </>
+                ) : (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground">You do not have permission to view customer and pricing information for this order.</p>
+                        </CardContent>
+                    </Card>
+                )}
+                 <ChatInterface order={order} />
+            </div>
+        </div>
       
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
         <DialogContent className="max-w-6xl p-0">
@@ -754,7 +836,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
-
-    
