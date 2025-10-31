@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
+import { useUser } from "@/hooks/use-user"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -146,6 +147,19 @@ function OrderActions({ order }: { order: Order }) {
     )
 }
 
+function CustomerLink({ order }: { order: Order }) {
+    const { user, role } = useUser();
+    
+    const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+
+    if (canViewCustomer) {
+        return <Link className="hover:underline" href={`/customers/${order.customerId}`}>{order.customerName}</Link>
+    }
+
+    return <span>{order.customerName}</span>;
+}
+
+
 export const columns: ColumnDef<Order>[] = [
   {
     id: "select",
@@ -181,7 +195,7 @@ export const columns: ColumnDef<Order>[] = [
     header: "Customer",
     cell: ({ row }) => {
         const order = row.original;
-        return <Link className="hover:underline" href={`/customers/${order.customerId}`}>{row.getValue("customerName")}</Link>
+        return <CustomerLink order={order} />
     },
   },
   {
@@ -274,9 +288,9 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                         {formatOrderId(order.id)}
                                     </CardTitle>
                                     <CardDescription>
-                                        <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>
-                                            {order.customerName}
-                                        </Link>
+                                        <span onClick={(e) => e.stopPropagation()}>
+                                            <CustomerLink order={order} />
+                                        </span>
                                     </CardDescription>
                                 </div>
                                 <div onClick={(e) => e.stopPropagation()}>
@@ -356,5 +370,7 @@ export function OrderTable(props: OrderTableProps) {
         </ColorSettingProvider>
     )
 }
+
+    
 
     
