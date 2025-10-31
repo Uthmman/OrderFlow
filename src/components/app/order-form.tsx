@@ -149,7 +149,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
@@ -161,6 +161,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [isManualSaving, setIsManualSaving] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,36 +221,49 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     } 
   }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
   
+  const isSubmitting = isExternallySubmitting || isManualSaving;
+
+  const performSave = useCallback(async (values: OrderFormValues) => {
+    if (!initialOrder) return;
+    
+    setIsAutoSaving(true);
+    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+    let finalColors = values.colors;
+    if (values.colorAsAttachment) {
+      finalColors = ["As Attached Picture"];
+    }
+
+    const orderPayload = {
+      ...initialOrder,
+      ...values,
+      colors: finalColors,
+      customerName,
+      deadline: values.deadline,
+      dimensions: values.width && values.height && values.depth ? {
+        width: values.width,
+        height: values.height,
+        depth: values.depth,
+      } : undefined,
+    } as Order;
+
+    try {
+        await updateOrder(orderPayload);
+        form.reset(values); // Resets dirty state after successful save
+    } catch (e) {
+        console.error("Auto-save failed:", e);
+    } finally {
+        setIsAutoSaving(false);
+    }
+  }, [initialOrder, customers, updateOrder, form]);
+
   // Auto-save effect
   useEffect(() => {
-    if (isDirty && initialOrder && Object.keys(dirtyFields).length > 0) {
-      setIsAutoSaving(true);
-      const values = getValues();
-       const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-        let finalColors = values.colors;
-        if (values.colorAsAttachment) {
-          finalColors = ["As Attached Picture"];
-        }
-
-        const orderPayload = {
-          ...initialOrder,
-          ...values,
-          colors: finalColors,
-          customerName,
-          deadline: values.deadline,
-          dimensions: values.width && values.height && values.depth ? {
-            width: values.width,
-            height: values.height,
-            depth: values.depth,
-          } : undefined,
-        }
-
-      updateOrder(orderPayload as Order).then(() => {
-        form.reset(values); // Resets dirty state after successful save
-        setIsAutoSaving(false);
-      });
+    const isFormValid = form.formState.isValid;
+    if (isDirty && initialOrder && isFormValid && Object.keys(dirtyFields).length > 0) {
+      performSave(getValues());
     }
-  }, [debouncedValues, isDirty, initialOrder, dirtyFields, updateOrder, getValues, form, customers]);
+  }, [debouncedValues, isDirty, initialOrder, dirtyFields, getValues, form.formState.isValid, performSave]);
+
 
   useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -428,29 +442,36 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     )
   }
   
-  const handleFormSubmit = async (values: OrderFormValues) => {
-    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-    let finalColors = values.colors;
-    if (values.colorAsAttachment) {
-      finalColors = ["As Attached Picture"];
-    }
+ const handleFormSubmit = async (values: OrderFormValues) => {
+    setIsManualSaving(true);
+    try {
+      const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+      let finalColors = values.colors;
+      if (values.colorAsAttachment) {
+        finalColors = ["As Attached Picture"];
+      }
 
-    const orderPayload = {
-      ...(initialOrder || {}),
-      ...values,
-      status: values.status,
-      colors: finalColors,
-      customerName,
-      deadline: values.deadline,
-      dimensions: values.width && values.height && values.depth ? {
-        width: values.width,
-        height: values.height,
-        depth: values.depth,
-      } : undefined,
-    }
+      const orderPayload = {
+        ...(initialOrder || {}),
+        ...values,
+        status: values.status,
+        colors: finalColors,
+        customerName,
+        deadline: values.deadline,
+        dimensions: values.width && values.height && values.depth ? {
+          width: values.width,
+          height: values.height,
+          depth: values.depth,
+        } : undefined,
+      };
 
-    await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
-    form.reset(values); // Mark form as not dirty
+      await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
+      form.reset(values); // Mark form as not dirty
+    } catch (error) {
+        // onSave should handle its own errors/toasts
+    } finally {
+      setIsManualSaving(false);
+    }
   };
   
   const isUploading = Object.keys(uploadProgress).length > 0;
@@ -999,24 +1020,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           </div>
         </div>
         <div className="flex justify-end items-center gap-2 sticky bottom-0 bg-background/95 py-4">
-             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {isSubmitting ? (
-                    <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Saving...</span>
-                    </>
-                ) : isAutoSaving ? (
+             <div className="flex items-center gap-2 text-sm text-muted-foreground mr-auto">
+                {isAutoSaving ? (
                      <>
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span>Auto-saving...</span>
                     </>
-                ) : (
+                ) : !isDirty ? (
                     <span>All changes saved.</span>
-                )}
+                ): null}
              </div>
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-             <Button type="submit" disabled={isSubmitting || isUploading}>
-                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+             <Button type="submit" disabled={isSubmitting || isUploading || isAutoSaving}>
+                 {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                  {submitButtonText}
              </Button>
         </div>
