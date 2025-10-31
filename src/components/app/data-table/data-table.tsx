@@ -32,7 +32,7 @@ import { useUser } from "@/hooks/use-user"
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  children: React.ReactNode
+  children?: React.ReactNode
 }
 
 export function DataTable<TData, TValue>({
@@ -85,7 +85,7 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="space-y-4">
-      {React.cloneElement(children as React.ReactElement, { table })}
+      {children && React.cloneElement(children as React.ReactElement, { table })}
       <div className="rounded-md border">
         <Table>
           <TableHeader>

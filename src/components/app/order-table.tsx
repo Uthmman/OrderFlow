@@ -95,6 +95,9 @@ function OrderActions({ order }: { order: Order }) {
     const router = useRouter();
     const { deleteOrder, updateOrder } = useOrders();
     const { toast } = useToast();
+    const { user, role } = useUser();
+    const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+
 
     const handleCancel = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent card click
@@ -137,9 +140,11 @@ function OrderActions({ order }: { order: Order }) {
                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
                   View Details
                 </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
-                  Edit Order
-                </DropdownMenuItem>
+                 {canEdit && (
+                    <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
+                        Edit Order
+                    </DropdownMenuItem>
+                 )}
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleUrgent(e); }}>
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
@@ -147,17 +152,21 @@ function OrderActions({ order }: { order: Order }) {
                 <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
                   Copy Order ID
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <AlertDialogTrigger asChild>
-                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                        Cancel Order
-                    </DropdownMenuItem>
-                </AlertDialogTrigger>
-                 <AlertDialogTrigger asChild>
-                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                        Delete Order
-                    </DropdownMenuItem>
-                </AlertDialogTrigger>
+                {canEdit && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                Cancel Order
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                         <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                                Delete Order
+                            </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                    </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
              <AlertDialogContent>
@@ -183,7 +192,7 @@ function CustomerLink({ order }: { order: Order }) {
     const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
     if (canViewCustomer) {
-        return <Link className="hover:underline" href={`/customers/${order.customerId}`}>{order.customerName}</Link>
+        return <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>{order.customerName}</Link>
     }
 
     return <span>{order.customerName}</span>;
@@ -298,9 +307,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                                         {formatOrderId(order.id)}
                                     </CardTitle>
                                     <CardDescription>
-                                        <span onClick={(e) => e.stopPropagation()}>
-                                            <CustomerLink order={order} />
-                                        </span>
+                                        <CustomerLink order={order} />
                                     </CardDescription>
                                 </div>
                                 <div onClick={(e) => e.stopPropagation()}>
@@ -330,9 +337,10 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
 
 interface OrderTableProps {
     orders?: Order[];
+    toolbar?: React.ReactNode;
 }
 
-function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
+function OrderTableInternal({ orders: propOrders, toolbar }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
   
   const orders = propOrders ?? contextOrders;
@@ -358,7 +366,7 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
     <>
         <div className="hidden md:block">
             <DataTable table={table} columns={columns} data={orders}>
-                {/* The toolbar is now managed on the main orders page */}
+                {toolbar}
             </DataTable>
         </div>
          <div className="block md:hidden">
@@ -379,3 +387,4 @@ export function OrderTable(props: OrderTableProps) {
     
 
     
+

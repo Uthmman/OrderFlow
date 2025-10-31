@@ -2,7 +2,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { OrderTable } from "@/components/app/order-table";
+import { useReactTable } from "@tanstack/react-table";
+import { OrderTable, columns } from "@/components/app/order-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOrders } from "@/hooks/use-orders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,10 +16,66 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ListFilter } from "lucide-react";
+import { PlusCircle } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { DataTableViewOptions } from "@/components/app/data-table/data-table-view-options";
 
 type SortField = 'creationDate' | 'deadline';
 type SortDirection = 'asc' | 'desc';
+
+function OrderPageToolbar() {
+    const { orders } = useOrders();
+    const [filter, setFilter] = useState("");
+    const [sortField, setSortField] = useState<SortField>('creationDate');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+    const table = useReactTable({
+        data: orders,
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+    });
+
+    return (
+        <div className="flex items-center justify-between">
+            <div className="flex flex-1 items-center space-x-2">
+                 <Input
+                    placeholder="Filter orders..."
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="h-9 w-full sm:w-[200px]"
+                />
+                <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
+                    <SelectTrigger className="h-9 w-[150px]">
+                        <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="creationDate">Order Date</SelectItem>
+                        <SelectItem value="deadline">Deadline</SelectItem>
+                    </SelectContent>
+                </Select>
+                 <Select value={sortDirection} onValueChange={(v) => setSortDirection(v as SortDirection)}>
+                    <SelectTrigger className="h-9 w-[130px]">
+                        <SelectValue placeholder="Order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="desc">Descending</SelectItem>
+                        <SelectItem value="asc">Ascending</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="flex items-center gap-2">
+                <DataTableViewOptions table={table} />
+                <Link href="/orders/new">
+                    <Button size="sm" className="h-8">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        <span className="hidden sm:inline">New Order</span>
+                    </Button>
+                </Link>
+            </div>
+        </div>
+    )
+}
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
