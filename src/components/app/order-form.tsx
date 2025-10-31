@@ -40,7 +40,7 @@ import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer, OrderStatus } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useTransition } from "react"
 import Image from "next/image"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
@@ -85,7 +85,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[]) => Promise<any>;
+  onSave: (data: Omit<Order, 'id' | 'creationDate'>) => Promise<any>;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -129,27 +129,39 @@ const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () 
                 <div className="text-sm text-muted-foreground">Voice Memo Preview</div>
                 <div className="flex-grow" />
                 <Button type="button" size="sm" variant="ghost" onClick={onDiscard}>Discard</Button>
-                <Button type="button" size="sm" onClick={onSave}>Save Audio</Button>
+                <Button type="button" size="sm" onClick={onSave}>Add Audio to Order</Button>
             </div>
         </div>
     );
 };
 
-export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
+// Custom hook for debouncing a value
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { getOrderById, uploadProgress } = useOrders();
+  const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  
-  const [existingAttachments, setExistingAttachments] = useState<OrderAttachment[]>(initialOrder?.attachments || []);
-  const [newFiles, setNewFiles] = useState<File[]>([]);
-  const [filesToDelete, setFilesToDelete] = useState<OrderAttachment[]>([]);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,55 +172,84 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   
-  const mapOrderToFormValues = useCallback((orderToMap: Order): OrderFormValues => {
+  const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
+    if (!orderToMap) {
+        return {
+            isUrgent: false,
+            status: "Pending",
+            incomeAmount: 0,
+            prepaidAmount: 0,
+            colors: [],
+            colorAsAttachment: false,
+            customerId: '',
+            description: '',
+            deadline: new Date(),
+        }
+    }
     return {
         ...orderToMap,
-        deadline: toDate(orderToMap.deadline),
+        deadline: toDate(orderToMap.deadline) || new Date(),
         width: orderToMap.dimensions?.width,
         height: orderToMap.dimensions?.height,
         depth: orderToMap.dimensions?.depth,
-        colorAsAttachment: orderToMap.colors?.includes("As Attached Picture")
+        colorAsAttachment: orderToMap.colors?.includes("As Attached Picture"),
     } as OrderFormValues;
   }, []);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(formSchema),
-    values: initialOrder ? mapOrderToFormValues(initialOrder) : {
-      isUrgent: false,
-      status: "Pending",
-      incomeAmount: 0,
-      prepaidAmount: 0,
-      colors: [],
-      colorAsAttachment: false,
-    }
+    defaultValues: mapOrderToFormValues(initialOrder)
   });
+  
+  const { formState: { isDirty, dirtyFields }, getValues, watch } = form;
 
-  const { formState: { isDirty }, getValues } = form;
+  // --- Auto-saving Logic ---
+  const watchedValues = watch();
+  const debouncedValues = useDebounce(watchedValues, 2000); // 2-second debounce delay
 
   useEffect(() => {
     const duplicateOrderId = searchParams.get('duplicate');
-
     if (duplicateOrderId && !initialOrder) {
         const sourceOrder = getOrderById(duplicateOrderId);
         if (sourceOrder) {
             const duplicatedOrderData = {
-                ...sourceOrder,
-                status: 'Pending' as const,
-                isUrgent: false,
-                id: undefined,
-                chatMessages: [],
+                ...sourceOrder, status: 'Pending' as const, isUrgent: false, id: '', chatMessages: [],
             }
-             form.reset(mapOrderToFormValues(duplicatedOrderData));
+            form.reset(mapOrderToFormValues(duplicatedOrderData));
         }
     } 
   }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
   
+  // Auto-save effect
   useEffect(() => {
-    if (initialOrder?.attachments) {
-        setExistingAttachments(initialOrder.attachments);
+    if (isDirty && initialOrder && Object.keys(dirtyFields).length > 0) {
+      setIsAutoSaving(true);
+      const values = getValues();
+       const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+        let finalColors = values.colors;
+        if (values.colorAsAttachment) {
+          finalColors = ["As Attached Picture"];
+        }
+
+        const orderPayload = {
+          ...initialOrder,
+          ...values,
+          colors: finalColors,
+          customerName,
+          deadline: values.deadline,
+          dimensions: values.width && values.height && values.depth ? {
+            width: values.width,
+            height: values.height,
+            depth: values.depth,
+          } : undefined,
+        }
+
+      updateOrder(orderPayload as Order).then(() => {
+        form.reset(values); // Resets dirty state after successful save
+        setIsAutoSaving(false);
+      });
     }
-  }, [initialOrder]);
-  
+  }, [debouncedValues, isDirty, initialOrder, dirtyFields, updateOrder, getValues, form, customers]);
 
   useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -278,10 +319,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
   };
 
-  const saveAudio = () => {
-    if (audioBlob) {
+  const addRecordedAudioToOrder = () => {
+    if (audioBlob && initialOrder) {
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
-      setNewFiles(prev => [...prev, audioFile]);
+      startTransition(() => {
+        addAttachment(initialOrder.id, audioFile);
+      });
       setAudioBlob(null);
     }
   };
@@ -313,7 +356,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   }
   
   const handleCancelClick = () => {
-    if (isDirty || newFiles.length > 0) {
+    if (isDirty) {
       setShowCancelDialog(true);
     } else {
       router.back();
@@ -325,19 +368,20 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
+    if (event.target.files && initialOrder) {
       const files = Array.from(event.target.files);
-      setNewFiles(prev => [...prev, ...files]);
+      files.forEach(file => {
+        startTransition(() => {
+            addAttachment(initialOrder.id, file);
+        });
+      })
     }
   };
 
-  const removeNewFile = (index: number) => {
-    setNewFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  const removeExistingAttachment = (attachment: OrderAttachment) => {
-    setExistingAttachments(prev => prev.filter(att => att.storagePath !== attachment.storagePath));
-    setFilesToDelete(prev => [...prev, attachment]);
+  const handleRemoveAttachment = (attachment: OrderAttachment) => {
+    if (initialOrder) {
+        removeAttachment(initialOrder.id, attachment);
+    }
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
@@ -352,35 +396,31 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     option.name.toLowerCase().includes(colorSearch.toLowerCase())
   );
   
-  const renderFilePreview = (file: File | OrderAttachment) => {
-    const isFile = file instanceof File;
-    const url = isFile ? URL.createObjectURL(file) : file.url;
-    const name = isFile ? file.name : file.fileName;
-    const key = isFile ? `${file.name}-${file.size}` : file.storagePath;
-    const isImage = name.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-    const isAudio = name.match(/\.(mp3|wav|ogg|webm)$/i);
+  const renderFilePreview = (attachment: OrderAttachment) => {
+    const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = attachment.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
 
     return (
-        <div key={key} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
+        <div key={attachment.storagePath} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">
                 {isImage ? (
-                    <Image src={url} alt={name} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
+                    <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
                 ) : isAudio ? (
-                     <div className="w-full"><audio controls src={url} className="w-full h-8" /></div>
+                     <div className="w-full"><audio controls src={attachment.url} className="w-full h-8" /></div>
                 ) : (
                     <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 )}
-                {!isAudio && <span className="text-sm truncate">{name}</span>}
+                {!isAudio && <span className="text-sm truncate">{attachment.fileName}</span>}
             </div>
             <div className="flex items-center flex-shrink-0">
-                 {!isFile && !isAudio && (
-                    <a href={url} download={name} target="_blank" rel="noopener noreferrer">
+                 {!isAudio && (
+                    <a href={attachment.url} download={attachment.fileName} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="icon" className="h-7 w-7">
                             <Download className="h-4 w-4" />
                         </Button>
                     </a>
                 )}
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isFile ? removeNewFile(newFiles.findIndex(f => f.name === file.name && f.size === file.size)) : removeExistingAttachment(file as OrderAttachment)}>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAttachment(attachment)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
             </div>
@@ -399,7 +439,6 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
       ...(initialOrder || {}),
       ...values,
       status: values.status,
-      attachments: existingAttachments,
       colors: finalColors,
       customerName,
       deadline: values.deadline,
@@ -410,9 +449,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
       } : undefined,
     }
 
-    await onSubmit(orderPayload as Omit<Order, 'creationDate' | 'id'>, newFiles, filesToDelete);
-    setNewFiles([]);
-    setFilesToDelete([]);
+    await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
     form.reset(values); // Mark form as not dirty
   };
   
@@ -459,7 +496,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                         <FormItem>
                           <FormLabel>Customer</FormLabel>
                           <div className="flex items-center gap-2">
-                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={customersLoading}>
+                            <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select a customer" />
@@ -721,77 +758,86 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                     <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     {hasMicPermission === false && (
+                    {!initialOrder ? (
                         <Alert variant="destructive">
-                            <AlertTitle>Microphone Access Required</AlertTitle>
-                            <AlertDescription>
-                                Microphone access is disabled. You can re-enable it in your browser settings to record audio.
-                            </AlertDescription>
+                           <AlertTitle>Save Required</AlertTitle>
+                           <AlertDescription>Please save the order first to enable file attachments.</AlertDescription>
                         </Alert>
-                    )}
-                    <div className="space-y-4">
-                        <FormItem>
-                            <FormControl>
-                                <div 
-                                    className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                    onClick={() => fileInputRef.current?.click()}
-                                >
-                                    <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                    <p className="text-muted-foreground">Click to upload or drag & drop files</p>
-                                    <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        multiple
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                    />
-                                </div>
-                            </FormControl>
-                        </FormItem>
-                        <div className="relative">
-                            <Separator />
-                            <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
-                        </div>
-                        {audioBlob && audioUrl ? (
-                             <SleekAudioPlayer src={audioUrl} onSave={saveAudio} onDiscard={discardAudio} />
-                        ) : (
-                            <Button 
-                                type="button" 
-                                variant={isRecording ? "destructive" : "outline"} 
-                                className="w-full"
-                                onClick={isRecording ? stopRecording : startRecording}
-                                disabled={hasMicPermission === false && isRecording}
-                            >
-                                {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
-                                {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
-                            </Button>
+                    ) : (
+                        <>
+                         {hasMicPermission === false && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Microphone Access Required</AlertTitle>
+                                <AlertDescription>
+                                    Microphone access is disabled. You can re-enable it in your browser settings to record audio.
+                                </AlertDescription>
+                            </Alert>
                         )}
-                    </div>
-                     
-                    {(existingAttachments.length > 0 || newFiles.length > 0) && (
-                        <div className="space-y-2 pt-4">
-                            <h4 className="text-sm font-medium">Current Attachments:</h4>
-                            <div className="space-y-2">
-                                {existingAttachments.map((file) => renderFilePreview(file))}
-                                {newFiles.map((file, index) => renderFilePreview(file))}
+                        <div className="space-y-4">
+                            <FormItem>
+                                <FormControl>
+                                    <div 
+                                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                        <p className="text-muted-foreground">Click to upload or drag & drop files</p>
+                                        <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            multiple
+                                            onChange={handleFileChange}
+                                            className="hidden"
+                                            disabled={!initialOrder}
+                                        />
+                                    </div>
+                                </FormControl>
+                            </FormItem>
+                            <div className="relative">
+                                <Separator />
+                                <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
                             </div>
+                            {audioBlob && audioUrl ? (
+                                 <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
+                            ) : (
+                                <Button 
+                                    type="button" 
+                                    variant={isRecording ? "destructive" : "outline"} 
+                                    className="w-full"
+                                    onClick={isRecording ? stopRecording : startRecording}
+                                    disabled={(!initialOrder || (hasMicPermission === false && !isRecording))}
+                                >
+                                    {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                    {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
+                                </Button>
+                            )}
                         </div>
-                    )}
-                    
-                    {isUploading && (
-                       <div className="space-y-2 pt-4">
-                           <h4 className="text-sm font-medium">Uploading...</h4>
-                           {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                               <div key={fileName} className="space-y-1">
-                                   <div className="flex justify-between items-center text-sm">
-                                       <span className="truncate">{fileName}</span>
-                                       <span>{Math.round(progress)}%</span>
+                        
+                        {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
+                            <div className="space-y-2 pt-4">
+                                <h4 className="text-sm font-medium">Current Attachments:</h4>
+                                <div className="space-y-2">
+                                    {initialOrder.attachments.map((file) => renderFilePreview(file))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {(isUploading || isPending) && (
+                           <div className="space-y-2 pt-4">
+                               <h4 className="text-sm font-medium">Uploading...</h4>
+                               {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                                   <div key={fileName} className="space-y-1">
+                                       <div className="flex justify-between items-center text-sm">
+                                           <span className="truncate">{fileName}</span>
+                                           <span>{Math.round(progress)}%</span>
+                                       </div>
+                                       <Progress value={progress} className="h-2" />
                                    </div>
-                                   <Progress value={progress} className="h-2" />
-                               </div>
-                           ))}
-                       </div>
+                               ))}
+                           </div>
+                        )}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -953,9 +999,24 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
           </div>
         </div>
         <div className="flex justify-end items-center gap-2 sticky bottom-0 bg-background/95 py-4">
+             <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                {isSubmitting ? (
+                    <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                    </>
+                ) : isAutoSaving ? (
+                     <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Auto-saving...</span>
+                    </>
+                ) : (
+                    <span>All changes saved.</span>
+                )}
+             </div>
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
              <Button type="submit" disabled={isSubmitting || isUploading}>
-                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                  {submitButtonText}
              </Button>
         </div>

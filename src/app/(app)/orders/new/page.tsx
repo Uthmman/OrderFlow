@@ -17,11 +17,11 @@ function NewOrderPageContent() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
+  const handleSaveOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>) => {
     setIsSubmitting(true);
     
     try {
-        const orderId = await addOrder(orderData, newFiles);
+        const orderId = await addOrder(orderData);
         if (orderId) {
             toast({
                 title: "Order Created",
@@ -55,7 +55,7 @@ function NewOrderPageContent() {
       </div>
       <ColorSettingProvider>
         <OrderForm 
-            onSubmit={handleSubmitOrder} 
+            onSave={handleSaveOrder} 
             isSubmitting={isSubmitting} 
             submitButtonText="Create Order"
         />

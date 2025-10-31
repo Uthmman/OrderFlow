@@ -29,17 +29,15 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const handleUpdateOrder = async (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = []) => {
+  const handleUpdateOrder = async (updatedOrderData: Omit<Order, 'id' | 'creationDate'>) => {
     setIsSubmitting(true);
     try {
-        await updateOrder({ ...order, ...updatedOrderData}, newFiles, filesToDelete);
+        await updateOrder({ ...order, ...updatedOrderData});
         toast({
             title: "Order Updated",
             description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
         });
         // The form will reset its dirty state inside the OrderForm component.
-        // Optionally, you can redirect, but for a save button, staying is often preferred.
-        // router.push(`/orders/${order.id}`);
     } catch (error) {
         console.error("Failed to update order", error);
         toast({
@@ -65,7 +63,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
       <ColorSettingProvider>
         <OrderForm
             order={order}
-            onSubmit={handleUpdateOrder}
+            onSave={handleUpdateOrder}
             submitButtonText="Save Changes"
             isSubmitting={isSubmitting}
         />

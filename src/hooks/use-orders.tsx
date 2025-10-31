@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -19,11 +19,13 @@ import { v4 as uuidv4 } from 'uuid';
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => Promise<string | undefined>;
-  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => Promise<string | undefined>;
+  updateOrder: (order: Order, chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
+  addAttachment: (orderId: string, file: File) => Promise<void>;
+  removeAttachment: (orderId: string, attachment: OrderAttachment) => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -68,49 +70,88 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const handleFileUploads = async (files: File[]): Promise<OrderAttachment[]> => {
-    if (!files || files.length === 0) return [];
-
-    setUploadProgress(
-      files.reduce((acc, file) => ({ ...acc, [file.name]: 0 }), {})
-    );
+  const handleFileUpload = async (file: File): Promise<OrderAttachment> => {
+    const fileName = file.name;
+    setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
 
     try {
-      const uploadPromises = files.map(async (file) => {
         const fileContent = await fileToBase64(file);
-        setUploadProgress(prev => ({ ...prev, [file.name]: 50 }));
+        setUploadProgress(prev => ({ ...prev, [fileName]: 50 }));
         
         const result = await uploadFileFlow({
           fileContent,
           contentType: file.type,
         });
 
-        setUploadProgress(prev => ({ ...prev, [file.name]: 100 }));
+        setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
         
         return {
-          fileName: file.name, // Use original file name for display
+          fileName: file.name,
           url: result.url,
-          storagePath: result.fileName, // Use unique file name for storage path
+          storagePath: result.fileName,
         };
-      });
-
-      const results = await Promise.all(uploadPromises);
-      return results;
     } catch (error) {
-        console.error("Upload failed:", error);
+        console.error(`Upload failed for ${fileName}:`, error);
+         setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[fileName];
+            return newProgress;
+        });
         toast({
             variant: "destructive",
-            title: "Upload Failed",
-            description: (error as Error).message || "Could not upload files. Please ensure file storage is configured correctly on the server.",
+            title: `Upload Failed: ${fileName}`,
+            description: (error as Error).message || "Could not upload file.",
         });
-        throw error; // Re-throw to be caught by the calling function
+        throw error;
     } finally {
-      setUploadProgress({});
+       // Hide progress bar after a short delay
+       setTimeout(() => {
+         setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[fileName];
+            return newProgress;
+        });
+       }, 2000);
     }
   };
+  
+  const addAttachment = async (orderId: string, file: File) => {
+      try {
+        const newAttachment = await handleFileUpload(file);
+        const orderRef = doc(firestore, 'orders', orderId);
+        const currentOrder = orders?.find(o => o.id === orderId);
+        const currentAttachments = currentOrder?.attachments || [];
+        await updateDoc(orderRef, { attachments: [...currentAttachments, newAttachment] });
+      } catch (error) {
+          // Error is already handled by handleFileUpload
+      }
+  };
+
+  const removeAttachment = async (orderId: string, attachment: OrderAttachment) => {
+      try {
+        await deleteFileFlow({ fileName: attachment.storagePath });
+        const orderRef = doc(firestore, 'orders', orderId);
+        const currentOrder = orders?.find(o => o.id === orderId);
+        const updatedAttachments = (currentOrder?.attachments || []).filter(
+            att => att.storagePath !== attachment.storagePath
+        );
+        await updateDoc(orderRef, { attachments: updatedAttachments });
+         toast({
+            title: "Attachment Removed",
+            description: `${attachment.fileName} has been deleted.`
+        });
+      } catch (error) {
+           console.error("Failed to remove attachment:", error);
+           toast({
+                variant: "destructive",
+                title: "Deletion Failed",
+                description: "Could not remove the attachment.",
+            });
+      }
+  }
 
 
-  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => {
+  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
     const newOrderRef = doc(collection(firestore, "orders"));
@@ -134,22 +175,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       message: `You created a new order: #${orderId.slice(-5)}.`,
       orderId: orderId
     });
-
-    // Handle file uploads in the background
-    if (newFiles.length > 0) {
-      handleFileUploads(newFiles).then(newAttachments => {
-        const orderRef = doc(firestore, 'orders', orderId);
-        const currentAttachments = finalOrderData.attachments || [];
-        updateDocumentNonBlocking(orderRef, { attachments: [...currentAttachments, ...newAttachments] });
-      }).catch(error => {
-        console.error("Background upload failed:", error);
-      });
-    }
     
     return orderId;
   };
 
-  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
+  const updateOrder = async (orderData: Order, chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     const orderRef = doc(firestore, 'orders', orderData.id);
@@ -157,12 +187,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     // Immediately update text-based data
     let dataForUpdate: Partial<Order> = { ...orderData };
-    
-    // Handle file deletions immediately
-    if (filesToDelete.length > 0) {
-        const deletePromises = filesToDelete.map(att => deleteFileFlow({ fileName: att.storagePath }));
-        Promise.all(deletePromises).catch(err => console.error("Failed to delete some files from B2", err));
-    }
     
     const usersToNotify = Array.from(new Set([
       ...(orderData.assignedTo || []),
@@ -179,14 +203,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     
     // --- Message Handling ---
-    if (chatMessage && (chatMessage.text.trim() || newFiles.length > 0)) {
+    if (chatMessage && chatMessage.text.trim()) {
         newChatMessage = {
             id: uuidv4(),
             user: currentUser,
             text: chatMessage.text,
             timestamp,
         };
-        // Don't add attachment here yet
     }
     
     if (originalOrder) {
@@ -224,48 +247,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       dataForUpdate.chatMessages = chatMessagesToUpdate;
     }
     
-    // If it's just a file without text for a chat, we need a placeholder message to update later
-    if(newFiles.length > 0 && chatMessage && !chatMessage.text.trim()) {
-        if (!newChatMessage) {
-            newChatMessage = { id: uuidv4(), user: currentUser, text: '', timestamp };
-            dataForUpdate.chatMessages = [...chatMessagesToUpdate, newChatMessage];
-        }
-    }
-
     const cleanData = removeUndefined(dataForUpdate);
     updateDocumentNonBlocking(orderRef, cleanData);
 
-    // --- Background File Uploads ---
-    if (newFiles.length > 0) {
-        handleFileUploads(newFiles).then(uploadedFiles => {
-            const currentOrder = orders?.find(o => o.id === orderData.id) || dataForUpdate;
-            if (!currentOrder) return;
-
-            // If it was a chat attachment, find the message and update it
-            if (chatMessage && newChatMessage) {
-                const messageId = newChatMessage.id;
-                const updatedMessages = (currentOrder.chatMessages || []).map(msg => {
-                    if (msg.id === messageId) {
-                        return { ...msg, attachment: uploadedFiles[0] };
-                    }
-                    return msg;
-                });
-                updateDocumentNonBlocking(orderRef, { chatMessages: updatedMessages });
-
-                if (usersToNotify.length > 0) {
-                   triggerNotification(firestore, usersToNotify, {
-                        type: 'New File in Chat',
-                        message: `${currentUser.name} added a file to order #${orderData.id.slice(-5)}`,
-                        orderId: orderData.id,
-                    });
-                }
-
-            } else { // It was a general order attachment
-                const currentAttachments = currentOrder.attachments || [];
-                updateDocumentNonBlocking(orderRef, { attachments: [...currentAttachments, ...uploadedFiles] });
-            }
-        }).catch(error => {
-            console.error("Background upload failed:", error);
+    // Handle chat message notifications
+     if (newChatMessage && usersToNotify.length > 0) {
+       triggerNotification(firestore, usersToNotify, {
+            type: 'New Message in Order',
+            message: `${currentUser.name} wrote: "${newChatMessage.text}"`,
+            orderId: orderData.id,
         });
     }
   };
@@ -300,6 +290,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       deleteOrder,
       getOrderById,
       uploadProgress,
+      addAttachment,
+      removeAttachment,
   }), [orders, loading, uploadProgress, getOrderById]);
 
   return (
@@ -316,4 +308,3 @@ export function useOrders() {
   }
   return context;
 }
-
