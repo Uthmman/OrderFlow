@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 type SortField = 'creationDate' | 'deadline';
 type SortDirection = 'asc' | 'desc';
@@ -59,7 +58,7 @@ export default function OrdersPage() {
     return filteredAndSortedOrders.filter(order => statuses.includes(order.status));
   };
 
-  const activeStatuses: OrderStatus[] = ["Pending", "In Progress"];
+  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
@@ -88,8 +87,8 @@ export default function OrdersPage() {
       </div>
 
        <Tabs defaultValue="all" className="w-full">
-            <div className="flex flex-col sm:flex-row items-center gap-4 flex-wrap">
-                <ScrollArea className="w-full sm:w-auto sm:flex-1">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="w-full sm:flex-1 overflow-x-auto pb-2">
                     <TabsList className="w-max">
                         <TabsTrigger value="all">All ({allOrders.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
@@ -99,13 +98,13 @@ export default function OrdersPage() {
                         <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
                         <TabsTrigger value="cancelled">Cancelled ({cancelledOrders.length})</TabsTrigger>
                     </TabsList>
-                </ScrollArea>
-                 <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                </div>
+                 <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
                     <Input
                         placeholder="Filter orders..."
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
-                        className="h-9 w-full sm:w-[200px]"
+                        className="h-9 w-full sm:w-[150px] lg:w-[200px]"
                     />
                     <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
                         <SelectTrigger className="h-9 w-full sm:w-[150px]">
@@ -128,7 +127,7 @@ export default function OrdersPage() {
                     <Link href="/orders/new" className="w-full sm:w-auto">
                         <Button size="sm" className="h-9 w-full">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            <span className="hidden sm:inline">New Order</span>
+                            <span className="sm:inline">New Order</span>
                         </Button>
                     </Link>
                 </div>
@@ -162,4 +161,5 @@ export default function OrdersPage() {
     </div>
   );
 }
+
 
