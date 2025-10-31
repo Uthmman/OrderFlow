@@ -43,8 +43,8 @@ export default function OrdersPage() {
     }
     
     return [...filtered].sort((a, b) => {
-        const dateA = a[sortField]?.seconds ? a[sortField].seconds * 1000 : new Date(a[sortField]).getTime();
-        const dateB = b[sortField]?.seconds ? b[sortField].seconds * 1000 : new Date(b[sortField]).getTime();
+        const dateA = a[sortField]?.seconds ? new Date(a[sortField].seconds * 1000).getTime() : new Date(a[sortField]).getTime();
+        const dateB = b[sortField]?.seconds ? new Date(b[sortField].seconds * 1000).getTime() : new Date(b[sortField]).getTime();
 
         if (sortDirection === 'asc') {
             return dateA - dateB;
@@ -89,7 +89,7 @@ export default function OrdersPage() {
 
        <Tabs defaultValue="all" className="w-full">
             <div className="flex items-center gap-4 flex-wrap">
-                <ScrollArea className="w-full sm:w-auto whitespace-nowrap">
+                <ScrollArea className="w-full max-w-full sm:max-w-[calc(100vw-450px)] whitespace-nowrap">
                     <TabsList className="w-max">
                         <TabsTrigger value="all">All ({allOrders.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
@@ -162,4 +162,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
