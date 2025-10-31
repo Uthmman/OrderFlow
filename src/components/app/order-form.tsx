@@ -62,6 +62,7 @@ import { Timestamp } from "firebase/firestore"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
+import { Progress } from "../ui/progress"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
@@ -139,11 +140,8 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { getOrderById, updateOrder: autoSaveOrder } = useOrders();
+  const { getOrderById, uploadProgress } = useOrders();
   
-  const [isAutoSaving, setIsAutoSaving] = useState(false);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
@@ -205,54 +203,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     } 
   }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
   
-  const handleAutoSave = useCallback(() => {
-    if (!initialOrder) return; // Only auto-save existing orders (on edit page)
-
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      if (form.formState.isDirty) {
-        setIsAutoSaving(true);
-        const values = getValues();
-        const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-        
-        let finalColors = values.colors;
-        if (values.colorAsAttachment) {
-            finalColors = ["As Attached Picture"];
-        }
-
-        const orderPayload: Order = {
-            ...initialOrder,
-            ...values,
-            customerName,
-            colors: finalColors,
-            deadline: values.deadline,
-            attachments: existingAttachments,
-             dimensions: values.width && values.height && values.depth ? {
-                width: values.width,
-                height: values.height,
-                depth: values.depth,
-            } : undefined,
-        };
-
-        await autoSaveOrder(orderPayload, newFiles, filesToDelete);
-        setNewFiles([]);
-        setFilesToDelete([]);
-        form.reset(values); // Reset dirty state
-        setIsAutoSaving(false);
-      }
-    }, 2000); // Auto-save after 2 seconds
-  }, [initialOrder, form, autoSaveOrder, customers, existingAttachments, newFiles, filesToDelete, getValues]);
-
   useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      if (type === 'change') {
-        handleAutoSave();
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [form.watch, handleAutoSave]);
+    if (initialOrder?.attachments) {
+        setExistingAttachments(initialOrder.attachments);
+    }
+  }, [initialOrder]);
+  
 
   useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -327,7 +283,6 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       setNewFiles(prev => [...prev, audioFile]);
       setAudioBlob(null);
-      handleAutoSave();
     }
   };
 
@@ -373,19 +328,16 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     if (event.target.files) {
       const files = Array.from(event.target.files);
       setNewFiles(prev => [...prev, ...files]);
-      handleAutoSave();
     }
   };
 
   const removeNewFile = (index: number) => {
     setNewFiles(prev => prev.filter((_, i) => i !== index));
-    handleAutoSave();
   };
   
   const removeExistingAttachment = (attachment: OrderAttachment) => {
     setExistingAttachments(prev => prev.filter(att => att.storagePath !== attachment.storagePath));
     setFilesToDelete(prev => [...prev, attachment]);
-    handleAutoSave();
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
@@ -435,7 +387,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
         </div>
     )
   }
-
+  
   const handleFormSubmit = async (values: OrderFormValues) => {
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
     let finalColors = values.colors;
@@ -459,7 +411,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
 
     await onSubmit(orderPayload as Omit<Order, 'creationDate' | 'id'>, newFiles, filesToDelete);
+    setNewFiles([]);
+    setFilesToDelete([]);
+    form.reset(values); // Mark form as not dirty
   };
+  
+  const isUploading = Object.keys(uploadProgress).length > 0;
 
   return (
     <>
@@ -811,15 +768,30 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                             </Button>
                         )}
                     </div>
-
+                     
                     {(existingAttachments.length > 0 || newFiles.length > 0) && (
                         <div className="space-y-2 pt-4">
-                             <h4 className="text-sm font-medium">Attached Files:</h4>
-                             <div className="space-y-2">
+                            <h4 className="text-sm font-medium">Current Attachments:</h4>
+                            <div className="space-y-2">
                                 {existingAttachments.map((file) => renderFilePreview(file))}
                                 {newFiles.map((file, index) => renderFilePreview(file))}
-                             </div>
+                            </div>
                         </div>
+                    )}
+                    
+                    {isUploading && (
+                       <div className="space-y-2 pt-4">
+                           <h4 className="text-sm font-medium">Uploading...</h4>
+                           {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                               <div key={fileName} className="space-y-1">
+                                   <div className="flex justify-between items-center text-sm">
+                                       <span className="truncate">{fileName}</span>
+                                       <span>{Math.round(progress)}%</span>
+                                   </div>
+                                   <Progress value={progress} className="h-2" />
+                               </div>
+                           ))}
+                       </div>
                     )}
                 </CardContent>
             </Card>
@@ -980,19 +952,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             </Card>
           </div>
         </div>
-        <div className="flex justify-between items-center gap-2">
-            <div>
-                 {isAutoSaving && <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Auto-saving...</div>}
-            </div>
-            <div className="flex justify-end gap-2">
-                <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-                {!initialOrder && (
-                  <Button type="submit" disabled={isSubmitting || isAutoSaving}>
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {submitButtonText}
-                  </Button>
-                )}
-            </div>
+        <div className="flex justify-end items-center gap-2 sticky bottom-0 bg-background/95 py-4">
+             <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
+             <Button type="submit" disabled={isSubmitting || isUploading}>
+                 {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                 {submitButtonText}
+             </Button>
         </div>
       </form>
     </Form>
@@ -1015,5 +980,3 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     </>
   )
 }
-
-    

@@ -29,24 +29,27 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  const handleUpdateOrder = (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = []) => {
+  const handleUpdateOrder = async (updatedOrderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = []) => {
     setIsSubmitting(true);
-    updateOrder({ ...order, ...updatedOrderData}, newFiles, filesToDelete).then(() => {
+    try {
+        await updateOrder({ ...order, ...updatedOrderData}, newFiles, filesToDelete);
         toast({
-        title: "Order Updated",
-        description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
+            title: "Order Updated",
+            description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
         });
-        router.push(`/orders/${order.id}`);
-    }).catch(error => {
-      console.error("Failed to update order", error);
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: (error as Error).message || "There was a problem updating the order.",
-      })
-    }).finally(() => {
+        // The form will reset its dirty state inside the OrderForm component.
+        // Optionally, you can redirect, but for a save button, staying is often preferred.
+        // router.push(`/orders/${order.id}`);
+    } catch (error) {
+        console.error("Failed to update order", error);
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: (error as Error).message || "There was a problem updating the order.",
+        });
+    } finally {
         setIsSubmitting(false);
-    });
+    }
   };
 
   return (

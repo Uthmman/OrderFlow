@@ -8,6 +8,7 @@ import { Order, OrderAttachment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, Suspense, useEffect } from "react";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
+import { formatOrderId } from "@/lib/utils";
 
 
 function NewOrderPageContent() {
@@ -16,27 +17,30 @@ function NewOrderPageContent() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmitOrder = (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
+  const handleSubmitOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
     setIsSubmitting(true);
-
-    addOrder(orderData, newFiles).then((orderId) => {
+    
+    try {
+        const orderId = await addOrder(orderData, newFiles);
         if (orderId) {
             toast({
                 title: "Order Created",
-                description: `Order #${orderId.slice(-5)} has been successfully created.`,
+                description: `Order ${formatOrderId(orderId)} has been successfully created.`,
             });
-            router.push(`/orders/${orderId}/edit`);
+            router.push(`/orders/${orderId}`);
+        } else {
+             throw new Error("Failed to get new order ID.");
         }
-    }).catch((error) => {
+    } catch (error) {
         console.error("Failed to save order:", error);
         toast({
             variant: "destructive",
             title: "Creation Failed",
             description: (error as Error).message || "There was a problem creating the order.",
         });
-    }).finally(() => {
+    } finally {
         setIsSubmitting(false);
-    });
+    }
   };
 
   return (
@@ -46,7 +50,7 @@ function NewOrderPageContent() {
           Create New Order
         </h1>
         <p className="text-muted-foreground">
-          Fill out the form below to add a new order. Your changes will be saved automatically.
+          Fill out the form below to add a new order.
         </p>
       </div>
       <ColorSettingProvider>
@@ -68,5 +72,3 @@ export default function NewOrderPage() {
         </Suspense>
     )
 }
-
-    
