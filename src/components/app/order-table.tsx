@@ -12,6 +12,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, AlertTriangle } from "lucide-react"
+import { differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -48,6 +49,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
 import { useUser } from "@/hooks/use-user"
+import { cn } from "@/lib/utils";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -58,7 +60,35 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
-    "Draft": "outline",
+}
+
+const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
+    const deadlineDate = deadline?.seconds ? new Date(deadline.seconds * 1000) : new Date(deadline);
+    const today = new Date();
+    const daysLeft = differenceInDays(deadlineDate, today);
+
+    let text;
+    let colorClass = "text-muted-foreground";
+
+    if (daysLeft < 0) {
+        text = `${Math.abs(daysLeft)} days overdue`;
+        colorClass = "text-destructive font-medium";
+    } else if (daysLeft === 0) {
+        text = "Due today";
+        colorClass = "text-amber-600 font-medium";
+    } else if (daysLeft <= 7) {
+        text = `Due in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`;
+        colorClass = "text-amber-600";
+    } else {
+        text = `Due in ${daysLeft} days`;
+    }
+
+    return (
+        <div>
+            <div>{formatTimestamp(deadline)}</div>
+            <div className={cn("text-xs", colorClass)}>{text}</div>
+        </div>
+    )
 }
 
 function OrderActions({ order }: { order: Order }) {
@@ -212,7 +242,7 @@ export const columns: ColumnDef<Order>[] = [
       <DataTableColumnHeader column={column} title="Deadline" />
     ),
     cell: ({ row }) => {
-      return <div>{formatTimestamp(row.getValue("deadline"))}</div>
+      return <DeadlineDisplay deadline={row.getValue("deadline")} />
     },
     enableHiding: true,
   },
@@ -240,14 +270,6 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
-        <Input
-          placeholder="Filter by customer..."
-          value={(table.getColumn("customerName")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("customerName")?.setFilterValue(event.target.value)
-          }
-          className="h-8 w-full sm:w-[250px]"
-        />
       </div>
       <div className="flex items-center gap-2">
         <DataTableViewOptions table={table} />
@@ -266,18 +288,6 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
     const router = useRouter();
     return (
         <div className="space-y-4">
-             <div className="flex items-center justify-between gap-2">
-                <Input
-                    placeholder="Filter orders..."
-                    className="h-9 flex-1"
-                />
-                 <Link href="/orders/new">
-                    <Button size="sm" className="h-9">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        <span className="hidden sm:inline">New</span>
-                    </Button>
-                </Link>
-            </div>
             {orders.map(order => (
                  <Card key={order.id} className="hover:bg-muted/50 transition-colors">
                     <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
@@ -301,8 +311,8 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                         <CardContent>
                             <div className="flex justify-between items-center">
                                 <Badge variant={statusVariantMap[order.status] || 'outline'}>{order.status}</Badge>
-                                <div className="text-sm text-muted-foreground">
-                                    Due: {formatTimestamp(order.deadline)}
+                                 <div className="text-sm text-muted-foreground">
+                                    <DeadlineDisplay deadline={order.deadline} />
                                 </div>
                             </div>
                         </CardContent>
@@ -327,17 +337,8 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   
   const orders = propOrders ?? contextOrders;
 
-  const sortedOrders = React.useMemo(() => {
-    if (!orders) return [];
-    return [...orders].sort((a, b) => {
-        const dateA = a.creationDate?.seconds ? a.creationDate.seconds * 1000 : new Date(a.creationDate).getTime();
-        const dateB = b.creationDate?.seconds ? b.creationDate.seconds * 1000 : new Date(b.creationDate).getTime();
-        return dateB - dateA;
-    });
-  }, [orders]);
-
   const table = useReactTable({
-    data: sortedOrders,
+    data: orders,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -349,15 +350,19 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
       return <div className="text-center p-8">Loading orders...</div>
   }
   
+  if (orders.length === 0) {
+    return <div className="text-center p-8 text-muted-foreground">No orders to display.</div>
+  }
+
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={sortedOrders}>
-                <OrderTableToolbar table={table} />
+            <DataTable table={table} columns={columns} data={orders}>
+                {/* The toolbar is now managed on the main orders page */}
             </DataTable>
         </div>
          <div className="block md:hidden">
-            <MobileOrderList orders={sortedOrders} />
+            <MobileOrderList orders={orders} />
         </div>
     </>
   )
