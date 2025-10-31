@@ -66,7 +66,7 @@ import { useOrders } from "@/hooks/use-orders"
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled", "Draft"]),
+  status: z.enum(["Pending", "In Progress", "Designing", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
   colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
@@ -84,7 +84,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[], isDraft?: boolean) => void;
+  onSubmit: (data: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete?: OrderAttachment[]) => Promise<any>;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -139,8 +139,8 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { getOrderById, deleteOrder } = useOrders();
-  const [order, setOrder] = useState(initialOrder);
+  const { getOrderById, updateOrder: autoSaveOrder } = useOrders();
+  
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -149,7 +149,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   
-  const [existingAttachments, setExistingAttachments] = useState<OrderAttachment[]>(order?.attachments || []);
+  const [existingAttachments, setExistingAttachments] = useState<OrderAttachment[]>(initialOrder?.attachments || []);
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [filesToDelete, setFilesToDelete] = useState<OrderAttachment[]>([]);
 
@@ -185,7 +185,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     }
   });
 
-  const { formState: { isDirty } } = form;
+  const { formState: { isDirty }, getValues } = form;
 
   useEffect(() => {
     const duplicateOrderId = searchParams.get('duplicate');
@@ -197,7 +197,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                 ...sourceOrder,
                 status: 'Pending' as const,
                 isUrgent: false,
-                id: undefined, // Ensure it's treated as a new order
+                id: undefined,
                 chatMessages: [],
             }
              form.reset(mapOrderToFormValues(duplicatedOrderData));
@@ -205,56 +205,54 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     } 
   }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
   
-  const handleFormSubmit = useCallback(async (values: OrderFormValues, isDraft = false, isAuto = false) => {
-    if (isAuto) setIsAutoSaving(true);
-    
-    const draftId = !initialOrder ? localStorage.getItem('orderDraftId') : null;
-    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-    let finalColors = values.colors;
-    if (values.colorAsAttachment) {
-      finalColors = ["As Attached Picture"];
-    }
+  const handleAutoSave = useCallback(() => {
+    if (!initialOrder) return; // Only auto-save existing orders (on edit page)
 
-    const orderPayload = {
-      ...(initialOrder || {}),
-      ...(draftId ? { id: draftId } : {}),
-      ...values,
-      status: isDraft ? 'Draft' : values.status,
-      attachments: existingAttachments,
-      colors: finalColors,
-      customerName,
-      deadline: values.deadline,
-      dimensions: values.width && values.height && values.depth ? {
-        width: values.width,
-        height: values.height,
-        depth: values.depth,
-      } : undefined,
-    }
-
-    await onSubmit(orderPayload as Omit<Order, 'creationDate'>, newFiles, filesToDelete, isDraft);
-    
-    if (isAuto) setIsAutoSaving(false);
-  }, [initialOrder, customers, existingAttachments, newFiles, filesToDelete, onSubmit, isAutoSaving]);
-
-  const triggerAutoSave = useCallback(() => {
     if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
+      clearTimeout(autoSaveTimeoutRef.current);
     }
-    autoSaveTimeoutRef.current = setTimeout(() => {
-        form.handleSubmit((values) => handleFormSubmit(values, true, true))();
-    }, 2000); // Auto-save after 2 seconds of inactivity
-  }, [form, handleFormSubmit]);
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      if (form.formState.isDirty) {
+        setIsAutoSaving(true);
+        const values = getValues();
+        const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+        
+        let finalColors = values.colors;
+        if (values.colorAsAttachment) {
+            finalColors = ["As Attached Picture"];
+        }
+
+        const orderPayload: Order = {
+            ...initialOrder,
+            ...values,
+            customerName,
+            colors: finalColors,
+            deadline: values.deadline,
+            attachments: existingAttachments,
+             dimensions: values.width && values.height && values.depth ? {
+                width: values.width,
+                height: values.height,
+                depth: values.depth,
+            } : undefined,
+        };
+
+        await autoSaveOrder(orderPayload, newFiles, filesToDelete);
+        setNewFiles([]);
+        setFilesToDelete([]);
+        form.reset(values); // Reset dirty state
+        setIsAutoSaving(false);
+      }
+    }, 2000); // Auto-save after 2 seconds
+  }, [initialOrder, form, autoSaveOrder, customers, existingAttachments, newFiles, filesToDelete, getValues]);
 
   useEffect(() => {
-    if (!initialOrder && isDirty) { // Only auto-save for new orders
-      triggerAutoSave();
-    }
-    return () => {
-        if (autoSaveTimeoutRef.current) {
-            clearTimeout(autoSaveTimeoutRef.current);
-        }
-    }
-  }, [isDirty, triggerAutoSave, initialOrder, form.watch()]); // Watch all form values for changes
+    const subscription = form.watch((value, { name, type }) => {
+      if (type === 'change') {
+        handleAutoSave();
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form.watch, handleAutoSave]);
 
   useEffect(() => {
     navigator.permissions.query({ name: 'microphone' as PermissionName }).then((permissionStatus) => {
@@ -329,6 +327,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       setNewFiles(prev => [...prev, audioFile]);
       setAudioBlob(null);
+      handleAutoSave();
     }
   };
 
@@ -367,27 +366,26 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
   };
 
   const handleDiscard = () => {
-    const draftId = localStorage.getItem('orderDraftId');
-    if (draftId && !initialOrder) {
-        deleteOrder(draftId, order?.attachments);
-        localStorage.removeItem('orderDraftId');
-    }
     router.back();
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
-      setNewFiles(prev => [...prev, ...Array.from(event.target.files!)]);
+      const files = Array.from(event.target.files);
+      setNewFiles(prev => [...prev, ...files]);
+      handleAutoSave();
     }
   };
 
   const removeNewFile = (index: number) => {
     setNewFiles(prev => prev.filter((_, i) => i !== index));
+    handleAutoSave();
   };
   
   const removeExistingAttachment = (attachment: OrderAttachment) => {
     setExistingAttachments(prev => prev.filter(att => att.storagePath !== attachment.storagePath));
     setFilesToDelete(prev => [...prev, attachment]);
+    handleAutoSave();
   };
 
   const isColorAsAttachment = form.watch("colorAsAttachment");
@@ -438,10 +436,35 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
     )
   }
 
+  const handleFormSubmit = async (values: OrderFormValues) => {
+    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+    let finalColors = values.colors;
+    if (values.colorAsAttachment) {
+      finalColors = ["As Attached Picture"];
+    }
+
+    const orderPayload = {
+      ...(initialOrder || {}),
+      ...values,
+      status: values.status,
+      attachments: existingAttachments,
+      colors: finalColors,
+      customerName,
+      deadline: values.deadline,
+      dimensions: values.width && values.height && values.depth ? {
+        width: values.width,
+        height: values.height,
+        depth: values.depth,
+      } : undefined,
+    }
+
+    await onSubmit(orderPayload as Omit<Order, 'creationDate' | 'id'>, newFiles, filesToDelete);
+  };
+
   return (
     <>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit((values) => handleFormSubmit(values, false, false))} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
             {isCreatingNewCustomer ? (
@@ -878,7 +901,6 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                {order?.status === 'Draft' && <SelectItem value="Draft">Draft</SelectItem>}
                                 <SelectItem value="Pending">Pending</SelectItem>
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
@@ -963,14 +985,12 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             </div>
             <div className="flex justify-end gap-2">
                 <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-                <Button variant="outline" type="button" onClick={form.handleSubmit((values) => handleFormSubmit(values, true, false))} disabled={isSubmitting || isAutoSaving}>
-                    {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Save as Draft
-                </Button>
-                <Button type="submit" disabled={isSubmitting || isAutoSaving}>
-                    {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    {submitButtonText}
-                </Button>
+                {!initialOrder && (
+                  <Button type="submit" disabled={isSubmitting || isAutoSaving}>
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      {submitButtonText}
+                  </Button>
+                )}
             </div>
         </div>
       </form>
@@ -980,7 +1000,7 @@ export function OrderForm({ order: initialOrder, onSubmit, submitButtonText = "C
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Any unsaved changes will be lost. If this is a new draft, it will be deleted.
+                    Any unsaved changes will be lost.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

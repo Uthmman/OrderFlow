@@ -54,8 +54,7 @@ export type OrderStatus =
   | 'Manufacturing'
   | 'Completed'
   | 'Shipped'
-  | 'Cancelled'
-  | 'Draft';
+  | 'Cancelled';
 
 export type OrderAttachment = {
   fileName: string;

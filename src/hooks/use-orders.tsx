@@ -19,8 +19,8 @@ import { v4 as uuidv4 } from 'uuid';
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft?: boolean) => Promise<string | undefined>;
-  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }, isDraft?: boolean) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => Promise<string | undefined>;
+  updateOrder: (order: Order, newFiles?: File[], filesToDelete?: OrderAttachment[], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
@@ -110,21 +110,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[], isDraft = false) => {
+  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>, newFiles: File[]) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
-    // Check if we are updating an existing draft stored in localStorage
-    const draftId = localStorage.getItem('orderDraftId');
-    if (draftId) {
-        // If there's a draftId, we're updating an existing draft.
-        // The orderData from the form might not have an ID, so we use the draftId.
-        const orderToUpdate = { ...orderData, id: draftId } as Order;
-        // The rest of the logic is handled by updateOrder.
-        await updateOrder(orderToUpdate, newFiles, [], undefined, isDraft);
-        return draftId;
-    }
-    
-    // This is a brand new order.
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
@@ -134,23 +122,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         creationDate: serverTimestamp(),
         attachments: orderData.attachments || [],
         ownerId: user.id,
-        status: isDraft ? 'Draft' : orderData.status,
+        status: 'Pending',
     };
     
     const cleanData = removeUndefined(finalOrderData);
     setDocumentNonBlocking(newOrderRef, cleanData, {});
 
-    if (isDraft) {
-      localStorage.setItem('orderDraftId', orderId);
-    } else {
-      await addOrderToCustomer(orderData.customerId, orderId);
-      triggerNotification(firestore, [user.id], {
-        type: 'New Order Created',
-        message: `You created a new order: #${orderId.slice(-5)}.`,
-        orderId: orderId
-      });
-      localStorage.removeItem('orderDraftId');
-    }
+    await addOrderToCustomer(orderData.customerId, orderId);
+    triggerNotification(firestore, [user.id], {
+      type: 'New Order Created',
+      message: `You created a new order: #${orderId.slice(-5)}.`,
+      orderId: orderId
+    });
 
     // Handle file uploads in the background
     if (newFiles.length > 0) {
@@ -166,7 +149,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return orderId;
   };
 
-  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }, isDraft = false) => {
+  const updateOrder = async (orderData: Order, newFiles: File[] = [], filesToDelete: OrderAttachment[] = [], chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     const orderRef = doc(firestore, 'orders', orderData.id);
@@ -215,15 +198,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             isSystemMessage: true
         });
 
-        if (originalOrder.status === 'Draft' && orderData.status !== 'Draft' && !isDraft) {
-            await addOrderToCustomer(orderData.customerId, orderData.id);
-            systemMessages.push(createSystemMessage(`Order submitted from Draft status`));
-            localStorage.removeItem('orderDraftId');
-            if (usersToNotify.length > 0) {
-                triggerNotification(firestore, usersToNotify, { type: `New Order Submitted`, message: `Order #${orderData.id.slice(-5)} was submitted from a draft.`, orderId: orderData.id });
-            }
-        }
-
         if (originalOrder.status !== orderData.status) {
             systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
@@ -264,18 +238,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     // --- Background File Uploads ---
     if (newFiles.length > 0) {
         handleFileUploads(newFiles).then(uploadedFiles => {
-            const currentOrder = orders?.find(o => o.id === orderData.id);
+            const currentOrder = orders?.find(o => o.id === orderData.id) || dataForUpdate;
             if (!currentOrder) return;
 
             // If it was a chat attachment, find the message and update it
             if (chatMessage && newChatMessage) {
                 const messageId = newChatMessage.id;
-                const updatedMessages = currentOrder.chatMessages?.map(msg => {
+                const updatedMessages = (currentOrder.chatMessages || []).map(msg => {
                     if (msg.id === messageId) {
                         return { ...msg, attachment: uploadedFiles[0] };
                     }
                     return msg;
-                }) || [];
+                });
                 updateDocumentNonBlocking(orderRef, { chatMessages: updatedMessages });
 
                 if (usersToNotify.length > 0) {
@@ -293,10 +267,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }).catch(error => {
             console.error("Background upload failed:", error);
         });
-    }
-
-    if (!isDraft) {
-        localStorage.removeItem('orderDraftId');
     }
   };
 
@@ -346,3 +316,4 @@ export function useOrders() {
   }
   return context;
 }
+

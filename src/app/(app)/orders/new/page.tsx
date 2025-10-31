@@ -11,39 +11,28 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 
 
 function NewOrderPageContent() {
-  const { addOrder, updateOrder } = useOrders();
+  const { addOrder } = useOrders();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Clear any stray draft IDs when mounting the new order page
-  useEffect(() => {
-    localStorage.removeItem('orderDraftId');
-  }, []);
-
-
-  const handleSubmitOrder = (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[], filesToDelete: OrderAttachment[] = [], isDraft: boolean = false) => {
+  const handleSubmitOrder = (orderData: Omit<Order, 'id' | 'creationDate'>, newFiles: File[]) => {
     setIsSubmitting(true);
 
-    const promise = 'id' in orderData && orderData.id 
-        ? updateOrder(orderData as Order, newFiles, filesToDelete, undefined, isDraft)
-        : addOrder(orderData, newFiles, isDraft);
-
-    promise.then((result) => {
-        const orderId = typeof result === 'string' ? result : (orderData as Order).id;
-        toast({
-            title: isDraft ? "Draft Saved" : "Order Submitted",
-            description: isDraft ? `Your draft has been saved.` : `Order #${orderId?.slice(-5)} has been successfully submitted.`,
-        });
-        if (!isDraft) {
-            router.push(`/orders/${orderId}`);
+    addOrder(orderData, newFiles).then((orderId) => {
+        if (orderId) {
+            toast({
+                title: "Order Created",
+                description: `Order #${orderId.slice(-5)} has been successfully created.`,
+            });
+            router.push(`/orders/${orderId}/edit`);
         }
     }).catch((error) => {
         console.error("Failed to save order:", error);
         toast({
             variant: "destructive",
-            title: isDraft ? "Draft Failed" : "Submission Failed",
-            description: (error as Error).message || "There was a problem saving the order.",
+            title: "Creation Failed",
+            description: (error as Error).message || "There was a problem creating the order.",
         });
     }).finally(() => {
         setIsSubmitting(false);
@@ -57,14 +46,14 @@ function NewOrderPageContent() {
           Create New Order
         </h1>
         <p className="text-muted-foreground">
-          Fill out the form below to add a new order to the system. Your progress is saved automatically as a draft.
+          Fill out the form below to add a new order. Your changes will be saved automatically.
         </p>
       </div>
       <ColorSettingProvider>
         <OrderForm 
             onSubmit={handleSubmitOrder} 
             isSubmitting={isSubmitting} 
-            submitButtonText="Submit Order"
+            submitButtonText="Create Order"
         />
       </ColorSettingProvider>
     </div>

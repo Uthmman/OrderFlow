@@ -460,9 +460,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                          )}
                     </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
-                        <Button>
-                          <Edit className="mr-2" />
-                          Edit Order
+                        <Button variant="outline" size="icon">
+                          <Edit />
                         </Button>
                     </Link>
                     <DropdownMenu>
