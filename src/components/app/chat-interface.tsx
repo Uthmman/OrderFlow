@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { compressImage } from "@/lib/utils"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -158,11 +159,26 @@ export function ChatInterface({ order }: { order: Order }) {
       }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFileToUpload(file);
       setAudioBlob(null); // Clear audio if a file is selected
+      if (file.type.startsWith('image/')) {
+        try {
+            const compressedFile = await compressImage(file);
+            setFileToUpload(compressedFile);
+        } catch (error) {
+            console.error("Image compression failed:", error);
+            toast({
+                variant: "destructive",
+                title: "Compression Failed",
+                description: "Could not compress the image.",
+            });
+            setFileToUpload(file); // Fallback to original file
+        }
+      } else {
+        setFileToUpload(file);
+      }
     }
   }
 
@@ -174,17 +190,14 @@ export function ChatInterface({ order }: { order: Order }) {
 
     try {
         let newFile: File | undefined = undefined;
-        let fileType: 'audio' | 'image' | 'file' | undefined = undefined;
 
         if (audioBlob) {
             newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
-            fileType = 'audio';
         } else if (fileToUpload) {
             newFile = fileToUpload;
-            fileType = fileToUpload.type.startsWith('image/') ? 'image' : 'file';
         }
         
-        await updateOrder(order, { text: inputValue, fileType });
+        await updateOrder(order, { text: inputValue, file: newFile });
 
     } catch (error) {
         console.error("Error sending message:", error);

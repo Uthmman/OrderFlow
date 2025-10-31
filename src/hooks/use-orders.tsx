@@ -14,13 +14,14 @@ import { useUser } from './use-user';
 import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
+import { compressImage } from '@/lib/utils';
 
 
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
   addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => Promise<string | undefined>;
-  updateOrder: (order: Order, chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => Promise<void>;
+  updateOrder: (order: Order, chatMessage?: { text: string; file?: File; }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
@@ -41,66 +42,6 @@ const removeUndefined = (obj: any) => {
     });
     return newObj;
 }
-
-// Helper function to compress an image file on the client
-const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-        const MAX_WIDTH = 1920;
-        const MAX_HEIGHT = 1080;
-        const MIME_TYPE = "image/jpeg";
-        const QUALITY = 0.7;
-
-        const blobURL = URL.createObjectURL(file);
-        const img = new Image();
-        img.src = blobURL;
-        img.onerror = () => {
-            URL.revokeObjectURL(img.src);
-            reject(new Error("Failed to load image."));
-        };
-        img.onload = () => {
-            URL.revokeObjectURL(img.src);
-
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
-            } else {
-                if (height > MAX_HEIGHT) {
-                    width *= MAX_HEIGHT / height;
-                    height = MAX_HEIGHT;
-                }
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-                return reject(new Error("Failed to get canvas context."));
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob(
-                (blob) => {
-                    if (!blob) {
-                        return reject(new Error("Canvas to Blob conversion failed."));
-                    }
-                    const newFile = new File([blob], file.name, {
-                        type: MIME_TYPE,
-                        lastModified: Date.now(),
-                    });
-                    resolve(newFile);
-                },
-                MIME_TYPE,
-                QUALITY
-            );
-        };
-    });
-};
 
 
 export function OrderProvider({ children }: { children: ReactNode }) {
@@ -243,7 +184,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return orderId;
   };
 
-  const updateOrder = async (orderData: Order, chatMessage?: { text: string; fileType?: 'audio' | 'image' | 'file' }) => {
+  const updateOrder = async (orderData: Order, chatMessage?: { text: string; file?: File; }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
     
     const orderRef = doc(firestore, 'orders', orderData.id);
@@ -267,13 +208,23 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     
     // --- Message Handling ---
-    if (chatMessage && chatMessage.text.trim()) {
+    if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
         newChatMessage = {
             id: uuidv4(),
             user: currentUser,
             text: chatMessage.text,
             timestamp,
         };
+        
+        if (chatMessage.file) {
+            try {
+                const uploadedAttachment = await handleFileUpload(chatMessage.file);
+                newChatMessage.attachment = uploadedAttachment;
+            } catch (error) {
+                // handleFileUpload already shows a toast, just re-throw to stop processing
+                throw error;
+            }
+        }
     }
     
     if (originalOrder) {
