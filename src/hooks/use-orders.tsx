@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -15,7 +15,6 @@ import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '@/lib/utils';
-import { audioToWavFlow } from '@/ai/flows/audio-flow';
 
 
 interface OrderContextType {
@@ -194,20 +193,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const updateOrder = async (orderData: Order, chatMessage?: { text: string; file?: File; }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
-    
+
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
 
-    // Immediately update text-based data
-    let dataForUpdate: Partial<Order> = { ...orderData };
-    
+    // Create a mutable copy of the order data to update
+    const dataToUpdate: Partial<Order> = { ...orderData };
+    delete (dataToUpdate as any).id; // Don't try to update the ID
+
     const usersToNotify = Array.from(new Set([
-      ...(orderData.assignedTo || []),
-      orderData.ownerId,
-    ])).filter(id => id !== user.id); 
-    
-    const systemMessages: OrderChatMessage[] = [];
-    let newChatMessage: OrderChatMessage | null = null;
+        ...(orderData.assignedTo || []),
+        orderData.ownerId,
+    ])).filter(id => id !== user.id);
+
     const timestamp = new Date().toISOString();
     const currentUser = {
         id: user.id,
@@ -215,26 +213,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         avatarUrl: user.photoURL || '',
     };
     
-    // --- Message Handling ---
-    if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
-        newChatMessage = {
-            id: uuidv4(),
-            user: currentUser,
-            text: chatMessage.text,
-            timestamp,
-        };
-        
-        if (chatMessage.file) {
-            try {
-                const uploadedAttachment = await handleFileUpload(chatMessage.file);
-                newChatMessage.attachment = uploadedAttachment;
-            } catch (error) {
-                // handleFileUpload already shows a toast, just re-throw to stop processing
-                throw error;
-            }
-        }
-    }
-    
+    const newMessages: OrderChatMessage[] = [];
+
+    // --- Generate System Messages for state changes ---
     if (originalOrder) {
         const createSystemMessage = (text: string) => ({
             id: uuidv4(),
@@ -245,43 +226,66 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         });
 
         if (originalOrder.status !== orderData.status) {
-            systemMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
+            newMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
         }
         if (originalOrder.isUrgent !== orderData.isUrgent) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-            systemMessages.push(createSystemMessage(`Order ${urgencyText}`));
+            newMessages.push(createSystemMessage(`Order ${urgencyText}`));
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order Urgency Changed`, message: `Order #${orderData.id.slice(-5)} was ${urgencyText}.`, orderId: orderData.id });
             }
         }
     }
-    
-    const allNewMessages = [...systemMessages];
-    if (newChatMessage) {
-      allNewMessages.push(newChatMessage);
-    }
-    
-    let chatMessagesToUpdate = dataForUpdate.chatMessages || [];
-    if (allNewMessages.length > 0) {
-      chatMessagesToUpdate = [...chatMessagesToUpdate, ...allNewMessages];
-      dataForUpdate.chatMessages = chatMessagesToUpdate;
-    }
-    
-    const cleanData = removeUndefined(dataForUpdate);
-    await updateDoc(orderRef, cleanData);
 
-    // Handle chat message notifications
-     if (newChatMessage && usersToNotify.length > 0) {
-       triggerNotification(firestore, usersToNotify, {
-            type: 'New Message in Order',
-            message: `${currentUser.name} wrote: "${newChatMessage.text}"`,
-            orderId: orderData.id,
-        });
+    // --- Handle New User Chat Message ---
+    if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
+        const newChatMessage: OrderChatMessage = {
+            id: uuidv4(),
+            user: currentUser,
+            text: chatMessage.text,
+            timestamp,
+        };
+
+        if (chatMessage.file) {
+            try {
+                const uploadedAttachment = await handleFileUpload(chatMessage.file);
+                newChatMessage.attachment = uploadedAttachment;
+            } catch (error) {
+                // handleFileUpload already shows a toast, just re-throw to stop processing
+                throw error;
+            }
+        }
+        newMessages.push(newChatMessage);
+        
+        // Notify users about the new message
+        if (usersToNotify.length > 0) {
+            triggerNotification(firestore, usersToNotify, {
+                type: 'New Message in Order',
+                message: `${currentUser.name} wrote: "${newChatMessage.text}"`,
+                orderId: orderData.id,
+            });
+        }
     }
-  };
+
+    // --- Combine and Update Firestore ---
+    // If there are new messages, we use arrayUnion to append them atomically.
+    if (newMessages.length > 0) {
+        dataToUpdate.chatMessages = arrayUnion(...newMessages) as any;
+    } else {
+        // If no new messages, we can just send the other updates.
+        // We delete chatMessages from the update object to avoid overwriting the array.
+        delete dataToUpdate.chatMessages;
+    }
+    
+    // Ensure we don't send an empty update.
+    const cleanData = removeUndefined(dataToUpdate);
+    if (Object.keys(cleanData).length > 0) {
+        await updateDoc(orderRef, cleanData);
+    }
+};
 
  const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
     const orderRef = doc(firestore, 'orders', orderId);
@@ -315,7 +319,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       uploadProgress,
       addAttachment,
       removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById]);
+  }), [orders, loading, uploadProgress, getOrderById, removeAttachment]);
 
   return (
     <OrderContext.Provider value={value}>
@@ -331,3 +335,4 @@ export function useOrders() {
   }
   return context;
 }
+
