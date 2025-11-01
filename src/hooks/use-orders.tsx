@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -15,6 +15,7 @@ import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '@/lib/utils';
+import wav from 'wav';
 
 
 interface OrderContextType {
@@ -41,6 +42,28 @@ const removeUndefined = (obj: any) => {
         }
     });
     return newObj;
+}
+
+// Function to convert raw audio blob to a WAV file buffer
+async function toWav(pcmData: ArrayBuffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const writer = new wav.Writer({
+      channels: 1,
+      sampleRate: 48000, // Common sample rate for web audio
+      bitDepth: 16,
+    });
+
+    const buffers: any[] = [];
+    writer.on('error', reject);
+    writer.on('data', (chunk) => buffers.push(chunk));
+    writer.on('end', () => resolve(Buffer.concat(buffers)));
+    
+    // The MediaRecorder might not give us a perfect PCM stream,
+    // but for WAV, we can often write the blob data directly if it's uncompressed.
+    // A proper solution might need a library to decode/re-encode if format is complex.
+    writer.write(Buffer.from(pcmData));
+    writer.end();
+  });
 }
 
 
@@ -77,15 +100,26 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
 
     try {
-        const isImage = file.type.startsWith('image/');
-        const fileToUpload = isImage ? await compressImage(file) : file;
+        let fileContent;
+        let contentType = file.type;
 
-        const fileContent = await fileToBase64(fileToUpload);
+        if (file.type.startsWith('image/')) {
+            const compressedFile = await compressImage(file);
+            fileContent = await fileToBase64(compressedFile);
+            contentType = compressedFile.type;
+        } else if (file.type === 'audio/wav') {
+            const arrayBuffer = await file.arrayBuffer();
+            const wavBuffer = await toWav(arrayBuffer);
+            fileContent = wavBuffer.toString('base64');
+        } else {
+            fileContent = await fileToBase64(file);
+        }
+
         setUploadProgress(prev => ({ ...prev, [fileName]: 50 }));
         
         const result = await uploadFileFlow({
           fileContent,
-          contentType: fileToUpload.type,
+          contentType: contentType,
         });
 
         setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
@@ -203,8 +237,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const timestamp = new Date().toISOString();
     const currentUser = {
         id: user.id,
-        name: user.name || 'User',
-        avatarUrl: user.avatarUrl || '',
+        name: user.displayName || 'User',
+        avatarUrl: user.photoURL || '',
     };
     
     // --- Message Handling ---
@@ -307,7 +341,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       uploadProgress,
       addAttachment,
       removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById]);
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, updateOrder, deleteOrder, addOrder]);
 
   return (
     <OrderContext.Provider value={value}>

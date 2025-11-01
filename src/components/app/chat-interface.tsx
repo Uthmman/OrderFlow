@@ -134,12 +134,24 @@ export function ChatInterface({ order }: { order: Order }) {
     if (!stream) return;
     
     setFileToUpload(null); // Clear file if starting audio recording
+    
+    // Check for WAV support
+    const mimeType = 'audio/wav';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+        console.error(`${mimeType} is not supported on this browser.`);
+        toast({
+            variant: "destructive",
+            title: "Unsupported Format",
+            description: "Your browser does not support WAV recording. Please try a different browser.",
+        });
+        return;
+    }
 
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
     const chunks: BlobPart[] = [];
     mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
     mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach(track => track.stop());
     };
@@ -189,7 +201,7 @@ export function ChatInterface({ order }: { order: Order }) {
         let newFile: File | undefined = undefined;
 
         if (audioBlob) {
-            newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
+            newFile = new File([audioBlob], `chat-audio-${Date.now()}.wav`, { type: 'audio/wav' });
         } else if (fileToUpload) {
             newFile = fileToUpload;
         }
@@ -220,11 +232,12 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-        {(order.chatMessages || []).map((message) => (
-            message.isSystemMessage 
-                ? <SystemMessage key={message.id} message={message} /> 
-                : <UserMessage key={message.id} message={message} />
-        ))}
+         {(order.chatMessages || []).map((message) => {
+          if (message.isSystemMessage) {
+            return <SystemMessage key={message.id} message={message} />;
+          }
+          return <UserMessage key={message.id} message={message} />;
+        })}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
          {audioUrl && !isRecording && (

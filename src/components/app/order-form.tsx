@@ -167,7 +167,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { toast } = useToast();
-  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -268,11 +267,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
  const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setHasMicPermission(true);
         return stream;
     } catch (err) {
         console.error("Microphone access denied:", err);
-        setHasMicPermission(false);
         toast({
             variant: "destructive",
             title: "Microphone Access Denied",
@@ -288,12 +285,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     stream = await requestMicPermission();
     
     if (!stream) return;
+    
+    const mimeType = 'audio/wav';
+     if (!MediaRecorder.isTypeSupported(mimeType)) {
+        console.error(`${mimeType} is not supported on this browser.`);
+        toast({
+            variant: "destructive",
+            title: "Unsupported Format",
+            description: "Your browser does not support WAV recording. Please try a different browser.",
+        });
+        return;
+    }
 
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
     const chunks: BlobPart[] = [];
     mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
     mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const blob = new Blob(chunks, { type: mimeType });
         setAudioBlob(blob);
         stream.getTracks().forEach(track => track.stop());
     };
@@ -312,7 +320,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const addRecordedAudioToOrder = () => {
     if (audioBlob && initialOrder) {
-      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
+      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.wav`, { type: 'audio/wav' });
       startTransition(() => {
         addAttachment(initialOrder.id, audioFile);
       });
