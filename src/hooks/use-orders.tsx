@@ -85,10 +85,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const compressedFile = await compressImage(file);
             fileContent = await fileToBase64(compressedFile);
             contentType = compressedFile.type;
-        } else if (file.type === 'audio/wav') {
-            const rawB64 = await fileToBase64(file);
-            const result = await audioToWavFlow(rawB64);
-            fileContent = result.wavBase64;
         } else {
             fileContent = await fileToBase64(file);
         }
