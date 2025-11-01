@@ -135,14 +135,13 @@ export function ChatInterface({ order }: { order: Order }) {
     
     setFileToUpload(null); // Clear file if starting audio recording
     
-    // Check for WAV support
-    const mimeType = 'audio/wav';
+    const mimeType = 'audio/webm'; // Reverted to webm
     if (!MediaRecorder.isTypeSupported(mimeType)) {
         console.error(`${mimeType} is not supported on this browser.`);
         toast({
             variant: "destructive",
             title: "Unsupported Format",
-            description: "Your browser does not support WAV recording. Please try a different browser.",
+            description: "Your browser does not support WebM recording. Please try a different browser.",
         });
         return;
     }
@@ -201,7 +200,7 @@ export function ChatInterface({ order }: { order: Order }) {
         let newFile: File | undefined = undefined;
 
         if (audioBlob) {
-            newFile = new File([audioBlob], `chat-audio-${Date.now()}.wav`, { type: 'audio/wav' });
+            newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
         } else if (fileToUpload) {
             newFile = fileToUpload;
         }
@@ -232,12 +231,15 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-         {(order.chatMessages || []).map((message) => {
-          if (message.isSystemMessage) {
-            return <SystemMessage key={message.id} message={message} />;
-          }
-          return <UserMessage key={message.id} message={message} />;
-        })}
+         {(order.chatMessages || []).map((message) => (
+            <div key={message.id}>
+                {message.isSystemMessage ? (
+                    <SystemMessage message={message} />
+                ) : (
+                    <UserMessage message={message} />
+                )}
+            </div>
+        ))}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
          {audioUrl && !isRecording && (
@@ -305,3 +307,5 @@ export function ChatInterface({ order }: { order: Order }) {
     </Card>
   )
 }
+
+    

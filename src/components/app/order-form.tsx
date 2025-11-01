@@ -286,13 +286,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     
     if (!stream) return;
     
-    const mimeType = 'audio/wav';
+    const mimeType = 'audio/webm';
      if (!MediaRecorder.isTypeSupported(mimeType)) {
         console.error(`${mimeType} is not supported on this browser.`);
         toast({
             variant: "destructive",
             title: "Unsupported Format",
-            description: "Your browser does not support WAV recording. Please try a different browser.",
+            description: "Your browser does not support WebM recording. Please try a different browser.",
         });
         return;
     }
@@ -320,7 +320,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const addRecordedAudioToOrder = () => {
     if (audioBlob && initialOrder) {
-      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.wav`, { type: 'audio/wav' });
+      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       startTransition(() => {
         addAttachment(initialOrder.id, audioFile);
       });
@@ -1034,3 +1034,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
