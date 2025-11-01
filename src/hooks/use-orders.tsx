@@ -15,7 +15,7 @@ import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '@/lib/utils';
-import wav from 'wav';
+import { audioToWavFlow } from '@/ai/flows/audio-flow';
 
 
 interface OrderContextType {
@@ -42,28 +42,6 @@ const removeUndefined = (obj: any) => {
         }
     });
     return newObj;
-}
-
-// Function to convert raw audio blob to a WAV file buffer
-async function toWav(pcmData: ArrayBuffer): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels: 1,
-      sampleRate: 48000, // Common sample rate for web audio
-      bitDepth: 16,
-    });
-
-    const buffers: any[] = [];
-    writer.on('error', reject);
-    writer.on('data', (chunk) => buffers.push(chunk));
-    writer.on('end', () => resolve(Buffer.concat(buffers)));
-    
-    // The MediaRecorder might not give us a perfect PCM stream,
-    // but for WAV, we can often write the blob data directly if it's uncompressed.
-    // A proper solution might need a library to decode/re-encode if format is complex.
-    writer.write(Buffer.from(pcmData));
-    writer.end();
-  });
 }
 
 
@@ -108,9 +86,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             fileContent = await fileToBase64(compressedFile);
             contentType = compressedFile.type;
         } else if (file.type === 'audio/wav') {
-            const arrayBuffer = await file.arrayBuffer();
-            const wavBuffer = await toWav(arrayBuffer);
-            fileContent = wavBuffer.toString('base64');
+            const rawB64 = await fileToBase64(file);
+            const result = await audioToWavFlow(rawB64);
+            fileContent = result.wavBase64;
         } else {
             fileContent = await fileToBase64(file);
         }
@@ -341,7 +319,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       uploadProgress,
       addAttachment,
       removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, updateOrder, deleteOrder, addOrder]);
+  }), [orders, loading, uploadProgress, getOrderById]);
 
   return (
     <OrderContext.Provider value={value}>
