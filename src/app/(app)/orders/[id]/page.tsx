@@ -323,7 +323,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder, updateOrder, loading: ordersLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading, role } = useUser();
@@ -398,14 +398,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleDeleteAttachment = (attachmentToDelete: OrderAttachment) => {
         if (!order) return;
-        const updatedAttachments = order.attachments?.filter(
-            (att) => att.storagePath !== attachmentToDelete.storagePath
-        );
-        updateOrder({ ...order, attachments: updatedAttachments }, [], [attachmentToDelete]);
-        toast({
-            title: "Attachment Deleted",
-            description: `${attachmentToDelete.fileName} has been removed.`,
-        });
+        removeAttachment(order.id, attachmentToDelete);
     };
 
     const handleImageClick = (clickedAttachment: OrderAttachment) => {
