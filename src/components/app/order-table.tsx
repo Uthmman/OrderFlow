@@ -62,13 +62,14 @@ import { cn } from "@/lib/utils";
 import { SortDirection, SortField } from "@/app/(app)/orders/page"
 import { useProductSettings, ProductSettingProvider } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
+import Image from "next/image";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
-    "In Progress": "secondary",
     "Designing": "secondary",
     "Design Ready": "secondary",
+    "In Progress": "secondary",
     "Manufacturing": "secondary",
     "Painting": "secondary",
     "Completed": "default",
@@ -213,6 +214,26 @@ function CustomerLink({ order }: { order: Order }) {
     return <span>{order.customerName}</span>;
 }
 
+const CategoryIcon = ({ order }: { order: Order }) => {
+    const { productSettings } = useProductSettings();
+    const category = productSettings?.productCategories.find(c => c.name === order.category);
+    
+    if (category?.icon?.startsWith('data:image')) {
+        return (
+            <Image 
+                src={category.icon}
+                alt={category.name}
+                width={28}
+                height={28}
+                className="h-7 w-7 object-contain flex-shrink-0"
+            />
+        )
+    }
+
+    const IconComponent = category ? (LucideIcons as any)[category.icon] || LucideIcons.Box : LucideIcons.Box;
+    return <IconComponent className="h-7 w-7 text-muted-foreground flex-shrink-0"/>
+}
+
 
 export const columns: ColumnDef<Order>[] = [
   {
@@ -245,13 +266,10 @@ export const columns: ColumnDef<Order>[] = [
     ),
     cell: ({ row }) => {
         const order = row.original;
-        const { productSettings } = useProductSettings();
-        const category = productSettings?.productCategories.find(c => c.name === order.category);
-        const Icon = category ? (LucideIcons as any)[category.icon] || LucideIcons.Box : LucideIcons.Box;
-
+        
         return (
             <div className="flex items-center gap-3">
-                 <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0"/>
+                 <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
                         <Link href={`/orders/${order.id}`}>{formatOrderId(order.id)}</Link>
@@ -385,20 +403,17 @@ function OrderTableToolbar({
 
 function MobileOrderList({ orders }: { orders: Order[] }) {
     const router = useRouter();
-    const { productSettings } = useProductSettings();
 
     return (
         <div className="space-y-4">
             {orders.map(order => {
-                const category = productSettings?.productCategories.find(c => c.name === order.category);
-                const Icon = category ? (LucideIcons as any)[category.icon] || LucideIcons.Box : LucideIcons.Box;
                 return (
                  <Card key={order.id} className="hover:bg-muted/50 transition-colors">
                     <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
                         <CardHeader>
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">
-                                    <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0 mt-1" />
+                                    <CategoryIcon order={order} />
                                     <div>
                                         <CardTitle className="text-base font-bold">
                                             {order.productName || 'Custom Order'}

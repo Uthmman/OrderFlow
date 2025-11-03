@@ -56,9 +56,9 @@ export type Customer = {
 
 export type OrderStatus =
   | 'Pending'
-  | 'In Progress'
   | 'Designing'
   | 'Design Ready'
+  | 'In Progress'
   | 'Manufacturing'
   | 'Painting'
   | 'Completed'
@@ -134,7 +134,7 @@ export type ColorSettings = {
 
 export type ProductCategory = {
   name: string;
-  icon: string;
+  icon: string; // Can be a Lucide icon name OR a base64 data URI
 }
 
 export type ProductSettings = {
