@@ -13,7 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useState, useRef, useEffect } from "react"
 import Image from "next/image"
@@ -23,6 +23,9 @@ import { useUser } from "@/hooks/use-user"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { compressImage } from "@/lib/utils"
+import { Dialog, DialogContent, DialogClose, DialogFooter } from "../ui/dialog"
+import { ScrollArea } from "../ui/scroll-area"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -44,15 +47,15 @@ const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     )
 };
 
-const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
+const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachment, onImageClick: (attachment: OrderAttachment) => void }) => {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = attachment.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
 
     if (isImage) {
         return (
-            <Link href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 block max-w-xs">
+             <div onClick={() => onImageClick(attachment)} className="mt-2 block max-w-xs cursor-pointer">
                 <Image src={attachment.url} alt="User Upload" width={300} height={200} className="rounded-md object-cover"/>
-            </Link>
+            </div>
         )
     }
     if (isAudio) {
@@ -71,7 +74,7 @@ const ChatAttachment = ({ attachment }: { attachment: OrderAttachment }) => {
     )
 }
 
-const UserMessage = ({ message }: { message: OrderChatMessage }) => (
+const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onImageClick: (attachment: OrderAttachment) => void }) => (
     <div className="flex items-start gap-3">
         <UserAvatar message={message} />
         <div>
@@ -80,7 +83,7 @@ const UserMessage = ({ message }: { message: OrderChatMessage }) => (
             <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
             </div>
             {message.text && <p className="text-sm text-muted-foreground">{message.text}</p>}
-            {message.attachment && <ChatAttachment attachment={message.attachment} />}
+            {message.attachment && <ChatAttachment attachment={message.attachment} onImageClick={onImageClick}/>}
         </div>
     </div>
 );
@@ -109,6 +112,21 @@ export function ChatInterface({ order }: { order: Order }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   const fileUrl = fileToUpload ? URL.createObjectURL(fileToUpload) : null;
+  
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+
+  const imageMessages = (order.chatMessages || [])
+    .filter(m => m.attachment && m.attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i))
+    .map(m => m.attachment as OrderAttachment);
+
+  const handleImageClick = (clickedAttachment: OrderAttachment) => {
+    const imageIndex = imageMessages.findIndex(img => img.url === clickedAttachment.url);
+    if (imageIndex !== -1) {
+        setGalleryStartIndex(imageIndex);
+        setGalleryOpen(true);
+    }
+  }
 
 
   const requestMicPermission = async () => {
@@ -128,14 +146,13 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const startRecording = async () => {
     let stream: MediaStream | null;
-    // We request permission only when the user clicks the button.
     stream = await requestMicPermission();
     
     if (!stream) return;
     
-    setFileToUpload(null); // Clear file if starting audio recording
+    setFileToUpload(null);
     
-    const mimeType = 'audio/webm'; // Reverted to webm
+    const mimeType = 'audio/webm';
     if (!MediaRecorder.isTypeSupported(mimeType)) {
         console.error(`${mimeType} is not supported on this browser.`);
         toast({
@@ -170,7 +187,7 @@ export function ChatInterface({ order }: { order: Order }) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setAudioBlob(null); // Clear audio if a file is selected
+      setAudioBlob(null);
       if (file.type.startsWith('image/')) {
         try {
             const compressedFile = await compressImage(file);
@@ -182,7 +199,7 @@ export function ChatInterface({ order }: { order: Order }) {
                 title: "Compression Failed",
                 description: "Could not compress the image.",
             });
-            setFileToUpload(file); // Fallback to original file
+            setFileToUpload(file);
         }
       } else {
         setFileToUpload(file);
@@ -225,6 +242,7 @@ export function ChatInterface({ order }: { order: Order }) {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle className="font-headline">Team Chat</CardTitle>
@@ -236,7 +254,7 @@ export function ChatInterface({ order }: { order: Order }) {
                 {message.isSystemMessage ? (
                     <SystemMessage message={message} />
                 ) : (
-                    <UserMessage message={message} />
+                    <UserMessage message={message} onImageClick={handleImageClick} />
                 )}
             </div>
         ))}
@@ -305,7 +323,47 @@ export function ChatInterface({ order }: { order: Order }) {
         </form>
       </CardFooter>
     </Card>
+      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+        <DialogContent className="max-w-6xl p-0">
+          <ScrollArea className="h-[80vh] w-full">
+            <Carousel
+              opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
+              className="w-full"
+            >
+              <CarouselContent>
+                {imageMessages.map((att, index) => (
+                  <CarouselItem key={index}>
+                    <div className="relative h-[calc(80vh-4rem)]">
+                      <Image
+                        src={att.url}
+                        alt={att.fileName}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center bg-background p-2 border-t">
+                      <p className="text-sm text-muted-foreground">{att.fileName}</p>
+                      <a href={att.url} download={att.fileName} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      </a>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+          </ScrollArea>
+           <DialogFooter className="p-4 border-t bg-muted">
+                <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
-
-    

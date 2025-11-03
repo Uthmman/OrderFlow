@@ -10,6 +10,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  ColumnFiltersState,
+  SortingState,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, AlertTriangle } from "lucide-react"
 import { differenceInDays, formatDistanceToNowStrict } from 'date-fns';
@@ -46,10 +48,18 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
 import { useUser } from "@/hooks/use-user"
 import { cn } from "@/lib/utils";
+import { SortDirection, SortField } from "@/app/(app)/orders/page"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -277,14 +287,52 @@ export const columns: ColumnDef<Order>[] = [
 ]
 
 function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
+  const [sortField, setSortField] = React.useState<SortField>('creationDate');
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+
+  const sorting = table.getState().sorting;
+
+  React.useEffect(() => {
+    if (sorting.length) {
+      const { id, desc } = sorting[0];
+      setSortField(id as SortField);
+      setSortDirection(desc ? 'desc' : 'asc');
+    }
+  }, [sorting]);
+
+
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
-      </div>
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+       <Input
+          placeholder="Filter by customer or ID..."
+          value={(table.getColumn("customerName")?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn("customerName")?.setFilterValue(event.target.value)
+          }
+          className="h-9 w-full sm:w-[150px] lg:w-[250px]"
+        />
       <div className="flex items-center gap-2">
+           <Select value={sortField} onValueChange={(v) => table.setSorting([{ id: v, desc: sortDirection === 'desc' }])}>
+                <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                    <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="creationDate">Order Date</SelectItem>
+                    <SelectItem value="deadline">Deadline</SelectItem>
+                </SelectContent>
+            </Select>
+             <Select value={sortDirection} onValueChange={(v) => table.setSorting([{ id: sortField, desc: v === 'desc' }])}>
+                <SelectTrigger className="h-9 w-full sm:w-[130px]">
+                    <SelectValue placeholder="Order" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="desc">Descending</SelectItem>
+                    <SelectItem value="asc">Ascending</SelectItem>
+                </SelectContent>
+            </Select>
         <DataTableViewOptions table={table} />
         <Link href="/orders/new">
-            <Button size="sm" className="h-8">
+            <Button size="sm" className="h-9">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">New Order</span>
             </Button>
@@ -338,17 +386,37 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
 
 interface OrderTableProps {
     orders?: Order[];
-    toolbar?: React.ReactNode;
 }
 
-function OrderTableInternal({ orders: propOrders, toolbar }: OrderTableProps) {
+function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
-  
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+
   const orders = propOrders ?? contextOrders;
+  
+  const filteredData = React.useMemo(() => {
+    const filterValue = columnFilters.find(f => f.id === 'customerName')?.value as string;
+    if (!filterValue) return orders;
+
+    const lowercasedFilter = filterValue.toLowerCase();
+    return orders.filter(order =>
+        order.customerName.toLowerCase().includes(lowercasedFilter) ||
+        order.id.toLowerCase().includes(lowercasedFilter)
+    );
+
+  }, [orders, columnFilters])
+
 
   const table = useReactTable({
-    data: orders,
+    data: filteredData,
     columns,
+    state: {
+        sorting,
+        columnFilters,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -366,12 +434,12 @@ function OrderTableInternal({ orders: propOrders, toolbar }: OrderTableProps) {
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={orders}>
-                {toolbar}
+            <DataTable table={table} columns={columns} data={filteredData}>
+                <OrderTableToolbar table={table} />
             </DataTable>
         </div>
          <div className="block md:hidden">
-            <MobileOrderList orders={orders} />
+            <MobileOrderList orders={filteredData} />
         </div>
     </>
   )
@@ -384,9 +452,3 @@ export function OrderTable(props: OrderTableProps) {
         </ColorSettingProvider>
     )
 }
-
-    
-
-    
-
-
