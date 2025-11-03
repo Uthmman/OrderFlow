@@ -16,6 +16,7 @@ export type AppUser = {
   avatarUrl: string;
   role: Role;
   orderSortPreference?: OrderSortPreference;
+  dashboardOrderSortPreference?: OrderSortPreference;
 };
 
 export type FirebaseUser = {
@@ -139,5 +140,3 @@ export type ProductCategory = {
 export type ProductSettings = {
   productCategories: ProductCategory[];
 }
-
-    

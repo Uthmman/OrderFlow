@@ -105,7 +105,7 @@ export default function Dashboard() {
             <CardDescription>A list of the most recent orders.</CardDescription>
         </CardHeader>
         <CardContent>
-            <OrderTable />
+            <OrderTable preferenceKey="dashboardOrderSortPreference" />
         </CardContent>
       </Card>
 

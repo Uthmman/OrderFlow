@@ -28,7 +28,7 @@ interface UsersContextType {
   createUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
   updateUserRole: (uid: string, role: Role) => Promise<void>;
   updateUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
-  updateUserPreferences: (uid: string, prefs: Partial<AppUser>) => void;
+  updateUserPreferences: (uid: string, prefs: Partial<Pick<AppUser, 'orderSortPreference' | 'dashboardOrderSortPreference'>>) => void;
 }
 
 const UserContext = createContext<UserHookReturnType | undefined>(undefined);
@@ -129,7 +129,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     updateDocumentNonBlocking(userRef, data);
   }, [firestore]);
 
-  const updateUserPreferences = useCallback((uid: string, prefs: Partial<AppUser>) => {
+  const updateUserPreferences = useCallback((uid: string, prefs: Partial<Pick<AppUser, 'orderSortPreference' | 'dashboardOrderSortPreference'>>) => {
     const userRef = doc(firestore, 'users', uid);
     updateDocumentNonBlocking(userRef, prefs);
   }, [firestore]);

@@ -316,7 +316,13 @@ export const columns: ColumnDef<Order>[] = [
   },
 ]
 
-function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
+function OrderTableToolbar({ 
+  table, 
+  preferenceKey 
+}: { 
+  table: ReturnType<typeof useReactTable<Order>>, 
+  preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference'
+}) {
   const { user } = useUser();
   const { updateUserPreferences } = useUsers();
 
@@ -328,7 +334,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
         field: id as SortField,
         direction: desc ? 'desc' : 'asc',
       };
-      updateUserPreferences(user.id, { orderSortPreference: preference });
+      updateUserPreferences(user.id, { [preferenceKey]: preference });
     }
   };
 
@@ -430,9 +436,10 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
 
 interface OrderTableProps {
     orders?: Order[];
+    preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference';
 }
 
-function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
+function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
   const router = useRouter();
   const { user: userProfile, loading: isUserLoading } = useUser();
@@ -441,7 +448,7 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
 
   const defaultSort: SortingState = [{ id: 'creationDate', desc: true }];
   
-  const savedSortPreference = userProfile?.orderSortPreference;
+  const savedSortPreference = userProfile?.[preferenceKey];
   const initialSort: SortingState = savedSortPreference 
       ? [{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]
       : defaultSort;
@@ -493,11 +500,11 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
     <>
         <div className="hidden md:block">
             <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => router.push(`/orders/${row.original.id}`)}>
-                <OrderTableToolbar table={table} />
+                <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
             </DataTable>
         </div>
          <div className="block md:hidden">
-             <OrderTableToolbar table={table} />
+             <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
             <div className="mt-4">
                  <MobileOrderList orders={table.getRowModel().rows.map(row => row.original)} />
             </div>

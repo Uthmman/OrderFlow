@@ -31,7 +31,7 @@ export default function OrdersPage() {
     return orders.filter(order => statuses.includes(order.status));
   };
 
-  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
+  const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
@@ -44,8 +44,8 @@ export default function OrdersPage() {
     active: getOrdersByStatus(activeStatuses),
     designing: getOrdersByStatus(designingStatuses),
     designReady: getOrdersByStatus(designReadyStatuses),
-    painting: getOrdersByStatus(paintingStatuses),
     manufacturing: getOrdersByStatus(manufacturingStatuses),
+    painting: getOrdersByStatus(paintingStatuses),
     completed: getOrdersByStatus(completedStatuses),
     cancelled: getOrdersByStatus(cancelledStatuses),
   }), [orders]);
@@ -83,42 +83,42 @@ export default function OrdersPage() {
                 <CardContent className="pt-6">
                     <TabsContent value="all" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.all} />
+                            <OrderTable orders={ordersByTab.all} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="active" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.active} />
+                            <OrderTable orders={ordersByTab.active} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="designing" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.designing} />
+                            <OrderTable orders={ordersByTab.designing} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="designReady" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.designReady} />
+                            <OrderTable orders={ordersByTab.designReady} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="manufacturing" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.manufacturing} />
+                            <OrderTable orders={ordersByTab.manufacturing} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="painting" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.painting} />
+                            <OrderTable orders={ordersByTab.painting} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="completed" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.completed} />
+                            <OrderTable orders={ordersByTab.completed} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                      <TabsContent value="cancelled" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.cancelled} />
+                            <OrderTable orders={ordersByTab.cancelled} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                 </CardContent>
