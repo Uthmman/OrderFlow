@@ -279,6 +279,14 @@ export const columns: ColumnDef<Order>[] = [
     },
     enableHiding: true,
   },
+    {
+    accessorKey: "creationDate",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Order Date" />
+    ),
+    cell: ({ row }) => formatTimestamp(row.getValue("creationDate")),
+    enableHiding: true,
+  },
   {
     id: "actions",
     enableHiding: false,
@@ -390,26 +398,13 @@ interface OrderTableProps {
 
 function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
 
   const orders = propOrders ?? contextOrders;
   
-  const filteredData = React.useMemo(() => {
-    const filterValue = columnFilters.find(f => f.id === 'customerName')?.value as string;
-    if (!filterValue) return orders;
-
-    const lowercasedFilter = filterValue.toLowerCase();
-    return orders.filter(order =>
-        order.customerName.toLowerCase().includes(lowercasedFilter) ||
-        order.id.toLowerCase().includes(lowercasedFilter)
-    );
-
-  }, [orders, columnFilters])
-
-
   const table = useReactTable({
-    data: filteredData,
+    data: orders,
     columns,
     state: {
         sorting,
@@ -434,12 +429,12 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={filteredData}>
+            <DataTable table={table} columns={columns} data={orders}>
                 <OrderTableToolbar table={table} />
             </DataTable>
         </div>
          <div className="block md:hidden">
-            <MobileOrderList orders={filteredData} />
+            <MobileOrderList orders={table.getRowModel().rows.map(row => row.original)} />
         </div>
     </>
   )
