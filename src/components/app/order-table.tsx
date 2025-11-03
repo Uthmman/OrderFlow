@@ -218,18 +218,6 @@ const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const category = productSettings?.productCategories.find(c => c.name === order.category);
     
-    if (category?.icon?.startsWith('data:image')) {
-        return (
-            <Image 
-                src={category.icon}
-                alt={category.name}
-                width={28}
-                height={28}
-                className="h-7 w-7 object-contain flex-shrink-0"
-            />
-        )
-    }
-
     const IconComponent = category ? (LucideIcons as any)[category.icon] || LucideIcons.Box : LucideIcons.Box;
     return <IconComponent className="h-7 w-7 text-muted-foreground flex-shrink-0"/>
 }
