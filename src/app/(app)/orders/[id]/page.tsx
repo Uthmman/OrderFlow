@@ -60,6 +60,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Designing": "secondary",
     "Design Ready": "secondary",
     "Manufacturing": "secondary",
+    "Painting": "secondary",
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
@@ -143,7 +144,7 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
 }
 
 function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
-  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Completed", "Shipped", "Cancelled"];
+  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
   return (
     <DropdownMenu>

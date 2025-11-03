@@ -58,8 +58,8 @@ export type OrderStatus =
   | 'In Progress'
   | 'Designing'
   | 'Design Ready'
-  | 'Painting'
   | 'Manufacturing'
+  | 'Painting'
   | 'Completed'
   | 'Shipped'
   | 'Cancelled';

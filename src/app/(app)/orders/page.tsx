@@ -31,7 +31,7 @@ export default function OrdersPage() {
     return orders.filter(order => statuses.includes(order.status));
   };
 
-  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Painting", "Manufacturing"];
+  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
@@ -71,9 +71,9 @@ export default function OrdersPage() {
                         <TabsTrigger value="all">All ({ordersByTab.all.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({ordersByTab.active.length})</TabsTrigger>
                         <TabsTrigger value="designing">Designing ({ordersByTab.designing.length})</TabsTrigger>
+                        <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
                         <TabsTrigger value="painting">Painting ({ordersByTab.painting.length})</TabsTrigger>
                         <TabsTrigger value="designReady">Design Ready ({ordersByTab.designReady.length})</TabsTrigger>
-                        <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
                         <TabsTrigger value="completed">Completed ({ordersByTab.completed.length})</TabsTrigger>
                         <TabsTrigger value="cancelled">Cancelled ({ordersByTab.cancelled.length})</TabsTrigger>
                     </TabsList>

@@ -70,7 +70,7 @@ const formSchema = z.object({
   productName: z.string().min(3, "Product name must be at least 3 characters."),
   category: z.string().min(1, "Category is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Painting", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
   colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
@@ -963,8 +963,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
                                 <SelectItem value="Design Ready">Design Ready</SelectItem>
-                                <SelectItem value="Painting">Painting</SelectItem>
                                 <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                                <SelectItem value="Painting">Painting</SelectItem>
                                 <SelectItem value="Completed">Completed</SelectItem>
                                 <SelectItem value="Shipped">Shipped</SelectItem>
                                 <SelectItem value="Cancelled">Cancelled</SelectItem>
