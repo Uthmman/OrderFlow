@@ -139,3 +139,5 @@ export type ProductCategory = {
 export type ProductSettings = {
   productCategories: ProductCategory[];
 }
+
+    

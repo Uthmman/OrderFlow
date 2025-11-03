@@ -32,9 +32,8 @@ export default function OrdersPage() {
   };
 
   const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
-  const designingStatuses: OrderStatus[] = ["Designing"];
+  const designingStatuses: OrderStatus[] = ["Designing", "Design Ready"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
-  const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
@@ -44,7 +43,6 @@ export default function OrdersPage() {
     active: getOrdersByStatus(activeStatuses),
     designing: getOrdersByStatus(designingStatuses),
     painting: getOrdersByStatus(paintingStatuses),
-    designReady: getOrdersByStatus(designReadyStatuses),
     manufacturing: getOrdersByStatus(manufacturingStatuses),
     completed: getOrdersByStatus(completedStatuses),
     cancelled: getOrdersByStatus(cancelledStatuses),
@@ -73,7 +71,6 @@ export default function OrdersPage() {
                         <TabsTrigger value="designing">Designing ({ordersByTab.designing.length})</TabsTrigger>
                         <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
                         <TabsTrigger value="painting">Painting ({ordersByTab.painting.length})</TabsTrigger>
-                        <TabsTrigger value="designReady">Design Ready ({ordersByTab.designReady.length})</TabsTrigger>
                         <TabsTrigger value="completed">Completed ({ordersByTab.completed.length})</TabsTrigger>
                         <TabsTrigger value="cancelled">Cancelled ({ordersByTab.cancelled.length})</TabsTrigger>
                     </TabsList>
@@ -92,3 +89,5 @@ export default function OrdersPage() {
     </div>
   );
 }
+
+    
