@@ -4,12 +4,18 @@ import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
 
+export type OrderSortPreference = {
+  field: 'creationDate' | 'deadline';
+  direction: 'asc' | 'desc';
+};
+
 export type AppUser = {
   id: string; // This is the uid from Firebase Auth
   name: string;
   email: string;
   avatarUrl: string;
   role: Role;
+  orderSortPreference?: OrderSortPreference;
 };
 
 export type FirebaseUser = {

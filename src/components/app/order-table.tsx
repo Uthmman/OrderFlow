@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Order, OrderStatus } from "@/lib/types"
+import { Order, OrderStatus, OrderSortPreference } from "@/lib/types"
 import { formatCurrency, formatOrderId, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { ColorSettingProvider } from "@/hooks/use-color-settings"
-import { useUser } from "@/hooks/use-user"
+import { useUser, useUsers } from "@/hooks/use-user"
 import { cn } from "@/lib/utils";
 import { SortDirection, SortField } from "@/app/(app)/orders/page"
 
@@ -200,7 +200,8 @@ function OrderActions({ order }: { order: Order }) {
 function CustomerLink({ order }: { order: Order }) {
     const { user, role } = useUser();
     
-    const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+    // Admins and Managers can view any customer. Sales can only view if they are the owner.
+    const canViewCustomer = role === 'Admin' || role === 'Manager' || (role === 'Sales' && order.ownerId === user?.id);
 
     if (canViewCustomer) {
         return <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>{order.customerName}</Link>
@@ -296,20 +297,25 @@ export const columns: ColumnDef<Order>[] = [
 ]
 
 function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
-    const [sortField, setSortField] = React.useState<SortField>('creationDate');
-    const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+  const { user } = useUser();
+  const { updateUserPreferences } = useUsers();
 
-    const sorting = table.getState().sorting;
+  const handleSortChange = (newSorting: SortingState) => {
+    table.setSorting(newSorting);
+    if (user && newSorting.length > 0) {
+      const { id, desc } = newSorting[0];
+      const preference: OrderSortPreference = {
+        field: id as SortField,
+        direction: desc ? 'desc' : 'asc',
+      };
+      updateUserPreferences(user.id, { orderSortPreference: preference });
+    }
+  };
 
-    React.useEffect(() => {
-        if (sorting.length) {
-            const { id, desc } = sorting[0];
-            setSortField(id as SortField);
-            setSortDirection(desc ? 'desc' : 'asc');
-        }
-    }, [sorting]);
-
-
+  const currentSort = table.getState().sorting[0];
+  const sortField = currentSort?.id as SortField || 'creationDate';
+  const sortDirection = currentSort?.desc ? 'desc' : 'asc';
+  
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
        <Input
@@ -321,7 +327,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
           className="h-9 w-full sm:w-[150px] lg:w-[250px]"
         />
       <div className="flex items-center gap-2">
-           <Select value={sortField} onValueChange={(v) => table.setSorting([{ id: v, desc: sortDirection === 'desc' }])}>
+           <Select value={sortField} onValueChange={(v) => handleSortChange([{ id: v, desc: sortDirection === 'desc' }])}>
                 <SelectTrigger className="h-9 w-full sm:w-[150px]">
                     <SelectValue placeholder="Sort by" />
                 </SelectTrigger>
@@ -330,7 +336,7 @@ function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<O
                     <SelectItem value="deadline">Deadline</SelectItem>
                 </SelectContent>
             </Select>
-             <Select value={sortDirection} onValueChange={(v) => table.setSorting([{ id: sortField, desc: v === 'desc' }])}>
+             <Select value={sortDirection} onValueChange={(v) => handleSortChange([{ id: sortField, desc: v === 'desc' }])}>
                 <SelectTrigger className="h-9 w-full sm:w-[130px]">
                     <SelectValue placeholder="Order" />
                 </SelectTrigger>
@@ -382,7 +388,7 @@ function MobileOrderList({ orders }: { orders: Order[] }) {
                             </div>
                         </CardContent>
                     </div>
-                    <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
+                     <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
                         <div className="text-base font-medium w-full text-right">
                             {formatCurrency(order.incomeAmount)}
                         </div>
@@ -400,9 +406,24 @@ interface OrderTableProps {
 function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
   const router = useRouter();
+  const { user: userProfile, loading: isUserLoading } = useUser();
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
+
+  const defaultSort: SortingState = [{ id: 'creationDate', desc: true }];
+  
+  const savedSortPreference = userProfile?.orderSortPreference;
+  const initialSort: SortingState = savedSortPreference 
+      ? [{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]
+      : defaultSort;
+  
+  const [sorting, setSorting] = React.useState<SortingState>(initialSort);
+
+  React.useEffect(() => {
+    if (!isUserLoading && savedSortPreference) {
+      setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
+    }
+  }, [savedSortPreference, isUserLoading]);
 
   const orders = propOrders ?? contextOrders;
   
@@ -421,12 +442,22 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  if (loading && !propOrders) {
+  if ((loading && !propOrders) || isUserLoading) {
       return <div className="text-center p-8">Loading orders...</div>
   }
   
   if (orders.length === 0) {
-    return <div className="text-center p-8 text-muted-foreground">No orders to display.</div>
+    return (
+        <div className="text-center p-8 text-muted-foreground">
+            <p className="mb-4">No orders to display in this category.</p>
+            <Link href="/orders/new">
+                <Button size="sm">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create New Order
+                </Button>
+            </Link>
+        </div>
+    )
   }
 
   return (

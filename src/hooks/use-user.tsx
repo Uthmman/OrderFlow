@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
@@ -27,6 +28,7 @@ interface UsersContextType {
   createUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
   updateUserRole: (uid: string, role: Role) => Promise<void>;
   updateUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
+  updateUserPreferences: (uid: string, prefs: Partial<AppUser>) => void;
 }
 
 const UserContext = createContext<UserHookReturnType | undefined>(undefined);
@@ -125,11 +127,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const updateUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => {
     const userRef = doc(firestore, 'users', uid);
     updateDocumentNonBlocking(userRef, data);
-    toast({
-        title: "Profile Updated",
-        description: "Your profile has been successfully updated."
-    });
-  }, [firestore, toast]);
+  }, [firestore]);
+
+  const updateUserPreferences = useCallback((uid: string, prefs: Partial<AppUser>) => {
+    const userRef = doc(firestore, 'users', uid);
+    updateDocumentNonBlocking(userRef, prefs);
+  }, [firestore]);
 
   const allUsersValue = useMemo(() => ({
     users: users || [],
@@ -138,7 +141,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     createUserProfile,
     updateUserRole,
     updateUserProfile,
-  }), [users, areUsersLoading, userProfile, createUserProfile, updateUserRole, updateUserProfile]);
+    updateUserPreferences,
+  }), [users, areUsersLoading, userProfile, createUserProfile, updateUserRole, updateUserProfile, updateUserPreferences]);
 
 
   return (
