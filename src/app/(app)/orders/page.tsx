@@ -7,17 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useOrders } from "@/hooks/use-orders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Order, OrderStatus } from "@/lib/types";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { PlusCircle } from "lucide-react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export type SortField = 'creationDate' | 'deadline';
@@ -34,26 +23,28 @@ export default function OrdersPage() {
   const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
-  const paintingStatuses: OrderStatus[] = ["Painting"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
+  const paintingStatuses: OrderStatus[] = ["Painting"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
 
-  const ordersByTab: Record<string, Order[]> = useMemo(() => ({
-    all: orders,
-    active: getOrdersByStatus(activeStatuses),
-    designing: getOrdersByStatus(designingStatuses),
-    designReady: getOrdersByStatus(designReadyStatuses),
-    manufacturing: getOrdersByStatus(manufacturingStatuses),
-    painting: getOrdersByStatus(paintingStatuses),
-    completed: getOrdersByStatus(completedStatuses),
-    cancelled: getOrdersByStatus(cancelledStatuses),
-  }), [orders]);
+  const tabs = useMemo(() => [
+    { value: "all", label: "All", orders: orders },
+    { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
+    { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
+    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
+    { value: "manufacturing", label: "Manufacturing", orders: getOrdersByStatus(manufacturingStatuses) },
+    { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
+    { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
+    { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) },
+  ], [orders]);
 
 
   if (loading) {
     return <div>Loading orders...</div>;
   }
+
+  const activeOrders = tabs.find(tab => tab.value === activeTab)?.orders ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,57 +59,19 @@ export default function OrdersPage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="w-full sm:flex-1">
                     <TabsList className="flex-wrap h-auto">
-                        <TabsTrigger value="all">All ({ordersByTab.all.length})</TabsTrigger>
-                        <TabsTrigger value="active">Active ({ordersByTab.active.length})</TabsTrigger>
-                        <TabsTrigger value="designing">Designing ({ordersByTab.designing.length})</TabsTrigger>
-                        <TabsTrigger value="designReady">Design Ready ({ordersByTab.designReady.length})</TabsTrigger>
-                        <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
-                        <TabsTrigger value="painting">Painting ({ordersByTab.painting.length})</TabsTrigger>
-                        <TabsTrigger value="completed">Completed ({ordersByTab.completed.length})</TabsTrigger>
-                        <TabsTrigger value="cancelled">Cancelled ({ordersByTab.cancelled.length})</TabsTrigger>
+                       {tabs.map(tab => (
+                            <TabsTrigger key={tab.value} value={tab.value}>
+                                {tab.label} ({tab.orders.length})
+                            </TabsTrigger>
+                        ))}
                     </TabsList>
                 </div>
             </div>
             <Card className="mt-4">
                 <CardContent className="pt-6">
-                    <TabsContent value="all" forceMount>
+                    <TabsContent value={activeTab}>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.all} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="active" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.active} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="designing" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.designing} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="designReady" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.designReady} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="manufacturing" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.manufacturing} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="painting" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.painting} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="completed" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.completed} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
-                     <TabsContent value="cancelled" forceMount>
-                        <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab.cancelled} preferenceKey="orderSortPreference" />
+                            <OrderTable orders={activeOrders} preferenceKey="orderSortPreference" />
                         </ProductSettingProvider>
                     </TabsContent>
                 </CardContent>
