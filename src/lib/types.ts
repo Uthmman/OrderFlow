@@ -134,7 +134,7 @@ export type ColorSettings = {
 
 export type ProductCategory = {
   name: string;
-  icon: string; // Can be a Lucide icon name OR a base64 data URI
+  icon: string; // Can be a Lucide icon name OR an image URL
 }
 
 export type ProductSettings = {

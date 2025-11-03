@@ -9,11 +9,11 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, Trash2, PlusCircle, HelpCircle } from "lucide-react";
+import { Loader2, Trash2, PlusCircle, HelpCircle, Image as ImageIcon } from "lucide-react";
 import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
 import * as LucideIcons from 'lucide-react';
 import React from "react";
-
+import Image from "next/image";
 
 const productCategorySchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -27,7 +27,7 @@ const productSettingsFormSchema = z.object({
 type ProductSettingsFormValues = z.infer<typeof productSettingsFormSchema>;
 
 function ProductSettingsForm() {
-  const { productSettings, loading, updateProductSettings } = useProductSettings();
+  const { productSettings, loading, updateProductSettings, generateImageForCategory } = useProductSettings();
   
   const form = useForm<ProductSettingsFormValues>({
     resolver: zodResolver(productSettingsFormSchema),
@@ -47,6 +47,12 @@ function ProductSettingsForm() {
   const onSubmit = (data: ProductSettingsFormValues) => {
     updateProductSettings(data);
   };
+
+  const handleGenerateImage = (index: number) => {
+    const categoryName = form.getValues(`productCategories.${index}.name`);
+    const newIconUrl = generateImageForCategory(categoryName);
+    form.setValue(`productCategories.${index}.icon`, newIconUrl, { shouldDirty: true });
+  }
 
   // Sync form with external state changes
   React.useEffect(() => {
@@ -81,20 +87,25 @@ function ProductSettingsForm() {
               </Button>
             </div>
             <CardDescription>
-              Manage product categories and their icons. Use any icon name from the Lucide library.
+              Manage product categories and their icons. Use any icon name from the Lucide library or generate a unique image.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {fields.map((field, index) => {
-              const iconName = form.watch(`productCategories.${index}.icon`);
-              const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
+              const iconIdentifier = form.watch(`productCategories.${index}.icon`);
+              const isUrl = iconIdentifier.startsWith('http');
+              const IconComponent = !isUrl ? (LucideIcons as any)[iconIdentifier] || HelpCircle : null;
 
               return (
                 <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
                   <div className="flex-shrink-0 flex flex-col items-center">
                     <Label>Icon</Label>
-                    <div className="h-10 w-10 bg-muted rounded-md mt-2 flex items-center justify-center">
-                        <IconComponent className="h-6 w-6 text-muted-foreground" />
+                    <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
+                        {isUrl ? (
+                            <Image src={iconIdentifier} alt="Category Icon" width={48} height={48} className="object-cover"/>
+                        ) : (
+                            <IconComponent className="h-7 w-7 text-muted-foreground" />
+                        )}
                     </div>
                   </div>
                   <FormField
@@ -115,7 +126,7 @@ function ProductSettingsForm() {
                     name={`productCategories.${index}.icon`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Icon Name</FormLabel>
+                        <FormLabel>Icon Name or URL</FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="e.g. Sofa" />
                         </FormControl>
@@ -123,6 +134,10 @@ function ProductSettingsForm() {
                       </FormItem>
                     )}
                   />
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleGenerateImage(index)}>
+                    <ImageIcon className="mr-2 h-4 w-4" />
+                    Generate Image
+                  </Button>
                   <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

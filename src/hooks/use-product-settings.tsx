@@ -15,6 +15,7 @@ interface ProductSettingsContextType {
   loading: boolean;
   updateProductSettings: (newSettings: ProductSettings) => void;
   addCategory: (newCategory: ProductCategory) => Promise<void>;
+  generateImageForCategory: (categoryName: string) => string;
 }
 
 const ProductSettingsContext = createContext<ProductSettingsContextType | undefined>(undefined);
@@ -42,6 +43,11 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     
   }, [productSettings, settingsDocRef]);
   
+  const generateImageForCategory = (categoryName: string) => {
+    const seed = categoryName.trim().replace(/\s+/g, '-') || 'placeholder';
+    return `https://picsum.photos/seed/${seed}/100/100`;
+  };
+
   // Seed initial data if it doesn't exist
   React.useEffect(() => {
     if (!loading && !productSettings) {
@@ -76,6 +82,7 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     loading,
     updateProductSettings,
     addCategory,
+    generateImageForCategory,
   }), [productSettings, loading, updateProductSettings, addCategory]);
 
   return (

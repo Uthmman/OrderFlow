@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import * as React from "react"
@@ -217,9 +216,24 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const category = productSettings?.productCategories.find(c => c.name === order.category);
+    const iconIdentifier = category?.icon || 'Box';
     
-    const IconComponent = category ? (LucideIcons as any)[category.icon] || LucideIcons.Box : LucideIcons.Box;
-    return <IconComponent className="h-7 w-7 text-muted-foreground flex-shrink-0"/>
+    const isUrl = iconIdentifier.startsWith('http');
+    const IconComponent = !isUrl ? (LucideIcons as any)[iconIdentifier] || LucideIcons.Box : null;
+
+    if (isUrl) {
+        return (
+            <Image 
+                src={iconIdentifier}
+                alt={order.category || 'Category Icon'}
+                width={36}
+                height={36}
+                className="h-9 w-9 object-cover rounded-sm flex-shrink-0"
+            />
+        )
+    }
+
+    return <IconComponent className="h-9 w-9 text-muted-foreground flex-shrink-0"/>
 }
 
 
