@@ -58,6 +58,7 @@ export type OrderStatus =
   | 'In Progress'
   | 'Designing'
   | 'Design Ready'
+  | 'Painting'
   | 'Manufacturing'
   | 'Completed'
   | 'Shipped'
@@ -96,6 +97,8 @@ export type Order = {
   id:string;
   customerName: string;
   customerId: string;
+  productName: string;
+  category: string;
   description: string;
   status: OrderStatus;
   deadline: any; // Can be string or Firestore Timestamp
@@ -128,4 +131,11 @@ export type ColorSettings = {
     customColors: CustomColor[];
 }
 
-    
+export type ProductCategory = {
+  name: string;
+  icon: string;
+}
+
+export type ProductSettings = {
+  productCategories: ProductCategory[];
+}

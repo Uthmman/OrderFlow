@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, Suspense, useEffect } from "react";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { formatOrderId } from "@/lib/utils";
+import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 
 function NewOrderPageContent() {
@@ -55,11 +56,13 @@ function NewOrderPageContent() {
         </p>
       </div>
       <ColorSettingProvider>
-        <OrderForm 
-            onSave={handleSaveOrder} 
-            isSubmitting={isSubmitting} 
-            submitButtonText="Create Order"
-        />
+        <ProductSettingProvider>
+            <OrderForm 
+                onSave={handleSaveOrder} 
+                isSubmitting={isSubmitting} 
+                submitButtonText="Create Order"
+            />
+        </ProductSettingProvider>
       </ColorSettingProvider>
     </div>
   );

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { Order, OrderAttachment } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
+import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
@@ -62,12 +63,14 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
         </p>
       </div>
       <ColorSettingProvider>
-        <OrderForm
-            order={order}
-            onSave={handleUpdateOrder}
-            submitButtonText="Save Changes"
-            isSubmitting={isSubmitting}
-        />
+        <ProductSettingProvider>
+            <OrderForm
+                order={order}
+                onSave={handleUpdateOrder}
+                submitButtonText="Save Changes"
+                isSubmitting={isSubmitting}
+            />
+        </ProductSettingProvider>
       </ColorSettingProvider>
     </div>
   );

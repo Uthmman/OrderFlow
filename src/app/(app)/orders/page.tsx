@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { PlusCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
@@ -30,8 +31,9 @@ export default function OrdersPage() {
     return orders.filter(order => statuses.includes(order.status));
   };
 
-  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing"];
+  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Painting", "Manufacturing"];
   const designingStatuses: OrderStatus[] = ["Designing"];
+  const paintingStatuses: OrderStatus[] = ["Painting"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
@@ -41,6 +43,7 @@ export default function OrdersPage() {
     all: orders,
     active: getOrdersByStatus(activeStatuses),
     designing: getOrdersByStatus(designingStatuses),
+    painting: getOrdersByStatus(paintingStatuses),
     designReady: getOrdersByStatus(designReadyStatuses),
     manufacturing: getOrdersByStatus(manufacturingStatuses),
     completed: getOrdersByStatus(completedStatuses),
@@ -68,6 +71,7 @@ export default function OrdersPage() {
                         <TabsTrigger value="all">All ({ordersByTab.all.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({ordersByTab.active.length})</TabsTrigger>
                         <TabsTrigger value="designing">Designing ({ordersByTab.designing.length})</TabsTrigger>
+                        <TabsTrigger value="painting">Painting ({ordersByTab.painting.length})</TabsTrigger>
                         <TabsTrigger value="designReady">Design Ready ({ordersByTab.designReady.length})</TabsTrigger>
                         <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
                         <TabsTrigger value="completed">Completed ({ordersByTab.completed.length})</TabsTrigger>
@@ -78,7 +82,9 @@ export default function OrdersPage() {
             <Card className="mt-4">
                 <CardContent className="pt-6">
                     <TabsContent value={activeTab} forceMount>
-                        <OrderTable orders={ordersByTab[activeTab]} />
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab[activeTab]} />
+                        </ProductSettingProvider>
                     </TabsContent>
                 </CardContent>
             </Card>

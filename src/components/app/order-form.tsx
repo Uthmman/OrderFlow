@@ -37,7 +37,7 @@ import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud,
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment, Customer, OrderStatus } from "@/lib/types"
+import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition } from "react"
@@ -63,11 +63,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "../ui/progress"
+import { useProductSettings } from "@/hooks/use-product-settings"
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
+  productName: z.string().min(3, "Product name must be at least 3 characters."),
+  category: z.string().min(1, "Category is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Painting", "Manufacturing", "Completed", "Shipped", "Cancelled"]),
   colors: z.array(z.string()).optional(),
   material: z.string().optional(),
   width: z.coerce.number().optional(),
@@ -154,6 +157,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
+  const { productSettings, loading: productsLoading } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
@@ -175,6 +179,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
     if (!orderToMap) {
         return {
+            productName: '',
+            category: '',
             isUrgent: false,
             status: "Pending",
             incomeAmount: 0,
@@ -386,6 +392,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const isColorAsAttachment = form.watch("colorAsAttachment");
   const woodFinishOptions = colorSettings?.woodFinishes || [];
   const customColorOptions = colorSettings?.customColors || [];
+  const productCategories = productSettings?.productCategories || [];
 
   const filteredWoodFinishes = woodFinishOptions.filter(option =>
     option.name.toLowerCase().includes(colorSearch.toLowerCase())
@@ -523,6 +530,41 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         </FormItem>
                       )}
                     />
+                     <FormField
+                        control={form.control}
+                        name="productName"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Product Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {productCategories.map(cat => (
+                                        <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                   <FormField
                     control={form.control}
                     name="description"
@@ -921,6 +963,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <SelectItem value="In Progress">In Progress</SelectItem>
                                 <SelectItem value="Designing">Designing</SelectItem>
                                 <SelectItem value="Design Ready">Design Ready</SelectItem>
+                                <SelectItem value="Painting">Painting</SelectItem>
                                 <SelectItem value="Manufacturing">Manufacturing</SelectItem>
                                 <SelectItem value="Completed">Completed</SelectItem>
                                 <SelectItem value="Shipped">Shipped</SelectItem>
@@ -1034,5 +1077,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    

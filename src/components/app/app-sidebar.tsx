@@ -18,6 +18,8 @@ import {
   Settings,
   Boxes,
   ShieldCheck,
+  Palette,
+  Shapes,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -29,6 +31,11 @@ const navItems = [
     { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
 ];
 
+const settingsNavItems = [
+    { href: "/settings", icon: Palette, label: "Color Settings" },
+    { href: "/settings/products", icon: Shapes, label: "Product Categories" },
+]
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, role } = useUser();
@@ -36,6 +43,7 @@ export function AppSidebar() {
   if (!user) return null;
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(role || ''));
+  const isSettingsPage = pathname.startsWith('/settings');
 
   return (
     <Sidebar>
@@ -55,7 +63,7 @@ export function AppSidebar() {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 asChild
-                isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
+                isActive={pathname.startsWith(item.href) && (item.href !== '/settings' || pathname === '/settings') && !isSettingsPage || (isSettingsPage && item.href === '/settings')}
                 tooltip={item.label}
               >
                 <Link href={item.href}>
@@ -63,6 +71,18 @@ export function AppSidebar() {
                   <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>
+              {item.href === '/settings' && isSettingsPage && (
+                 <ul className="py-2 pl-8 space-y-1">
+                    {settingsNavItems.map(subItem => (
+                         <li key={subItem.href}>
+                             <Link href={subItem.href} className={`flex items-center gap-2 text-sm p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${pathname === subItem.href ? 'bg-sidebar-accent text-sidebar-accent-foreground' : 'text-sidebar-foreground/80'}`}>
+                                <subItem.icon className="h-4 w-4" />
+                                <span>{subItem.label}</span>
+                            </Link>
+                         </li>
+                    ))}
+                 </ul>
+              )}
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
