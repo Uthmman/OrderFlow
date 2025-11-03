@@ -9,11 +9,10 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, Trash2, PlusCircle, HelpCircle, Image as ImageIcon } from "lucide-react";
+import { Loader2, Trash2, PlusCircle, HelpCircle } from "lucide-react";
 import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
 import * as LucideIcons from 'lucide-react';
 import React from "react";
-import Image from "next/image";
 
 const productCategorySchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -27,7 +26,7 @@ const productSettingsFormSchema = z.object({
 type ProductSettingsFormValues = z.infer<typeof productSettingsFormSchema>;
 
 function ProductSettingsForm() {
-  const { productSettings, loading, updateProductSettings, generateImageForCategory } = useProductSettings();
+  const { productSettings, loading, updateProductSettings } = useProductSettings();
   
   const form = useForm<ProductSettingsFormValues>({
     resolver: zodResolver(productSettingsFormSchema),
@@ -47,12 +46,6 @@ function ProductSettingsForm() {
   const onSubmit = (data: ProductSettingsFormValues) => {
     updateProductSettings(data);
   };
-
-  const handleGenerateImage = (index: number) => {
-    const categoryName = form.getValues(`productCategories.${index}.name`);
-    const newIconUrl = generateImageForCategory(categoryName);
-    form.setValue(`productCategories.${index}.icon`, newIconUrl, { shouldDirty: true });
-  }
 
   // Sync form with external state changes
   React.useEffect(() => {
@@ -74,7 +67,7 @@ function ProductSettingsForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle>Product Categories</CardTitle>
               <Button
                 type="button"
@@ -87,58 +80,51 @@ function ProductSettingsForm() {
               </Button>
             </div>
             <CardDescription>
-              Manage product categories and their icons. Use any icon name from the Lucide library or generate a unique image.
+              Manage product categories and their icons. Use any icon name from the Lucide library (e.g., "Sofa", "Bed", "DoorOpen").
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {fields.map((field, index) => {
-              const iconIdentifier = form.watch(`productCategories.${index}.icon`);
-              const isUrl = iconIdentifier.startsWith('http');
-              const IconComponent = !isUrl ? (LucideIcons as any)[iconIdentifier] || HelpCircle : null;
+              const iconName = form.watch(`productCategories.${index}.icon`);
+              const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
 
               return (
-                <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
-                  <div className="flex-shrink-0 flex flex-col items-center">
+                <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
+                  <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
                     <Label>Icon</Label>
                     <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
-                        {isUrl ? (
-                            <Image src={iconIdentifier} alt="Category Icon" width={48} height={48} className="object-cover"/>
-                        ) : (
-                            <IconComponent className="h-7 w-7 text-muted-foreground" />
-                        )}
+                       <IconComponent className="h-7 w-7 text-muted-foreground" />
                     </div>
                   </div>
-                  <FormField
-                    control={form.control}
-                    name={`productCategories.${index}.name`}
-                    render={({ field }) => (
-                      <FormItem className="flex-grow">
-                        <FormLabel>Category Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. Sofa" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name={`productCategories.${index}.icon`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Icon Name or URL</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="e.g. Sofa" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="button" variant="outline" size="sm" onClick={() => handleGenerateImage(index)}>
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    Generate Image
-                  </Button>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                  <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <FormField
+                        control={form.control}
+                        name={`productCategories.${index}.name`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Category Name</FormLabel>
+                            <FormControl>
+                            <Input {...field} placeholder="e.g. Sofa" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name={`productCategories.${index}.icon`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Icon Name</FormLabel>
+                            <FormControl>
+                            <Input {...field} placeholder="e.g. Sofa" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="flex-shrink-0">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>

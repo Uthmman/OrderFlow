@@ -216,22 +216,8 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const category = productSettings?.productCategories.find(c => c.name === order.category);
-    const iconIdentifier = category?.icon || 'Box';
-    
-    const isUrl = iconIdentifier.startsWith('http');
-    const IconComponent = !isUrl ? (LucideIcons as any)[iconIdentifier] || LucideIcons.Box : null;
-
-    if (isUrl) {
-        return (
-            <Image 
-                src={iconIdentifier}
-                alt={order.category || 'Category Icon'}
-                width={36}
-                height={36}
-                className="h-9 w-9 object-cover rounded-sm flex-shrink-0"
-            />
-        )
-    }
+    const iconName = category?.icon || 'Box';
+    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
 
     return <IconComponent className="h-9 w-9 text-muted-foreground flex-shrink-0"/>
 }
