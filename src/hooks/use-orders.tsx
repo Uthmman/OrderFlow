@@ -141,7 +141,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const removeAttachment = async (orderId: string, attachment: OrderAttachment) => {
       try {
-        await deleteFileFlow({ fileName: attachment.storagePath });
+        if (attachment.storagePath) {
+          await deleteFileFlow({ fileName: attachment.storagePath });
+        }
         const orderRef = doc(firestore, 'orders', orderId);
         const currentOrder = orders?.find(o => o.id === orderId);
         const updatedAttachments = (currentOrder?.attachments || []).filter(
@@ -175,7 +177,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         creationDate: serverTimestamp(),
         attachments: orderData.attachments || [],
         ownerId: user.id,
-        status: 'Pending',
+        status: orderData.status || 'In Progress',
     };
     
     const cleanData = removeUndefined(finalOrderData);

@@ -182,7 +182,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             productName: '',
             category: '',
             isUrgent: false,
-            status: "Pending",
+            status: "In Progress",
             incomeAmount: 0,
             prepaidAmount: 0,
             colors: [],
@@ -219,7 +219,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         const sourceOrder = getOrderById(duplicateOrderId);
         if (sourceOrder) {
             const duplicatedOrderData = {
-                ...sourceOrder, status: 'Pending' as const, isUrgent: false, id: '', chatMessages: [],
+                ...sourceOrder, status: 'In Progress' as const, isUrgent: false, id: '', chatMessages: [],
             }
             form.reset(mapOrderToFormValues(duplicatedOrderData));
         }
@@ -467,6 +467,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   };
   
   const isUploading = Object.keys(uploadProgress).length > 0;
+
+  const allStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
+  const createOrderStatuses = allStatuses.filter(s => s !== "Pending");
+
 
   return (
     <>
@@ -959,15 +963,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                                <SelectItem value="Pending">Pending</SelectItem>
-                                <SelectItem value="In Progress">In Progress</SelectItem>
-                                <SelectItem value="Designing">Designing</SelectItem>
-                                <SelectItem value="Design Ready">Design Ready</SelectItem>
-                                <SelectItem value="Manufacturing">Manufacturing</SelectItem>
-                                <SelectItem value="Painting">Painting</SelectItem>
-                                <SelectItem value="Completed">Completed</SelectItem>
-                                <SelectItem value="Shipped">Shipped</SelectItem>
-                                <SelectItem value="Cancelled">Cancelled</SelectItem>
+                                {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
+                                    <SelectItem key={status} value={status}>{status}</SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                         <FormMessage />
@@ -1077,5 +1075,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    

@@ -32,7 +32,8 @@ export default function OrdersPage() {
   };
 
   const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
-  const designingStatuses: OrderStatus[] = ["Designing", "Design Ready"];
+  const designingStatuses: OrderStatus[] = ["Designing"];
+  const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
@@ -42,6 +43,7 @@ export default function OrdersPage() {
     all: orders,
     active: getOrdersByStatus(activeStatuses),
     designing: getOrdersByStatus(designingStatuses),
+    designReady: getOrdersByStatus(designReadyStatuses),
     painting: getOrdersByStatus(paintingStatuses),
     manufacturing: getOrdersByStatus(manufacturingStatuses),
     completed: getOrdersByStatus(completedStatuses),
@@ -69,6 +71,7 @@ export default function OrdersPage() {
                         <TabsTrigger value="all">All ({ordersByTab.all.length})</TabsTrigger>
                         <TabsTrigger value="active">Active ({ordersByTab.active.length})</TabsTrigger>
                         <TabsTrigger value="designing">Designing ({ordersByTab.designing.length})</TabsTrigger>
+                        <TabsTrigger value="designReady">Design Ready ({ordersByTab.designReady.length})</TabsTrigger>
                         <TabsTrigger value="manufacturing">Manufacturing ({ordersByTab.manufacturing.length})</TabsTrigger>
                         <TabsTrigger value="painting">Painting ({ordersByTab.painting.length})</TabsTrigger>
                         <TabsTrigger value="completed">Completed ({ordersByTab.completed.length})</TabsTrigger>
@@ -78,9 +81,44 @@ export default function OrdersPage() {
             </div>
             <Card className="mt-4">
                 <CardContent className="pt-6">
-                    <TabsContent value={activeTab} forceMount>
+                    <TabsContent value="all" forceMount>
                         <ProductSettingProvider>
-                            <OrderTable orders={ordersByTab[activeTab]} />
+                            <OrderTable orders={ordersByTab.all} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="active" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.active} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="designing" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.designing} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="designReady" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.designReady} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="manufacturing" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.manufacturing} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="painting" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.painting} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="completed" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.completed} />
+                        </ProductSettingProvider>
+                    </TabsContent>
+                     <TabsContent value="cancelled" forceMount>
+                        <ProductSettingProvider>
+                            <OrderTable orders={ordersByTab.cancelled} />
                         </ProductSettingProvider>
                     </TabsContent>
                 </CardContent>
@@ -89,5 +127,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-
-    
