@@ -33,10 +33,24 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const { id } = use(params);
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { orders, loading: ordersLoading } = useOrders();
-  const { user, loading: userLoading } = useUser();
+  const { user, role, loading: userLoading } = useUser();
 
   if (customersLoading || ordersLoading || userLoading) {
     return <div>Loading...</div>;
+  }
+  
+  if (role === 'Manager' || role === 'Designer') {
+    return (
+      <Card>
+        <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>You do not have permission to view this page.</CardDescription>
+        </CardHeader>
+          <CardContent>
+            <p>Please contact an administrator if you believe this is a mistake.</p>
+        </CardContent>
+    </Card>
+    )
   }
 
   const customer = getCustomerById(id);
@@ -48,7 +62,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
   const customerOrders = orders.filter(order => customer.orderIds?.includes(order.id));
   const totalSpent = customerOrders.reduce((acc, order) => acc + (order.incomeAmount || 0), 0);
 
-  const canEdit = user?.role === 'Admin' || user?.role === 'Manager';
+  const canEdit = user?.role === 'Admin';
 
 
   return (
@@ -191,7 +205,7 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
                     <CardDescription>A history of all orders placed by {customer.name}.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <OrderTable orders={customerOrders} />
+                    <OrderTable orders={customerOrders} preferenceKey="orderSortPreference" />
                 </CardContent>
             </Card>
             <Card>
@@ -217,5 +231,3 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
-
-    

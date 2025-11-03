@@ -231,7 +231,7 @@ export default function CustomersPage() {
         return <div>Loading...</div>
     }
     
-    if (role === 'Designer') {
+    if (role === 'Designer' || role === 'Manager') {
         return (
              <Card>
                 <CardHeader>

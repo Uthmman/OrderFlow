@@ -26,7 +26,7 @@ import { useUser } from "@/hooks/use-user";
 const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
-    { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Manager', 'Sales'] },
+    { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin'] },
     { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
 ];
