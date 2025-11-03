@@ -228,6 +228,7 @@ export const columns: ColumnDef<Order>[] = [
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
+        onClick={(e) => e.stopPropagation()}
       />
     ),
     enableSorting: false,
@@ -295,18 +296,18 @@ export const columns: ColumnDef<Order>[] = [
 ]
 
 function OrderTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
-  const [sortField, setSortField] = React.useState<SortField>('creationDate');
-  const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
+    const [sortField, setSortField] = React.useState<SortField>('creationDate');
+    const [sortDirection, setSortDirection] = React.useState<SortDirection>('desc');
 
-  const sorting = table.getState().sorting;
+    const sorting = table.getState().sorting;
 
-  React.useEffect(() => {
-    if (sorting.length) {
-      const { id, desc } = sorting[0];
-      setSortField(id as SortField);
-      setSortDirection(desc ? 'desc' : 'asc');
-    }
-  }, [sorting]);
+    React.useEffect(() => {
+        if (sorting.length) {
+            const { id, desc } = sorting[0];
+            setSortField(id as SortField);
+            setSortDirection(desc ? 'desc' : 'asc');
+        }
+    }, [sorting]);
 
 
   return (
@@ -398,6 +399,8 @@ interface OrderTableProps {
 
 function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
+  const router = useRouter();
+
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
 
@@ -429,12 +432,15 @@ function OrderTableInternal({ orders: propOrders }: OrderTableProps) {
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={orders}>
+            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => router.push(`/orders/${row.original.id}`)}>
                 <OrderTableToolbar table={table} />
             </DataTable>
         </div>
          <div className="block md:hidden">
-            <MobileOrderList orders={table.getRowModel().rows.map(row => row.original)} />
+             <OrderTableToolbar table={table} />
+            <div className="mt-4">
+                 <MobileOrderList orders={table.getRowModel().rows.map(row => row.original)} />
+            </div>
         </div>
     </>
   )
