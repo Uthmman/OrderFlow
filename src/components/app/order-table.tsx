@@ -62,6 +62,7 @@ import { SortDirection, SortField } from "@/app/(app)/orders/page"
 import { useProductSettings, ProductSettingProvider } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
 import Image from "next/image";
+import { DataTablePagination } from "./data-table/data-table-pagination"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -204,7 +205,7 @@ function CustomerLink({ order }: { order: Order }) {
     const { user, role } = useUser();
     
     // Admins and Managers can view any customer. Sales can only view if they are the owner.
-    const canViewCustomer = role === 'Admin' || role === 'Manager' || (role === 'Sales' && order.ownerId === user?.id);
+    const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
     if (canViewCustomer) {
         return <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>{order.customerName}</Link>
@@ -217,9 +218,16 @@ const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const category = productSettings?.productCategories.find(c => c.name === order.category);
     const iconName = category?.icon || 'Box';
-    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
+    
+    // Check if the icon is a URL (AI-generated) or a Lucide icon name
+    const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
-    return <IconComponent className="h-9 w-9 text-muted-foreground flex-shrink-0"/>
+    if (isUrl) {
+        return <Image src={iconName} alt={order.category} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
+    }
+
+    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
+    return <IconComponent className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
 }
 
 
@@ -260,9 +268,9 @@ export const columns: ColumnDef<Order>[] = [
                  <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{formatOrderId(order.id)}</Link>
+                        <Link href={`/orders/${order.id}`}>{order.productName || formatOrderId(order.id)}</Link>
                     </div>
-                    <div className="text-sm text-muted-foreground">{order.productName}</div>
+                    <div className="text-sm text-muted-foreground">{order.productName ? formatOrderId(order.id) : null}</div>
                  </div>
             </div>
         );
@@ -389,8 +397,9 @@ function OrderTableToolbar({
   )
 }
 
-function MobileOrderList({ orders }: { orders: Order[] }) {
+function MobileOrderList({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
     const router = useRouter();
+    const orders = table.getRowModel().rows.map(row => row.original);
 
     return (
         <div className="space-y-4">
@@ -509,7 +518,10 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
          <div className="block md:hidden">
              <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
             <div className="mt-4">
-                 <MobileOrderList orders={table.getRowModel().rows.map(row => row.original)} />
+                 <MobileOrderList table={table} />
+            </div>
+             <div className="mt-4">
+                <DataTablePagination table={table} />
             </div>
         </div>
     </>

@@ -76,6 +76,16 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
         toast({ title: "Link Copied", description: "Attachment URL copied to clipboard." });
     }
 
+    const handleDownload = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const link = document.createElement('a');
+        link.href = att.url;
+        link.download = att.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <Card className="group relative overflow-hidden">
             <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted">
@@ -100,7 +110,7 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                         <File className="h-10 w-10 text-muted-foreground" />
                         <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
                          <Button size="sm" variant="outline" asChild className="mt-2">
-                            <a href={att.url} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" /> Download</a>
+                            <a href={att.url} target="_blank" rel="noopener noreferrer" onClick={handleDownload}><Download className="mr-2 h-4 w-4" /> Download</a>
                         </Button>
                     </div>
                 )}
@@ -114,7 +124,7 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                             <LinkIcon className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
-                            <a href={att.url} download={att.fileName}><Download className="h-4 w-4" /></a>
+                            <a href={att.url} download={att.fileName} onClick={handleDownload}><Download className="h-4 w-4" /></a>
                         </Button>
                         </>
                     )}
@@ -269,7 +279,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                             <tbody>
                                 <tr className="border-b">
                                 <td className="py-4 align-top">
-                                    <p className="font-semibold">{order.material || "Custom Product"}</p>
+                                    <p className="font-semibold">{order.productName}</p>
                                     <p className="text-sm text-slate-600 max-w-prose">
                                     {order.description}
                                     </p>
@@ -350,7 +360,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   ];
 
   const customer = getCustomerById(order.customerId);
-  const canEdit = role === 'Admin' || role === 'Manager';
+  const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+  const canChangeStatus = ['Admin', 'Manager', 'Designer'].includes(role || '');
   const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
   const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
@@ -409,6 +420,17 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             setGalleryOpen(true);
         }
     }
+
+    const handleDownload = (e: React.MouseEvent, url: string, fileName: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
 
   const prepaid = order.prepaidAmount || 0;
@@ -514,10 +536,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        {formatOrderId(order.id)}
+                        {order.productName || formatOrderId(order.id)}
                     </h1>
                     <div className="flex items-center gap-2">
-                        {canEdit ? (
+                        {canChangeStatus ? (
                            <StatusChanger order={order} onStatusChange={handleStatusChange} />
                         ) : (
                           order.status && <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
@@ -808,12 +830,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     </div>
                     <div className="flex justify-between items-center bg-background p-2 border-t">
                       <p className="text-sm text-muted-foreground">{att.fileName}</p>
-                      <a href={att.url} download={att.fileName} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                      </a>
+                      <Button variant="outline" size="sm" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
                     </div>
                   </CarouselItem>
                 ))}
@@ -832,3 +852,4 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+

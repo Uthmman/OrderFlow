@@ -14,7 +14,7 @@ export type SortDirection = 'asc' | 'desc';
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("active");
 
   const getOrdersByStatus = (statuses: OrderStatus[]) => {
     return orders.filter(order => statuses.includes(order.status));
@@ -29,7 +29,6 @@ export default function OrdersPage() {
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
 
   const tabs = useMemo(() => [
-    { value: "all", label: "All", orders: orders },
     { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
     { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
     { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
@@ -37,14 +36,13 @@ export default function OrdersPage() {
     { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
     { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
     { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) },
+    { value: "all", label: "All", orders: orders },
   ], [orders]);
 
 
   if (loading) {
     return <div>Loading orders...</div>;
   }
-
-  const activeOrders = tabs.find(tab => tab.value === activeTab)?.orders ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -69,11 +67,13 @@ export default function OrdersPage() {
             </div>
             <Card className="mt-4">
                 <CardContent className="pt-6">
-                    <TabsContent value={activeTab}>
-                        <ProductSettingProvider>
-                            <OrderTable orders={activeOrders} preferenceKey="orderSortPreference" />
-                        </ProductSettingProvider>
-                    </TabsContent>
+                    {tabs.map(tab => (
+                        <TabsContent key={tab.value} value={tab.value} forceMount={activeTab === tab.value}>
+                            <ProductSettingProvider>
+                                <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                            </ProductSettingProvider>
+                        </TabsContent>
+                    ))}
                 </CardContent>
             </Card>
         </Tabs>
