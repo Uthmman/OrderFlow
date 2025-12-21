@@ -177,18 +177,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         creationDate: serverTimestamp(),
         attachments: orderData.attachments || [],
         ownerId: user.id,
-        status: orderData.status || 'In Progress',
+        status: orderData.status || 'Pending',
     };
     
     const cleanData = removeUndefined(finalOrderData);
     await setDoc(newOrderRef, cleanData, {});
 
     await addOrderToCustomer(orderData.customerId, orderId);
-    triggerNotification(firestore, [user.id], {
-      type: 'New Order Created',
-      message: `You created a new order: #${orderId.slice(-5)}.`,
-      orderId: orderId
-    });
+
+    // Only trigger notification if it's not just a pending draft
+    if (orderData.status !== 'Pending') {
+        triggerNotification(firestore, [user.id], {
+          type: 'New Order Created',
+          message: `You created a new order: #${orderId.slice(-5)}.`,
+          orderId: orderId
+        });
+    }
     
     return orderId;
   };

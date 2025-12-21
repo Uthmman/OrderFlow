@@ -32,8 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler } from "lucide-react"
+import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -90,7 +89,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSave: (data: Omit<Order, 'id' | 'creationDate'>) => Promise<any>;
+  onSave: (data: Omit<Order, 'id' | 'creationDate'>) => Promise<string | undefined>;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -231,8 +230,35 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const nextStep = async () => {
     const fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
     const isValid = await trigger(fieldsToValidate as any);
+
     if (isValid) {
+      // If it's a new order and this is the first step, create a draft.
+      if (!initialOrder && currentStep === 1) {
+        setIsManualSaving(true);
+        try {
+          const values = getValues();
+          const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+          const draftOrderPayload = {
+            ...values,
+            customerName,
+            status: 'Pending' as const, // Start as pending
+            deadline: values.deadline || new Date(),
+          };
+          const newOrderId = await onSave(draftOrderPayload);
+          if (newOrderId) {
+            router.replace(`/orders/${newOrderId}/edit`);
+            // No need to advance step here, the page will reload as an edit page
+          } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+          }
+        } catch (error) {
+           toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+        } finally {
+          setIsManualSaving(false);
+        }
+      } else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+      }
     }
   };
 
@@ -457,12 +483,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             <div className="flex items-center flex-shrink-0">
                  {!isAudio && (
                     <a href={attachment.url} download={attachment.fileName} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
                             <Download className="h-4 w-4" />
                         </Button>
                     </a>
                 )}
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAttachment(attachment)}>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAttachment(attachment)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
             </div>
@@ -495,6 +521,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
       await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
       form.reset(values); // Mark form as not dirty
+      if (initialOrder) {
+        // If editing, show toast
+        toast({
+            title: "Order Updated",
+            description: "Your changes have been saved."
+        });
+      }
     } catch (error) {
         // onSave should handle its own errors/toasts
     } finally {
@@ -527,7 +560,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         </div>
     </div>
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
+      <form onSubmit={e => e.preventDefault()} className="space-y-8">
         
         {currentStep === 1 && (
             <Card>
@@ -542,7 +575,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                          <div>
                             <div className="flex items-center justify-between mb-4">
                                <h3 className="text-lg font-medium">Create New Customer</h3>
-                               <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                               <Button type="button" variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
                            </div>
                            <CustomerForm 
                                onSubmit={handleAddNewCustomer} 
@@ -751,9 +784,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {!initialOrder ? (
-                            <Alert variant="destructive">
-                            <AlertTitle>Save Required</AlertTitle>
-                            <AlertDescription>Please save the order first to enable file attachments.</AlertDescription>
+                            <Alert variant="default">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <AlertTitle>Action Required</AlertTitle>
+                              <AlertDescription>Please complete the current step to enable attachments.</AlertDescription>
                             </Alert>
                         ) : (
                             <>
@@ -1080,6 +1114,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <PopoverTrigger asChild>
                                 <FormControl>
                                     <Button
+                                    type="button"
                                     variant={"outline"}
                                     className={cn(
                                         "pl-3 text-left font-normal",
@@ -1207,7 +1242,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 {currentStep === STEPS.length && (
-                    <Button type="submit" disabled={isSubmitting || isUploading || isAutoSaving}>
+                    <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {submitButtonText}
                     </Button>
@@ -1235,5 +1270,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    

@@ -29,10 +29,15 @@ function NewOrderPageContent() {
                 title: "Order Created",
                 description: `Order ${formatOrderId(orderId)} has been successfully created.`,
             });
-            router.push(`/orders/${orderId}`);
+            // On successful creation, the form component will handle the redirect
+            // to the edit page, so no need to router.push here unless it's a final save.
+            if(orderData.status !== 'Pending') {
+               router.push(`/orders/${orderId}`);
+            }
         } else {
              throw new Error("Failed to get new order ID.");
         }
+        return orderId;
     } catch (error) {
         console.error("Failed to save order:", error);
         toast({
@@ -40,6 +45,7 @@ function NewOrderPageContent() {
             title: "Creation Failed",
             description: (error as Error).message || "There was a problem creating the order.",
         });
+        return undefined;
     } finally {
         setIsSubmitting(false);
     }
