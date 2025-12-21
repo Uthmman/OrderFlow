@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -152,8 +153,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 const STEPS = [
-  { id: 1, title: 'Order Details', fields: ['customerId', 'productName', 'category', 'description'] },
-  { id: 2, title: 'Specifications', fields: ['material', 'colors', 'width', 'height', 'depth', 'attachments'] },
+  { id: 1, title: 'Customer', fields: ['customerId'] },
+  { id: 2, title: 'Product Details', fields: ['productName', 'category', 'description', 'material', 'colors', 'width', 'height', 'depth', 'attachments'] },
   { id: 3, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
@@ -513,97 +514,112 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
         {currentStep === 1 && (
-             isCreatingNewCustomer ? (
-               <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>Create New Customer</CardTitle>
-                    <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
-                  </div>
-                   <CardDescription>
-                      Fill in the details for the new customer. They will be automatically selected.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <CustomerForm 
-                    onSubmit={handleAddNewCustomer} 
-                    isSubmitting={newCustomerSubmitting}
-                    submitButtonText="Create and Select Customer"
-                   />
-                </CardContent>
-              </Card>
+            isCreatingNewCustomer ? (
+                <Card>
+                    <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle>Create New Customer</CardTitle>
+                        <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                    </div>
+                    <CardDescription>
+                        Fill in the details for the new customer. They will be automatically selected.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <CustomerForm 
+                        onSubmit={handleAddNewCustomer} 
+                        isSubmitting={newCustomerSubmitting}
+                        submitButtonText="Create and Select Customer"
+                    />
+                    </CardContent>
+                </Card>
             ) : (
                 <Card>
                     <CardHeader>
-                    <CardTitle>Order Details</CardTitle>
-                    <CardDescription>
-                        Fill in the main details of the new order.
-                    </CardDescription>
+                        <CardTitle>Customer Information</CardTitle>
+                        <CardDescription>
+                            Select an existing customer or create a new one.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="customerId"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Customer</FormLabel>
+                                <div className="flex items-center gap-2">
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                        <SelectValue placeholder="Select a customer" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        {customers.map(customer => (
+                                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                    </Select>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    New
+                                    </Button>
+                                </div>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+            )
+        )}
+        
+        {currentStep === 2 && (
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Product Details</CardTitle>
+                    <CardDescription>
+                        Fill in the main details and specifications of the order.
+                    </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
                     <FormField
                         control={form.control}
-                        name="customerId"
+                        name="productName"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Customer</FormLabel>
-                            <div className="flex items-center gap-2">
-                                <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
-                                <FormControl>
-                                    <SelectTrigger>
-                                    <SelectValue placeholder="Select a customer" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {customers.map(customer => (
-                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                                </Select>
-                                <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
-                                <UserPlus className="mr-2 h-4 w-4" />
-                                New
-                                </Button>
-                            </div>
+                            <FormLabel>Product Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                            </FormControl>
                             <FormMessage />
                             </FormItem>
                         )}
                         />
-                        <FormField
-                            control={form.control}
-                            name="productName"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Product Name</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
-                                </FormControl>
+                    <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Category</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {productCategories.map(cat => (
+                                        <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
                                 <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        <FormField
-                            control={form.control}
-                            name="category"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Category</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
-                                        <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a category" />
-                                        </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                        {productCategories.map(cat => (
-                                            <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                            />
+                            </FormItem>
+                        )}
+                        />
                     <FormField
                         control={form.control}
                         name="description"
@@ -613,7 +629,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormControl>
                             <Textarea
                                 placeholder="Provide a detailed description of the order requirements..."
-                                rows={6}
+                                rows={4}
                                 {...field}
                             />
                             </FormControl>
@@ -621,21 +637,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         </FormItem>
                         )}
                     />
-                    </CardContent>
-                </Card>
-            )
-        )}
-        
-        {currentStep === 2 && (
-            <div className="space-y-8">
-                <Card>
-                <CardHeader>
-                    <CardTitle>Specifications</CardTitle>
-                    <CardDescription>
-                    Provide product specifications like material, color, and dimensions.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                    <Separator />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                         control={form.control}
@@ -839,7 +841,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         )}
                         />
                     </div>
-                </CardContent>
+                    </CardContent>
                 </Card>
 
                 <Card>
@@ -1120,5 +1122,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
 
     
