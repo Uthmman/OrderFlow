@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -64,9 +64,11 @@ import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "../ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
+import * as LucideIcons from 'lucide-react';
 
 const formSchema = z.object({
   customerId: z.string().min(1, "Customer is required."),
+  location: z.object({ town: z.string().min(2, "Order location is required.") }),
   productName: z.string().min(3, "Product name must be at least 3 characters."),
   category: z.string().min(1, "Category is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
@@ -153,9 +155,10 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 const STEPS = [
-  { id: 1, title: 'Customer', fields: ['customerId'] },
-  { id: 2, title: 'Product Details', fields: ['productName', 'category', 'description', 'material', 'colors', 'width', 'height', 'depth', 'attachments'] },
-  { id: 3, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+  { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
+  { id: 2, title: 'Category', fields: ['category'] },
+  { id: 3, title: 'Product Details', fields: ['productName', 'description', 'material', 'colors', 'width', 'height', 'depth', 'attachments'] },
+  { id: 4, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -184,24 +187,30 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
+    const defaultValues = {
+        productName: '',
+        category: '',
+        isUrgent: false,
+        status: "In Progress" as OrderStatus,
+        incomeAmount: 0,
+        prepaidAmount: 0,
+        colors: [],
+        colorAsAttachment: false,
+        customerId: '',
+        description: '',
+        deadline: new Date(),
+        location: { town: '' },
+    };
+
     if (!orderToMap) {
-        return {
-            productName: '',
-            category: '',
-            isUrgent: false,
-            status: "In Progress",
-            incomeAmount: 0,
-            prepaidAmount: 0,
-            colors: [],
-            colorAsAttachment: false,
-            customerId: '',
-            description: '',
-            deadline: new Date(),
-        }
+        return defaultValues;
     }
+
     return {
+        ...defaultValues,
         ...orderToMap,
         deadline: toDate(orderToMap.deadline) || new Date(),
+        location: orderToMap.location || { town: '' },
         width: orderToMap.dimensions?.width,
         height: orderToMap.dimensions?.height,
         depth: orderToMap.dimensions?.depth,
@@ -413,6 +422,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const woodFinishOptions = colorSettings?.woodFinishes || [];
   const customColorOptions = colorSettings?.customColors || [];
   const productCategories = productSettings?.productCategories || [];
+  const selectedCustomerId = form.watch('customerId');
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+
 
   const filteredWoodFinishes = woodFinishOptions.filter(option =>
     option.name.toLowerCase().includes(colorSearch.toLowerCase())
@@ -514,68 +526,134 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         
         {currentStep === 1 && (
-            isCreatingNewCustomer ? (
-                <Card>
-                    <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle>Create New Customer</CardTitle>
-                        <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
-                    </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Customer & Location</CardTitle>
                     <CardDescription>
-                        Fill in the details for the new customer. They will be automatically selected.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    <CustomerForm 
-                        onSubmit={handleAddNewCustomer} 
-                        isSubmitting={newCustomerSubmitting}
-                        submitButtonText="Create and Select Customer"
-                    />
-                    </CardContent>
-                </Card>
-            ) : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Customer Information</CardTitle>
-                        <CardDescription>
-                            Select an existing customer or create a new one.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="customerId"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Customer</FormLabel>
-                                <div className="flex items-center gap-2">
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                        <SelectValue placeholder="Select a customer" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {customers.map(customer => (
-                                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                    </Select>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    New
-                                    </Button>
-                                </div>
-                                <FormMessage />
-                                </FormItem>
+                        Select a customer and specify the location for this order.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {isCreatingNewCustomer ? (
+                         <div>
+                            <div className="flex items-center justify-between mb-4">
+                               <h3 className="text-lg font-medium">Create New Customer</h3>
+                               <Button variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                           </div>
+                           <CustomerForm 
+                               onSubmit={handleAddNewCustomer} 
+                               isSubmitting={newCustomerSubmitting}
+                               submitButtonText="Create and Select"
+                               onCancel={() => setIsCreatingNewCustomer(false)}
+                           />
+                       </div>
+                    ) : (
+                        <>
+                            <FormField
+                                control={form.control}
+                                name="customerId"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Customer</FormLabel>
+                                    <div className="flex items-center gap-2">
+                                        <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                            <SelectValue placeholder="Select a customer" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {customers.map(customer => (
+                                            <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                        </Select>
+                                        <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                        New
+                                        </Button>
+                                    </div>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {selectedCustomer && (
+                                <Card className="bg-muted/50">
+                                    <CardHeader>
+                                        <CardTitle className="text-base">{selectedCustomer.name}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="text-sm text-muted-foreground space-y-2">
+                                        <div className="flex items-center gap-2"><Phone/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
+                                        <div className="flex items-center gap-2"><MapPin/> {selectedCustomer.location.town}</div>
+                                    </CardContent>
+                                </Card>
                             )}
+
+                            <FormField
+                                control={form.control}
+                                name="location.town"
+                                render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Order Location</FormLabel>
+                                     <FormControl>
+                                        <Input placeholder="Enter a town or city for this order" {...field} />
+                                    </FormControl>
+                                    <FormDescription>Where the final product will be delivered or installed.</FormDescription>
+                                    <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+        )}
+
+        {currentStep === 2 && (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Product Category</CardTitle>
+                    <CardDescription>
+                        Choose the type of product for this order.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <FormField
+                        control={form.control}
+                        name="category"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {productCategories.map((cat) => {
+                                            const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
+                                            const isSelected = field.value === cat.name;
+                                            return (
+                                                <button
+                                                    key={cat.name}
+                                                    type="button"
+                                                    onClick={() => field.onChange(cat.name)}
+                                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
+                                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                                    )}
+                                                >
+                                                    <IconComponent className="h-8 w-8" />
+                                                    <span className="font-medium text-sm text-center">{cat.name}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </FormControl>
+                                <FormMessage className="pt-4" />
+                            </FormItem>
+                        )}
                         />
-                    </CardContent>
-                </Card>
-            )
+                </CardContent>
+            </Card>
         )}
         
-        {currentStep === 2 && (
+        {currentStep === 3 && (
             <div className="space-y-8">
                 <Card>
                     <CardHeader>
@@ -598,28 +676,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </FormItem>
                         )}
                         />
-                    <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Category</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a category" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {productCategories.map(cat => (
-                                        <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                        />
+                    
                     <FormField
                         control={form.control}
                         name="description"
@@ -928,7 +985,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </div>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
              <div className="space-y-8">
                  <Card>
                     <CardHeader>
@@ -1122,7 +1179,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
-
-    

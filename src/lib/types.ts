@@ -102,6 +102,7 @@ export type Order = {
   category: string;
   description: string;
   status: OrderStatus;
+  location: { town: string; };
   deadline: any; // Can be string or Firestore Timestamp
   incomeAmount: number;
   prepaidAmount?: number;

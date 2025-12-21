@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,14 +49,9 @@ import { Textarea } from "../ui/textarea";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
-  email: z.string().email("Invalid email address.").optional().or(z.literal('')),
-  company: z.string().optional(),
   phone: z.string().min(5, "A primary phone number is required."),
-  phone2: z.string().optional(),
-  telegram: z.string().optional(),
-  gender: z.enum(["Male", "Female", "Other"]),
+  gender: z.enum(["Male", "Female"]),
   town: z.string().min(2, "Town/City is required."),
-  mapUrl: z.string().url("Please enter a valid URL.").optional().or(z.literal('')),
   notes: z.string().optional(),
 });
 
@@ -66,7 +62,7 @@ interface CustomerFormProps {
   onSubmit: (data: any) => void;
   submitButtonText?: string;
   isSubmitting?: boolean;
-  isEmbedded?: boolean;
+  onCancel?: () => void;
 }
 
 export function CustomerForm({
@@ -74,7 +70,7 @@ export function CustomerForm({
   onSubmit,
   submitButtonText = "Create Customer",
   isSubmitting = false,
-  isEmbedded = false,
+  onCancel,
 }: CustomerFormProps) {
   const router = useRouter();
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -83,28 +79,18 @@ export function CustomerForm({
     if (customer) {
       return {
           name: customer.name,
-          email: customer.email,
-          company: customer.company,
           phone: customer.phoneNumbers.find(p => p.type === 'Mobile')?.number || "",
-          phone2: customer.phoneNumbers.find(p => p.type === 'Secondary')?.number || "",
-          telegram: customer.telegram,
-          gender: customer.gender,
+          gender: customer.gender === 'Other' ? 'Female' : customer.gender, // Default to Female if 'Other'
           town: customer.location.town,
-          mapUrl: customer.location.mapUrl,
           notes: customer.notes,
         };
     }
     
     return {
           name: "",
-          email: "",
-          company: "",
           phone: "",
-          phone2: "",
-          telegram: "",
-          gender: "Other",
+          gender: "Female",
           town: "",
-          mapUrl: "",
           notes: "",
         };
   }
@@ -118,31 +104,22 @@ export function CustomerForm({
 
   const handleFormSubmit = (values: CustomerFormValues) => {
     const phoneNumbers = [{ type: 'Mobile' as const, number: values.phone }];
-    if (values.phone2) {
-        phoneNumbers.push({ type: 'Secondary' as const, number: values.phone2 });
-    }
 
     let avatarUrl;
     if (values.gender === 'Male') {
-      avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${values.name || values.email}`;
-    } else if (values.gender === 'Female') {
-      avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${values.name || values.email}`;
+      avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${values.name}`;
     } else {
-      avatarUrl = `https://i.pravatar.cc/150?u=${values.email || values.name}`;
+      avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${values.name}`;
     }
 
 
     const customerData = {
         name: values.name,
-        email: values.email,
-        company: values.company,
-        telegram: values.telegram,
         gender: values.gender,
         notes: values.notes,
         phoneNumbers,
         location: {
             town: values.town,
-            mapUrl: values.mapUrl
         },
         avatarUrl,
     };
@@ -150,6 +127,10 @@ export function CustomerForm({
   };
   
   const handleCancelClick = () => {
+    if (onCancel) {
+      onCancel();
+      return;
+    }
     if (isDirty) {
       setShowCancelDialog(true);
     } else {
@@ -191,36 +172,9 @@ export function CustomerForm({
                         <SelectContent>
                             <SelectItem value="Female">Female</SelectItem>
                             <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                     </Select>
                     <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Email Address (Optional)</FormLabel>
-                <FormControl>
-                    <Input type="email" placeholder="e.g. jane.doe@example.com" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="company"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Company (Optional)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. Acme Inc." {...field} />
-                </FormControl>
-                <FormMessage />
                 </FormItem>
             )}
         />
@@ -237,34 +191,6 @@ export function CustomerForm({
                 </FormItem>
             )}
         />
-         <FormField
-            control={form.control}
-            name="phone2"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Secondary Phone (Optional)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. +1 555-987-6543" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-         <FormField
-            control={form.control}
-            name="telegram"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Telegram (Optional)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. @jane.doe" {...field} />
-                </FormControl>
-                <FormDescription>Username or handle, e.g., @janedoe</FormDescription>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        
         <FormField
             control={form.control}
             name="town"
@@ -273,19 +199,6 @@ export function CustomerForm({
                 <FormLabel>Town/City</FormLabel>
                 <FormControl>
                     <Input placeholder="e.g. San Francisco" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="mapUrl"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Map Link (Optional)</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. https://maps.app.goo.gl/..." {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>
@@ -314,16 +227,9 @@ export function CustomerForm({
   return (
     <>
       <Form {...form}>
-        <Card>
-            <CardHeader>
-                <CardTitle>Customer Information</CardTitle>
-                <CardDescription>Enter the details for the new customer.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {FormContent}
-            </CardContent>
-        </Card>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {FormContent}
+        </div>
         <div className="flex justify-end gap-2 mt-8">
             <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
             <Button type="button" disabled={isSubmitting} onClick={form.handleSubmit(handleFormSubmit)}>
@@ -352,5 +258,3 @@ export function CustomerForm({
     </>
   );
 }
-
-    

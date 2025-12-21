@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -672,6 +672,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     <Clock className="h-4 w-4 text-muted-foreground"/>
                                     <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
                                 </div>
+                                {order.location && (
+                                     <div className="flex items-center gap-3">
+                                        <MapPin className="h-4 w-4 text-muted-foreground"/>
+                                        <span className="text-sm">Location: {order.location.town}</span>
+                                    </div>
+                                )}
                                 
                                 {canViewSensitiveData && (
                                     <>
@@ -753,6 +759,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             <Clock className="h-4 w-4 text-muted-foreground"/>
                             <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
                         </div>
+                        {order.location && (
+                             <div className="flex items-center gap-3">
+                                <MapPin className="h-4 w-4 text-muted-foreground"/>
+                                <span className="text-sm">Location: {order.location.town}</span>
+                            </div>
+                        )}
                         
                         {canViewSensitiveData && (
                             <>
@@ -852,4 +864,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
