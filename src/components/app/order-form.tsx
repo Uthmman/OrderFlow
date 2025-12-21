@@ -231,34 +231,38 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
     const isValid = await trigger(fieldsToValidate as any);
 
-    if (isValid) {
-      // If it's a new order and this is the first step, create a draft.
-      if (!initialOrder && currentStep === 1) {
+    if (!isValid) return;
+
+    // If it's a new order (no initialOrder) and we are on the first step,
+    // we create a draft and redirect to the edit page.
+    if (!initialOrder && currentStep === 1) {
         setIsManualSaving(true);
         try {
-          const values = getValues();
-          const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-          const draftOrderPayload = {
-            ...values,
-            customerName,
-            status: 'Pending' as const, // Start as pending
-            deadline: values.deadline || new Date(),
-          };
-          const newOrderId = await onSave(draftOrderPayload);
-          if (newOrderId) {
-            router.replace(`/orders/${newOrderId}/edit`);
-            // No need to advance step here, the page will reload as an edit page
-          } else {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-          }
+            const values = getValues();
+            const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+            const draftOrderPayload = {
+                ...values,
+                customerName,
+                status: 'Pending' as const, // Start as pending draft
+                deadline: values.deadline || new Date(),
+            };
+            const newOrderId = await onSave(draftOrderPayload);
+            
+            if (newOrderId) {
+                // IMPORTANT: Redirect to edit page. The form will reload with `initialOrder` set.
+                // We do NOT advance the step here.
+                router.replace(`/orders/${newOrderId}/edit`);
+            } else {
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+            }
         } catch (error) {
-           toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
         } finally {
-          setIsManualSaving(false);
+            // It will redirect, so no need to set isManualSaving to false here.
         }
-      } else {
+    } else {
+        // If it's an existing order, or not the first step, just advance to the next step.
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
-      }
     }
   };
 
@@ -787,7 +791,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <Alert variant="default">
                               <Loader2 className="h-4 w-4 animate-spin" />
                               <AlertTitle>Action Required</AlertTitle>
-                              <AlertDescription>Please complete the current step to enable attachments.</AlertDescription>
+                              <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
                             </Alert>
                         ) : (
                             <>
@@ -1237,7 +1241,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 {currentStep < STEPS.length && (
-                    <Button type="button" onClick={nextStep}>
+                    <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
@@ -1270,3 +1275,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
