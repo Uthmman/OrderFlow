@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -33,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause } from "lucide-react"
+import { CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -152,6 +151,12 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+const STEPS = [
+  { id: 1, title: 'Order Details', fields: ['customerId', 'productName', 'category', 'description'] },
+  { id: 2, title: 'Specifications', fields: ['material', 'colors', 'width', 'height', 'depth', 'attachments'] },
+  { id: 3, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+];
+
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -160,6 +165,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { productSettings, loading: productsLoading } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
+  const [currentStep, setCurrentStep] = useState(1);
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [colorSearch, setColorSearch] = useState("");
@@ -207,7 +213,20 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     defaultValues: mapOrderToFormValues(initialOrder)
   });
   
-  const { formState: { isDirty, dirtyFields }, getValues, watch } = form;
+  const { formState: { isDirty, dirtyFields }, getValues, watch, trigger } = form;
+
+  const nextStep = async () => {
+    const fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
+    const isValid = await trigger(fieldsToValidate as any);
+    if (isValid) {
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
 
   // --- Auto-saving Logic ---
   const watchedValues = watch();
@@ -474,11 +493,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   return (
     <>
+    <div className="mb-8 space-y-4">
+        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
+        <div className="flex justify-between items-center">
+            <p className="text-sm font-medium">Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1].title}</p>
+            <div className="text-sm text-muted-foreground">
+                {isAutoSaving ? (
+                    <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Auto-saving...</span>
+                    </div>
+                ) : !isDirty && initialOrder ? (
+                    <span>All changes saved.</span>
+                ): null}
+            </div>
+        </div>
+    </div>
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-8">
-            {isCreatingNewCustomer ? (
+        
+        {currentStep === 1 && (
+             isCreatingNewCustomer ? (
                <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -498,561 +533,571 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
               </Card>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Order Details</CardTitle>
-                  <CardDescription>
-                    Fill in the main details of the new order.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                      control={form.control}
-                      name="customerId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Customer</FormLabel>
-                          <div className="flex items-center gap-2">
-                            <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select a customer" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {customers.map(customer => (
-                                  <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
-                              <UserPlus className="mr-2 h-4 w-4" />
-                              New
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
+                <Card>
+                    <CardHeader>
+                    <CardTitle>Order Details</CardTitle>
+                    <CardDescription>
+                        Fill in the main details of the new order.
+                    </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                    <FormField
                         control={form.control}
-                        name="productName"
+                        name="customerId"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Product Name</FormLabel>
+                            <FormLabel>Customer</FormLabel>
+                            <div className="flex items-center gap-2">
+                                <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
+                                <FormControl>
+                                    <SelectTrigger>
+                                    <SelectValue placeholder="Select a customer" />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {customers.map(customer => (
+                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                                </Select>
+                                <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                New
+                                </Button>
+                            </div>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="productName"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Product Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        <FormField
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Category</FormLabel>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
+                                        <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a category" />
+                                        </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                        {productCategories.map(cat => (
+                                            <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
+                                        ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                    <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Detailed Description</FormLabel>
                             <FormControl>
-                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                            <Textarea
+                                placeholder="Provide a detailed description of the order requirements..."
+                                rows={6}
+                                {...field}
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </CardContent>
+                </Card>
+            )
+        )}
+        
+        {currentStep === 2 && (
+            <div className="space-y-8">
+                <Card>
+                <CardHeader>
+                    <CardTitle>Specifications</CardTitle>
+                    <CardDescription>
+                    Provide product specifications like material, color, and dimensions.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField
+                        control={form.control}
+                        name="material"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Material</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g., Oak Wood, Canvas" {...field} value={field.value || ''}/>
                             </FormControl>
                             <FormMessage />
                             </FormItem>
                         )}
                         />
+                    </div>
+                    
                     <FormField
+                    control={form.control}
+                    name="colors"
+                    render={() => (
+                        <FormItem>
+                        <div className="space-y-2">
+                            <FormLabel>Color</FormLabel>
+                            <FormDescription>Select one or more colors, search, or specify color via attachment.</FormDescription>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                            <Input
+                            placeholder="Search colors..."
+                            value={colorSearch}
+                            onChange={(e) => setColorSearch(e.target.value)}
+                            className="max-w-xs"
+                            disabled={isColorAsAttachment || colorsLoading}
+                            />
+                            {colorsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                        </div>
+                        
+                        <FormField
+                            control={form.control}
+                            name="colorAsAttachment"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={(checked) => {
+                                        field.onChange(checked);
+                                        if (checked) {
+                                            form.setValue("colors", []);
+                                        }
+                                    }}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>
+                                    Color as Attached Picture
+                                    </FormLabel>
+                                    <FormDescription>
+                                    Select this if the color specifications are provided in an image attachment.
+                                    </FormDescription>
+                                </div>
+                                </FormItem>
+                            )}
+                            />
+
+
+                        <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
+                            <div>
+                                <h4 className="font-medium text-sm pt-2">Wood Finishes</h4>
+                                <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                                <CarouselContent className="-ml-2">
+                                    {filteredWoodFinishes.map((option) => (
+                                    <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="colors"
+                                            render={({ field }) => (
+                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                    checked={field.value?.includes(option.name)}
+                                                    onCheckedChange={(checked) => {
+                                                        return checked
+                                                        ? field.onChange([...(field.value || []), option.name])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                                (value) => value !== option.name
+                                                            )
+                                                            )
+                                                    }}
+                                                    className="sr-only"
+                                                    id={option.name}
+                                                    />
+                                                </FormControl>
+                                                <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                                                    <Image 
+                                                        src={option.imageUrl} 
+                                                        alt={option.name} 
+                                                        width={80} 
+                                                        height={80}
+                                                        className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
+                                                    />
+                                                    <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                                </Label>
+                                                </FormItem>
+                                            )}
+                                            />
+                                    </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                <CarouselPrevious />
+                                <CarouselNext />
+                                </Carousel>
+                            </div>
+
+                            <Separator className="my-6" />
+
+                            <div>
+                                <h4 className="font-medium text-sm">Custom Colors</h4>
+                                <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                                <CarouselContent className="-ml-2">
+                                    {filteredCustomColors.map((option) => (
+                                    <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
+                                        <FormField
+                                            control={form.control}
+                                            name="colors"
+                                            render={({ field }) => (
+                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                    checked={field.value?.includes(option.name)}
+                                                    onCheckedChange={(checked) => {
+                                                        return checked
+                                                        ? field.onChange([...(field.value || []), option.name])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                                (value) => value !== option.name
+                                                            )
+                                                            )
+                                                    }}
+                                                    className="sr-only"
+                                                    id={option.name}
+                                                    />
+                                                </FormControl>
+                                                <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-full", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                                    <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                                </Label>
+                                                </FormItem>
+                                            )}
+                                            />
+                                    </CarouselItem>
+                                    ))}
+                                </CarouselContent>
+                                <CarouselPrevious />
+                                <CarouselNext />
+                                </Carousel>
+                            </div>
+                        </div>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    
+                    <FormLabel>Dimensions (cm)</FormLabel>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
                         control={form.control}
-                        name="category"
+                        name="width"
                         render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Category</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value} disabled={productsLoading}>
+                            <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="W" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="height"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="H" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="depth"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="D" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                    </div>
+                </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Attachments</CardTitle>
+                        <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!initialOrder ? (
+                            <Alert variant="destructive">
+                            <AlertTitle>Save Required</AlertTitle>
+                            <AlertDescription>Please save the order first to enable file attachments.</AlertDescription>
+                            </Alert>
+                        ) : (
+                            <>
+                            <div className="space-y-4">
+                                <FormItem>
+                                    <FormControl>
+                                        <div 
+                                            className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                            <p className="text-muted-foreground">Click to upload or drag & drop files</p>
+                                            <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                            <input
+                                                ref={fileInputRef}
+                                                type="file"
+                                                multiple
+                                                onChange={handleFileChange}
+                                                className="hidden"
+                                                disabled={!initialOrder}
+                                            />
+                                        </div>
+                                    </FormControl>
+                                </FormItem>
+                                <div className="relative">
+                                    <Separator />
+                                    <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
+                                </div>
+                                {audioBlob && audioUrl ? (
+                                    <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
+                                ) : (
+                                    <Button 
+                                        type="button" 
+                                        variant={isRecording ? "destructive" : "outline"} 
+                                        className="w-full"
+                                        onClick={isRecording ? stopRecording : startRecording}
+                                        disabled={!initialOrder}
+                                    >
+                                        {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                        {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
+                                    </Button>
+                                )}
+                            </div>
+                            
+                            {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
+                                <div className="space-y-2 pt-4">
+                                    <h4 className="text-sm font-medium">Current Attachments:</h4>
+                                    <div className="space-y-2">
+                                        {initialOrder.attachments.map((file) => renderFilePreview(file))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {(isUploading || isPending) && (
+                            <div className="space-y-2 pt-4">
+                                <h4 className="text-sm font-medium">Uploading...</h4>
+                                {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                                    <div key={fileName} className="space-y-1">
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="truncate">{fileName}</span>
+                                            <span>{Math.round(progress)}%</span>
+                                        </div>
+                                        <Progress value={progress} className="h-2" />
+                                    </div>
+                                ))}
+                            </div>
+                            )}
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        )}
+
+        {currentStep === 3 && (
+             <div className="space-y-8">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Scheduling & Status</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="status"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Order Status</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select a category" />
+                                        <SelectValue placeholder="Select a status" />
                                     </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
-                                    {productCategories.map(cat => (
-                                        <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
-                                    ))}
+                                        {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
+                                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                                 <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                        <FormField
+                        control={form.control}
+                        name="deadline"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Deadline</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "pl-3 text-left font-normal",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value ? (
+                                        format(field.value, "PPP")
+                                    ) : (
+                                        <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) =>
+                                    date < new Date(new Date().setHours(0,0,0,0))
+                                    }
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
                             </FormItem>
                         )}
                         />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Detailed Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Provide a detailed description of the order requirements..."
-                            rows={6}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Specifications</CardTitle>
-                 <CardDescription>
-                  Provide product specifications like material, color, and dimensions.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="material"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Material</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., Oak Wood, Canvas" {...field} value={field.value || ''}/>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                 </div>
-                 
-                <FormField
-                  control={form.control}
-                  name="colors"
-                  render={() => (
-                    <FormItem>
-                      <div className="space-y-2">
-                        <FormLabel>Color</FormLabel>
-                        <FormDescription>Select one or more colors, search, or specify color via attachment.</FormDescription>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          placeholder="Search colors..."
-                          value={colorSearch}
-                          onChange={(e) => setColorSearch(e.target.value)}
-                          className="max-w-xs"
-                          disabled={isColorAsAttachment || colorsLoading}
-                        />
-                         {colorsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                      </div>
-                      
-                       <FormField
+                        <FormField
                         control={form.control}
-                        name="colorAsAttachment"
+                        name="isUrgent"
                         render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
-                            <FormControl>
-                                <Checkbox
-                                checked={field.value}
-                                onCheckedChange={(checked) => {
-                                    field.onChange(checked);
-                                    if (checked) {
-                                        form.setValue("colors", []);
-                                    }
-                                }}
-                                />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                                <FormLabel>
-                                Color as Attached Picture
-                                </FormLabel>
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <FormLabel>Urgent Order</FormLabel>
                                 <FormDescription>
-                                Select this if the color specifications are provided in an image attachment.
+                                Prioritize this order in the queue.
                                 </FormDescription>
                             </div>
-                            </FormItem>
-                        )}
-                        />
-
-
-                      <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                          <div>
-                            <h4 className="font-medium text-sm pt-2">Wood Finishes</h4>
-                             <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                              <CarouselContent className="-ml-2">
-                                {filteredWoodFinishes.map((option) => (
-                                  <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
-                                     <FormField
-                                        control={form.control}
-                                        name="colors"
-                                        render={({ field }) => (
-                                            <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl>
-                                                <Checkbox
-                                                checked={field.value?.includes(option.name)}
-                                                onCheckedChange={(checked) => {
-                                                    return checked
-                                                    ? field.onChange([...(field.value || []), option.name])
-                                                    : field.onChange(
-                                                        field.value?.filter(
-                                                            (value) => value !== option.name
-                                                        )
-                                                        )
-                                                }}
-                                                className="sr-only"
-                                                id={option.name}
-                                                />
-                                            </FormControl>
-                                            <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
-                                                <Image 
-                                                    src={option.imageUrl} 
-                                                    alt={option.name} 
-                                                    width={80} 
-                                                    height={80}
-                                                    className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
-                                                />
-                                                <span className="text-xs text-center truncate w-full">{option.name}</span>
-                                            </Label>
-                                            </FormItem>
-                                        )}
-                                        />
-                                  </CarouselItem>
-                                ))}
-                              </CarouselContent>
-                              <CarouselPrevious />
-                              <CarouselNext />
-                            </Carousel>
-                          </div>
-
-                          <Separator className="my-6" />
-
-                          <div>
-                            <h4 className="font-medium text-sm">Custom Colors</h4>
-                             <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                              <CarouselContent className="-ml-2">
-                                {filteredCustomColors.map((option) => (
-                                  <CarouselItem key={option.name} className="basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
-                                      <FormField
-                                        control={form.control}
-                                        name="colors"
-                                        render={({ field }) => (
-                                            <FormItem className="flex items-center space-x-2 space-y-0">
-                                            <FormControl>
-                                                <Checkbox
-                                                checked={field.value?.includes(option.name)}
-                                                onCheckedChange={(checked) => {
-                                                    return checked
-                                                    ? field.onChange([...(field.value || []), option.name])
-                                                    : field.onChange(
-                                                        field.value?.filter(
-                                                            (value) => value !== option.name
-                                                        )
-                                                        )
-                                                }}
-                                                className="sr-only"
-                                                id={option.name}
-                                                />
-                                            </FormControl>
-                                            <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
-                                                <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-full", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                                <span className="text-xs text-center truncate w-full">{option.name}</span>
-                                            </Label>
-                                            </FormItem>
-                                        )}
-                                        />
-                                  </CarouselItem>
-                                ))}
-                              </CarouselContent>
-                              <CarouselPrevious />
-                              <CarouselNext />
-                            </Carousel>
-                          </div>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 
-                 <FormLabel>Dimensions (cm)</FormLabel>
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="width"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="W" {...field} value={field.value || ''} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="height"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="H" {...field} value={field.value || ''} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                     <FormField
-                      control={form.control}
-                      name="depth"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="D" {...field} value={field.value || ''} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Attachments</CardTitle>
-                    <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {!initialOrder ? (
-                        <Alert variant="destructive">
-                           <AlertTitle>Save Required</AlertTitle>
-                           <AlertDescription>Please save the order first to enable file attachments.</AlertDescription>
-                        </Alert>
-                    ) : (
-                        <>
-                        <div className="space-y-4">
-                            <FormItem>
-                                <FormControl>
-                                    <div 
-                                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                        <p className="text-muted-foreground">Click to upload or drag & drop files</p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            multiple
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                            disabled={!initialOrder}
-                                        />
-                                    </div>
-                                </FormControl>
-                            </FormItem>
-                            <div className="relative">
-                                <Separator />
-                                <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
-                            </div>
-                            {audioBlob && audioUrl ? (
-                                 <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
-                            ) : (
-                                <Button 
-                                    type="button" 
-                                    variant={isRecording ? "destructive" : "outline"} 
-                                    className="w-full"
-                                    onClick={isRecording ? stopRecording : startRecording}
-                                    disabled={!initialOrder}
-                                >
-                                    {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
-                                    {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
-                                </Button>
-                            )}
-                        </div>
-                        
-                        {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
-                            <div className="space-y-2 pt-4">
-                                <h4 className="text-sm font-medium">Current Attachments:</h4>
-                                <div className="space-y-2">
-                                    {initialOrder.attachments.map((file) => renderFilePreview(file))}
-                                </div>
-                            </div>
-                        )}
-                        
-                        {(isUploading || isPending) && (
-                           <div className="space-y-2 pt-4">
-                               <h4 className="text-sm font-medium">Uploading...</h4>
-                               {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                   <div key={fileName} className="space-y-1">
-                                       <div className="flex justify-between items-center text-sm">
-                                           <span className="truncate">{fileName}</span>
-                                           <span>{Math.round(progress)}%</span>
-                                       </div>
-                                       <Progress value={progress} className="h-2" />
-                                   </div>
-                               ))}
-                           </div>
-                        )}
-                        </>
-                    )}
-                </CardContent>
-            </Card>
-
-          </div>
-
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Pricing & Payment</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="incomeAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Income Amount</FormLabel>
-                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <FormControl>
-                            <Input type="number" placeholder="0.00" className="pl-8" {...field} />
-                        </FormControl>
-                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="prepaidAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pre-paid Amount</FormLabel>
-                       <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <FormControl>
-                            <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value || ''} />
-                        </FormControl>
-                       </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="paymentDetails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Details</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="e.g., 50% upfront, Paid via Stripe #..."
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-             <Card>
-              <CardHeader>
-                <CardTitle>Scheduling & Status</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                 <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Order Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a status" />
-                            </SelectTrigger>
+                                <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                />
                             </FormControl>
-                            <SelectContent>
-                                {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
-                                    <SelectItem key={status} value={status}>{status}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                <FormField
-                  control={form.control}
-                  name="deadline"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Deadline</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) =>
-                              date < new Date(new Date().setHours(0,0,0,0))
-                            }
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormField
-                  control={form.control}
-                  name="isUrgent"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Urgent Order</FormLabel>
-                        <FormDescription>
-                          Prioritize this order in the queue.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                            </FormItem>
+                        )}
                         />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-        <div className="flex justify-end items-center gap-2 sticky bottom-0 bg-background/95 py-4">
-             <div className="flex items-center gap-2 text-sm text-muted-foreground mr-auto">
-                {isAutoSaving ? (
-                     <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Auto-saving...</span>
-                    </>
-                ) : !isDirty ? (
-                    <span>All changes saved.</span>
-                ): null}
-             </div>
+                    </CardContent>
+                </Card>
+
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Pricing & Payment</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <FormField
+                        control={form.control}
+                        name="incomeAmount"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Income Amount</FormLabel>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                </FormControl>
+                            </div>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="prepaidAmount"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Pre-paid Amount</FormLabel>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value || ''} />
+                                </FormControl>
+                            </div>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="paymentDetails"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Payment Details</FormLabel>
+                            <FormControl>
+                                <Textarea
+                                placeholder="e.g., 50% upfront, Paid via Stripe #..."
+                                {...field}
+                                value={field.value || ''}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+        )}
+
+         <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-             <Button type="submit" disabled={isSubmitting || isUploading || isAutoSaving}>
-                 {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                 {submitButtonText}
-             </Button>
+             <div className="flex items-center gap-2">
+                {currentStep > 1 && (
+                    <Button variant="outline" type="button" onClick={prevStep}>
+                        <ArrowLeft className="mr-2" /> Back
+                    </Button>
+                )}
+                {currentStep < STEPS.length && (
+                    <Button type="button" onClick={nextStep}>
+                        Next <ArrowRight className="ml-2" />
+                    </Button>
+                )}
+                {currentStep === STEPS.length && (
+                    <Button type="submit" disabled={isSubmitting || isUploading || isAutoSaving}>
+                        {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {submitButtonText}
+                    </Button>
+                )}
+             </div>
         </div>
       </form>
     </Form>
@@ -1075,3 +1120,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
