@@ -85,8 +85,9 @@
           "description": "The color selected for the order."
         },
         "material": {
-          "type": "string",
-          "description": "The material selected for the order."
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The materials selected for the order."
         },
         "size": {
           "type": "string",
@@ -305,13 +306,20 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ProductSettings",
       "type": "object",
-      "description": "Stores the application's product category settings.",
+      "description": "Stores the application's product settings.",
       "properties": {
         "productCategories": {
           "type": "array",
           "description": "List of available product categories.",
           "items": {
             "$ref": "#/backend/entities/ProductCategory"
+          }
+        },
+        "materials": {
+          "type": "array",
+          "description": "List of available materials.",
+          "items": {
+            "$ref": "#/backend/entities/Material"
           }
         }
       }
@@ -361,6 +369,18 @@
         }
       },
       "required": ["name", "icon"]
+    },
+    "Material": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Material",
+        "type": "object",
+        "description": "A material option for products.",
+        "properties": {
+            "name": {
+            "type": "string"
+            }
+        },
+        "required": ["name"]
     }
   },
   "auth": {
@@ -493,7 +513,7 @@
           "schema": {
             "$ref": "#/backend/entities/ProductSettings"
           },
-          "description": "Stores the application's product category settings.",
+          "description": "Stores the application's product settings, including categories and materials.",
           "params": []
         }
       }
@@ -501,3 +521,5 @@
     "reasoning": "The Firestore structure is designed to provide a secure, scalable, and easily maintainable database for the OrderFlow application. It leverages path-based ownership for user-specific data and membership maps for collaborative data access, ensuring authorization independence and simplifying security rules. \n\nSpecifically, the design implements authorization independence by denormalizing authorization data. For example, access to orders is controlled via the customer id, which is part of every order object, eliminating the need for rules to `get()` customer data to authorize order access. Similarly, the `participants` field in the `chatChannels` collection denormalizes the list of users that can access that chat channel, avoiding the need to check user roles in other collections.  User-owned data (notifications) are stored using path-based ownership.\n\nTo support secure `list` operations (QAPs), data with different access requirements are stored in separate collections. Customer data is stored in a top-level `customers` collection, Orders are stored in a top-level `orders` collection and linked to the customers with the `customerId`. Chat channels and messages are also stored in top-level collections. User-specific data like notifications, however, is stored in subcollections under the respective user document.\n\nThis structure avoids hierarchical authorization dependencies, making security rules simpler and more robust. It also enables atomic operations and simplifies debugging. A `settings` collection with documents for `colors` and `products` is added to dynamically manage application settings."
   }
 }
+
+    

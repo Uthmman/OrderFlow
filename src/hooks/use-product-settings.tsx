@@ -7,7 +7,7 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { ProductSettings, ProductCategory } from '@/lib/types';
+import type { ProductSettings, ProductCategory, Material } from '@/lib/types';
 
 
 interface ProductSettingsContextType {
@@ -15,6 +15,7 @@ interface ProductSettingsContextType {
   loading: boolean;
   updateProductSettings: (newSettings: ProductSettings) => void;
   addCategory: (newCategory: ProductCategory) => Promise<void>;
+  addMaterial: (newMaterial: Material) => Promise<void>;
 }
 
 const ProductSettingsContext = createContext<ProductSettingsContextType | undefined>(undefined);
@@ -30,7 +31,7 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     setDocumentNonBlocking(settingsDocRef, newSettings, { merge: true });
     toast({
       title: "Settings Updated",
-      description: "Your product categories have been saved.",
+      description: "Your product settings have been saved.",
     });
   }, [settingsDocRef, toast]);
 
@@ -40,6 +41,13 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     const updatedCategories = [...productSettings.productCategories, newCategory];
     setDocumentNonBlocking(settingsDocRef, { productCategories: updatedCategories }, { merge: true });
     
+  }, [productSettings, settingsDocRef]);
+  
+  const addMaterial = useCallback(async (newMaterial: Material) => {
+    if (!productSettings) return;
+
+    const updatedMaterials = [...productSettings.materials, newMaterial];
+    setDocumentNonBlocking(settingsDocRef, { materials: updatedMaterials }, { merge: true });
   }, [productSettings, settingsDocRef]);
   
   // Seed initial data if it doesn't exist
@@ -65,6 +73,17 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
                 { name: "Office Table", icon: "Briefcase" },
                 { name: "Dining Table", icon: "Utensils" },
                 { name: "Book Shelf", icon: "BookOpen" },
+            ],
+            materials: [
+                { name: 'MDF Paint' },
+                { name: 'MDF Paint 2K' },
+                { name: 'Oak' },
+                { name: 'Oak 2K' },
+                { name: 'Australian Wood' },
+                { name: 'UV MDF' },
+                { name: 'Blockboard UV MDF' },
+                { name: 'Laminated MDF' },
+                { name: 'Blockboard Laminated MDF' },
             ]
         };
         setDoc(settingsDocRef, initialSettings);
@@ -76,7 +95,8 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     loading,
     updateProductSettings,
     addCategory,
-  }), [productSettings, loading, updateProductSettings, addCategory]);
+    addMaterial
+  }), [productSettings, loading, updateProductSettings, addCategory, addMaterial]);
 
   return (
     <ProductSettingsContext.Provider value={value}>
@@ -92,3 +112,5 @@ export function useProductSettings() {
   }
   return context;
 }
+
+    

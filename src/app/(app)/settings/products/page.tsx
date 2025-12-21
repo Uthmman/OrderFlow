@@ -13,14 +13,20 @@ import { Loader2, Trash2, PlusCircle, HelpCircle } from "lucide-react";
 import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
 import * as LucideIcons from 'lucide-react';
 import React from "react";
+import { Separator } from "@/components/ui/separator";
 
 const productCategorySchema = z.object({
   name: z.string().min(1, "Name is required."),
   icon: z.string().min(1, "Icon name is required."),
 });
 
+const materialSchema = z.object({
+  name: z.string().min(1, "Material name is required."),
+});
+
 const productSettingsFormSchema = z.object({
   productCategories: z.array(productCategorySchema),
+  materials: z.array(materialSchema),
 });
 
 type ProductSettingsFormValues = z.infer<typeof productSettingsFormSchema>;
@@ -32,15 +38,21 @@ function ProductSettingsForm() {
     resolver: zodResolver(productSettingsFormSchema),
     values: {
       productCategories: productSettings?.productCategories || [],
+      materials: productSettings?.materials || [],
     },
     resetOptions: {
       keepDirtyValues: false,
     }
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: categoryFields, append: appendCategory, remove: removeCategory } = useFieldArray({
     control: form.control,
     name: "productCategories",
+  });
+  
+  const { fields: materialFields, append: appendMaterial, remove: removeMaterial } = useFieldArray({
+    control: form.control,
+    name: "materials",
   });
 
   const onSubmit = (data: ProductSettingsFormValues) => {
@@ -50,7 +62,10 @@ function ProductSettingsForm() {
   // Sync form with external state changes
   React.useEffect(() => {
     if (productSettings) {
-      form.reset({ productCategories: productSettings.productCategories });
+      form.reset({ 
+        productCategories: productSettings.productCategories,
+        materials: productSettings.materials,
+      });
     }
   }, [productSettings, form]);
   
@@ -73,7 +88,7 @@ function ProductSettingsForm() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ name: "", icon: "Box" })}
+                onClick={() => appendCategory({ name: "", icon: "Box" })}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Add Category
@@ -84,7 +99,7 @@ function ProductSettingsForm() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {fields.map((field, index) => {
+            {categoryFields.map((field, index) => {
               const iconName = form.watch(`productCategories.${index}.icon`);
               const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
 
@@ -124,16 +139,61 @@ function ProductSettingsForm() {
                         )}
                     />
                   </div>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="flex-shrink-0">
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCategory(index)} className="flex-shrink-0">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               )
             })}
-            {fields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No product categories added yet.</p>}
+            {categoryFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No product categories added yet.</p>}
           </CardContent>
         </Card>
         
+        <Separator />
+
+        <Card>
+            <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle>Materials</CardTitle>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => appendMaterial({ name: "" })}
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Material
+                    </Button>
+                </div>
+                <CardDescription>
+                    Manage the material options available for orders.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 {materialFields.map((field, index) => (
+                    <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
+                        <FormField
+                            control={form.control}
+                            name={`materials.${index}.name`}
+                            render={({ field }) => (
+                                <FormItem className="flex-grow">
+                                    <FormLabel>Material Name</FormLabel>
+                                    <FormControl>
+                                        <Input {...field} placeholder="e.g. MDF Paint" />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeMaterial(index)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </div>
+                 ))}
+                 {materialFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No materials added yet.</p>}
+            </CardContent>
+        </Card>
+
         <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
             <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -153,7 +213,7 @@ export default function ProductSettingsPage() {
                 <div>
                     <h1 className="text-3xl font-bold font-headline tracking-tight">Product Settings</h1>
                     <p className="text-muted-foreground">
-                    Manage your product categories and their display icons.
+                    Manage your product categories, materials, and their display icons.
                     </p>
                 </div>
                 <ProductSettingsForm />
@@ -161,3 +221,5 @@ export default function ProductSettingsPage() {
         </ProductSettingProvider>
     )
 }
+
+    

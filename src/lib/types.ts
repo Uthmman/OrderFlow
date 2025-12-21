@@ -110,7 +110,7 @@ export type Order = {
   creationDate: any; // Can be string or Firestore Timestamp
   attachments?: OrderAttachment[];
   colors?: string[];
-  material?: string;
+  material?: string[];
   dimensions?: { width: number; height: number; depth: number };
   paymentDetails?: string;
   assignedTo: string[];
@@ -138,6 +138,13 @@ export type ProductCategory = {
   icon: string;
 }
 
+export type Material = {
+  name: string;
+}
+
 export type ProductSettings = {
   productCategories: ProductCategory[];
+  materials: Material[];
 }
+
+    
