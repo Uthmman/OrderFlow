@@ -452,7 +452,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 <CardTitle>Specifications</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {order.material && order.material.length > 0 && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Materials: {order.material.join(', ')}</span></div>}
+                {order.material && (
+                    <div className="flex items-center gap-3">
+                        <Box className="h-4 w-4 text-muted-foreground"/> 
+                        <span className="text-sm">Materials: {Array.isArray(order.material) ? order.material.join(', ') : order.material}</span>
+                    </div>
+                )}
                 
                 {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
                     <div className="flex items-start gap-3">
@@ -864,5 +869,3 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
-
-    
