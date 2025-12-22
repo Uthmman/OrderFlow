@@ -158,8 +158,9 @@ const STEPS = [
   { id: 2, title: 'Category', fields: ['category'] },
   { id: 3, title: 'Attachments', fields: ['attachments'] },
   { id: 4, title: 'Product Details & Dimensions', fields: ['productName', 'description', 'width', 'height', 'depth'] },
-  { id: 5, title: 'Color & Material', fields: ['colors', 'material'] },
-  { id: 6, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+  { id: 5, title: 'Material', fields: ['material'] },
+  { id: 6, title: 'Color', fields: ['colors'] },
+  { id: 7, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -248,16 +249,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                router.replace(`/orders/${newOrderId}/edit`);
-                // Stop further execution to let the redirect happen.
-                return;
+                // Important: Use replace to avoid browser history issues with the temporary "new" page.
+                // The onSave function will now handle the redirect.
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
         } finally {
-            // The redirect will unmount this component, so no need to setIsManualSaving(false).
+            // The onSave should handle navigation, so we might not need to set isManualSaving to false here
+            // if the component unmounts.
         }
     } else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
@@ -863,76 +864,71 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
             </Card>
         )}
-
+        
         {currentStep === 5 && (
              <Card>
                 <CardHeader>
-                    <CardTitle>Color & Material</CardTitle>
+                    <CardTitle>Material</CardTitle>
                     <CardDescription>
-                        Select finishes, colors, and materials for the product.
+                        Choose one or more materials for this order.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <FormField
+                        control={form.control}
+                        name="material"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormControl>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {availableMaterials.map((mat) => {
+                                            const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
+                                            const isSelected = field.value?.includes(mat.name);
+                                            return (
+                                                <button
+                                                    key={mat.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const newValue = isSelected
+                                                            ? field.value?.filter(name => name !== mat.name)
+                                                            : [...(field.value || []), mat.name];
+                                                        field.onChange(newValue);
+                                                    }}
+                                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
+                                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                                    )}
+                                                >
+                                                    <IconComponent className="h-8 w-8" />
+                                                    <span className="font-medium text-sm text-center">{mat.name}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </FormControl>
+                                <FormMessage className="pt-4" />
+                            </FormItem>
+                        )}
+                        />
+                </CardContent>
+            </Card>
+        )}
+
+        {currentStep === 6 && (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Color</CardTitle>
+                    <CardDescription>
+                        Select finishes and colors for the product.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name="material"
-                        render={() => (
-                            <FormItem>
-                            <div className="mb-4">
-                                <FormLabel className="text-base">Materials</FormLabel>
-                                <FormDescription>
-                                Choose one or more materials for this order.
-                                </FormDescription>
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {availableMaterials.map((item) => (
-                                <FormField
-                                    key={item.name}
-                                    control={form.control}
-                                    name="material"
-                                    render={({ field }) => {
-                                    return (
-                                        <FormItem
-                                        key={item.name}
-                                        className="flex flex-row items-start space-x-3 space-y-0"
-                                        >
-                                        <FormControl>
-                                            <Checkbox
-                                            checked={field.value?.includes(item.name)}
-                                            onCheckedChange={(checked) => {
-                                                return checked
-                                                ? field.onChange([...(field.value || []), item.name])
-                                                : field.onChange(
-                                                    field.value?.filter(
-                                                        (value) => value !== item.name
-                                                    )
-                                                    );
-                                            }}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-normal">
-                                            {item.name}
-                                        </FormLabel>
-                                        </FormItem>
-                                    );
-                                    }}
-                                />
-                                ))}
-                            </div>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    
-                    <Separator />
-
                     <FormField
                     control={form.control}
                     name="colors"
                     render={() => (
                         <FormItem>
                         <div className="space-y-2">
-                            <FormLabel className="text-base">Color</FormLabel>
+                            <FormLabel className="text-base">Color Selection</FormLabel>
                             <FormDescription>Select one or more colors, search, or specify color via attachment.</FormDescription>
                         </div>
 
@@ -1020,8 +1016,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     </CarouselItem>
                                     ))}
                                 </CarouselContent>
-                                <CarouselPrevious />
-                                <CarouselNext />
+                                <CarouselPrevious type="button" />
+                                <CarouselNext type="button" />
                                 </Carousel>
                             </div>
 
@@ -1064,8 +1060,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     </CarouselItem>
                                     ))}
                                 </CarouselContent>
-                                <CarouselPrevious />
-                                <CarouselNext />
+                                <CarouselPrevious type="button" />
+                                <CarouselNext type="button" />
                                 </Carousel>
                             </div>
                         </div>
@@ -1077,7 +1073,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
 
-        {currentStep === 6 && (
+        {currentStep === 7 && (
              <div className="space-y-8">
                  <Card>
                     <CardHeader>

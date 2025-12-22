@@ -140,11 +140,10 @@ export type ProductCategory = {
 
 export type Material = {
   name: string;
+  icon: string;
 }
 
 export type ProductSettings = {
   productCategories: ProductCategory[];
   materials: Material[];
 }
-
-    

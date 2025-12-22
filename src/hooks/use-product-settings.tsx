@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -75,15 +76,15 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
                 { name: "Book Shelf", icon: "BookOpen" },
             ],
             materials: [
-                { name: 'MDF Paint' },
-                { name: 'MDF Paint 2K' },
-                { name: 'Oak' },
-                { name: 'Oak 2K' },
-                { name: 'Australian Wood' },
-                { name: 'UV MDF' },
-                { name: 'Blockboard UV MDF' },
-                { name: 'Laminated MDF' },
-                { name: 'Blockboard Laminated MDF' },
+                { name: 'MDF Paint', icon: 'PaintBucket' },
+                { name: 'MDF Paint 2K', icon: 'Paintbrush' },
+                { name: 'Oak', icon: 'Leaf' },
+                { name: 'Oak 2K', icon: 'TreeDeciduous' },
+                { name: 'Australian Wood', icon: 'Sprout' },
+                { name: 'UV MDF', icon: 'Sun' },
+                { name: 'Blockboard UV MDF', icon: 'Layers' },
+                { name: 'Laminated MDF', icon: 'Sheet' },
+                { name: 'Blockboard Laminated MDF', icon: 'Library' },
             ]
         };
         setDoc(settingsDocRef, initialSettings);
@@ -112,5 +113,3 @@ export function useProductSettings() {
   }
   return context;
 }
-
-    

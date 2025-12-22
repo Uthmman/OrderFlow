@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ const productCategorySchema = z.object({
 
 const materialSchema = z.object({
   name: z.string().min(1, "Material name is required."),
+  icon: z.string().min(1, "Icon name is required."),
 });
 
 const productSettingsFormSchema = z.object({
@@ -159,37 +161,62 @@ function ProductSettingsForm() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => appendMaterial({ name: "" })}
+                        onClick={() => appendMaterial({ name: "", icon: "Box" })}
                     >
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Material
                     </Button>
                 </div>
                 <CardDescription>
-                    Manage the material options available for orders.
+                    Manage the material options available for orders and their icons.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                 {materialFields.map((field, index) => (
-                    <div key={field.id} className="flex items-end gap-4 p-4 border rounded-lg">
-                        <FormField
-                            control={form.control}
-                            name={`materials.${index}.name`}
-                            render={({ field }) => (
-                                <FormItem className="flex-grow">
-                                    <FormLabel>Material Name</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} placeholder="e.g. MDF Paint" />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeMaterial(index)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                    </div>
-                 ))}
+                 {materialFields.map((field, index) => {
+                    const iconName = form.watch(`materials.${index}.icon`);
+                    const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
+                    return (
+                        <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
+                             <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
+                                <Label>Icon</Label>
+                                <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
+                                <IconComponent className="h-7 w-7 text-muted-foreground" />
+                                </div>
+                            </div>
+                            <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name={`materials.${index}.name`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Material Name</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder="e.g. MDF Paint" />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                 <FormField
+                                    control={form.control}
+                                    name={`materials.${index}.icon`}
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Icon Name</FormLabel>
+                                        <FormControl>
+                                        <Input {...field} placeholder="e.g. PaintBucket" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeMaterial(index)} className="flex-shrink-0">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    );
+                 })}
                  {materialFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No materials added yet.</p>}
             </CardContent>
         </Card>
@@ -221,5 +248,3 @@ export default function ProductSettingsPage() {
         </ProductSettingProvider>
     )
 }
-
-    
