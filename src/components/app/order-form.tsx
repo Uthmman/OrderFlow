@@ -173,7 +173,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
-  const [colorSearch, setColorSearch] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isManualSaving, setIsManualSaving] = useState(false);
@@ -456,13 +455,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
 
 
-  const filteredWoodFinishes = woodFinishOptions.filter(option =>
-    option.name.toLowerCase().includes(colorSearch.toLowerCase())
-  );
-
-  const filteredCustomColors = customColorOptions.filter(option =>
-    option.name.toLowerCase().includes(colorSearch.toLowerCase())
-  );
   
   const renderFilePreview = (attachment: OrderAttachment) => {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -871,41 +863,39 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                     <FormField
+                    <FormField
                         control={form.control}
                         name="material"
                         render={({ field }) => (
                             <FormItem>
-                                <FormControl>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {availableMaterials.map((mat) => {
-                                            const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
-                                            const isSelected = field.value?.includes(mat.name);
-                                            return (
-                                                <button
-                                                    key={mat.name}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const newValue = isSelected
-                                                            ? field.value?.filter(name => name !== mat.name)
-                                                            : [...(field.value || []), mat.name];
-                                                        field.onChange(newValue);
-                                                    }}
-                                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
-                                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                                                    )}
-                                                >
-                                                    <IconComponent className="h-8 w-8" />
-                                                    <span className="font-medium text-sm text-center">{mat.name}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </FormControl>
-                                <FormMessage className="pt-4" />
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {availableMaterials.map((mat) => {
+                                const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
+                                const isSelected = field.value?.includes(mat.name);
+                                return (
+                                    <button
+                                    key={mat.name}
+                                    type="button"
+                                    onClick={() => {
+                                        const newValue = isSelected
+                                            ? field.value?.filter(name => name !== mat.name)
+                                            : [...(field.value || []), mat.name];
+                                        field.onChange(newValue);
+                                    }}
+                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
+                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                    )}
+                                    >
+                                    <IconComponent className="h-8 w-8" />
+                                    <span className="font-medium text-sm text-center">{mat.name}</span>
+                                    </button>
+                                )
+                                })}
+                            </div>
+                            <FormMessage className="pt-4" />
                             </FormItem>
                         )}
-                        />
+                    />
                 </CardContent>
             </Card>
         )}
@@ -921,22 +911,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     name="colors"
                     render={() => (
                         <FormItem>
-                        <div className="flex items-center space-x-2">
-                            <Input
-                            placeholder="Search colors..."
-                            value={colorSearch}
-                            onChange={(e) => setColorSearch(e.target.value)}
-                            className="max-w-xs"
-                            disabled={isColorAsAttachment || colorsLoading}
-                            />
-                            {colorsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-                        </div>
                         
                         <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                             <div>
+                            <div>
                                 <h4 className="font-medium text-sm">Custom Colors</h4>
                                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
-                                    {filteredCustomColors.map((option) => (
+                                    {customColorOptions.map((option) => (
                                         <FormField
                                             key={option.name}
                                             control={form.control}
@@ -975,7 +955,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <div>
                                 <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
-                                    {filteredWoodFinishes.map((option) => (
+                                    {woodFinishOptions.map((option) => (
                                         <FormField
                                             key={option.name}
                                             control={form.control}
@@ -1112,7 +1092,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     disabled={(date) =>
                                     date < new Date(new Date().setHours(0,0,0,0))
                                     }
-                                    initialFocus
                                 />
                                 </PopoverContent>
                             </Popover>
