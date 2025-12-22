@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -44,7 +43,6 @@ import Image from "next/image"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { Separator } from "../ui/separator"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -156,7 +154,7 @@ function useDebounce<T>(value: T, delay: number): T {
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Category', fields: ['category'] },
-  { id: 3, title: 'Attachments', fields: ['attachments'] },
+  { id: 3, title: 'Attachments', fields: [] },
   { id: 4, title: 'Product Details & Dimensions', fields: ['productName', 'description', 'width', 'height', 'depth'] },
   { id: 5, title: 'Material', fields: ['material'] },
   { id: 6, title: 'Color', fields: ['colors'] },
@@ -249,16 +247,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                // Important: Use replace to avoid browser history issues with the temporary "new" page.
-                // The onSave function will now handle the redirect.
+                 router.replace(`/orders/${newOrderId}/edit`);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+                 setIsManualSaving(false);
             }
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-        } finally {
-            // The onSave should handle navigation, so we might not need to set isManualSaving to false here
-            // if the component unmounts.
+             setIsManualSaving(false);
         }
     } else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
@@ -975,15 +971,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
                             <div>
                                 <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
-                                <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                                <CarouselContent className="-ml-2">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
                                     {filteredWoodFinishes.map((option) => (
-                                    <CarouselItem key={option.name} className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
                                         <FormField
+                                            key={option.name}
                                             control={form.control}
                                             name="colors"
                                             render={({ field }) => (
-                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormItem>
                                                 <FormControl>
                                                     <Checkbox
                                                     checked={field.value?.includes(option.name)}
@@ -997,43 +992,38 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                             )
                                                     }}
                                                     className="sr-only"
-                                                    id={option.name}
+                                                    id={`wood-${option.name}`}
                                                     />
                                                 </FormControl>
-                                                <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
+                                                <Label htmlFor={`wood-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
                                                     <Image 
                                                         src={option.imageUrl} 
                                                         alt={option.name} 
-                                                        width={80} 
-                                                        height={80}
-                                                        className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")}
+                                                        width={120} 
+                                                        height={120}
+                                                        className={cn("rounded-md h-28 w-full object-cover border-2 border-transparent group-hover:border-primary", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2 border-primary")}
                                                     />
-                                                    <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
                                                 </Label>
                                                 </FormItem>
                                             )}
                                             />
-                                    </CarouselItem>
                                     ))}
-                                </CarouselContent>
-                                <CarouselPrevious type="button" />
-                                <CarouselNext type="button" />
-                                </Carousel>
+                                </div>
                             </div>
 
                             <Separator className="my-6" />
 
                             <div>
                                 <h4 className="font-medium text-sm">Custom Colors</h4>
-                                <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                                <CarouselContent className="-ml-2">
+                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
                                     {filteredCustomColors.map((option) => (
-                                    <CarouselItem key={option.name} className="basis-1/3 sm:basis-1/4 md:basis-1/5 lg:basis-1/6 pl-2">
                                         <FormField
+                                            key={option.name}
                                             control={form.control}
                                             name="colors"
                                             render={({ field }) => (
-                                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                                <FormItem>
                                                 <FormControl>
                                                     <Checkbox
                                                     checked={field.value?.includes(option.name)}
@@ -1047,22 +1037,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                             )
                                                     }}
                                                     className="sr-only"
-                                                    id={option.name}
+                                                    id={`color-${option.name}`}
                                                     />
                                                 </FormControl>
-                                                <Label htmlFor={option.name} className="flex flex-col items-center gap-2 cursor-pointer w-full">
-                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-md h-20 w-full", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                                    <span className="text-xs text-center truncate w-full">{option.name}</span>
+                                                <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
+                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
                                                 </Label>
                                                 </FormItem>
                                             )}
                                             />
-                                    </CarouselItem>
                                     ))}
-                                </CarouselContent>
-                                <CarouselPrevious type="button" />
-                                <CarouselNext type="button" />
-                                </Carousel>
+                                </div>
                             </div>
                         </div>
                         <FormMessage />
@@ -1269,3 +1255,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
