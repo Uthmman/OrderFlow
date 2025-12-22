@@ -218,7 +218,7 @@ function CustomerLink({ order }: { order: Order }) {
 
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
-    const firstProduct = order.products[0];
+    const firstProduct = order.products && order.products.length > 0 ? order.products[0] : null;
     if (!firstProduct) return <LucideIcons.Box className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
 
     const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
@@ -267,16 +267,16 @@ export const columns: ColumnDef<Order>[] = [
     ),
     cell: ({ row }) => {
         const order = row.original;
-        const firstProduct = order.products[0];
+        const firstProduct = order.products && order.products.length > 0 ? order.products[0] : null;
         
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{firstProduct?.productName || formatOrderId(order.id)}</Link>
+                        <Link href={`/orders/${order.id}`}>{firstProduct?.productName || 'Custom Order'}</Link>
                     </div>
-                    <div className="text-sm text-muted-foreground">{firstProduct?.productName ? formatOrderId(order.id) : null}</div>
+                    <div className="text-sm text-muted-foreground">{firstProduct?.productName ? formatOrderId(order.id) : formatOrderId(order.id)}</div>
                  </div>
             </div>
         );
@@ -406,7 +406,7 @@ function OrderTableToolbar({
 function MobileOrderList({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
-    const firstProduct = (order: Order) => order.products[0];
+    const firstProduct = (order: Order) => order.products && order.products.length > 0 ? order.products[0] : null;
 
     return (
         <div className="space-y-4">
