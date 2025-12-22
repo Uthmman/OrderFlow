@@ -249,8 +249,8 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-         {(order.chatMessages || []).map((message) => (
-            <div key={message.id}>
+         {(order.chatMessages || []).map((message, index) => (
+            <div key={`${message.id}-${message.timestamp}-${index}`}>
                 {message.isSystemMessage ? (
                     <SystemMessage message={message} />
                 ) : (
