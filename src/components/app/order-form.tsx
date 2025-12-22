@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -913,9 +914,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              <Card>
                 <CardHeader>
                     <CardTitle>Color</CardTitle>
-                    <CardDescription>
-                        Select finishes and colors for the product.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <FormField
@@ -923,11 +921,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     name="colors"
                     render={() => (
                         <FormItem>
-                        <div className="space-y-2">
-                            <FormLabel className="text-base">Color Selection</FormLabel>
-                            <FormDescription>Select one or more colors, search, or specify color via attachment.</FormDescription>
-                        </div>
-
                         <div className="flex items-center space-x-2">
                             <Input
                             placeholder="Search colors..."
@@ -939,36 +932,46 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             {colorsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                         </div>
                         
-                        <FormField
-                            control={form.control}
-                            name="colorAsAttachment"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-4">
-                                <FormControl>
-                                    <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={(checked) => {
-                                        field.onChange(checked);
-                                        if (checked) {
-                                            form.setValue("colors", []);
-                                        }
-                                    }}
-                                    />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                    <FormLabel>
-                                    Color as Attached Picture
-                                    </FormLabel>
-                                    <FormDescription>
-                                    Select this if the color specifications are provided in an image attachment.
-                                    </FormDescription>
-                                </div>
-                                </FormItem>
-                            )}
-                            />
-
-
                         <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
+                             <div>
+                                <h4 className="font-medium text-sm">Custom Colors</h4>
+                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
+                                    {filteredCustomColors.map((option) => (
+                                        <FormField
+                                            key={option.name}
+                                            control={form.control}
+                                            name="colors"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                <FormControl>
+                                                    <Checkbox
+                                                    checked={field.value?.includes(option.name)}
+                                                    onCheckedChange={(checked) => {
+                                                        return checked
+                                                        ? field.onChange([...(field.value || []), option.name])
+                                                        : field.onChange(
+                                                            field.value?.filter(
+                                                                (value) => value !== option.name
+                                                            )
+                                                            )
+                                                    }}
+                                                    className="sr-only"
+                                                    id={`color-${option.name}`}
+                                                    />
+                                                </FormControl>
+                                                <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
+                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
+                                                </Label>
+                                                </FormItem>
+                                            )}
+                                            />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <Separator className="my-6" />
+
                             <div>
                                 <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
@@ -1011,46 +1014,33 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     ))}
                                 </div>
                             </div>
-
-                            <Separator className="my-6" />
-
-                            <div>
-                                <h4 className="font-medium text-sm">Custom Colors</h4>
-                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
-                                    {filteredCustomColors.map((option) => (
-                                        <FormField
-                                            key={option.name}
-                                            control={form.control}
-                                            name="colors"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                <FormControl>
-                                                    <Checkbox
-                                                    checked={field.value?.includes(option.name)}
-                                                    onCheckedChange={(checked) => {
-                                                        return checked
-                                                        ? field.onChange([...(field.value || []), option.name])
-                                                        : field.onChange(
-                                                            field.value?.filter(
-                                                                (value) => value !== option.name
-                                                            )
-                                                            )
-                                                    }}
-                                                    className="sr-only"
-                                                    id={`color-${option.name}`}
-                                                    />
-                                                </FormControl>
-                                                <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
-                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
-                                                </Label>
-                                                </FormItem>
-                                            )}
-                                            />
-                                    ))}
-                                </div>
-                            </div>
                         </div>
+
+                         <FormField
+                            control={form.control}
+                            name="colorAsAttachment"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={(checked) => {
+                                        field.onChange(checked);
+                                        if (checked) {
+                                            form.setValue("colors", []);
+                                        }
+                                    }}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel>
+                                    Color as Attached Picture
+                                    </FormLabel>
+                                </div>
+                                </FormItem>
+                            )}
+                            />
+
                         <FormMessage />
                         </FormItem>
                     )}
