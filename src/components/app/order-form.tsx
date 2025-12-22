@@ -156,9 +156,10 @@ function useDebounce<T>(value: T, delay: number): T {
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Category', fields: ['category'] },
-  { id: 3, title: 'Product Details & Dimensions', fields: ['productName', 'description', 'width', 'height', 'depth', 'attachments'] },
-  { id: 4, title: 'Color & Material', fields: ['colors', 'material'] },
-  { id: 5, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+  { id: 3, title: 'Attachments', fields: ['attachments'] },
+  { id: 4, title: 'Product Details & Dimensions', fields: ['productName', 'description', 'width', 'height', 'depth'] },
+  { id: 5, title: 'Color & Material', fields: ['colors', 'material'] },
+  { id: 6, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -233,8 +234,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     if (!isValid) return;
 
-    // If it's a new order (no initialOrder) and we are on the first step,
-    // we create a draft and redirect to the edit page.
     if (!initialOrder && currentStep === 1) {
         setIsManualSaving(true);
         try {
@@ -243,25 +242,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const draftOrderPayload = {
                 ...values,
                 customerName,
-                status: 'Pending' as const, // Start as pending draft
+                status: 'Pending' as const,
                 deadline: values.deadline || new Date(),
             };
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                // IMPORTANT: Redirect to edit page. The form will reload with `initialOrder` set.
-                // We do NOT advance the step here.
                 router.replace(`/orders/${newOrderId}/edit`);
+                // Stop further execution to let the redirect happen.
+                return;
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
         } finally {
-            // It will redirect, so no need to set isManualSaving to false here.
+            // The redirect will unmount this component, so no need to setIsManualSaving(false).
         }
     } else {
-        // If it's an existing order, or not the first step, just advance to the next step.
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
   };
@@ -695,178 +693,178 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         )}
         
         {currentStep === 3 && (
-            <div className="space-y-8">
-                <Card>
-                    <CardHeader>
-                    <CardTitle>Product Details & Dimensions</CardTitle>
-                    <CardDescription>
-                        Fill in the main details and specifications of the order.
-                    </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name="productName"
-                        render={({ field }) => (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Attachments</CardTitle>
+                    <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {!initialOrder ? (
+                        <Alert variant="default">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <AlertTitle>Action Required</AlertTitle>
+                            <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
+                        </Alert>
+                    ) : (
+                        <>
+                        <div className="space-y-4">
                             <FormItem>
-                            <FormLabel>Product Name</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    
-                    <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Detailed Description</FormLabel>
-                            <FormControl>
-                            <Textarea
-                                placeholder="Provide a detailed description of the order requirements..."
-                                rows={4}
-                                {...field}
-                            />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-
-                    <div className="space-y-2">
-                        <Label>Dimensions (cm)</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField
-                            control={form.control}
-                            name="width"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
                                 <FormControl>
-                                    <Input type="number" placeholder="W" {...field} value={field.value || ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                            <FormField
-                            control={form.control}
-                            name="height"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="H" {...field} value={field.value || ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                            <FormField
-                            control={form.control}
-                            name="depth"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="D" {...field} value={field.value || ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                        </div>
-                    </div>
-
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Attachments</CardTitle>
-                        <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {!initialOrder ? (
-                            <Alert variant="default">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <AlertTitle>Action Required</AlertTitle>
-                              <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
-                            </Alert>
-                        ) : (
-                            <>
-                            <div className="space-y-4">
-                                <FormItem>
-                                    <FormControl>
-                                        <div 
-                                            className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                            onClick={() => fileInputRef.current?.click()}
-                                        >
-                                            <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                            <p className="text-muted-foreground">Click to upload or drag & drop files</p>
-                                            <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                            <input
-                                                ref={fileInputRef}
-                                                type="file"
-                                                multiple
-                                                onChange={handleFileChange}
-                                                className="hidden"
-                                                disabled={!initialOrder}
-                                            />
-                                        </div>
-                                    </FormControl>
-                                </FormItem>
-                                <div className="relative">
-                                    <Separator />
-                                    <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
-                                </div>
-                                {audioBlob && audioUrl ? (
-                                    <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
-                                ) : (
-                                    <Button 
-                                        type="button" 
-                                        variant={isRecording ? "destructive" : "outline"} 
-                                        className="w-full"
-                                        onClick={isRecording ? stopRecording : startRecording}
-                                        disabled={!initialOrder}
+                                    <div 
+                                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                        onClick={() => fileInputRef.current?.click()}
                                     >
-                                        {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
-                                        {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
-                                    </Button>
-                                )}
-                            </div>
-                            
-                            {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
-                                <div className="space-y-2 pt-4">
-                                    <h4 className="text-sm font-medium">Current Attachments:</h4>
-                                    <div className="space-y-2">
-                                        {initialOrder.attachments.map((file) => renderFilePreview(file))}
+                                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                        <p className="text-muted-foreground">Click to upload or drag & drop files</p>
+                                        <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            multiple
+                                            onChange={handleFileChange}
+                                            className="hidden"
+                                            disabled={!initialOrder}
+                                        />
                                     </div>
-                                </div>
+                                </FormControl>
+                            </FormItem>
+                            <div className="relative">
+                                <Separator />
+                                <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
+                            </div>
+                            {audioBlob && audioUrl ? (
+                                <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
+                            ) : (
+                                <Button 
+                                    type="button" 
+                                    variant={isRecording ? "destructive" : "outline"} 
+                                    className="w-full"
+                                    onClick={isRecording ? stopRecording : startRecording}
+                                    disabled={!initialOrder}
+                                >
+                                    {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                    {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
+                                </Button>
                             )}
-                            
-                            {(isUploading || isPending) && (
+                        </div>
+                        
+                        {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
                             <div className="space-y-2 pt-4">
-                                <h4 className="text-sm font-medium">Uploading...</h4>
-                                {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                    <div key={fileName} className="space-y-1">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="truncate">{fileName}</span>
-                                            <span>{Math.round(progress)}%</span>
-                                        </div>
-                                        <Progress value={progress} className="h-2" />
-                                    </div>
-                                ))}
+                                <h4 className="text-sm font-medium">Current Attachments:</h4>
+                                <div className="space-y-2">
+                                    {initialOrder.attachments.map((file) => renderFilePreview(file))}
+                                </div>
                             </div>
-                            )}
-                            </>
                         )}
-                    </CardContent>
-                </Card>
-            </div>
+                        
+                        {(isUploading || isPending) && (
+                        <div className="space-y-2 pt-4">
+                            <h4 className="text-sm font-medium">Uploading...</h4>
+                            {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                                <div key={fileName} className="space-y-1">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="truncate">{fileName}</span>
+                                        <span>{Math.round(progress)}%</span>
+                                    </div>
+                                    <Progress value={progress} className="h-2" />
+                                </div>
+                            ))}
+                        </div>
+                        )}
+                        </>
+                    )}
+                </CardContent>
+            </Card>
         )}
 
         {currentStep === 4 && (
+            <Card>
+                <CardHeader>
+                <CardTitle>Product Details & Dimensions</CardTitle>
+                <CardDescription>
+                    Fill in the main details and specifications of the order.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="productName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Product Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                
+                <FormField
+                    control={form.control}
+                    name="description"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Detailed Description</FormLabel>
+                        <FormControl>
+                        <Textarea
+                            placeholder="Provide a detailed description of the order requirements..."
+                            rows={4}
+                            {...field}
+                        />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+
+                <div className="space-y-2">
+                    <Label>Dimensions (cm)</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <FormField
+                        control={form.control}
+                        name="width"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="W" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="height"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="H" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="depth"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
+                            <FormControl>
+                                <Input type="number" placeholder="D" {...field} value={field.value || ''} />
+                            </FormControl>
+                            </FormItem>
+                        )}
+                        />
+                    </div>
+                </div>
+
+                </CardContent>
+            </Card>
+        )}
+
+        {currentStep === 5 && (
              <Card>
                 <CardHeader>
                     <CardTitle>Color & Material</CardTitle>
@@ -1079,7 +1077,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 6 && (
              <div className="space-y-8">
                  <Card>
                     <CardHeader>
@@ -1275,5 +1273,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
