@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
-import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
+import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -25,8 +25,8 @@ interface OrderContextType {
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
-  addAttachment: (orderId: string, file: File) => Promise<void>;
-  removeAttachment: (orderId: string, attachment: OrderAttachment) => Promise<void>;
+  addAttachment: (orderId: string, productIndex: number, file: File) => Promise<void>;
+  removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment) => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -127,33 +127,42 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addAttachment = async (orderId: string, file: File) => {
+  const addAttachment = async (orderId: string, productIndex: number, file: File) => {
       try {
         const newAttachment = await handleFileUpload(file);
         const orderRef = doc(firestore, 'orders', orderId);
         const currentOrder = orders?.find(o => o.id === orderId);
-        const currentAttachments = currentOrder?.attachments || [];
-        await updateDoc(orderRef, { attachments: [...currentAttachments, newAttachment] });
+        if (currentOrder) {
+            const updatedProducts = [...currentOrder.products];
+            const productToUpdate = updatedProducts[productIndex];
+            const currentAttachments = productToUpdate.attachments || [];
+            productToUpdate.attachments = [...currentAttachments, newAttachment];
+            await updateDoc(orderRef, { products: updatedProducts });
+        }
       } catch (error) {
           // Error is already handled by handleFileUpload
       }
   };
 
-  const removeAttachment = async (orderId: string, attachment: OrderAttachment) => {
+  const removeAttachment = async (orderId: string, productIndex: number, attachment: OrderAttachment) => {
       try {
         if (attachment.storagePath) {
           await deleteFileFlow({ fileName: attachment.storagePath });
         }
         const orderRef = doc(firestore, 'orders', orderId);
         const currentOrder = orders?.find(o => o.id === orderId);
-        const updatedAttachments = (currentOrder?.attachments || []).filter(
-            att => att.storagePath !== attachment.storagePath
-        );
-        await updateDoc(orderRef, { attachments: updatedAttachments });
-         toast({
-            title: "Attachment Removed",
-            description: `${attachment.fileName} has been deleted.`
-        });
+        if (currentOrder) {
+            const updatedProducts = [...currentOrder.products];
+            const productToUpdate = updatedProducts[productIndex];
+            productToUpdate.attachments = (productToUpdate.attachments || []).filter(
+                att => att.storagePath !== attachment.storagePath
+            );
+            await updateDoc(orderRef, { products: updatedProducts });
+            toast({
+                title: "Attachment Removed",
+                description: `${attachment.fileName} has been deleted.`
+            });
+        }
       } catch (error) {
            console.error("Failed to remove attachment:", error);
            toast({
@@ -175,7 +184,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ...orderData,
         id: orderId,
         creationDate: serverTimestamp(),
-        attachments: orderData.attachments || [],
         ownerId: user.id,
         status: orderData.status || 'Pending',
     };

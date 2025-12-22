@@ -36,7 +36,7 @@ import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, Up
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material } from "@/lib/types"
+import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material, Product } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition } from "react"
@@ -63,25 +63,32 @@ import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "../ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
+import { v4 as uuidv4 } from "uuid"
 
-const formSchema = z.object({
-  customerId: z.string().min(1, "Customer is required."),
-  location: z.object({ town: z.string().min(2, "Order location is required.") }),
+const productSchema = z.object({
+  id: z.string(),
   productName: z.string().min(3, "Product name must be at least 3 characters."),
   category: z.string().min(1, "Category is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
+  attachments: z.array(z.any()).optional(),
   colors: z.array(z.string()).optional(),
   material: z.array(z.string()).optional(),
   width: z.coerce.number().optional(),
   height: z.coerce.number().optional(),
   depth: z.coerce.number().optional(),
+  colorAsAttachment: z.boolean().default(false),
+})
+
+const formSchema = z.object({
+  customerId: z.string().min(1, "Customer is required."),
+  location: z.object({ town: z.string().min(2, "Order location is required.") }),
+  products: z.array(productSchema).min(1, "At least one product is required."),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
   incomeAmount: z.coerce.number().min(0, "Price cannot be negative."),
   prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
   deadline: z.date({ required_error: "A deadline is required." }),
   isUrgent: z.boolean().default(false),
-  colorAsAttachment: z.boolean().default(false),
 })
 
 type OrderFormValues = z.infer<typeof formSchema>
@@ -154,11 +161,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
-  { id: 2, title: 'Category', fields: ['category'] },
+  { id: 2, title: 'Category', fields: ['products.0.category'] },
   { id: 3, title: 'Attachments', fields: [] },
-  { id: 4, title: 'Product Details & Dimensions', fields: ['productName', 'description', 'width', 'height', 'depth'] },
-  { id: 5, title: 'Material', fields: ['material'] },
-  { id: 6, title: 'Color', fields: ['colors'] },
+  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
+  { id: 5, title: 'Material', fields: ['products.0.material'] },
+  { id: 6, title: 'Color', fields: ['products.0.colors'] },
   { id: 7, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
@@ -170,6 +177,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { productSettings, loading: productsLoading } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
+  const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
@@ -187,18 +195,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
+    const defaultProduct: Product = {
+      id: uuidv4(),
+      productName: '',
+      category: '',
+      description: '',
+      attachments: [],
+      colors: [],
+      material: [],
+    };
+    
     const defaultValues = {
-        productName: '',
-        category: '',
+        products: [defaultProduct],
         isUrgent: false,
         status: "In Progress" as OrderStatus,
         incomeAmount: 0,
         prepaidAmount: 0,
-        colors: [],
-        material: [],
-        colorAsAttachment: false,
         customerId: '',
-        description: '',
         deadline: new Date(),
         location: { town: '' },
     };
@@ -212,11 +225,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         ...orderToMap,
         deadline: toDate(orderToMap.deadline) || new Date(),
         location: orderToMap.location || { town: '' },
-        width: orderToMap.dimensions?.width,
-        height: orderToMap.dimensions?.height,
-        depth: orderToMap.dimensions?.depth,
-        colorAsAttachment: orderToMap.colors?.includes("As Attached Picture"),
-        material: Array.isArray(orderToMap.material) ? orderToMap.material : (orderToMap.material ? [orderToMap.material] : []),
+        products: orderToMap.products.map(p => ({
+            ...p,
+            colorAsAttachment: p.colors?.includes("As Attached Picture")
+        }))
     } as OrderFormValues;
   }, []);
 
@@ -225,11 +237,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     defaultValues: mapOrderToFormValues(initialOrder)
   });
   
-  const { formState: { isDirty, dirtyFields }, getValues, watch, trigger } = form;
+  const { formState: { isDirty, dirtyFields }, getValues, watch, trigger, setValue } = form;
+
+  const watchedProducts = watch("products");
+
+  const productStepFields = (index: number, fields: string[]) => fields.map(f => `products.${index}.${f.split('.').pop()}`);
 
   const nextStep = async () => {
-    const fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
-    const isValid = await trigger(fieldsToValidate as any);
+    let fieldsToValidate: any = [];
+    if(currentStep === 1) {
+        fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
+    } else {
+        const productFields = STEPS.find(s => s.id === currentStep)?.fields || [];
+        fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
+    }
+    
+    const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
 
     if (!isValid) return;
 
@@ -250,19 +273,37 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                  router.replace(`/orders/${newOrderId}/edit`);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-                 setIsManualSaving(false);
+                setIsManualSaving(false);
             }
+            return; // Stop execution to allow redirect
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
              setIsManualSaving(false);
+             return;
         }
-    } else {
-        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
+    
+    setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
   };
 
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+  
+  const addAnotherProduct = () => {
+    const newProduct: Product = {
+        id: uuidv4(),
+        productName: '',
+        category: '',
+        description: '',
+        attachments: [],
+        colors: [],
+        material: [],
+    };
+    const currentProducts = getValues('products');
+    setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
+    setCurrentProductIndex(currentProducts.length);
+    setCurrentStep(2); // Go back to category selection for the new product
   };
 
 
@@ -290,22 +331,29 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     
     setIsAutoSaving(true);
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-    let finalColors = values.colors;
-    if (values.colorAsAttachment) {
-      finalColors = ["As Attached Picture"];
-    }
+
+    const updatedProducts = values.products.map(p => {
+        let finalColors = p.colors;
+        if ((p as any).colorAsAttachment) {
+            finalColors = ["As Attached Picture"];
+        }
+        return {
+            ...p,
+            colors: finalColors,
+            dimensions: p.width && p.height && p.depth ? {
+                width: p.width,
+                height: p.height,
+                depth: p.depth,
+            } : undefined,
+        }
+    });
 
     const orderPayload = {
       ...initialOrder,
       ...values,
-      colors: finalColors,
+      products: updatedProducts,
       customerName,
       deadline: values.deadline,
-      dimensions: values.width && values.height && values.depth ? {
-        width: values.width,
-        height: values.height,
-        depth: values.depth,
-      } : undefined,
     } as Order;
 
     try {
@@ -385,7 +433,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (audioBlob && initialOrder) {
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       startTransition(() => {
-        addAttachment(initialOrder.id, audioFile);
+        addAttachment(initialOrder.id, currentProductIndex, audioFile);
       });
       setAudioBlob(null);
     }
@@ -434,7 +482,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       const files = Array.from(event.target.files);
       files.forEach(file => {
         startTransition(() => {
-            addAttachment(initialOrder.id, file);
+            addAttachment(initialOrder.id, currentProductIndex, file);
         });
       })
     }
@@ -442,11 +490,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const handleRemoveAttachment = (attachment: OrderAttachment) => {
     if (initialOrder) {
-        removeAttachment(initialOrder.id, attachment);
+        removeAttachment(initialOrder.id, currentProductIndex, attachment);
     }
   };
-
-  const isColorAsAttachment = form.watch("colorAsAttachment");
+  
+  const currentProduct = watchedProducts ? watchedProducts[currentProductIndex] : null;
+  const isColorAsAttachment = currentProduct ? (currentProduct as any).colorAsAttachment : false;
   const woodFinishOptions = colorSettings?.woodFinishes || [];
   const customColorOptions = colorSettings?.customColors || [];
   const productCategories = productSettings?.productCategories || [];
@@ -492,33 +541,41 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     setIsManualSaving(true);
     try {
       const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-      let finalColors = values.colors;
-      if (values.colorAsAttachment) {
-        finalColors = ["As Attached Picture"];
-      }
-
+      
+      const updatedProducts = values.products.map(p => {
+        let finalColors = p.colors;
+        if ((p as any).colorAsAttachment) {
+            finalColors = ["As Attached Picture"];
+        }
+        return {
+            ...p,
+            colors: finalColors,
+            dimensions: p.width && p.height && p.depth ? {
+                width: p.width,
+                height: p.height,
+                depth: p.depth,
+            } : undefined,
+        }
+      });
+      
       const orderPayload = {
         ...(initialOrder || {}),
         ...values,
+        products: updatedProducts,
         status: values.status,
-        colors: finalColors,
         customerName,
         deadline: values.deadline,
-        dimensions: values.width && values.height && values.depth ? {
-          width: values.width,
-          height: values.height,
-          depth: values.depth,
-        } : undefined,
       };
 
       await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
       form.reset(values); // Mark form as not dirty
       if (initialOrder) {
-        // If editing, show toast
+        // If editing, show toast and redirect
         toast({
             title: "Order Updated",
             description: "Your changes have been saved."
         });
+        router.push(`/orders/${initialOrder.id}`);
       }
     } catch (error) {
         // onSave should handle its own errors/toasts
@@ -531,6 +588,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const allStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
   const createOrderStatuses = allStatuses.filter(s => s !== "Pending");
+  
+  const productStepTitle = (title: string) => {
+    return watchedProducts.length > 1 ? `${title} (Product ${currentProductIndex + 1})` : title;
+  }
+
+  const stepTitle = STEPS[currentStep - 1].title;
+  const isProductStep = currentStep > 1 && currentStep < STEPS.length;
+  const finalTitle = isProductStep ? productStepTitle(stepTitle) : stepTitle;
 
 
   return (
@@ -538,7 +603,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     <div className="mb-8 space-y-4">
         <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
         <div className="flex justify-between items-center">
-            <p className="text-sm font-medium">Step {currentStep} of {STEPS.length}: {STEPS[currentStep - 1].title}</p>
+            <p className="text-sm font-medium">Step {currentStep} of {STEPS.length}: {finalTitle}</p>
             <div className="text-sm text-muted-foreground">
                 {isAutoSaving ? (
                     <div className="flex items-center gap-2">
@@ -642,7 +707,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 2 && (
              <Card>
                 <CardHeader>
-                    <CardTitle>Product Category</CardTitle>
+                    <CardTitle>{productStepTitle("Product Category")}</CardTitle>
                     <CardDescription>
                         Choose the type of product for this order.
                     </CardDescription>
@@ -650,7 +715,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent>
                      <FormField
                         control={form.control}
-                        name="category"
+                        name={`products.${currentProductIndex}.category`}
                         render={({ field }) => (
                             <FormItem>
                                 <FormControl>
@@ -685,7 +750,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 3 && (
             <Card>
                 <CardHeader>
-                    <CardTitle>Attachments</CardTitle>
+                    <CardTitle>{productStepTitle("Attachments")}</CardTitle>
                     <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -738,11 +803,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             )}
                         </div>
                         
-                        {(initialOrder?.attachments && initialOrder.attachments.length > 0) && (
+                        {(currentProduct?.attachments && currentProduct.attachments.length > 0) && (
                             <div className="space-y-2 pt-4">
                                 <h4 className="text-sm font-medium">Current Attachments:</h4>
                                 <div className="space-y-2">
-                                    {initialOrder.attachments.map((file) => renderFilePreview(file))}
+                                    {currentProduct.attachments.map((file) => renderFilePreview(file))}
                                 </div>
                             </div>
                         )}
@@ -770,7 +835,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 4 && (
             <Card>
                 <CardHeader>
-                <CardTitle>Product Details & Dimensions</CardTitle>
+                <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
                 <CardDescription>
                     Fill in the main details and specifications of the order.
                 </CardDescription>
@@ -778,7 +843,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent className="space-y-6">
                 <FormField
                     control={form.control}
-                    name="productName"
+                    name={`products.${currentProductIndex}.productName`}
                     render={({ field }) => (
                         <FormItem>
                         <FormLabel>Product Name</FormLabel>
@@ -792,7 +857,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 
                 <FormField
                     control={form.control}
-                    name="description"
+                    name={`products.${currentProductIndex}.description`}
                     render={({ field }) => (
                     <FormItem>
                         <FormLabel>Detailed Description</FormLabel>
@@ -813,7 +878,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <FormField
                         control={form.control}
-                        name="width"
+                        name={`products.${currentProductIndex}.width`}
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
@@ -825,7 +890,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         />
                         <FormField
                         control={form.control}
-                        name="height"
+                        name={`products.${currentProductIndex}.height`}
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
@@ -837,7 +902,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         />
                         <FormField
                         control={form.control}
-                        name="depth"
+                        name={`products.${currentProductIndex}.depth`}
                         render={({ field }) => (
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
@@ -857,15 +922,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 5 && (
              <Card>
                 <CardHeader>
-                    <CardTitle>Material</CardTitle>
+                    <CardTitle>{productStepTitle("Material")}</CardTitle>
                     <CardDescription>
-                        Choose one or more materials for this order.
+                        Choose one or more materials for this product.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <FormField
                         control={form.control}
-                        name="material"
+                        name={`products.${currentProductIndex}.material`}
                         render={({ field }) => (
                             <FormItem>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -903,12 +968,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 6 && (
              <Card>
                 <CardHeader>
-                    <CardTitle>Color</CardTitle>
+                    <CardTitle>{productStepTitle("Color")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <FormField
                     control={form.control}
-                    name="colors"
+                    name={`products.${currentProductIndex}.colors`}
                     render={() => (
                         <FormItem>
                         
@@ -920,7 +985,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <FormField
                                             key={option.name}
                                             control={form.control}
-                                            name="colors"
+                                            name={`products.${currentProductIndex}.colors`}
                                             render={({ field }) => (
                                                 <FormItem>
                                                 <FormControl>
@@ -959,7 +1024,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <FormField
                                             key={option.name}
                                             control={form.control}
-                                            name="colors"
+                                            name={`products.${currentProductIndex}.colors`}
                                             render={({ field }) => (
                                                 <FormItem>
                                                 <FormControl>
@@ -998,7 +1063,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
                          <FormField
                             control={form.control}
-                            name="colorAsAttachment"
+                            name={`products.${currentProductIndex}.colorAsAttachment`}
                             render={({ field }) => (
                                 <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
                                 <FormControl>
@@ -1007,7 +1072,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     onCheckedChange={(checked) => {
                                         field.onChange(checked);
                                         if (checked) {
-                                            form.setValue("colors", []);
+                                            form.setValue(`products.${currentProductIndex}.colors`, []);
                                         }
                                     }}
                                     />
@@ -1189,6 +1254,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <ArrowLeft className="mr-2" /> Back
                     </Button>
                 )}
+                {isProductStep && (
+                    <Button variant="outline" type="button" onClick={addAnotherProduct}>
+                        Add Another Product
+                    </Button>
+                )}
                 {currentStep < STEPS.length && (
                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1198,7 +1268,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 {currentStep === STEPS.length && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {submitButtonText}
+                        {initialOrder ? 'Finish' : submitButtonText}
                     </Button>
                 )}
              </div>
@@ -1224,5 +1294,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    

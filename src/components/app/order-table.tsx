@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import * as React from "react"
@@ -125,7 +126,8 @@ function OrderActions({ order }: { order: Order }) {
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
-        deleteOrder(order.id, order.attachments);
+        const allAttachments = order.products.flatMap(p => p.attachments || []);
+        deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
             description: `Order ${formatOrderId(order.id)} has been permanently deleted.`,
@@ -216,14 +218,17 @@ function CustomerLink({ order }: { order: Order }) {
 
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
-    const category = productSettings?.productCategories.find(c => c.name === order.category);
+    const firstProduct = order.products[0];
+    if (!firstProduct) return <LucideIcons.Box className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
+
+    const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
     const iconName = category?.icon || 'Box';
     
     // Check if the icon is a URL (AI-generated) or a Lucide icon name
     const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
     if (isUrl) {
-        return <Image src={iconName} alt={order.category} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
+        return <Image src={iconName} alt={firstProduct.category} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
     }
 
     const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
@@ -262,15 +267,16 @@ export const columns: ColumnDef<Order>[] = [
     ),
     cell: ({ row }) => {
         const order = row.original;
+        const firstProduct = order.products[0];
         
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{order.productName || formatOrderId(order.id)}</Link>
+                        <Link href={`/orders/${order.id}`}>{firstProduct?.productName || formatOrderId(order.id)}</Link>
                     </div>
-                    <div className="text-sm text-muted-foreground">{order.productName ? formatOrderId(order.id) : null}</div>
+                    <div className="text-sm text-muted-foreground">{firstProduct?.productName ? formatOrderId(order.id) : null}</div>
                  </div>
             </div>
         );
@@ -400,6 +406,7 @@ function OrderTableToolbar({
 function MobileOrderList({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
+    const firstProduct = (order: Order) => order.products[0];
 
     return (
         <div className="space-y-4">
@@ -413,7 +420,7 @@ function MobileOrderList({ table }: { table: ReturnType<typeof useReactTable<Ord
                                     <CategoryIcon order={order} />
                                     <div>
                                         <CardTitle className="text-base font-bold">
-                                            {order.productName || 'Custom Order'}
+                                            {firstProduct(order)?.productName || 'Custom Order'}
                                         </CardTitle>
                                         <CardDescription>
                                             <CustomerLink order={order} />

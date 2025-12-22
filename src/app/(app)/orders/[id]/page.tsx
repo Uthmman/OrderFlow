@@ -7,7 +7,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer, Product } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin } from "lucide-react";
 import Image from "next/image";
@@ -52,6 +52,7 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { useUser } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -277,17 +278,19 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr className="border-b">
-                                <td className="py-4 align-top">
-                                    <p className="font-semibold">{order.productName}</p>
-                                    <p className="text-sm text-slate-600 max-w-prose">
-                                    {order.description}
-                                    </p>
-                                </td>
-                                <td className="text-right py-4 font-semibold">
-                                    {formatCurrency(order.incomeAmount)}
-                                </td>
-                                </tr>
+                                {order.products.map((product, index) => (
+                                    <tr key={index} className="border-b">
+                                        <td className="py-4 align-top">
+                                            <p className="font-semibold">{product.productName}</p>
+                                            <p className="text-sm text-slate-600 max-w-prose">
+                                            {product.description}
+                                            </p>
+                                        </td>
+                                        <td className="text-right py-4 font-semibold">
+                                            {index === 0 ? formatCurrency(order.incomeAmount) : ''}
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                         </table>
                     </div>
@@ -332,6 +335,114 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     );
 }
 
+const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void }) => {
+    const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
+    const allColorOptions = [
+        ...(colorSettings?.woodFinishes || []),
+        ...(colorSettings?.customColors || []),
+    ];
+
+    return (
+        <AccordionItem value={product.id}>
+            <AccordionTrigger className="font-bold text-lg">{product.productName || "Unnamed Product"}</AccordionTrigger>
+            <AccordionContent className="space-y-8 pl-2">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Product Description</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground">{product.description}</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Specifications</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {product.material && (
+                            <div className="flex items-center gap-3">
+                                <Box className="h-4 w-4 text-muted-foreground"/> 
+                                <span className="text-sm">Materials: {Array.isArray(product.material) ? product.material.join(', ') : product.material}</span>
+                            </div>
+                        )}
+                        
+                        {product.colors && product.colors.length > 0 && product.colors[0] !== 'As Attached Picture' && (
+                            <div className="flex items-start gap-3">
+                                <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
+                                <div className="w-full">
+                                    <span className="text-sm">Colors:</span>
+                                    <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
+                                        <CarouselContent className="-ml-2">
+                                            {product.colors.map(colorName => {
+                                                const colorOption = allColorOptions.find(c => c.name === colorName);
+                                                if (!colorOption) return (
+                                                    <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                        <Badge variant="secondary">{colorName}</Badge>
+                                                    </CarouselItem>
+                                                );
+
+                                                if ('imageUrl' in colorOption) {
+                                                    return (
+                                                        <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                            <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                                <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
+                                                                <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                            </div>
+                                                        </CarouselItem>
+                                                    )
+                                                }
+
+                                                if ('colorValue' in colorOption) {
+                                                    return (
+                                                        <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
+                                                            <div className="flex flex-col items-center gap-2" title={colorName}>
+                                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
+                                                                <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                            </div>
+                                                        </CarouselItem>
+                                                    )
+                                                }
+                                                return null;
+                                            })}
+                                        </CarouselContent>
+                                        <CarouselPrevious className="ml-12" />
+                                        <CarouselNext className="mr-12" />
+                                    </Carousel>
+                                </div>
+                            </div>
+                        )}
+
+                        {product.colors?.includes("As Attached Picture") && (
+                            <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
+                        )}
+
+                        {product.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {product.dimensions.width}x{product.dimensions.height}x{product.dimensions.depth}cm</span></div>}
+                    </CardContent>
+                </Card>
+
+                {product.attachments && product.attachments.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Attachments</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {product.attachments.map((att) => (
+                            <AttachmentPreview 
+                                    key={att.storagePath} 
+                                    att={att} 
+                                    onDelete={() => onAttachmentDelete(att)}
+                                    onImageClick={onImageClick}
+                                />
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
+            </AccordionContent>
+        </AccordionItem>
+    );
+}
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
@@ -354,17 +465,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     notFound();
   }
 
-  const allColorOptions = [
-    ...(colorSettings?.woodFinishes || []),
-    ...(colorSettings?.customColors || []),
-  ];
-
   const customer = getCustomerById(order.customerId);
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
   const canChangeStatus = ['Admin', 'Manager', 'Designer'].includes(role || '');
   const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
-  const imageAttachments = order.attachments?.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
+  const allImageAttachments = order.products.flatMap(p => p.attachments || []).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
         if (!order) return;
@@ -377,7 +483,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleDelete = () => {
         if (!order) return;
-        deleteOrder(order.id, order.attachments);
+        const allAttachments = order.products.flatMap(p => p.attachments || []);
+        deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
             description: `${formatOrderId(order.id)} has been deleted.`,
@@ -408,13 +515,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         router.push(`/orders/new?duplicate=${order.id}`);
     }
 
-    const handleDeleteAttachment = (attachmentToDelete: OrderAttachment) => {
+    const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
         if (!order) return;
-        removeAttachment(order.id, attachmentToDelete);
+        removeAttachment(order.id, productIndex, attachmentToDelete);
     };
 
     const handleImageClick = (clickedAttachment: OrderAttachment) => {
-        const imageIndex = imageAttachments.findIndex(img => img.url === clickedAttachment.url);
+        const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url);
         if (imageIndex !== -1) {
             setGalleryStartIndex(imageIndex);
             setGalleryOpen(true);
@@ -437,100 +544,17 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const balance = (order.incomeAmount || 0) - prepaid;
 
   const orderDetailsContent = (
-    <div className="space-y-8">
-        <Card>
-            <CardHeader>
-                <CardTitle>Order Description</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">{order.description}</p>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Specifications</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {order.material && (
-                    <div className="flex items-center gap-3">
-                        <Box className="h-4 w-4 text-muted-foreground"/> 
-                        <span className="text-sm">Materials: {Array.isArray(order.material) ? order.material.join(', ') : order.material}</span>
-                    </div>
-                )}
-                
-                {order.colors && order.colors.length > 0 && order.colors[0] !== 'As Attached Picture' && (
-                    <div className="flex items-start gap-3">
-                        <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
-                        <div className="w-full">
-                            <span className="text-sm">Colors:</span>
-                            <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                                <CarouselContent className="-ml-2">
-                                    {order.colors.map(colorName => {
-                                        const colorOption = allColorOptions.find(c => c.name === colorName);
-                                        if (!colorOption) return (
-                                            <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                <Badge variant="secondary">{colorName}</Badge>
-                                            </CarouselItem>
-                                        );
-
-                                        if ('imageUrl' in colorOption) {
-                                            return (
-                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                        <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
-                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                    </div>
-                                                </CarouselItem>
-                                            )
-                                        }
-
-                                        if ('colorValue' in colorOption) {
-                                            return (
-                                                <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                    <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                        <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
-                                                        <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                    </div>
-                                                </CarouselItem>
-                                            )
-                                        }
-                                        return null;
-                                    })}
-                                </CarouselContent>
-                                <CarouselPrevious className="ml-12" />
-                                <CarouselNext className="mr-12" />
-                            </Carousel>
-                        </div>
-                    </div>
-                )}
-
-                {order.colors?.includes("As Attached Picture") && (
-                    <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Color as attached picture.</span></div>
-                )}
-
-                {order.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/> <span className="text-sm">Dims: {order.dimensions.width}x{order.dimensions.height}x{order.dimensions.depth}cm</span></div>}
-            </CardContent>
-        </Card>
-
-        {order.attachments && order.attachments.length > 0 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Attachments</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                    {order.attachments.map((att) => (
-                    <AttachmentPreview 
-                            key={att.storagePath} 
-                            att={att} 
-                            onDelete={() => handleDeleteAttachment(att)}
-                            onImageClick={handleImageClick}
-                        />
-                    ))}
-                </CardContent>
-            </Card>
-        )}
-    </div>
+     <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={order.products[0]?.id}>
+        {order.products.map((product, index) => (
+            <ProductDetails 
+                key={product.id}
+                product={product}
+                order={order}
+                onImageClick={handleImageClick}
+                onAttachmentDelete={(att) => handleDeleteAttachment(index, att)}
+            />
+        ))}
+    </Accordion>
   )
 
 
@@ -541,7 +565,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        {order.productName || formatOrderId(order.id)}
+                        Order {formatOrderId(order.id)}
                     </h1>
                     <div className="flex items-center gap-2">
                         {canChangeStatus ? (
@@ -835,7 +859,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
               className="w-full"
             >
               <CarouselContent>
-                {imageAttachments.map((att, index) => (
+                {allImageAttachments.map((att, index) => (
                   <CarouselItem key={index}>
                     <div className="relative h-[calc(80vh-4rem)]">
                       <Image

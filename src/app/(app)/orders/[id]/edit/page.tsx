@@ -50,6 +50,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
     } finally {
         setIsSubmitting(false);
     }
+    return Promise.resolve(order.id);
   };
 
   return (

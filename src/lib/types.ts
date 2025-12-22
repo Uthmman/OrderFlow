@@ -94,13 +94,22 @@ export type UserNotification = {
     orderId?: string;
 }
 
+export type Product = {
+  id: string;
+  productName: string;
+  category: string;
+  description: string;
+  attachments?: OrderAttachment[];
+  colors?: string[];
+  material?: string[];
+  dimensions?: { width: number; height: number; depth: number };
+}
+
 export type Order = {
   id:string;
   customerName: string;
   customerId: string;
-  productName: string;
-  category: string;
-  description: string;
+  products: Product[];
   status: OrderStatus;
   location: { town: string; };
   deadline: any; // Can be string or Firestore Timestamp
@@ -108,10 +117,6 @@ export type Order = {
   prepaidAmount?: number;
   isUrgent: boolean;
   creationDate: any; // Can be string or Firestore Timestamp
-  attachments?: OrderAttachment[];
-  colors?: string[];
-  material?: string[];
-  dimensions?: { width: number; height: number; depth: number };
   paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;
