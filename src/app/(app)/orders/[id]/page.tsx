@@ -193,7 +193,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                     <html>
                         <head>
                             <title>Order Receipt - ${formatOrderId(order.id)}</title>
-                            <script src="https://cdn.tailwindcss.com"></script>
+                            <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @media print {
                                     body { -webkit-print-color-adjust: exact; }
@@ -278,7 +278,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                                 </tr>
                             </thead>
                             <tbody>
-                                {order.products.map((product, index) => (
+                                {(order.products || []).map((product, index) => (
                                     <tr key={index} className="border-b">
                                         <td className="py-4 align-top">
                                             <p className="font-semibold">{product.productName}</p>
@@ -360,7 +360,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete }: { 
                         <CardTitle>Specifications</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {product.material && (
+                       {product.material && (
                             <div className="flex items-center gap-3">
                                 <Box className="h-4 w-4 text-muted-foreground"/> 
                                 <span className="text-sm">Materials: {Array.isArray(product.material) ? product.material.join(', ') : product.material}</span>
@@ -470,7 +470,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const canChangeStatus = ['Admin', 'Manager', 'Designer'].includes(role || '');
   const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
-  const allImageAttachments = order.products.flatMap(p => p.attachments || []).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
+  const allImageAttachments = (order.products || []).flatMap(p => p.attachments || []).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
         if (!order) return;
@@ -483,7 +483,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleDelete = () => {
         if (!order) return;
-        const allAttachments = order.products.flatMap(p => p.attachments || []);
+        const allAttachments = (order.products || []).flatMap(p => p.attachments || []);
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
@@ -544,8 +544,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const balance = (order.incomeAmount || 0) - prepaid;
 
   const orderDetailsContent = (
-     <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={order.products[0]?.id}>
-        {order.products.map((product, index) => (
+     <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
+        {(order.products || []).map((product, index) => (
             <ProductDetails 
                 key={product.id}
                 product={product}
@@ -893,3 +893,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </div>
   );
 }
+
+    
