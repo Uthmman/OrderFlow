@@ -219,13 +219,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (!orderToMap) {
         return defaultValues;
     }
+    
+    const products = orderToMap.products && orderToMap.products.length > 0
+        ? orderToMap.products
+        : [defaultProduct];
 
     return {
         ...defaultValues,
         ...orderToMap,
         deadline: toDate(orderToMap.deadline) || new Date(),
         location: orderToMap.location || { town: '' },
-        products: orderToMap.products.map(p => ({
+        products: products.map(p => ({
             ...p,
             colorAsAttachment: p.colors?.includes("As Attached Picture")
         }))
