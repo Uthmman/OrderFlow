@@ -32,16 +32,24 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 // Helper function to remove undefined values from an object
-const removeUndefined = (obj: any) => {
-    const newObj: any = {};
-    Object.keys(obj).forEach(key => {
-        const value = obj[key];
-        if (value !== undefined) {
-            newObj[key] = value;
-        }
-    });
-    return newObj;
-}
+const removeUndefined = (obj: any): any => {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item));
+  }
+
+  const newObj: any = {};
+  Object.keys(obj).forEach(key => {
+    const value = obj[key];
+    if (value !== undefined) {
+      newObj[key] = removeUndefined(value);
+    }
+  });
+  return newObj;
+};
 
 
 export function OrderProvider({ children }: { children: ReactNode }) {
