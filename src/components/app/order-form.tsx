@@ -166,7 +166,8 @@ const STEPS = [
   { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
   { id: 5, title: 'Material', fields: ['products.0.material'] },
   { id: 6, title: 'Color', fields: ['products.0.colors'] },
-  { id: 7, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+  { id: 7, title: 'Review Products', fields: [] },
+  { id: 8, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -221,7 +222,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
     
     const products = orderToMap.products && orderToMap.products.length > 0
-        ? orderToMap.products
+        ? orderToMap.products.map(p => ({
+            ...p,
+            colorAsAttachment: p.colors?.includes("As Attached Picture")
+        }))
         : [defaultProduct];
 
     return {
@@ -229,10 +233,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         ...orderToMap,
         deadline: toDate(orderToMap.deadline) || new Date(),
         location: orderToMap.location || { town: '' },
-        products: products.map(p => ({
-            ...p,
-            colorAsAttachment: p.colors?.includes("As Attached Picture")
-        }))
+        products,
     } as OrderFormValues;
   }, []);
 
@@ -249,11 +250,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const nextStep = async () => {
     let fieldsToValidate: any = [];
-    if(currentStep === 1) {
-        fieldsToValidate = STEPS.find(s => s.id === currentStep)?.fields || [];
-    } else {
-        const productFields = STEPS.find(s => s.id === currentStep)?.fields || [];
-        fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
+    const stepConfig = STEPS.find(s => s.id === currentStep);
+
+    if (stepConfig) {
+      if(currentStep === 1) {
+          fieldsToValidate = stepConfig.fields || [];
+      } else {
+          const productFields = stepConfig.fields || [];
+          fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
+      }
     }
     
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
@@ -598,7 +603,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }
 
   const stepTitle = STEPS[currentStep - 1].title;
-  const isProductStep = currentStep > 1 && currentStep < STEPS.length;
+  const isProductStep = currentStep > 1 && currentStep < 7; // Steps 2-6 are for products
   const finalTitle = isProductStep ? productStepTitle(stepTitle) : stepTitle;
 
 
@@ -980,9 +985,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     name={`products.${currentProductIndex}.colors`}
                     render={() => (
                         <FormItem>
-                        
                         <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                            <div>
+                             <div>
                                 <h4 className="font-medium text-sm">Custom Colors</h4>
                                 <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
                                     {customColorOptions.map((option) => (
@@ -1097,8 +1101,42 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
              </Card>
         )}
-
+        
         {currentStep === 7 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Review Products</CardTitle>
+                    <CardDescription>Review the products you've added to this order. You can add another product or proceed to the final step.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {watchedProducts.map((product, index) => {
+                        const category = productSettings?.productCategories.find(c => c.name === product.category);
+                        const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                        return (
+                            <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
+                                <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-grow">
+                                    <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
+                                    <p className="text-sm text-muted-foreground">{product.category}</p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(2); }}>
+                                    Edit
+                                </Button>
+                            </div>
+                        )
+                    })}
+                    <Separator />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" onClick={addAnotherProduct} className="w-full sm:w-auto">Add Another Product</Button>
+                        <Button type="button" variant="outline" onClick={() => setCurrentStep(8)} className="w-full sm:w-auto">
+                            Continue to Final Step <ArrowRight className="ml-2" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
+
+        {currentStep === 8 && (
              <div className="space-y-8">
                  <Card>
                     <CardHeader>
@@ -1253,26 +1291,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
              <div className="flex items-center gap-2">
-                {currentStep > 1 && (
+                {currentStep > 1 && currentStep !== 7 && (
                     <Button variant="outline" type="button" onClick={prevStep}>
                         <ArrowLeft className="mr-2" /> Back
                     </Button>
                 )}
-                {isProductStep && (
-                    <Button variant="outline" type="button" onClick={addAnotherProduct}>
-                        Add Another Product
-                    </Button>
-                )}
-                {currentStep < STEPS.length && (
+                
+                {currentStep < 7 && (
                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
-                {currentStep === STEPS.length && (
+
+                {currentStep === 8 && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {initialOrder ? 'Finish' : submitButtonText}
+                        {initialOrder ? 'Save Changes' : submitButtonText}
                     </Button>
                 )}
              </div>
