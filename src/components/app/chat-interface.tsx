@@ -116,7 +116,9 @@ export function ChatInterface({ order }: { order: Order }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
 
-  const imageMessages = (order.chatMessages || [])
+  const chatMessages = Array.isArray(order.chatMessages) ? order.chatMessages : [];
+
+  const imageMessages = chatMessages
     .filter(m => m.attachment && m.attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i))
     .map(m => m.attachment as OrderAttachment);
 
@@ -249,7 +251,7 @@ export function ChatInterface({ order }: { order: Order }) {
         <CardDescription>Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
       <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-         {(order.chatMessages || []).map((message, index) => (
+         {chatMessages.map((message, index) => (
             <div key={`${message.id}-${message.timestamp}-${index}`}>
                 {message.isSystemMessage ? (
                     <SystemMessage message={message} />
