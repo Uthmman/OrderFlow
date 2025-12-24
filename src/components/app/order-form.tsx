@@ -164,7 +164,7 @@ const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Category', fields: ['products.0.category'] },
   { id: 3, title: 'Attachments', fields: [] },
-  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth', 'products.0.price'] },
+  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
   { id: 5, title: 'Material', fields: ['products.0.material'] },
   { id: 6, title: 'Color', fields: ['products.0.colors'] },
   { id: 7, title: 'Review Products', fields: [] },
@@ -548,8 +548,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   // Calculate total income amount
   const totalIncome = watchedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
   useEffect(() => {
-      setValue('incomeAmount', totalIncome, { shouldDirty: true });
-  }, [totalIncome, setValue]);
+      if (form.getValues('incomeAmount') !== totalIncome) {
+        setValue('incomeAmount', totalIncome, { shouldDirty: true });
+      }
+  }, [totalIncome, setValue, form]);
 
 
   const renderFilePreview = (attachment: OrderAttachment) => {
@@ -966,23 +968,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         />
                     </div>
                 </div>
-                 <FormField
-                    control={control}
-                    name={`products.${currentProductIndex}.price`}
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Product Price</FormLabel>
-                             <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} />
-                                </FormControl>
-                            </div>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
                 </CardContent>
             </Card>
         )}
@@ -1294,22 +1279,63 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <FormField
-                        control={form.control}
-                        name="incomeAmount"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Total Order Price</FormLabel>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
-                                </FormControl>
-                            </div>
-                            <FormDescription>This is the sum of all product prices.</FormDescription>
-                            <FormMessage />
-                            </FormItem>
-                        )}
+                            control={form.control}
+                            name="incomeAmount"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Total Order Price</FormLabel>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <FormControl>
+                                        <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
+                                    </FormControl>
+                                </div>
+                                <FormDescription>This is the sum of all product prices.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
                         />
+                        {watchedProducts.length > 1 ? (
+                            <div className="space-y-4 rounded-md border p-4">
+                                <h4 className="font-medium">Product Prices</h4>
+                                {watchedProducts.map((product, index) => (
+                                     <FormField
+                                        key={product.id}
+                                        control={control}
+                                        name={`products.${index}.price`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
+                                                <div className="relative">
+                                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                    <FormControl>
+                                                        <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                                    </FormControl>
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <FormField
+                                control={control}
+                                name={`products.0.price`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Product Price</FormLabel>
+                                        <div className="relative">
+                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <FormControl>
+                                                <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                            </FormControl>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        )}
                         <FormField
                         control={form.control}
                         name="prepaidAmount"
@@ -1336,7 +1362,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <Textarea
                                 placeholder="e.g., 50% upfront, Paid via Stripe #..."
                                 {...field}
-                                value={field.value || ''}
+                                value={field.value ?? ''}
                                 />
                             </FormControl>
                             <FormMessage />
