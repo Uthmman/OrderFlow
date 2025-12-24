@@ -77,6 +77,7 @@ const productSchema = z.object({
   height: z.coerce.number().optional(),
   depth: z.coerce.number().optional(),
   colorAsAttachment: z.boolean().default(false),
+  price: z.coerce.number().min(0, "Price must be a positive number.").default(0),
 })
 
 const formSchema = z.object({
@@ -163,7 +164,7 @@ const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Category', fields: ['products.0.category'] },
   { id: 3, title: 'Attachments', fields: [] },
-  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
+  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth', 'products.0.price'] },
   { id: 5, title: 'Material', fields: ['products.0.material'] },
   { id: 6, title: 'Color', fields: ['products.0.colors'] },
   { id: 7, title: 'Review Products', fields: [] },
@@ -204,6 +205,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       attachments: [],
       colors: [],
       material: [],
+      price: 0
     };
     
     const defaultValues = {
@@ -242,7 +244,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     defaultValues: mapOrderToFormValues(initialOrder)
   });
   
-  const { formState: { isDirty, dirtyFields }, getValues, watch, trigger, setValue } = form;
+  const { formState: { isDirty, dirtyFields }, getValues, watch, trigger, setValue, control } = form;
 
   const watchedProducts = watch("products");
 
@@ -279,12 +281,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                 router.replace(`/orders/${newOrderId}/edit`);
+                 // Important: Use router.replace to avoid breaking back button navigation
+                 // Then programmatically move to the next step.
+                 router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
+                 setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+                 setIsManualSaving(false);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
                 setIsManualSaving(false);
             }
-            return; // Stop execution to allow redirect
+            return; // Stop execution to allow state to update
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
              setIsManualSaving(false);
@@ -308,6 +314,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         attachments: [],
         colors: [],
         material: [],
+        price: 0,
     };
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
@@ -356,11 +363,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             } : undefined,
         }
     });
+    
+    const totalIncome = updatedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
 
     const orderPayload = {
       ...initialOrder,
       ...values,
       products: updatedProducts,
+      incomeAmount: totalIncome,
       customerName,
       deadline: values.deadline,
     } as Order;
@@ -511,9 +521,37 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const availableMaterials = productSettings?.materials || [];
   const selectedCustomerId = form.watch('customerId');
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-
-
   
+  // Auto-fill location when customer changes
+  useEffect(() => {
+    if (selectedCustomer && selectedCustomer.location.town) {
+        const currentLocation = getValues('location.town');
+        // Only update if the field is empty or was from a previous selection
+        if (!currentLocation || isDirty) {
+             setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
+        }
+    }
+  }, [selectedCustomer, setValue, getValues, isDirty]);
+
+  // Auto-fill product name when category changes
+  const watchedCategory = watch(`products.${currentProductIndex}.category`);
+  useEffect(() => {
+      if (watchedCategory) {
+          const currentName = getValues(`products.${currentProductIndex}.productName`);
+          // Only set if the name is empty to avoid overwriting user input
+          if (!currentName) {
+              setValue(`products.${currentProductIndex}.productName`, watchedCategory, { shouldDirty: true, shouldValidate: true });
+          }
+      }
+  }, [watchedCategory, currentProductIndex, setValue, getValues]);
+  
+  // Calculate total income amount
+  const totalIncome = watchedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+  useEffect(() => {
+      setValue('incomeAmount', totalIncome, { shouldDirty: true });
+  }, [totalIncome, setValue]);
+
+
   const renderFilePreview = (attachment: OrderAttachment) => {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = attachment.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
@@ -567,10 +605,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         }
       });
       
+      const totalIncome = updatedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+      
       const orderPayload = {
         ...(initialOrder || {}),
         ...values,
         products: updatedProducts,
+        incomeAmount: totalIncome,
         status: values.status,
         customerName,
         deadline: values.deadline,
@@ -585,6 +626,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             description: "Your changes have been saved."
         });
         router.push(`/orders/${initialOrder.id}`);
+      } else {
+        // For new orders, onSave handles redirect
       }
     } catch (error) {
         // onSave should handle its own errors/toasts
@@ -923,6 +966,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         />
                     </div>
                 </div>
+                 <FormField
+                    control={control}
+                    name={`products.${currentProductIndex}.price`}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Product Price</FormLabel>
+                             <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <FormControl>
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                </FormControl>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 </CardContent>
             </Card>
@@ -977,7 +1036,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         {currentStep === 6 && (
              <Card>
                 <CardHeader>
-                    <CardTitle>{productStepTitle("Color")}</CardTitle>
+                    <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <FormField
@@ -1239,13 +1298,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         name="incomeAmount"
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Income Amount</FormLabel>
+                            <FormLabel>Total Order Price</FormLabel>
                             <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
                                 </FormControl>
                             </div>
+                            <FormDescription>This is the sum of all product prices.</FormDescription>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -1307,7 +1367,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 {currentStep === 8 && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {initialOrder ? 'Save Changes' : submitButtonText}
+                        {initialOrder ? 'Save Changes' : 'Finish Order'}
                     </Button>
                 )}
              </div>
