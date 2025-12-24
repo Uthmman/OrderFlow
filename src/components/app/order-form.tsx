@@ -205,7 +205,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       attachments: [],
       colors: [],
       material: [],
-      price: 0
+      price: 0,
     };
     
     const defaultValues = {
@@ -935,7 +935,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="W" {...field} value={field.value || ''} />
+                                <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
                             </FormControl>
                             </FormItem>
                         )}
@@ -947,7 +947,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="H" {...field} value={field.value || ''} />
+                                <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
                             </FormControl>
                             </FormItem>
                         )}
@@ -959,7 +959,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormItem>
                             <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
                             <FormControl>
-                                <Input type="number" placeholder="D" {...field} value={field.value || ''} />
+                                <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
                             </FormControl>
                             </FormItem>
                         )}
@@ -1319,7 +1319,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value || ''} />
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value ?? ''} />
                                 </FormControl>
                             </div>
                             <FormMessage />
