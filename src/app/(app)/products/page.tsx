@@ -8,20 +8,27 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Search, LayoutGrid, List } from 'lucide-react';
+import { PlusCircle, Search, LayoutGrid, List, Loader2, RefreshCw } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
 import Link from 'next/link';
+import { OrderProvider, useOrders } from '@/hooks/use-orders';
+import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
 
 function ProductCatalog() {
-  const { products, loading: productsLoading } = useProducts();
+  const { products, loading: productsLoading, syncProductsFromOrders } = useProducts();
+  const { orders, loading: ordersLoading } = useOrders();
   const { productSettings, loading: settingsLoading } = useProductSettings();
+  const { user, role } = useUser();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const filteredProducts = useMemo(() => {
     return (products || []).filter(product => {
@@ -31,7 +38,26 @@ function ProductCatalog() {
     });
   }, [products, selectedCategory, searchTerm]);
 
-  if (productsLoading || settingsLoading) {
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+        const count = await syncProductsFromOrders(orders);
+        toast({
+            title: "Sync Complete",
+            description: `${count} new products were added to the catalog.`,
+        });
+    } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Sync Failed",
+            description: "An error occurred while syncing products.",
+        });
+    } finally {
+        setIsSyncing(false);
+    }
+  }
+
+  if (productsLoading || settingsLoading || ordersLoading) {
     return <div className="text-center p-8">Loading products...</div>;
   }
 
@@ -74,6 +100,12 @@ function ProductCatalog() {
                 <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
                     <List />
                 </Button>
+                {role === 'Admin' && (
+                    <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
+                        {isSyncing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
+                        Sync
+                    </Button>
+                )}
                  <Button onClick={() => router.push('/orders/new?newProduct=true')}>
                     <PlusCircle className="mr-2" /> New Product
                 </Button>
@@ -156,9 +188,11 @@ function ProductCatalog() {
 export default function ProductsPage() {
     return (
         <ProductProvider>
-            <ProductSettingProvider>
-                <ProductCatalog />
-            </ProductSettingProvider>
+            <OrderProvider>
+                <ProductSettingProvider>
+                    <ProductCatalog />
+                </ProductSettingProvider>
+            </OrderProvider>
         </ProductProvider>
     )
 }

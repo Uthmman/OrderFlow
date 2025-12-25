@@ -2,8 +2,8 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import type { Product } from '@/lib/types';
+import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import type { Order, Product } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
@@ -16,6 +16,7 @@ interface ProductContextType {
   addProduct: (product: Omit<Product, 'id'>) => Promise<string | undefined>;
   updateProduct: (productId: string, productData: Partial<Product>) => Promise<void>;
   getProductById: (id: string) => Product | undefined;
+  syncProductsFromOrders: (orders: Order[]) => Promise<number>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -66,13 +67,44 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     return products?.find(p => p.id === id);
   }, [products]);
 
+  const syncProductsFromOrders = useCallback(async (orders: Order[]): Promise<number> => {
+    if (!orders || orders.length === 0) return 0;
+
+    const existingProductNames = new Set(products?.map(p => p.productName) || []);
+    const batch = writeBatch(firestore);
+    let newProductsCount = 0;
+
+    for (const order of orders) {
+      for (const orderProduct of (order.products || [])) {
+        if (orderProduct.productName && !existingProductNames.has(orderProduct.productName)) {
+          const newProductRef = doc(collection(firestore, "products"));
+          const newProduct: Product = {
+            ...orderProduct,
+            id: newProductRef.id,
+          };
+          batch.set(newProductRef, newProduct);
+          existingProductNames.add(orderProduct.productName); // Avoid adding duplicates from the same sync batch
+          newProductsCount++;
+        }
+      }
+    }
+
+    if (newProductsCount > 0) {
+      await batch.commit();
+    }
+
+    return newProductsCount;
+  }, [firestore, products]);
+
+
   const value = useMemo(() => ({
     products: products || [],
     loading,
     addProduct,
     updateProduct,
     getProductById,
-  }), [products, loading, addProduct, updateProduct, getProductById]);
+    syncProductsFromOrders,
+  }), [products, loading, addProduct, updateProduct, getProductById, syncProductsFromOrders]);
 
   return (
     <ProductContext.Provider value={value}>
