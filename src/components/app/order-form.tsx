@@ -168,7 +168,8 @@ const STEPS = [
   { id: 5, title: 'Material', fields: ['products.0.material'] },
   { id: 6, title: 'Color', fields: ['products.0.colors'] },
   { id: 7, title: 'Review Products', fields: [] },
-  { id: 8, title: 'Scheduling & Pricing', fields: ['status', 'deadline', 'isUrgent', 'incomeAmount', 'prepaidAmount', 'paymentDetails'] }
+  { id: 8, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
+  { id: 9, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -1179,152 +1180,42 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
             </Card>
         )}
-
+        
         {currentStep === 8 && (
-             <div className="space-y-8">
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Scheduling & Status</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="status"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Order Status</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a status" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
-                                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        <FormField
+             <Card>
+                <CardHeader>
+                    <CardTitle>Pricing & Payment</CardTitle>
+                    <CardDescription>Set the price for each product and record any pre-payment.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <FormField
                         control={form.control}
-                        name="deadline"
+                        name="incomeAmount"
                         render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Deadline</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
+                            <FormItem>
+                            <FormLabel>Total Order Price</FormLabel>
+                            <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <FormControl>
-                                    <Button
-                                    type="button"
-                                    variant={"outline"}
-                                    className={cn(
-                                        "pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value ? (
-                                        format(field.value, "PPP")
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
+                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
                                 </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    mode="single"
-                                    selected={field.value}
-                                    onSelect={field.onChange}
-                                    disabled={(date) =>
-                                    date < new Date(new Date().setHours(0,0,0,0))
-                                    }
-                                />
-                                </PopoverContent>
-                            </Popover>
+                            </div>
+                            <FormDescription>This is the sum of all product prices.</FormDescription>
                             <FormMessage />
                             </FormItem>
                         )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name="isUrgent"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <FormLabel>Urgent Order</FormLabel>
-                                <FormDescription>
-                                Prioritize this order in the queue.
-                                </FormDescription>
-                            </div>
-                            <FormControl>
-                                <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                    </CardContent>
-                </Card>
-
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Pricing & Payment</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="incomeAmount"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Total Order Price</FormLabel>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <FormControl>
-                                        <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
-                                    </FormControl>
-                                </div>
-                                <FormDescription>This is the sum of all product prices.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        {watchedProducts.length > 1 ? (
-                            <div className="space-y-4 rounded-md border p-4">
-                                <h4 className="font-medium">Product Prices</h4>
-                                {watchedProducts.map((product, index) => (
-                                     <FormField
-                                        key={product.id}
-                                        control={control}
-                                        name={`products.${index}.price`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
-                                                <div className="relative">
-                                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                    <FormControl>
-                                                        <Input type="number" placeholder="0.00" className="pl-8" {...field} />
-                                                    </FormControl>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        ) : (
-                            <FormField
+                    />
+                    
+                    <div className="space-y-4 rounded-md border p-4">
+                        <h4 className="font-medium">Product Prices</h4>
+                        {watchedProducts.map((product, index) => (
+                             <FormField
+                                key={product.id}
                                 control={control}
-                                name={`products.0.price`}
+                                name={`products.${index}.price`}
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Product Price</FormLabel>
+                                        <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
                                         <div className="relative">
                                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                             <FormControl>
@@ -1335,8 +1226,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     </FormItem>
                                 )}
                             />
-                        )}
-                        <FormField
+                        ))}
+                    </div>
+
+                    <FormField
                         control={form.control}
                         name="prepaidAmount"
                         render={({ field }) => (
@@ -1351,8 +1244,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormMessage />
                             </FormItem>
                         )}
-                        />
-                        <FormField
+                    />
+                    <FormField
                         control={form.control}
                         name="paymentDetails"
                         render={({ field }) => (
@@ -1368,10 +1261,103 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormMessage />
                             </FormItem>
                         )}
+                    />
+                </CardContent>
+            </Card>
+        )}
+
+        {currentStep === 9 && (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Scheduling & Status</CardTitle>
+                    <CardDescription>Finalize the order status and deadline.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Order Status</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a status" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
+                                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
                         />
-                    </CardContent>
-                </Card>
-            </div>
+                    <FormField
+                    control={form.control}
+                    name="deadline"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                        <FormLabel>Deadline</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                type="button"
+                                variant={"outline"}
+                                className={cn(
+                                    "pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                )}
+                                >
+                                {field.value ? (
+                                    format(field.value, "PPP")
+                                ) : (
+                                    <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) =>
+                                date < new Date(new Date().setHours(0,0,0,0))
+                                }
+                            />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={form.control}
+                    name="isUrgent"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                            <FormLabel>Urgent Order</FormLabel>
+                            <FormDescription>
+                            Prioritize this order in the queue.
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
+                </CardContent>
+            </Card>
         )}
 
          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
@@ -1383,14 +1369,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 
-                {currentStep < 7 && (
+                {currentStep < 8 && (
                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
 
-                {currentStep === 8 && (
+                 {currentStep === 8 && (
+                    <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>
+                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Next <ArrowRight className="ml-2" />
+                    </Button>
+                )}
+
+                {currentStep === 9 && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {initialOrder ? 'Save Changes' : 'Finish Order'}
