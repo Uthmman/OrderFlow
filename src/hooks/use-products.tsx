@@ -21,6 +21,29 @@ interface ProductContextType {
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
 
+// Helper function to remove undefined values from an object, which Firestore doesn't like.
+const removeUndefined = (obj: any): any => {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => removeUndefined(item)).filter(item => item !== undefined);
+  }
+
+  const newObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== undefined) {
+        newObj[key] = removeUndefined(value);
+      }
+    }
+  }
+  return newObj;
+};
+
+
 export function ProductProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
@@ -31,10 +54,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const addProduct = useCallback(async (productData: Omit<Product, 'id'>) => {
     try {
       const newProductRef = doc(collection(firestore, "products"));
-      const newProduct = {
+      const newProduct: Product = {
         ...productData,
         id: newProductRef.id,
-        creationDate: serverTimestamp(),
       };
       await setDoc(newProductRef, newProduct);
       return newProductRef.id;
@@ -82,7 +104,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             ...orderProduct,
             id: newProductRef.id,
           };
-          batch.set(newProductRef, newProduct);
+          
+          // Firestore doesn't allow undefined values, so we clean the object.
+          const cleanProduct = removeUndefined(newProduct);
+          batch.set(newProductRef, cleanProduct);
+
           existingProductNames.add(orderProduct.productName); // Avoid adding duplicates from the same sync batch
           newProductsCount++;
         }
