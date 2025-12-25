@@ -199,22 +199,23 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => {
     if (!user) throw new Error("User must be logged in to add an order.");
+    
+    // Check if we are creating a new product or using an existing one.
+    // A product from the catalog would have a creationDate. A new one from the form won't.
+    for (const product of orderData.products) {
+        if (!(product as any).creationDate) {
+            const productsRef = collection(firestore, "products");
+            const q = query(productsRef, where("productName", "==", product.productName));
+            const querySnapshot = await getDocs(q);
 
+            if (querySnapshot.empty) {
+                await addProduct(product);
+            }
+        }
+    }
+    
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
-    
-    // Create products in the main catalog if they are new
-    for (const product of orderData.products) {
-        const productsRef = collection(firestore, "products");
-        const q = query(productsRef, where("productName", "==", product.productName));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            // Product doesn't exist, create it in the catalog
-            await addProduct(product);
-        }
-        // If product exists, we don't update it here. Updates happen on completion.
-    }
     
     const finalOrderData: Order = {
         ...orderData,
@@ -229,7 +230,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     await addOrderToCustomer(orderData.customerId, orderId);
 
-    // Only trigger notification if it's not just a pending draft
     if (orderData.status !== 'Pending') {
         triggerNotification(firestore, [user.id], {
           type: 'New Order Created',
@@ -259,7 +259,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     const newMessages: OrderChatMessage[] = [];
 
-    // --- Generate System Messages for state changes ---
     if (originalOrder) {
         const createSystemMessage = (text: string) => ({
             id: uuidv4(),
@@ -274,7 +273,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
-             // If order is completed, add/update product to the main products collection
             if (orderData.status === 'Completed') {
                 for (const product of orderData.products) {
                     const productsRef = collection(firestore, "products");
@@ -282,10 +280,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                     const querySnapshot = await getDocs(q);
 
                     if (querySnapshot.empty) {
-                        // Product doesn't exist, create it
                         await addProduct(product);
                     } else {
-                        // Product exists, update it
                         const existingProductId = querySnapshot.docs[0].id;
                         await updateProduct(existingProductId, product);
                     }
@@ -301,7 +297,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    // --- Handle New User Chat Message ---
     if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
         const newChatMessage: OrderChatMessage = {
             id: uuidv4(),

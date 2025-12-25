@@ -32,14 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler } from "lucide-react"
+import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material, Product } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback, useTransition } from "react"
+import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
 import Image from "next/image"
 import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
@@ -64,6 +64,8 @@ import { Progress } from "../ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
 import { v4 as uuidv4 } from "uuid"
+import { useProducts } from "@/hooks/use-products"
+import { ScrollArea } from "../ui/scroll-area"
 
 const productSchema = z.object({
   id: z.string(),
@@ -71,6 +73,7 @@ const productSchema = z.object({
   category: z.string().min(1, "Category is required."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   attachments: z.array(z.any()).optional(),
+  designAttachments: z.array(z.any()).optional(),
   colors: z.array(z.string()).optional(),
   material: z.array(z.string()).optional(),
   width: z.coerce.number().optional(),
@@ -177,8 +180,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
+  const { products: catalogProducts, loading: productsLoading } = useProducts();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { productSettings, loading: productsLoading } = useProductSettings();
+  const { productSettings, loading: productSettingsLoading } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
@@ -188,6 +192,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isManualSaving, setIsManualSaving] = useState(false);
+  const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +210,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       category: '',
       description: '',
       attachments: [],
+      designAttachments: [],
       colors: [],
       material: [],
       price: 0,
@@ -216,6 +222,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         status: "In Progress" as OrderStatus,
         incomeAmount: 0,
         prepaidAmount: 0,
+        paymentDetails: '',
         customerId: '',
         deadline: new Date(),
         location: { town: '' },
@@ -238,6 +245,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         deadline: toDate(orderToMap.deadline) || new Date(),
         location: orderToMap.location || { town: '' },
         products,
+        paymentDetails: orderToMap.paymentDetails || '',
     } as OrderFormValues;
   }, []);
 
@@ -249,6 +257,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { formState: { isDirty, dirtyFields }, getValues, watch, trigger, setValue, control } = form;
 
   const watchedProducts = watch("products");
+  const watchedCategory = watch(`products.${currentProductIndex}.category`);
+
+  const filteredCatalogProducts = useMemo(() => {
+    if (!catalogProducts) return [];
+    return catalogProducts.filter(p => 
+      p.category === watchedCategory && 
+      p.productName.toLowerCase().includes(catalogSearchTerm.toLowerCase())
+    );
+  }, [catalogProducts, watchedCategory, catalogSearchTerm]);
 
   const productStepFields = (index: number, fields: string[]) => fields.map(f => `products.${index}.${f.split('.').pop()}`);
 
@@ -283,8 +300,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                 // Important: Use router.replace to avoid breaking back button navigation
-                 // Then programmatically move to the next step.
                  router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
                  setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
                  setIsManualSaving(false);
@@ -292,7 +307,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
                 setIsManualSaving(false);
             }
-            return; // Stop execution to allow state to update
+            return;
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
              setIsManualSaving(false);
@@ -306,6 +321,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
+
+  const handleExistingProductSelect = (product: Product) => {
+    const currentProducts = getValues('products');
+    const updatedProducts = [...currentProducts];
+    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0 };
+    setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
+    // Skip to review step
+    setCurrentStep(8);
+  };
   
   const addAnotherProduct = () => {
     const newProduct: Product = {
@@ -314,6 +338,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         category: '',
         description: '',
         attachments: [],
+        designAttachments: [],
         colors: [],
         material: [],
         price: 0,
@@ -321,14 +346,38 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
     setCurrentProductIndex(currentProducts.length);
-    setCurrentStep(2); // Go back to category selection for the new product
+    setCurrentStep(2);
   };
 
 
   // --- Auto-saving Logic ---
   const watchedValues = watch();
-  const debouncedValues = useDebounce(watchedValues, 2000); // 2-second debounce delay
+  const debouncedValues = useDebounce(watchedValues, 2000); 
 
+  useEffect(() => {
+    const fromProductId = searchParams.get('fromProduct');
+    const isNewProduct = searchParams.get('newProduct');
+
+    if (fromProductId && catalogProducts.length > 0) {
+        const product = catalogProducts.find(p => p.id === fromProductId);
+        if (product) {
+            setValue('products', [{...product, price: product.price || 0}], { shouldDirty: true });
+        }
+    } else if (isNewProduct) {
+        setValue('products', [{
+            id: uuidv4(),
+            productName: '',
+            category: '',
+            description: '',
+            attachments: [],
+            designAttachments: [],
+            colors: [],
+            material: [],
+            price: 0,
+        }], { shouldDirty: true });
+    }
+  }, [searchParams, catalogProducts, setValue]);
+  
   useEffect(() => {
     const duplicateOrderId = searchParams.get('duplicate');
     if (duplicateOrderId && !initialOrder) {
@@ -379,7 +428,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     try {
         await updateOrder(orderPayload);
-        form.reset(values); // Resets dirty state after successful save
+        form.reset(values);
     } catch (e) {
         console.error("Auto-save failed:", e);
     } finally {
@@ -413,7 +462,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const startRecording = async () => {
     let stream: MediaStream | null;
-    // We only request permission when the user clicks the button.
     stream = await requestMicPermission();
     
     if (!stream) return;
@@ -524,30 +572,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const selectedCustomerId = form.watch('customerId');
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   
-  // Auto-fill location when customer changes
   useEffect(() => {
     if (selectedCustomer && selectedCustomer.location.town) {
         const currentLocation = getValues('location.town');
-        // Only update if the field is empty or was from a previous selection
         if (!currentLocation || isDirty) {
              setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
         }
     }
   }, [selectedCustomer, setValue, getValues, isDirty]);
-
-  // Auto-fill product name when category changes
-  const watchedCategory = watch(`products.${currentProductIndex}.category`);
+  
   useEffect(() => {
       if (watchedCategory) {
           const currentName = getValues(`products.${currentProductIndex}.productName`);
-          // Only set if the name is empty to avoid overwriting user input
           if (!currentName) {
               setValue(`products.${currentProductIndex}.productName`, watchedCategory, { shouldDirty: true, shouldValidate: true });
           }
       }
   }, [watchedCategory, currentProductIndex, setValue, getValues]);
   
-  // Calculate total income amount
   const totalIncome = watchedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
   useEffect(() => {
       if (form.getValues('incomeAmount') !== totalIncome) {
@@ -622,19 +664,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       };
 
       await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
-      form.reset(values); // Mark form as not dirty
+      form.reset(values);
       if (initialOrder) {
-        // If editing, show toast and redirect
         toast({
             title: "Order Updated",
             description: "Your changes have been saved."
         });
         router.push(`/orders/${initialOrder.id}`);
-      } else {
-        // For new orders, onSave handles redirect
       }
     } catch (error) {
-        // onSave should handle its own errors/toasts
     } finally {
       setIsManualSaving(false);
     }
@@ -783,7 +821,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                 <button
                                                     key={cat.name}
                                                     type="button"
-                                                    onClick={() => field.onChange(cat.name)}
+                                                    onClick={() => {
+                                                        field.onChange(cat.name);
+                                                        nextStep();
+                                                    }}
                                                     className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
                                                         isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
                                                     )}
@@ -804,12 +845,59 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         )}
 
         {currentStep === 3 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Choose Product</CardTitle>
-              <CardDescription>Create a new product or select an existing one from your catalog.</CardDescription>
-            </CardHeader>
-          </Card>
+            <Card>
+                <CardHeader>
+                <CardTitle>{productStepTitle("Product Source")}</CardTitle>
+                <CardDescription>
+                    Will this be a brand new product or are you ordering from the existing catalog?
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                            type="button"
+                            onClick={() => nextStep()}
+                            className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                        >
+                            <PlusCircleIcon className="h-10 w-10 text-primary" />
+                            <h3 className="font-semibold">Create New Product</h3>
+                            <p className="text-sm text-muted-foreground">Define a custom product for this order from scratch.</p>
+                        </button>
+
+                        <div className="p-6 border rounded-lg">
+                           <div className="flex flex-col items-start gap-2">
+                                <Search className="h-10 w-10 text-primary" />
+                                <h3 className="font-semibold">Select Existing Product</h3>
+                                <p className="text-sm text-muted-foreground mb-4">Choose from products already in your catalog that match the '{watchedCategory}' category.</p>
+                                <Input 
+                                    placeholder="Search catalog..."
+                                    value={catalogSearchTerm}
+                                    onChange={(e) => setCatalogSearchTerm(e.target.value)}
+                                />
+                           </div>
+                           <ScrollArea className="h-64 mt-4">
+                               <div className="space-y-2 pr-4">
+                                {filteredCatalogProducts.length > 0 ? filteredCatalogProducts.map(p => {
+                                     const category = productSettings?.productCategories.find(c => c.name === p.category);
+                                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                                     return (
+                                        <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md flex items-center gap-3 cursor-pointer hover:bg-muted/50">
+                                            <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                            <div className="flex-grow">
+                                                <p className="font-medium text-sm">{p.productName}</p>
+                                                <p className="text-xs text-muted-foreground">{p.category}</p>
+                                            </div>
+                                        </div>
+                                     )
+                                }) : (
+                                    <p className="text-sm text-muted-foreground text-center py-8">No existing products in this category.</p>
+                                )}
+                               </div>
+                           </ScrollArea>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         )}
         
         {currentStep === 4 && (
@@ -1198,7 +1286,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <CardDescription>Set the price for each product and record any pre-payment.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <FormField
+                     <FormField
                         control={form.control}
                         name="incomeAmount"
                         render={({ field }) => (
@@ -1379,7 +1467,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 
-                {currentStep < 9 && currentStep !== 8 && (
+                {currentStep < 9 && currentStep !== 3 && currentStep !== 8 && (
                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
