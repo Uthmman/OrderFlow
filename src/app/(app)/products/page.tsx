@@ -124,7 +124,7 @@ function ProductCatalog() {
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
 
                     return (
-                      <Link key={product.id} href={`/products/${product.id}`} passHref>
+                      <Link key={product.id} href={`/products/${product.id}`}>
                         <Card className="flex flex-col overflow-hidden group h-full">
                             <CardHeader className="p-0">
                                 <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
