@@ -15,7 +15,7 @@ import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '@/lib/utils';
-import { useProducts } from '@/hooks/use-products';
+import { useProducts } from './use-products';
 
 
 interface OrderContextType {
