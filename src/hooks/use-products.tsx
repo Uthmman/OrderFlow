@@ -44,6 +44,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         title: "Failed to create product",
         description: (error as Error).message,
       });
+      return undefined;
     }
   }, [firestore, toast]);
 
