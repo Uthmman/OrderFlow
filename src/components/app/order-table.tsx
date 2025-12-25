@@ -64,6 +64,7 @@ import { useProductSettings, ProductSettingProvider } from "@/hooks/use-product-
 import * as LucideIcons from 'lucide-react';
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
+import { ProductProvider } from "@/hooks/use-products"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -126,7 +127,7 @@ function OrderActions({ order }: { order: Order }) {
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const allAttachments = (order.products || []).flatMap(p => p.attachments || []);
+        const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
@@ -276,7 +277,7 @@ export const columns: ColumnDef<Order>[] = [
                     <div className="font-medium text-primary hover:underline">
                         <Link href={`/orders/${order.id}`}>{firstProduct?.productName || 'Custom Order'}</Link>
                     </div>
-                    <div className="text-sm text-muted-foreground">{firstProduct?.productName ? formatOrderId(order.id) : formatOrderId(order.id)}</div>
+                    <div className="text-sm text-muted-foreground">{formatOrderId(order.id)}</div>
                  </div>
             </div>
         );
@@ -537,10 +538,12 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
 
 export function OrderTable(props: OrderTableProps) {
     return (
-        <ProductSettingProvider>
-            <ColorSettingProvider>
-                <OrderTableInternal {...props} />
-            </ColorSettingProvider>
-        </ProductSettingProvider>
+        <ProductProvider>
+            <ProductSettingProvider>
+                <ColorSettingProvider>
+                    <OrderTableInternal {...props} />
+                </ColorSettingProvider>
+            </ProductSettingProvider>
+        </ProductProvider>
     )
 }

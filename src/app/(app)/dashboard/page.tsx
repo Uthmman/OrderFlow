@@ -9,6 +9,7 @@ import { useMemo } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
+import { ProductProvider } from "@/hooks/use-products"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
@@ -105,7 +106,9 @@ export default function Dashboard() {
             <CardDescription>A list of the most recent orders.</CardDescription>
         </CardHeader>
         <CardContent>
-            <OrderTable preferenceKey="dashboardOrderSortPreference" />
+            <ProductProvider>
+                <OrderTable preferenceKey="dashboardOrderSortPreference" />
+            </ProductProvider>
         </CardContent>
       </Card>
 

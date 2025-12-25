@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -15,6 +15,7 @@ import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage } from '@/lib/utils';
+import { useProducts } from './use-products';
 
 
 interface OrderContextType {
@@ -25,8 +26,8 @@ interface OrderContextType {
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
-  addAttachment: (orderId: string, productIndex: number, file: File) => Promise<void>;
-  removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment) => Promise<void>;
+  addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<void>;
+  removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -57,6 +58,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { addOrderToCustomer } = useCustomers();
   const { firestore } = useFirebase();
   const { user } = useUser();
+  const { addProduct, updateProduct } = useProducts();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
@@ -135,7 +137,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addAttachment = async (orderId: string, productIndex: number, file: File) => {
+  const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false) => {
       try {
         const newAttachment = await handleFileUpload(file);
         const orderRef = doc(firestore, 'orders', orderId);
@@ -143,8 +145,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (currentOrder) {
             const updatedProducts = [...currentOrder.products];
             const productToUpdate = updatedProducts[productIndex];
-            const currentAttachments = productToUpdate.attachments || [];
-            productToUpdate.attachments = [...currentAttachments, newAttachment];
+            
+            if (isDesignFile) {
+                productToUpdate.designAttachments = [...(productToUpdate.designAttachments || []), newAttachment];
+            } else {
+                productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
+            }
+            
             await updateDoc(orderRef, { products: updatedProducts });
         }
       } catch (error) {
@@ -152,7 +159,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       }
   };
 
-  const removeAttachment = async (orderId: string, productIndex: number, attachment: OrderAttachment) => {
+  const removeAttachment = async (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile = false) => {
       try {
         if (attachment.storagePath) {
           await deleteFileFlow({ fileName: attachment.storagePath });
@@ -162,9 +169,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (currentOrder) {
             const updatedProducts = [...currentOrder.products];
             const productToUpdate = updatedProducts[productIndex];
-            productToUpdate.attachments = (productToUpdate.attachments || []).filter(
-                att => att.storagePath !== attachment.storagePath
-            );
+
+            if (isDesignFile) {
+                productToUpdate.designAttachments = (productToUpdate.designAttachments || []).filter(
+                    att => att.storagePath !== attachment.storagePath
+                );
+            } else {
+                 productToUpdate.attachments = (productToUpdate.attachments || []).filter(
+                    att => att.storagePath !== attachment.storagePath
+                );
+            }
+
             await updateDoc(orderRef, { products: updatedProducts });
             toast({
                 title: "Attachment Removed",
@@ -246,6 +261,23 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
+             // If order is completed, add/update product to the main products collection
+            if (orderData.status === 'Completed') {
+                for (const product of orderData.products) {
+                    const productsRef = collection(firestore, "products");
+                    const q = query(productsRef, where("productName", "==", product.productName));
+                    const querySnapshot = await getDocs(q);
+
+                    if (querySnapshot.empty) {
+                        // Product doesn't exist, create it
+                        await addProduct(product);
+                    } else {
+                        // Product exists, update it
+                        const existingProductId = querySnapshot.docs[0].id;
+                        await updateProduct(existingProductId, product);
+                    }
+                }
+            }
         }
         if (originalOrder.isUrgent !== orderData.isUrgent) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
@@ -304,7 +336,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderId);
     deleteDocumentNonBlocking(orderRef);
 
-    const deletePromises = (attachments || []).map(att => {
+    const allAttachments = attachments.concat(
+      orders?.find(o => o.id === orderId)?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
+    );
+    
+    const uniqueAttachments = Array.from(new Map(allAttachments.map(item => [item.storagePath, item])).values());
+
+    const deletePromises = (uniqueAttachments || []).map(att => {
       if (!att.storagePath) return Promise.resolve();
       return deleteFileFlow({ fileName: att.storagePath }).catch(error => {
         console.error(`Failed to delete attachment ${att.storagePath}:`, error);

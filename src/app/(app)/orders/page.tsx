@@ -8,6 +8,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Order, OrderStatus } from "@/lib/types";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
+import { ProductProvider } from "@/hooks/use-products";
 
 export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
@@ -70,7 +71,9 @@ export default function OrdersPage() {
                     {tabs.map(tab => (
                         <TabsContent key={tab.value} value={tab.value} forceMount={activeTab === tab.value}>
                             <ProductSettingProvider>
-                                <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                                <ProductProvider>
+                                    <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                                </ProductProvider>
                             </ProductSettingProvider>
                         </TabsContent>
                     ))}
