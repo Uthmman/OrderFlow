@@ -203,6 +203,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const newOrderRef = doc(collection(firestore, "orders"));
     const orderId = newOrderRef.id;
     
+    // Create products in the main catalog if they are new
+    for (const product of orderData.products) {
+        const productsRef = collection(firestore, "products");
+        const q = query(productsRef, where("productName", "==", product.productName));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            // Product doesn't exist, create it in the catalog
+            await addProduct(product);
+        }
+        // If product exists, we don't update it here. Updates happen on completion.
+    }
+    
     const finalOrderData: Order = {
         ...orderData,
         id: orderId,
