@@ -201,16 +201,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in to add an order.");
     
     // Check if we are creating a new product or using an existing one.
-    // A product from the catalog would have a creationDate. A new one from the form won't.
     for (const product of orderData.products) {
-        if (!(product as any).creationDate) {
-            const productsRef = collection(firestore, "products");
-            const q = query(productsRef, where("productName", "==", product.productName));
-            const querySnapshot = await getDocs(q);
+        // A product from the catalog would have a creationDate. A new one from the form won't.
+        if (!product.productName) continue;
 
-            if (querySnapshot.empty) {
-                await addProduct(product);
-            }
+        const productsRef = collection(firestore, "products");
+        const q = query(productsRef, where("productName", "==", product.productName));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            // Product doesn't exist, so add it to the catalog.
+            await addProduct(product);
         }
     }
     
