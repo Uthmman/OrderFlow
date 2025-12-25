@@ -163,13 +163,14 @@ function useDebounce<T>(value: T, delay: number): T {
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Category', fields: ['products.0.category'] },
-  { id: 3, title: 'Attachments', fields: [] },
-  { id: 4, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
-  { id: 5, title: 'Material', fields: ['products.0.material'] },
-  { id: 6, title: 'Color', fields: ['products.0.colors'] },
-  { id: 7, title: 'Review Products', fields: [] },
-  { id: 8, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 9, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
+  { id: 3, title: 'Choose Product', fields: [] },
+  { id: 4, title: 'Attachments', fields: [] },
+  { id: 5, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
+  { id: 6, title: 'Material', fields: ['products.0.material'] },
+  { id: 7, title: 'Color', fields: ['products.0.colors'] },
+  { id: 8, title: 'Review Products', fields: [] },
+  { id: 9, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
+  { id: 10, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -649,7 +650,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }
 
   const stepTitle = STEPS[currentStep - 1].title;
-  const isProductStep = currentStep > 1 && currentStep < 7; // Steps 2-6 are for products
+  const isProductStep = currentStep > 1 && currentStep < 8; 
   const finalTitle = isProductStep ? productStepTitle(stepTitle) : stepTitle;
 
 
@@ -801,8 +802,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
             </Card>
         )}
-        
+
         {currentStep === 3 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Choose Product</CardTitle>
+              <CardDescription>Create a new product or select an existing one from your catalog.</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+        
+        {currentStep === 4 && (
             <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Attachments")}</CardTitle>
@@ -887,7 +897,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
             <Card>
                 <CardHeader>
                 <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
@@ -973,7 +983,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {currentStep === 5 && (
+        {currentStep === 6 && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Material")}</CardTitle>
@@ -1019,7 +1029,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 6 && (
+        {currentStep === 7 && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
@@ -1147,7 +1157,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
         
-        {currentStep === 7 && (
+        {currentStep === 8 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Review Products</CardTitle>
@@ -1173,7 +1183,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <Separator />
                     <div className="flex flex-col sm:flex-row gap-2">
                         <Button type="button" onClick={addAnotherProduct} className="w-full sm:w-auto">Add Another Product</Button>
-                        <Button type="button" variant="outline" onClick={() => setCurrentStep(8)} className="w-full sm:w-auto">
+                        <Button type="button" variant="outline" onClick={() => setCurrentStep(9)} className="w-full sm:w-auto">
                             Continue to Final Step <ArrowRight className="ml-2" />
                         </Button>
                     </div>
@@ -1181,7 +1191,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {currentStep === 8 && (
+        {currentStep === 9 && (
              <Card>
                 <CardHeader>
                     <CardTitle>Pricing & Payment</CardTitle>
@@ -1266,7 +1276,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 9 && (
+        {currentStep === 10 && (
              <Card>
                 <CardHeader>
                     <CardTitle>Scheduling & Status</CardTitle>
@@ -1363,27 +1373,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
              <div className="flex items-center gap-2">
-                {currentStep > 1 && currentStep !== 7 && (
+                {currentStep > 1 && currentStep !== 8 && (
                     <Button variant="outline" type="button" onClick={prevStep}>
                         <ArrowLeft className="mr-2" /> Back
                     </Button>
                 )}
                 
-                {currentStep < 8 && (
+                {currentStep < 9 && currentStep !== 8 && (
                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
 
-                 {currentStep === 8 && (
-                    <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>
+                 {currentStep === 9 && (
+                    <Button type="button" onClick={() => setCurrentStep(10)} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
 
-                {currentStep === 9 && (
+                {currentStep === 10 && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {initialOrder ? 'Save Changes' : 'Finish Order'}

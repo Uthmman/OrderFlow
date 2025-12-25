@@ -100,6 +100,7 @@ export type Product = {
   category: string;
   description: string;
   attachments?: OrderAttachment[];
+  designAttachments?: OrderAttachment[]; // For 'Design Ready' files
   colors?: string[];
   material?: string[];
   dimensions?: { width: number; height: number; depth: number };
