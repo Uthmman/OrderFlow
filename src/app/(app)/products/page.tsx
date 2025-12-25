@@ -92,28 +92,28 @@ function ProductCatalog() {
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
 
                     return (
-                        <Card key={product.id} className="flex flex-col overflow-hidden group">
-                             <Link href={`/products/${product.id}`} className="contents">
-                                <CardHeader className="p-0">
-                                    <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
-                                        {primaryAttachment?.url ? (
-                                            <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        ) : (
-                                            <IconComponent className="h-16 w-16 text-muted-foreground" />
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-4 flex-grow">
-                                    <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
-                                    <CardDescription>{product.category}</CardDescription>
-                                </CardContent>
-                             </Link>
+                      <Link key={product.id} href={`/products/${product.id}`} passHref>
+                        <Card className="flex flex-col overflow-hidden group h-full">
+                            <CardHeader className="p-0">
+                                <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
+                                    {primaryAttachment?.url ? (
+                                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    ) : (
+                                        <IconComponent className="h-16 w-16 text-muted-foreground" />
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-4 flex-grow">
+                                <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
+                                <CardDescription>{product.category}</CardDescription>
+                            </CardContent>
                             <CardFooter className="p-4 pt-0">
-                                <Button className="w-full" size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
+                                <Button className="w-full" size="sm" onClick={(e) => { e.preventDefault(); router.push(`/orders/new?fromProduct=${product.id}`)}}>
                                     <PlusCircle className="mr-2"/> Order This
                                 </Button>
                             </CardFooter>
                         </Card>
+                      </Link>
                     )
                 })}
             </div>
@@ -138,7 +138,7 @@ function ProductCatalog() {
                                     <p className="text-sm text-muted-foreground">{product.category}</p>
                                 </div>
                             </Link>
-                             <Button size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
+                             <Button size="sm" onClick={(e) => { e.preventDefault(); router.push(`/orders/new?fromProduct=${product.id}`)}}>
                                 <PlusCircle className="mr-2"/> Order
                             </Button>
                         </Card>
