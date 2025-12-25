@@ -12,6 +12,7 @@ import { PlusCircle, Search, LayoutGrid, List } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
+import Link from 'next/link';
 
 function ProductCatalog() {
   const { products, loading: productsLoading } = useProducts();
@@ -33,10 +34,6 @@ function ProductCatalog() {
   if (productsLoading || settingsLoading) {
     return <div className="text-center p-8">Loading products...</div>;
   }
-
-  const handleCreateNewOrder = (productId: string) => {
-    router.push(`/orders/new?fromProduct=${productId}`);
-  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -95,23 +92,25 @@ function ProductCatalog() {
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
 
                     return (
-                        <Card key={product.id} className="flex flex-col overflow-hidden">
-                             <CardHeader className="p-0">
-                                <div className="aspect-video bg-muted flex items-center justify-center relative">
-                                    {primaryAttachment?.url ? (
-                                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover" />
-                                    ) : (
-                                        <IconComponent className="h-16 w-16 text-muted-foreground" />
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-4 flex-grow">
-                                <CardTitle className="text-base font-bold">{product.productName}</CardTitle>
-                                <CardDescription>{product.category}</CardDescription>
-                            </CardContent>
+                        <Card key={product.id} className="flex flex-col overflow-hidden group">
+                             <Link href={`/products/${product.id}`} className="contents">
+                                <CardHeader className="p-0">
+                                    <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
+                                        {primaryAttachment?.url ? (
+                                            <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        ) : (
+                                            <IconComponent className="h-16 w-16 text-muted-foreground" />
+                                        )}
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-4 flex-grow">
+                                    <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
+                                    <CardDescription>{product.category}</CardDescription>
+                                </CardContent>
+                             </Link>
                             <CardFooter className="p-4 pt-0">
-                                <Button className="w-full" size="sm" onClick={() => handleCreateNewOrder(product.id)}>
-                                    <PlusCircle className="mr-2"/> Order This Product
+                                <Button className="w-full" size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
+                                    <PlusCircle className="mr-2"/> Order This
                                 </Button>
                             </CardFooter>
                         </Card>
@@ -125,19 +124,21 @@ function ProductCatalog() {
                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
                     return (
-                        <Card key={product.id} className="flex items-center p-4 gap-4">
-                            <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative">
-                               {primaryAttachment?.url ? (
-                                    <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover rounded-md" />
-                                ) : (
-                                    <IconComponent className="h-8 w-8 text-muted-foreground" />
-                                )}
-                            </div>
-                            <div className="flex-grow">
-                                <p className="font-semibold">{product.productName}</p>
-                                <p className="text-sm text-muted-foreground">{product.category}</p>
-                            </div>
-                             <Button size="sm" onClick={() => handleCreateNewOrder(product.id)}>
+                        <Card key={product.id} className="flex items-center p-4 gap-4 transition-colors hover:bg-muted/50">
+                            <Link href={`/products/${product.id}`} className="flex-grow flex items-center gap-4">
+                                <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative">
+                                {primaryAttachment?.url ? (
+                                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover rounded-md" />
+                                    ) : (
+                                        <IconComponent className="h-8 w-8 text-muted-foreground" />
+                                    )}
+                                </div>
+                                <div className="flex-grow">
+                                    <p className="font-semibold hover:underline">{product.productName}</p>
+                                    <p className="text-sm text-muted-foreground">{product.category}</p>
+                                </div>
+                            </Link>
+                             <Button size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
                                 <PlusCircle className="mr-2"/> Order
                             </Button>
                         </Card>
