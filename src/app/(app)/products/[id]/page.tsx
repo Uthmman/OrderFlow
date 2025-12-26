@@ -1,6 +1,7 @@
+
 "use client";
 
-import { use, Suspense } from "react";
+import { Suspense, use } from "react";
 import { useRouter, notFound } from "next/navigation";
 import { ProductProvider, useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft }
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
-import { useOrders } from "@/hooks/use-orders";
+import { OrderProvider, useOrders } from "@/hooks/use-orders";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -34,8 +35,7 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     )
 }
 
-function ProductDetailContent({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+function ProductDetailContent({ id }: { id: string }) {
   const router = useRouter();
   const { getProductById, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
@@ -53,7 +53,9 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
   const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
   
-  const productOrders = orders.filter(order => order.products.some(p => p.productName === product.productName));
+  const productOrders = orders.filter(order => 
+    order.products && Array.isArray(order.products) && order.products.some(p => p.productName === product.productName)
+  );
 
 
   return (
@@ -137,11 +139,14 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
 
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
+    const { id } = use(params);
     return (
         <ProductProvider>
-            <Suspense fallback={<div>Loading product details...</div>}>
-                <ProductDetailContent params={params} />
-            </Suspense>
+            <OrderProvider>
+                <Suspense fallback={<div>Loading product details...</div>}>
+                    <ProductDetailContent id={id} />
+                </Suspense>
+            </OrderProvider>
         </ProductProvider>
     )
 }
