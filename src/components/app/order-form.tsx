@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -386,7 +385,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(10); // Go straight to final steps
+    setCurrentStep(9); // Go to review step
   };
   
   const handleAddAnotherProduct = () => {
@@ -799,7 +798,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                          <div>
                             <div className="flex items-center justify-between mb-4">
                                <h3 className="text-lg font-medium">Create New Customer</h3>
-                               <Button type="button" variant="ghost" size="icon" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                               <Button type="button" variant="ghost" size="icon" onClick={()={() => setIsCreatingNewCustomer(false)}}><X className="h-4 w-4" /></Button>
                            </div>
                            <CustomerForm 
                                onSubmit={handleAddNewCustomer} 
@@ -829,7 +828,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                             ))}
                                         </SelectContent>
                                         </Select>
-                                        <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                                        <Button type="button" variant="outline" size="sm" onClick={()={() => setIsCreatingNewCustomer(true)}>
                                         <UserPlus className="mr-2 h-4 w-4" />
                                         New
                                         </Button>
@@ -1615,3 +1614,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
