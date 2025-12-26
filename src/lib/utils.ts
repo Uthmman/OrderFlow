@@ -24,6 +24,9 @@ export function formatOrderId(orderId: string) {
 
 export function formatTimestamp(timestamp: any): string {
   if (!timestamp) return '';
+  if (timestamp instanceof Date) {
+    return timestamp.toLocaleDateString();
+  }
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate().toLocaleDateString();
   }
