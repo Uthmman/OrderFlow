@@ -261,33 +261,32 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
-    if (initialOrder) {
-        // If we are editing an order...
-        if (!initialOrder.products || initialOrder.products.length === 0) {
-            // and it has no products, jump to adding one.
-            setCurrentStep(3);
-            if (getValues('products').length === 0) {
-                setValue('products', [{
-                    id: uuidv4(),
-                    productName: '',
-                    category: '',
-                    description: '',
-                    attachments: [],
-                    designAttachments: [],
-                    colors: [],
-                    material: [],
-                    price: 0,
-                }], { shouldDirty: true });
-            }
-        } else {
-            // otherwise, show the product hub.
-            setCurrentStep(2);
+    const stepFromUrl = searchParams.get('step');
+    if (stepFromUrl) {
+      setCurrentStep(parseInt(stepFromUrl, 10));
+    } else if (initialOrder) {
+      if (!initialOrder.products || initialOrder.products.length === 0) {
+        setCurrentStep(3);
+        if (getValues('products').length === 0) {
+          setValue('products', [{
+            id: uuidv4(),
+            productName: '',
+            category: '',
+            description: '',
+            attachments: [],
+            designAttachments: [],
+            colors: [],
+            material: [],
+            price: 0,
+          }], { shouldDirty: true });
         }
+      } else {
+        setCurrentStep(2);
+      }
     } else {
-        // This is a new order, so always start at step 1.
-        setCurrentStep(1);
+      setCurrentStep(1);
     }
-  }, [initialOrder, getValues, setValue]);
+  }, [initialOrder, searchParams, getValues, setValue]);
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -331,7 +330,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
-                 setCurrentStep(3);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
@@ -1576,6 +1574,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 
                 {currentStep < 9 && currentStep !== 2 && (
                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                        {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
@@ -1621,4 +1620,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
