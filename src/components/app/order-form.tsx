@@ -266,8 +266,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       setCurrentStep(parseInt(stepFromUrl, 10));
     } else if (initialOrder) {
       if (!initialOrder.products || initialOrder.products.length === 0) {
+        // For existing orders with no products, go to category selection
         setCurrentStep(3);
         if (getValues('products').length === 0) {
+          // Ensure there's a product object to work with
           setValue('products', [{
             id: uuidv4(),
             productName: '',
@@ -281,9 +283,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           }], { shouldDirty: true });
         }
       } else {
+        // For existing orders with products, go to the hub
         setCurrentStep(2);
       }
     } else {
+      // For brand new orders, start at the customer step
       setCurrentStep(1);
     }
   }, [initialOrder, searchParams, getValues, setValue]);
@@ -380,15 +384,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const currentProducts = getValues('products');
     const updatedProducts = [...currentProducts];
     updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() };
-    setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
     
-    // In create mode, after selecting a product, move to review.
-    if (!initialOrder) {
-      setCurrentStep(9); 
-    } else {
-      // In edit mode, go to edit details.
-      setCurrentStep(6);
-    }
+    // Using `startTransition` to batch the state updates and avoid race conditions
+    startTransition(() => {
+      setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
+      if (!initialOrder) {
+        setCurrentStep(9); // In create mode, after selecting a product, move to review.
+      } else {
+        setCurrentStep(6); // In edit mode, go to edit details.
+      }
+    });
   };
   
   const handleAddAnotherProduct = () => {
@@ -1627,3 +1632,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
