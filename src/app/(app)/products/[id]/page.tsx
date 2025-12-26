@@ -33,7 +33,8 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     )
 }
 
-function ProductDetailContent({ id }: { id: string }) {
+function ProductDetailContent({ params }: { params: { id: string } }) {
+  const { id } = use(params);
   const router = useRouter();
   const { getProductById, loading } = useProducts();
 
@@ -122,14 +123,10 @@ function ProductDetailContent({ id }: { id: string }) {
 
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
-    const resolvedParams = use(params);
-    if (!resolvedParams?.id) {
-        return notFound();
-    }
     return (
         <ProductProvider>
             <Suspense fallback={<div>Loading product details...</div>}>
-                <ProductDetailContent id={resolvedParams.id} />
+                <ProductDetailContent params={params} />
             </Suspense>
         </ProductProvider>
     )
