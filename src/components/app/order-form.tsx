@@ -371,7 +371,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
      if (initialOrder && [6, 7, 8].includes(currentStep)) {
         setCurrentStep(2); // Back to product hub
     } else if (!initialOrder && currentStep === 9) {
-        setCurrentStep(2); // Back to the non-existent hub, will be handled by logic
+        setCurrentStep(4); // Back from review to product source
     } else if (!initialOrder && currentStep === 4) {
         setCurrentStep(3); // Back from product source to category
     }
@@ -383,17 +383,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleExistingProductSelect = (product: Product) => {
     const currentProducts = getValues('products');
     const updatedProducts = [...currentProducts];
-    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() };
-    
-    // Using `startTransition` to batch the state updates and avoid race conditions
-    startTransition(() => {
-      setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-      if (!initialOrder) {
-        setCurrentStep(9); // In create mode, after selecting a product, move to review.
-      } else {
-        setCurrentStep(6); // In edit mode, go to edit details.
-      }
-    });
+    const newProduct = { ...product, price: product.price || 0, id: uuidv4() };
+    updatedProducts[currentProductIndex] = newProduct;
+
+    setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
+    setCurrentStep(9);
   };
   
   const handleAddAnotherProduct = () => {
@@ -429,7 +423,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (fromProductId && catalogProducts.length > 0) {
         const product = catalogProducts.find(p => p.id === fromProductId);
         if (product) {
-            setValue('products', [{...product, price: product.price || 0}], { shouldDirty: true });
+            setValue('products', [{...product, price: product.price || 0, id: uuidv4()}], { shouldDirty: true });
         }
     } else if (isNewProduct) {
         setValue('products', [{
@@ -1632,5 +1626,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
