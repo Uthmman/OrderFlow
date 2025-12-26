@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -261,16 +262,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   useEffect(() => {
     // This effect runs only once on initial load to set the starting step.
-    const stepFromUrl = searchParams.get('step');
-    if (stepFromUrl) {
-      setCurrentStep(parseInt(stepFromUrl, 10));
-      return;
+    if (searchParams.get('step')) {
+        setCurrentStep(parseInt(searchParams.get('step') as string, 10));
+        return;
     }
 
     if (initialOrder) {
-      // If we are editing an existing order...
       if (!initialOrder.products || initialOrder.products.length === 0) {
-        // ...and it has no products, start at category selection for a new product.
         setCurrentStep(3);
         if (getValues('products').length === 0) {
           setValue('products', [{
@@ -278,11 +276,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           }], { shouldDirty: true });
         }
       } else {
-        // ...and it has products, start at the product hub.
         setCurrentStep(2);
       }
     } else {
-      // If this is a brand new order, always start at the customer details step.
       setCurrentStep(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,6 +302,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (stepConfig) {
       if(currentStep === 1) {
           fieldsToValidate = stepConfig.fields || [];
+      } else if (currentStep === 3) {
+          fieldsToValidate = [`products.${currentProductIndex}.category`];
       } else {
           const productFields = stepConfig.fields || [];
           const fieldsToSkip = ['products.0.productName', 'products.0.description'];
@@ -379,7 +377,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(9); // Go to review step
+    setCurrentStep(10); 
   };
   
   const handleAddAnotherProduct = () => {
@@ -469,7 +467,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         }
     });
     
-    const totalIncome = updatedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+    const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 
     const orderPayload = {
       ...initialOrder,
@@ -482,6 +480,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     try {
         await updateOrder(orderPayload);
+        // Do not reset the form on auto-save
     } catch (e) {
         console.error("Auto-save failed:", e);
     } finally {
@@ -555,7 +554,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (audioBlob && initialOrder) {
       const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
       startTransition(() => {
-        addAttachment(initialOrder.id, currentProductIndex, audioFile);
+        addAttachment(initialOrder.id, currentProductIndex, audioFile).then(newAttachment => {
+            if (newAttachment) {
+                const currentProducts = getValues('products');
+                const updatedProducts = [...currentProducts];
+                const productToUpdate = updatedProducts[currentProductIndex];
+                productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
+                setValue('products', updatedProducts, { shouldDirty: true });
+            }
+        });
       });
       setAudioBlob(null);
     }
@@ -604,7 +611,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       const files = Array.from(event.target.files);
       files.forEach(file => {
         startTransition(() => {
-            addAttachment(initialOrder.id, currentProductIndex, file);
+            addAttachment(initialOrder.id, currentProductIndex, file).then(newAttachment => {
+                if (newAttachment) {
+                    const currentProducts = getValues('products');
+                    const updatedProducts = [...currentProducts];
+                    const productToUpdate = updatedProducts[currentProductIndex];
+                    productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
+                    setValue('products', updatedProducts, { shouldDirty: true });
+                }
+            });
         });
       })
     }
@@ -634,7 +649,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
   }, [selectedCustomer, setValue, getValues, isDirty]);
   
-  const totalIncome = watchedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+  const totalIncome = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
   useEffect(() => {
       if (form.getValues('incomeAmount') !== totalIncome) {
         setValue('incomeAmount', totalIncome, { shouldDirty: true });
@@ -695,7 +710,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         }
       });
       
-      const totalIncome = updatedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
+      const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
       
       const orderPayload = {
         ...(initialOrder || {}),
@@ -1606,3 +1621,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    

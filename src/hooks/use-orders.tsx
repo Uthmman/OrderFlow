@@ -26,7 +26,7 @@ interface OrderContextType {
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
-  addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<void>;
+  addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
 }
 
@@ -137,7 +137,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false) => {
+  const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false): Promise<OrderAttachment | undefined> => {
       try {
         const newAttachment = await handleFileUpload(file);
         const orderRef = doc(firestore, 'orders', orderId);
@@ -153,9 +153,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
             
             await updateDoc(orderRef, { products: updatedProducts });
+            return newAttachment;
         }
       } catch (error) {
           // Error is already handled by handleFileUpload
+          return undefined;
       }
   };
 
@@ -415,3 +417,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    
