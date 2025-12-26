@@ -261,21 +261,31 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
-    if (initialOrder && (!initialOrder.products || initialOrder.products.length === 0)) {
-        setCurrentStep(3);
-        if (getValues('products').length === 0) {
-            setValue('products', [{
-                id: uuidv4(),
-                productName: '',
-                category: '',
-                description: '',
-                attachments: [],
-                designAttachments: [],
-                colors: [],
-                material: [],
-                price: 0,
-            }], { shouldDirty: true });
+    if (initialOrder) {
+        // If we are editing an order...
+        if (!initialOrder.products || initialOrder.products.length === 0) {
+            // and it has no products, jump to adding one.
+            setCurrentStep(3);
+            if (getValues('products').length === 0) {
+                setValue('products', [{
+                    id: uuidv4(),
+                    productName: '',
+                    category: '',
+                    description: '',
+                    attachments: [],
+                    designAttachments: [],
+                    colors: [],
+                    material: [],
+                    price: 0,
+                }], { shouldDirty: true });
+            }
+        } else {
+            // otherwise, show the product hub.
+            setCurrentStep(2);
         }
+    } else {
+        // This is a new order, so always start at step 1.
+        setCurrentStep(1);
     }
   }, [initialOrder, getValues, setValue]);
 
@@ -339,15 +349,31 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       } else {
         setCurrentStep(prev => prev + 1); // Go to next product micro-step
       }
-    } else {
+    } else if (!initialOrder && currentStep === 3) {
+      setCurrentStep(4); // New order: Category -> Product Source
+    } else if (!initialOrder && currentStep === 4) {
+      setCurrentStep(5); // New order: Product Source -> Attachments
+    } else if (!initialOrder && [5,6,7,8].includes(currentStep)) {
+       if (currentStep === 8) {
+        setCurrentStep(9); // New order: Finished product config, go to review
+      } else {
+        setCurrentStep(prev => prev + 1);
+      }
+    }
+    else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
   };
 
   const prevStep = () => {
-    if(initialOrder && [6,7,8].includes(currentStep)) {
-        setCurrentStep(2);
-    } else {
+     if (initialOrder && [6, 7, 8].includes(currentStep)) {
+        setCurrentStep(2); // Back to product hub
+    } else if (!initialOrder && currentStep === 9) {
+        setCurrentStep(2); // Back to the non-existent hub, will be handled by logic
+    } else if (!initialOrder && currentStep === 4) {
+        setCurrentStep(3); // Back from product source to category
+    }
+    else {
         setCurrentStep(prev => Math.max(prev - 1, 1));
     }
   };
@@ -1595,3 +1621,4 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
