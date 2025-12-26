@@ -120,7 +120,7 @@ function ProductDetailContent({ id }: { id: string }) {
   );
 }
 
-// This is now a Server Component that passes the ID to the Client Component
+// The main page is a Server Component that passes the ID to the Client Component
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
     const resolvedParams = use(params);
     return (
