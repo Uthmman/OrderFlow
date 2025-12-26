@@ -125,7 +125,7 @@ function ProductCatalog() {
 
                     return (
                         <Card key={product.id} className="flex flex-col overflow-hidden group h-full">
-                            <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity">
+                            <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity flex-grow flex flex-col">
                                 <CardHeader className="p-0">
                                     <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
                                         {primaryAttachment?.url ? (
@@ -141,7 +141,7 @@ function ProductCatalog() {
                                 </CardContent>
                             </Link>
                             <CardFooter className="p-4 pt-0">
-                                <Button className="w-full" size="sm" onClick={(e) => { e.preventDefault(); router.push(`/orders/new?fromProduct=${product.id}`)}}>
+                                <Button className="w-full" size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
                                     <PlusCircle className="mr-2"/> Order This
                                 </Button>
                             </CardFooter>
@@ -156,7 +156,8 @@ function ProductCatalog() {
                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
                     return (
-                        <Card key={product.id} className="flex items-center p-4 gap-4 transition-colors hover:bg-muted/50">
+                        <Card key={product.id} className="transition-colors hover:bg-muted/50">
+                          <div className="flex items-center p-4 gap-4">
                             <Link href={`/products/${product.id}`} className="flex-grow flex items-center gap-4">
                                 <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative">
                                 {primaryAttachment?.url ? (
@@ -170,9 +171,10 @@ function ProductCatalog() {
                                     <p className="text-sm text-muted-foreground">{product.category}</p>
                                 </div>
                             </Link>
-                             <Button size="sm" onClick={(e) => { e.preventDefault(); router.push(`/orders/new?fromProduct=${product.id}`)}}>
+                             <Button size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
                                 <PlusCircle className="mr-2"/> Order
                             </Button>
+                          </div>
                         </Card>
                     )
                 })}
