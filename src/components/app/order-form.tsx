@@ -381,7 +381,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const updatedProducts = [...currentProducts];
     updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() };
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(6);
+    
+    // In create mode, after selecting a product, move to review.
+    if (!initialOrder) {
+      setCurrentStep(9); 
+    } else {
+      // In edit mode, go to edit details.
+      setCurrentStep(6);
+    }
   };
   
   const handleAddAnotherProduct = () => {
