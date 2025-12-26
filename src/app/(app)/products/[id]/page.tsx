@@ -120,9 +120,12 @@ function ProductDetailContent({ id }: { id: string }) {
   );
 }
 
-// The main page is a Server Component that passes the ID to the Client Component
+
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
     const resolvedParams = use(params);
+    if (!resolvedParams?.id) {
+        return notFound();
+    }
     return (
         <ProductProvider>
             <Suspense fallback={<div>Loading product details...</div>}>
