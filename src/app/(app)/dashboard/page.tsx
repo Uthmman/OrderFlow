@@ -10,6 +10,7 @@ import { formatCurrency } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
 import { ProductProvider } from "@/hooks/use-products"
+import { CustomerProvider } from "@/hooks/use-customers"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
@@ -106,9 +107,11 @@ export default function Dashboard() {
             <CardDescription>A list of the most recent orders.</CardDescription>
         </CardHeader>
         <CardContent>
+          <CustomerProvider>
             <ProductProvider>
                 <OrderTable preferenceKey="dashboardOrderSortPreference" />
             </ProductProvider>
+          </CustomerProvider>
         </CardContent>
       </Card>
 

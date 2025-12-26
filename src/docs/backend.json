@@ -61,14 +61,6 @@
           "type": "string",
           "description": "Reference to Customer. (Relationship: Customer 1:N Order)"
         },
-        "productName": {
-            "type": "string",
-            "description": "The name of the product being ordered."
-        },
-        "category": {
-            "type": "string",
-            "description": "The category of the product being ordered."
-        },
         "description": {
           "type": "string",
           "description": "A detailed description of the order."
@@ -85,9 +77,8 @@
           "description": "The color selected for the order."
         },
         "material": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "The materials selected for the order."
+          "type": "string",
+          "description": "The material selected for the order."
         },
         "size": {
           "type": "string",
@@ -122,12 +113,30 @@
       "required": [
         "id",
         "customerId",
-        "productName",
-        "category",
         "description",
         "deadline",
         "status"
       ]
+    },
+    "Product": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Product",
+        "type": "object",
+        "description": "Represents a product in the catalog.",
+        "properties": {
+            "id": { "type": "string" },
+            "productName": { "type": "string" },
+            "category": { "type": "string" },
+            "description": { "type": "string" },
+            "attachments": { "type": "array", "items": { "type": "object" } },
+            "designAttachments": { "type": "array", "items": { "type": "object" } },
+            "colors": { "type": "array", "items": { "type": "string" } },
+            "material": { "type": "array", "items": { "type": "string" } },
+            "dimensions": { "type": "object" },
+            "price": { "type": "number" },
+            "orderIds": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["id", "productName", "category"]
     },
     "ChatChannel": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -279,108 +288,6 @@
         "email",
         "role"
       ]
-    },
-    "ColorSettings": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ColorSettings",
-      "type": "object",
-      "description": "Stores the application's color palette settings.",
-      "properties": {
-        "woodFinishes": {
-          "type": "array",
-          "description": "List of available wood finish options.",
-          "items": {
-            "$ref": "#/backend/entities/WoodFinish"
-          }
-        },
-        "customColors": {
-          "type": "array",
-          "description": "List of available custom color options.",
-          "items": {
-            "$ref": "#/backend/entities/CustomColor"
-          }
-        }
-      }
-    },
-    "ProductSettings": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ProductSettings",
-      "type": "object",
-      "description": "Stores the application's product settings.",
-      "properties": {
-        "productCategories": {
-          "type": "array",
-          "description": "List of available product categories.",
-          "items": {
-            "$ref": "#/backend/entities/ProductCategory"
-          }
-        },
-        "materials": {
-          "type": "array",
-          "description": "List of available materials.",
-          "items": {
-            "$ref": "#/backend/entities/Material"
-          }
-        }
-      }
-    },
-    "WoodFinish": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "WoodFinish",
-      "type": "object",
-      "description": "A wood finish option with a name and an image URL.",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "imageUrl": {
-          "type": "string",
-          "format": "uri"
-        }
-      },
-      "required": ["name", "imageUrl"]
-    },
-    "CustomColor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CustomColor",
-      "type": "object",
-      "description": "A custom color option with a name and a hex color value.",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "colorValue": {
-          "type": "string"
-        }
-      },
-      "required": ["name", "colorValue"]
-    },
-    "ProductCategory": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ProductCategory",
-      "type": "object",
-      "description": "A product category with a name and a Lucide icon name.",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "icon": {
-          "type": "string"
-        }
-      },
-      "required": ["name", "icon"]
-    },
-    "Material": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "title": "Material",
-        "type": "object",
-        "description": "A material option for products.",
-        "properties": {
-            "name": {
-            "type": "string"
-            }
-        },
-        "required": ["name"]
     }
   },
   "auth": {
@@ -421,6 +328,15 @@
               "description": "The unique identifier for the order."
             }
           ]
+        }
+      },
+       {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": { "$ref": "#/backend/entities/Product" },
+          "description": "Stores product catalog information.",
+          "params": [ { "name": "productId", "description": "The unique identifier for the product." } ]
         }
       },
       {
@@ -494,32 +410,8 @@
             }
           ]
         }
-      },
-      {
-        "path": "/settings/colors",
-        "definition": {
-          "entityName": "ColorSettings",
-          "schema": {
-            "$ref": "#/backend/entities/ColorSettings"
-          },
-          "description": "Stores the application's color palette settings for wood finishes and custom colors.",
-          "params": []
-        }
-      },
-      {
-        "path": "/settings/products",
-        "definition": {
-          "entityName": "ProductSettings",
-          "schema": {
-            "$ref": "#/backend/entities/ProductSettings"
-          },
-          "description": "Stores the application's product settings, including categories and materials.",
-          "params": []
-        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to provide a secure, scalable, and easily maintainable database for the OrderFlow application. It leverages path-based ownership for user-specific data and membership maps for collaborative data access, ensuring authorization independence and simplifying security rules. \n\nSpecifically, the design implements authorization independence by denormalizing authorization data. For example, access to orders is controlled via the customer id, which is part of every order object, eliminating the need for rules to `get()` customer data to authorize order access. Similarly, the `participants` field in the `chatChannels` collection denormalizes the list of users that can access that chat channel, avoiding the need to check user roles in other collections.  User-owned data (notifications) are stored using path-based ownership.\n\nTo support secure `list` operations (QAPs), data with different access requirements are stored in separate collections. Customer data is stored in a top-level `customers` collection, Orders are stored in a top-level `orders` collection and linked to the customers with the `customerId`. Chat channels and messages are also stored in top-level collections. User-specific data like notifications, however, is stored in subcollections under the respective user document.\n\nThis structure avoids hierarchical authorization dependencies, making security rules simpler and more robust. It also enables atomic operations and simplifies debugging. A `settings` collection with documents for `colors` and `products` is added to dynamically manage application settings."
+    "reasoning": "The Firestore structure is designed to provide a secure, scalable, and easily maintainable database for the OrderFlow application. It leverages path-based ownership for user-specific data and membership maps for collaborative data access, ensuring authorization independence and simplifying security rules. \n\nSpecifically, the design implements authorization independence by denormalizing authorization data. For example, access to orders is controlled via the customer id, which is part of every order object, eliminating the need for rules to `get()` customer data to authorize order access. Similarly, the `participants` field in the `chatChannels` collection denormalizes the list of users that can access that chat channel, avoiding the need to check user roles in other collections.  User-owned data (notifications) are stored using path-based ownership.\n\nTo support secure `list` operations (QAPs), data with different access requirements are stored in separate collections. Customer data is stored in a top-level `customers` collection, Orders are stored in a top-level `orders` collection and linked to the customers with the `customerId`. Chat channels and messages are also stored in top-level collections. A top-level `products` collection is used for the product catalog. User-specific data like notifications, however, is stored in subcollections under the respective user document.\n\nThis structure avoids hierarchical authorization dependencies, making security rules simpler and more robust. It also enables atomic operations and simplifies debugging."
   }
 }
-
-    

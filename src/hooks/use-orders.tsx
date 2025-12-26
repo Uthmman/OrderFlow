@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -58,7 +58,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { addOrderToCustomer } = useCustomers();
   const { firestore } = useFirebase();
   const { user } = useUser();
-  const { addProduct, updateProduct } = useProducts();
+  const { addProduct, updateProduct, addOrderIdToProduct } = useProducts();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
@@ -202,7 +202,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     // Check if we are creating a new product or using an existing one.
     for (const product of orderData.products) {
-        // A product from the catalog would have a creationDate. A new one from the form won't.
         if (!product.productName) continue;
 
         const productsRef = collection(firestore, "products");
@@ -230,6 +229,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     await setDoc(newOrderRef, cleanData, {});
 
     await addOrderToCustomer(orderData.customerId, orderId);
+
+    // Add orderId to the product's order history
+    for (const product of orderData.products) {
+        if (product.id) {
+            await addOrderIdToProduct(product.id, orderId);
+        }
+    }
 
     if (orderData.status !== 'Pending') {
         triggerNotification(firestore, [user.id], {
@@ -343,10 +349,24 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
  const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
     const orderRef = doc(firestore, 'orders', orderId);
+    
+    // Also remove the orderId from the products' order history
+    const orderToDelete = orders?.find(o => o.id === orderId);
+    if(orderToDelete) {
+        for (const product of orderToDelete.products) {
+            if (product.id) {
+                const productRef = doc(firestore, 'products', product.id);
+                await updateDoc(productRef, {
+                    orderIds: arrayRemove(orderId)
+                });
+            }
+        }
+    }
+
     deleteDocumentNonBlocking(orderRef);
 
     const allAttachments = attachments.concat(
-      orders?.find(o => o.id === orderId)?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
+      orderToDelete?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
     );
     
     const uniqueAttachments = Array.from(new Map(allAttachments.map(item => [item.storagePath, item])).values());

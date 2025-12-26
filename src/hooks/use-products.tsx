@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch, arrayUnion } from 'firebase/firestore';
 import type { Order, Product } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
@@ -13,10 +13,11 @@ import { v4 as uuidv4 } from 'uuid';
 interface ProductContextType {
   products: Product[];
   loading: boolean;
-  addProduct: (product: Omit<Product, 'id'>) => Promise<string | undefined>;
+  addProduct: (product: Partial<Product>) => Promise<string | undefined>;
   updateProduct: (productId: string, productData: Partial<Product>) => Promise<void>;
   getProductById: (id: string) => Product | undefined;
   syncProductsFromOrders: (orders: Order[]) => Promise<number>;
+  addOrderIdToProduct: (productId: string, orderId: string) => Promise<void>;
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
@@ -51,12 +52,21 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
   const { data: products, isLoading: loading } = useCollection<Product>(productsRef);
 
-  const addProduct = useCallback(async (productData: Omit<Product, 'id'>) => {
+  const addProduct = useCallback(async (productData: Partial<Product>) => {
     try {
       const newProductRef = doc(collection(firestore, "products"));
       const newProduct: Product = {
-        ...productData,
         id: newProductRef.id,
+        productName: productData.productName || 'Unnamed Product',
+        category: productData.category || 'Uncategorized',
+        description: productData.description || '',
+        price: productData.price || 0,
+        attachments: productData.attachments || [],
+        designAttachments: productData.designAttachments || [],
+        colors: productData.colors || [],
+        material: productData.material || [],
+        dimensions: productData.dimensions,
+        orderIds: productData.orderIds || [],
       };
       await setDoc(newProductRef, newProduct);
       return newProductRef.id;
@@ -74,7 +84,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const updateProduct = useCallback(async (productId: string, productData: Partial<Product>) => {
     const productRef = doc(firestore, 'products', productId);
     try {
-      updateDocumentNonBlocking(productRef, productData);
+      const cleanData = removeUndefined(productData);
+      updateDocumentNonBlocking(productRef, cleanData);
     } catch (error) {
        console.error("Error updating product: ", error);
        toast({
@@ -84,6 +95,17 @@ export function ProductProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [firestore, toast]);
+  
+  const addOrderIdToProduct = useCallback(async (productId: string, orderId: string) => {
+    const productRef = doc(firestore, 'products', productId);
+    try {
+        await updateDoc(productRef, {
+            orderIds: arrayUnion(orderId)
+        });
+    } catch (error) {
+        console.error(`Failed to add orderId to product ${productId}:`, error);
+    }
+  }, [firestore]);
   
   const getProductById = useCallback((id: string) => {
     return products?.find(p => p.id === id);
@@ -103,13 +125,13 @@ export function ProductProvider({ children }: { children: ReactNode }) {
           const newProduct: Product = {
             ...orderProduct,
             id: newProductRef.id,
+            orderIds: [order.id],
           };
           
-          // Firestore doesn't allow undefined values, so we clean the object.
           const cleanProduct = removeUndefined(newProduct);
           batch.set(newProductRef, cleanProduct);
 
-          existingProductNames.add(orderProduct.productName); // Avoid adding duplicates from the same sync batch
+          existingProductNames.add(orderProduct.productName);
           newProductsCount++;
         }
       }
@@ -130,7 +152,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     updateProduct,
     getProductById,
     syncProductsFromOrders,
-  }), [products, loading, addProduct, updateProduct, getProductById, syncProductsFromOrders]);
+    addOrderIdToProduct,
+  }), [products, loading, addProduct, updateProduct, getProductById, syncProductsFromOrders, addOrderIdToProduct]);
 
   return (
     <ProductContext.Provider value={value}>

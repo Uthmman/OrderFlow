@@ -105,6 +105,7 @@ export type Product = {
   material?: string[];
   dimensions?: { width: number; height: number; depth: number };
   price: number;
+  orderIds?: string[];
 }
 
 export type Order = {

@@ -1,16 +1,17 @@
-
 "use client";
 
 import { use, Suspense } from "react";
 import { useRouter, notFound } from "next/navigation";
 import { ProductProvider, useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
+import { OrderTable } from "@/components/app/order-table";
+import { useOrders } from "@/hooks/use-orders";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -36,9 +37,10 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
 function ProductDetailContent({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const router = useRouter();
-  const { getProductById, loading } = useProducts();
+  const { getProductById, loading: productsLoading } = useProducts();
+  const { orders, loading: ordersLoading } = useOrders();
 
-  if (loading) {
+  if (productsLoading || ordersLoading) {
     return <div>Loading...</div>;
   }
 
@@ -50,6 +52,9 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
 
   const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
+  
+  const productOrders = orders.filter(order => order.products.some(p => p.productName === product.productName));
+
 
   return (
     <div className="flex flex-col gap-8">
@@ -117,6 +122,15 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
           </Card>
         </div>
       </div>
+      <Card>
+        <CardHeader>
+            <CardTitle>Order History</CardTitle>
+            <CardDescription>A list of all orders that include this product.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <OrderTable orders={productOrders} preferenceKey="orderSortPreference" />
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -131,5 +145,3 @@ export default function ProductDetailPage({ params }: { params: { id: string } }
         </ProductProvider>
     )
 }
-
-    
