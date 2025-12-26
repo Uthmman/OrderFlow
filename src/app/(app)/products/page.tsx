@@ -106,7 +106,7 @@ function ProductCatalog() {
                         Sync
                     </Button>
                 )}
-                 <Button onClick={() => router.push('/orders/new?newProduct=true')}>
+                 <Button onClick={() => router.push('/products/new')}>
                     <PlusCircle className="mr-2" /> New Product
                 </Button>
             </div>
@@ -198,3 +198,5 @@ export default function ProductsPage() {
         </ProductProvider>
     )
 }
+
+    
