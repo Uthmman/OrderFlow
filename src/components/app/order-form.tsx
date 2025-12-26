@@ -218,7 +218,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     };
     
     const defaultValues = {
-        products: [defaultProduct],
+        products: [], // Start with an empty array
         isUrgent: false,
         status: "In Progress" as OrderStatus,
         incomeAmount: 0,
@@ -229,7 +229,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     };
 
     if (!orderToMap) {
-        return defaultValues;
+        // For new orders, add one blank product to start
+        return { ...defaultValues, products: [defaultProduct] };
     }
     
     const products = orderToMap.products && orderToMap.products.length > 0
@@ -237,7 +238,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             ...p,
             colorAsAttachment: p.colors?.includes("As Attached Picture")
         }))
-        : [defaultProduct];
+        : [];
 
     return {
         ...defaultValues,
@@ -258,6 +259,28 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
+
+  useEffect(() => {
+    // If we're editing an order and it has no products, jump to product creation
+    if (initialOrder && (!initialOrder.products || initialOrder.products.length === 0)) {
+        setCurrentStep(3); // Jump to category selection
+        // Add a default product to the form state to work with
+        if (getValues('products').length === 0) {
+            setValue('products', [{
+                id: uuidv4(),
+                productName: '',
+                category: '',
+                description: '',
+                attachments: [],
+                designAttachments: [],
+                colors: [],
+                material: [],
+                price: 0,
+            }], { shouldDirty: true });
+        }
+    }
+  }, [initialOrder, getValues, setValue]);
+
 
   const filteredCatalogProducts = useMemo(() => {
     if (!catalogProducts) return [];
@@ -301,7 +324,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
-                 setCurrentStep(2); // Manually set to step 2 after success
+                 // Let the useEffect handle the step change
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
