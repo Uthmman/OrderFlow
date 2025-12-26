@@ -259,40 +259,30 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
- useEffect(() => {
+  useEffect(() => {
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
       return;
     }
     
+    // This effect should only run ONCE on initial load to set the starting step.
     if (initialOrder) {
-      // If editing an existing order...
       if (!initialOrder.products || initialOrder.products.length === 0) {
-        //...and it has no products, jump to product creation.
         setCurrentStep(3); 
         if (getValues('products').length === 0) {
           setValue('products', [{
-            id: uuidv4(),
-            productName: '',
-            category: '',
-            description: '',
-            attachments: [],
-            designAttachments: [],
-            colors: [],
-            material: [],
-            price: 0,
+            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
           }], { shouldDirty: true });
         }
       } else {
-        //...and it has products, show the product hub.
         setCurrentStep(2); 
       }
     } else {
-      // If creating a new order, always start at step 1.
-      setCurrentStep(1); 
+      setCurrentStep(1);
     }
-  }, [initialOrder, searchParams, getValues, setValue]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrder, getValues, setValue]);
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -349,26 +339,29 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         return;
     }
     
-    if ((initialOrder && [6, 7, 8].includes(currentStep)) || currentStep === 9) {
-        setCurrentStep(2); // Finished product config or review, go to hub
-    } else if (!initialOrder && currentStep === 3) {
-      setCurrentStep(4); // New order: Category -> Product Source
-    } else if (!initialOrder && currentStep === 4) {
-      setCurrentStep(5); // New order: Product Source -> Attachments
-    } else if (!initialOrder && [5,6,7,8].includes(currentStep)) {
-       if (currentStep === 8) {
-        setCurrentStep(9); // New order: Finished product config, go to review
+    // Main navigation logic
+    if (initialOrder && [6, 7, 8].includes(currentStep)) {
+        setCurrentStep(2); // Finished product config, go to hub
+    } else if (currentStep === 3) {
+      // After category selection
+      if (!initialOrder) {
+        setCurrentStep(4); // New order: Category -> Product Source
       } else {
-        setCurrentStep(prev => prev + 1);
+        setCurrentStep(5); // Existing order, editing a product: Category -> Attachments
       }
-    }
-    else {
-        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    } else if (currentStep === 4 && !initialOrder) {
+      // From Product Source, can only go to attachments
+      setCurrentStep(5);
+    } else if (currentStep === 9) {
+      // From review, go to pricing
+      setCurrentStep(10);
+    } else {
+      setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
   };
 
   const prevStep = () => {
-     if (initialOrder && [6, 7, 8].includes(currentStep)) {
+     if (initialOrder && [5, 6, 7, 8].includes(currentStep)) {
         setCurrentStep(2); // Back to product hub
     } else if (!initialOrder && currentStep === 9) {
         setCurrentStep(4); // Back from review to product source
@@ -387,7 +380,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(10);
+    setCurrentStep(9); // Go to review step
   };
   
   const handleAddAnotherProduct = () => {
@@ -495,7 +488,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     } finally {
         setIsAutoSaving(false);
     }
-  }, [initialOrder, customers, updateOrder, form]);
+  }, [initialOrder, customers, updateOrder]);
 
   useEffect(() => {
     const isFormValid = form.formState.isValid;
@@ -715,7 +708,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       };
 
       await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
-      form.reset(values);
+      
       if (initialOrder) {
         toast({
             title: "Order Updated",
@@ -1378,9 +1371,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
                            <PlusCircleIcon className="mr-2"/> Add Another Product
                         </Button>
-                         <Button type="button" onClick={() => setCurrentStep(10)} className="w-full sm:w-auto">
-                            Continue to Final Steps <ArrowRight className="ml-2" />
-                         </Button>
                       </div>
                   </CardContent>
               </Card>
