@@ -1,8 +1,8 @@
 
 "use client";
 
-import { Suspense, use } from "react";
-import { useRouter, notFound } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, notFound, useParams } from "next/navigation";
 import { ProductProvider, useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -36,7 +36,9 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     )
 }
 
-function ProductDetailContent({ id }: { id: string }) {
+function ProductDetailContent() {
+  const params = useParams();
+  const id = params.id as string;
   const router = useRouter();
   const { getProductById, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
@@ -141,16 +143,16 @@ function ProductDetailContent({ id }: { id: string }) {
 }
 
 
-export default function ProductDetailPage({ params }: { params: { id: string } }) {
-    const { id } = use(params);
-
+export default function ProductDetailPage() {
     return (
         <ProductProvider>
             <OrderProvider>
                 <Suspense fallback={<div>Loading product details...</div>}>
-                    <ProductDetailContent id={id} />
+                    <ProductDetailContent />
                 </Suspense>
             </OrderProvider>
         </ProductProvider>
     )
 }
+
+    

@@ -1,8 +1,8 @@
 
 "use client";
 
-import { use, useState } from "react";
-import { notFound, useRouter } from "next/navigation";
+import { useState } from "react";
+import { notFound, useRouter, useParams } from "next/navigation";
 import { useCustomers } from "@/hooks/use-customers";
 import { useOrders } from "@/hooks/use-orders";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,8 +29,9 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-export default function CustomerDetailPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+export default function CustomerDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { orders, loading: ordersLoading } = useOrders();
   const { user, role, loading: userLoading } = useUser();
@@ -231,3 +232,5 @@ export default function CustomerDetailPage({ params }: { params: { id: string } 
     </div>
   );
 }
+
+    
