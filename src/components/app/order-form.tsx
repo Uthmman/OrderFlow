@@ -69,9 +69,9 @@ import { ScrollArea } from "../ui/scroll-area"
 
 const productSchema = z.object({
   id: z.string(),
-  productName: z.string().min(3, "Product name must be at least 3 characters."),
+  productName: z.string().min(3, "Product name must be at least 3 characters.").optional().or(z.literal('')),
   category: z.string().min(1, "Category is required."),
-  description: z.string().min(10, "Description must be at least 10 characters."),
+  description: z.string().optional(),
   attachments: z.array(z.any()).optional(),
   designAttachments: z.array(z.any()).optional(),
   colors: z.array(z.string()).optional(),
@@ -312,7 +312,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           fieldsToValidate = stepConfig.fields || [];
       } else {
           const productFields = stepConfig.fields || [];
-          fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
+          // Skip validation for some fields if not applicable in the current context
+          const fieldsToSkip = ['products.0.productName', 'products.0.description'];
+          const filteredProductFields = productFields.filter(f => !fieldsToSkip.includes(f));
+          fieldsToValidate = filteredProductFields.length > 0 ? productStepFields(currentProductIndex, filteredProductFields) : [];
       }
     }
     
@@ -346,11 +349,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
     
     if (initialOrder && [6, 7, 8].includes(currentStep)) {
-      if (currentStep === 8) {
         setCurrentStep(2); // Finished product config, go to hub
-      } else {
-        setCurrentStep(prev => prev + 1); // Go to next product micro-step
-      }
     } else if (!initialOrder && currentStep === 3) {
       setCurrentStep(4); // New order: Category -> Product Source
     } else if (!initialOrder && currentStep === 4) {
@@ -387,7 +386,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(9);
+    setCurrentStep(10); // Go straight to final steps
   };
   
   const handleAddAnotherProduct = () => {
@@ -930,7 +929,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                     type="button"
                                                     onClick={() => {
                                                         field.onChange(cat.name);
-                                                        nextStep();
                                                     }}
                                                     className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
                                                         isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
