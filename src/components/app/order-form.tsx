@@ -259,16 +259,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
-  useEffect(() => {
+ useEffect(() => {
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
     } else if (initialOrder) {
       if (!initialOrder.products || initialOrder.products.length === 0) {
-        // For existing orders with no products, go to category selection
         setCurrentStep(3);
         if (getValues('products').length === 0) {
-          // Ensure there's a product object to work with
           setValue('products', [{
             id: uuidv4(),
             productName: '',
@@ -282,11 +280,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           }], { shouldDirty: true });
         }
       } else {
-        // For existing orders with products, go to the hub
         setCurrentStep(2);
       }
     } else {
-      // For brand new orders, start at the customer step
       setCurrentStep(1);
     }
   }, [initialOrder, searchParams, getValues, setValue]);
@@ -311,7 +307,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           fieldsToValidate = stepConfig.fields || [];
       } else {
           const productFields = stepConfig.fields || [];
-          // Skip validation for some fields if not applicable in the current context
           const fieldsToSkip = ['products.0.productName', 'products.0.description'];
           const filteredProductFields = productFields.filter(f => !fieldsToSkip.includes(f));
           fieldsToValidate = filteredProductFields.length > 0 ? productStepFields(currentProductIndex, filteredProductFields) : [];
@@ -385,7 +380,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(9); // Go to review step
+    setCurrentStep(9);
   };
   
   const handleAddAnotherProduct = () => {
@@ -766,7 +761,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   return (
     <>
-    <div className="mb-8 space-y-4">
+      <div className="mb-8 space-y-4">
         <Progress value={getProgress()} className="w-full" />
         <div className="flex justify-between items-center">
             <p className="text-sm font-medium">{finalTitle}</p>
@@ -781,838 +776,836 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 ): null}
             </div>
         </div>
-    </div>
-    <Form {...form}>
-      <form onSubmit={e => e.preventDefault()} className="space-y-8">
-        
-        {currentStep === 1 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Customer & Location</CardTitle>
-                    <CardDescription>
-                        Select a customer and specify the location for this order.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {isCreatingNewCustomer ? (
-                         <div>
-                            <div className="flex items-center justify-between mb-4">
-                               <h3 className="text-lg font-medium">Create New Customer</h3>
-                               <Button type="button" variant="ghost" size="icon" onClick={()={() => setIsCreatingNewCustomer(false)}}><X className="h-4 w-4" /></Button>
-                           </div>
-                           <CustomerForm 
-                               onSubmit={handleAddNewCustomer} 
-                               isSubmitting={newCustomerSubmitting}
-                               submitButtonText="Create and Select"
-                               onCancel={() => setIsCreatingNewCustomer(false)}
-                           />
-                       </div>
-                    ) : (
-                        <>
-                            <FormField
-                                control={form.control}
-                                name="customerId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Customer</FormLabel>
-                                    <div className="flex items-center gap-2">
-                                        <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                            <SelectValue placeholder="Select a customer" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {customers.map(customer => (
-                                            <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                        </Select>
-                                        <Button type="button" variant="outline" size="sm" onClick={()={() => setIsCreatingNewCustomer(true)}>
-                                        <UserPlus className="mr-2 h-4 w-4" />
-                                        New
-                                        </Button>
-                                    </div>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {selectedCustomer && (
-                                <Card className="bg-muted/50">
-                                    <CardHeader>
-                                        <CardTitle className="text-base">{selectedCustomer.name}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="text-sm text-muted-foreground space-y-2">
-                                        <div className="flex items-center gap-2"><Phone/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
-                                        <div className="flex items-center gap-2"><MapPin/> {selectedCustomer.location.town}</div>
-                                    </CardContent>
-                                </Card>
-                            )}
-
-                            <FormField
-                                control={form.control}
-                                name="location.town"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Order Location</FormLabel>
-                                     <FormControl>
-                                        <Input placeholder="Enter a town or city for this order" {...field} />
-                                    </FormControl>
-                                    <FormDescription>Where the final product will be delivered or installed.</FormDescription>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </>
-                    )}
-                </CardContent>
-            </Card>
-        )}
-        
-        {initialOrder && currentStep === 2 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Product Setup</CardTitle>
-                    <CardDescription>Review the products in this order. You can edit an existing product or add a new one.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {watchedProducts.map((product, index) => {
-                        const category = productSettings?.productCategories.find(c => c.name === product.category);
-                        const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                        return (
-                            <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
-                                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
-                                    <Edit className="mr-2" /> Edit
-                                </Button>
+      </div>
+      <Form {...form}>
+        <form onSubmit={e => e.preventDefault()} className="space-y-8">
+          
+          {currentStep === 1 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Customer & Location</CardTitle>
+                      <CardDescription>
+                          Select a customer and specify the location for this order.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      {isCreatingNewCustomer ? (
+                          <div>
+                              <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-medium">Create New Customer</h3>
+                                <Button type="button" variant="ghost" size="icon" onClick={()=>{ setIsCreatingNewCustomer(false)}}><X className="h-4 w-4" /></Button>
                             </div>
-                        )
-                    })}
-                    <Separator />
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
-                            <PlusCircleIcon className="mr-2"/> Add New Product
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        )}
-
-        {currentStep === 3 && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>{productStepTitle("Product Category")}</CardTitle>
-                    <CardDescription>
-                        Choose the type of product for this order.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                     <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.category`}
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormControl>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {productCategories.map((cat) => {
-                                            const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
-                                            const isSelected = field.value === cat.name;
-                                            return (
-                                                <button
-                                                    key={cat.name}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        field.onChange(cat.name);
-                                                    }}
-                                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
-                                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                                                    )}
-                                                >
-                                                    <IconComponent className="h-8 w-8" />
-                                                    <span className="font-medium text-sm text-center">{cat.name}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </FormControl>
-                                <FormMessage className="pt-4" />
-                            </FormItem>
-                        )}
-                        />
-                </CardContent>
-            </Card>
-        )}
-
-        {currentStep === 4 && (
-            <Card>
-                <CardHeader>
-                <CardTitle>{productStepTitle("Product Source")}</CardTitle>
-                <CardDescription>
-                    Will this be a brand new product or are you ordering from the existing catalog?
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                            type="button"
-                            onClick={() => setCurrentStep(5)}
-                            className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                        >
-                            <PlusCircleIcon className="h-10 w-10 text-primary" />
-                            <h3 className="font-semibold">Create New Product</h3>
-                            <p className="text-sm text-muted-foreground">Define a custom product for this order from scratch.</p>
-                        </button>
-
-                        <div className="p-6 border rounded-lg">
-                           <div className="flex flex-col items-start gap-2">
-                                <Search className="h-10 w-10 text-primary" />
-                                <h3 className="font-semibold">Select Existing Product</h3>
-                                <p className="text-sm text-muted-foreground mb-4">Choose from products already in your catalog that match the '{watchedCategory}' category.</p>
-                                <Input 
-                                    placeholder="Search catalog..."
-                                    value={catalogSearchTerm}
-                                    onChange={(e) => setCatalogSearchTerm(e.target.value)}
-                                />
-                           </div>
-                           <ScrollArea className="h-64 mt-4">
-                               <div className="space-y-2 pr-4">
-                                {filteredCatalogProducts.length > 0 ? filteredCatalogProducts.map(p => {
-                                     const category = productSettings?.productCategories.find(c => c.name === p.category);
-                                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                                     return (
-                                        <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md flex items-center gap-3 cursor-pointer hover:bg-muted/50">
-                                            <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                            <div className="flex-grow">
-                                                <p className="font-medium text-sm">{p.productName}</p>
-                                                <p className="text-xs text-muted-foreground">{p.category}</p>
-                                            </div>
-                                        </div>
-                                     )
-                                }) : (
-                                    <p className="text-sm text-muted-foreground text-center py-8">No existing products in this category.</p>
-                                )}
-                               </div>
-                           </ScrollArea>
+                            <CustomerForm 
+                                onSubmit={handleAddNewCustomer} 
+                                isSubmitting={newCustomerSubmitting}
+                                submitButtonText="Create and Select"
+                                onCancel={() => setIsCreatingNewCustomer(false)}
+                            />
                         </div>
-                    </div>
-                </CardContent>
-            </Card>
-        )}
-        
-        {currentStep === 5 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>{productStepTitle("Attachments")}</CardTitle>
-                    <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {!initialOrder ? (
-                        <Alert variant="default">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <AlertTitle>Action Required</AlertTitle>
-                            <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
-                        </Alert>
-                    ) : (
-                        <>
-                        <div className="space-y-4">
-                            <FormItem>
-                                <FormControl>
-                                    <div 
-                                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                        <p className="text-muted-foreground">Click to upload or drag & drop files</p>
-                                        <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            multiple
-                                            onChange={handleFileChange}
-                                            className="hidden"
-                                            disabled={!initialOrder}
-                                        />
-                                    </div>
-                                </FormControl>
-                            </FormItem>
-                            <div className="relative">
-                                <Separator />
-                                <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
+                      ) : (
+                          <>
+                              <FormField
+                                  control={form.control}
+                                  name="customerId"
+                                  render={({ field }) => (
+                                      <FormItem>
+                                      <FormLabel>Customer</FormLabel>
+                                      <div className="flex items-center gap-2">
+                                          <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
+                                          <FormControl>
+                                              <SelectTrigger>
+                                              <SelectValue placeholder="Select a customer" />
+                                              </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent>
+                                              {customers.map(customer => (
+                                              <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                              ))}
+                                          </SelectContent>
+                                          </Select>
+                                          <Button type="button" variant="outline" size="sm" onClick={()=>{ setIsCreatingNewCustomer(true)}}>
+                                          <UserPlus className="mr-2 h-4 w-4" />
+                                          New
+                                          </Button>
+                                      </div>
+                                      <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+
+                              {selectedCustomer && (
+                                  <Card className="bg-muted/50">
+                                      <CardHeader>
+                                          <CardTitle className="text-base">{selectedCustomer.name}</CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="text-sm text-muted-foreground space-y-2">
+                                          <div className="flex items-center gap-2"><Phone/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
+                                          <div className="flex items-center gap-2"><MapPin/> {selectedCustomer.location.town}</div>
+                                      </CardContent>
+                                  </Card>
+                              )}
+
+                              <FormField
+                                  control={form.control}
+                                  name="location.town"
+                                  render={({ field }) => (
+                                      <FormItem>
+                                      <FormLabel>Order Location</FormLabel>
+                                      <FormControl>
+                                          <Input placeholder="Enter a town or city for this order" {...field} />
+                                      </FormControl>
+                                      <FormDescription>Where the final product will be delivered or installed.</FormDescription>
+                                      <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                          </>
+                      )}
+                  </CardContent>
+              </Card>
+          )}
+          
+          {initialOrder && currentStep === 2 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Product Setup</CardTitle>
+                      <CardDescription>Review the products in this order. You can edit an existing product or add a new one.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      {watchedProducts.map((product, index) => {
+                          const category = productSettings?.productCategories.find(c => c.name === product.category);
+                          const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                          return (
+                              <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
+                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-grow">
+                                      <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
+                                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
+                                      <Edit className="mr-2" /> Edit
+                                  </Button>
+                              </div>
+                          )
+                      })}
+                      <Separator />
+                      <div className="flex flex-col sm:flex-row gap-2">
+                          <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
+                              <PlusCircleIcon className="mr-2"/> Add New Product
+                          </Button>
+                      </div>
+                  </CardContent>
+              </Card>
+          )}
+
+          {currentStep === 3 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>{productStepTitle("Product Category")}</CardTitle>
+                      <CardDescription>
+                          Choose the type of product for this order.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <FormField
+                          control={form.control}
+                          name={`products.${currentProductIndex}.category`}
+                          render={({ field }) => (
+                              <FormItem>
+                                  <FormControl>
+                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                          {productCategories.map((cat) => {
+                                              const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
+                                              const isSelected = field.value === cat.name;
+                                              return (
+                                                  <button
+                                                      key={cat.name}
+                                                      type="button"
+                                                      onClick={() => {
+                                                          field.onChange(cat.name);
+                                                      }}
+                                                      className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
+                                                          isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                                      )}
+                                                  >
+                                                      <IconComponent className="h-8 w-8" />
+                                                      <span className="font-medium text-sm text-center">{cat.name}</span>
+                                                  </button>
+                                              )
+                                          })}
+                                      </div>
+                                  </FormControl>
+                                  <FormMessage className="pt-4" />
+                              </FormItem>
+                          )}
+                          />
+                  </CardContent>
+              </Card>
+          )}
+
+          {currentStep === 4 && (
+              <Card>
+                  <CardHeader>
+                  <CardTitle>{productStepTitle("Product Source")}</CardTitle>
+                  <CardDescription>
+                      Will this be a brand new product or are you ordering from the existing catalog?
+                  </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <button
+                              type="button"
+                              onClick={() => setCurrentStep(5)}
+                              className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
+                          >
+                              <PlusCircleIcon className="h-10 w-10 text-primary" />
+                              <h3 className="font-semibold">Create New Product</h3>
+                              <p className="text-sm text-muted-foreground">Define a custom product for this order from scratch.</p>
+                          </button>
+
+                          <div className="p-6 border rounded-lg">
+                            <div className="flex flex-col items-start gap-2">
+                                  <Search className="h-10 w-10 text-primary" />
+                                  <h3 className="font-semibold">Select Existing Product</h3>
+                                  <p className="text-sm text-muted-foreground mb-4">Choose from products already in your catalog that match the '{watchedCategory}' category.</p>
+                                  <Input 
+                                      placeholder="Search catalog..."
+                                      value={catalogSearchTerm}
+                                      onChange={(e) => setCatalogSearchTerm(e.target.value)}
+                                  />
                             </div>
-                            {audioBlob && audioUrl ? (
-                                <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
-                            ) : (
-                                <Button 
-                                    type="button" 
-                                    variant={isRecording ? "destructive" : "outline"} 
-                                    className="w-full"
-                                    onClick={isRecording ? stopRecording : startRecording}
-                                    disabled={!initialOrder}
-                                >
-                                    {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
-                                    {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
-                                </Button>
-                            )}
-                        </div>
-                        
-                        {(currentProduct?.attachments && currentProduct.attachments.length > 0) && (
-                            <div className="space-y-2 pt-4">
-                                <h4 className="text-sm font-medium">Current Attachments:</h4>
-                                <div className="space-y-2">
-                                    {currentProduct.attachments.map((file) => renderFilePreview(file))}
+                            <ScrollArea className="h-64 mt-4">
+                                <div className="space-y-2 pr-4">
+                                  {filteredCatalogProducts.length > 0 ? filteredCatalogProducts.map(p => {
+                                      const category = productSettings?.productCategories.find(c => c.name === p.category);
+                                      const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                                      return (
+                                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md flex items-center gap-3 cursor-pointer hover:bg-muted/50">
+                                              <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                              <div className="flex-grow">
+                                                  <p className="font-medium text-sm">{p.productName}</p>
+                                                  <p className="text-xs text-muted-foreground">{p.category}</p>
+                                              </div>
+                                          </div>
+                                      )
+                                  }) : (
+                                      <p className="text-sm text-muted-foreground text-center py-8">No existing products in this category.</p>
+                                  )}
                                 </div>
-                            </div>
-                        )}
-                        
-                        {(isUploading || isPending) && (
-                        <div className="space-y-2 pt-4">
-                            <h4 className="text-sm font-medium">Uploading...</h4>
-                            {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                <div key={fileName} className="space-y-1">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="truncate">{fileName}</span>
-                                        <span>{Math.round(progress)}%</span>
-                                    </div>
-                                    <Progress value={progress} className="h-2" />
-                                </div>
-                            ))}
-                        </div>
-                        )}
-                        </>
-                    )}
-                </CardContent>
-            </Card>
-        )}
+                            </ScrollArea>
+                          </div>
+                      </div>
+                  </CardContent>
+              </Card>
+          )}
+          
+          {currentStep === 5 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>{productStepTitle("Attachments")}</CardTitle>
+                      <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      {!initialOrder ? (
+                          <Alert variant="default">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <AlertTitle>Action Required</AlertTitle>
+                              <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
+                          </Alert>
+                      ) : (
+                          <>
+                          <div className="space-y-4">
+                              <FormItem>
+                                  <FormControl>
+                                      <div 
+                                          className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                                          onClick={() => fileInputRef.current?.click()}
+                                      >
+                                          <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                          <p className="text-muted-foreground">Click to upload or drag & drop files</p>
+                                          <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
+                                          <input
+                                              ref={fileInputRef}
+                                              type="file"
+                                              multiple
+                                              onChange={handleFileChange}
+                                              className="hidden"
+                                              disabled={!initialOrder}
+                                          />
+                                      </div>
+                                  </FormControl>
+                              </FormItem>
+                              <div className="relative">
+                                  <Separator />
+                                  <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
+                              </div>
+                              {audioBlob && audioUrl ? (
+                                  <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
+                              ) : (
+                                  <Button 
+                                      type="button" 
+                                      variant={isRecording ? "destructive" : "outline"} 
+                                      className="w-full"
+                                      onClick={isRecording ? stopRecording : startRecording}
+                                      disabled={!initialOrder}
+                                  >
+                                      {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                      {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
+                                  </Button>
+                              )}
+                          </div>
+                          
+                          {(currentProduct?.attachments && currentProduct.attachments.length > 0) && (
+                              <div className="space-y-2 pt-4">
+                                  <h4 className="text-sm font-medium">Current Attachments:</h4>
+                                  <div className="space-y-2">
+                                      {currentProduct.attachments.map((file) => renderFilePreview(file))}
+                                  </div>
+                              </div>
+                          )}
+                          
+                          {(isUploading || isPending) && (
+                          <div className="space-y-2 pt-4">
+                              <h4 className="text-sm font-medium">Uploading...</h4>
+                              {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                                  <div key={fileName} className="space-y-1">
+                                      <div className="flex justify-between items-center text-sm">
+                                          <span className="truncate">{fileName}</span>
+                                          <span>{Math.round(progress)}%</span>
+                                      </div>
+                                      <Progress value={progress} className="h-2" />
+                                  </div>
+                              ))}
+                          </div>
+                          )}
+                          </>
+                      )}
+                  </CardContent>
+              </Card>
+          )}
 
-        {currentStep === 6 && (
-            <Card>
-                <CardHeader>
-                <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
-                <CardDescription>
-                    Fill in the main details and specifications of the order.
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                <FormField
-                    control={form.control}
-                    name={`products.${currentProductIndex}.productName`}
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Product Name</FormLabel>
-                        <FormControl>
-                            <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                
-                <FormField
-                    control={form.control}
-                    name={`products.${currentProductIndex}.description`}
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Detailed Description</FormLabel>
-                        <FormControl>
-                        <Textarea
-                            placeholder="Provide a detailed description of the order requirements..."
-                            rows={4}
-                            {...field}
-                        />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
+          {currentStep === 6 && (
+              <Card>
+                  <CardHeader>
+                  <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
+                  <CardDescription>
+                      Fill in the main details and specifications of the order.
+                  </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                  <FormField
+                      control={form.control}
+                      name={`products.${currentProductIndex}.productName`}
+                      render={({ field }) => (
+                          <FormItem>
+                          <FormLabel>Product Name</FormLabel>
+                          <FormControl>
+                              <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                      />
+                  
+                  <FormField
+                      control={form.control}
+                      name={`products.${currentProductIndex}.description`}
+                      render={({ field }) => (
+                      <FormItem>
+                          <FormLabel>Detailed Description</FormLabel>
+                          <FormControl>
+                          <Textarea
+                              placeholder="Provide a detailed description of the order requirements..."
+                              rows={4}
+                              {...field}
+                          />
+                          </FormControl>
+                          <FormMessage />
+                      </FormItem>
+                      )}
+                  />
 
-                <div className="space-y-2">
-                    <Label>Dimensions (cm)</Label>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.width`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.height`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                        <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.depth`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
-                            <FormControl>
-                                <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
-                            </FormControl>
-                            </FormItem>
-                        )}
-                        />
-                    </div>
-                </div>
-                </CardContent>
-            </Card>
-        )}
-        
-        {currentStep === 7 && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>{productStepTitle("Material")}</CardTitle>
-                    <CardDescription>
-                        Choose one or more materials for this product.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.material`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {availableMaterials.map((mat) => {
-                                const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
-                                const isSelected = field.value?.includes(mat.name);
-                                return (
-                                    <button
-                                    key={mat.name}
-                                    type="button"
-                                    onClick={() => {
-                                        const newValue = isSelected
-                                            ? field.value?.filter(name => name !== mat.name)
-                                            : [...(field.value || []), mat.name];
-                                        field.onChange(newValue);
-                                    }}
-                                    className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
-                                        isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                                    )}
-                                    >
-                                    <IconComponent className="h-8 w-8" />
-                                    <span className="font-medium text-sm text-center">{mat.name}</span>
-                                    </button>
-                                )
-                                })}
-                            </div>
-                            <FormMessage className="pt-4" />
-                            </FormItem>
-                        )}
-                    />
-                </CardContent>
-            </Card>
-        )}
+                  <div className="space-y-2">
+                      <Label>Dimensions (cm)</Label>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField
+                          control={form.control}
+                          name={`products.${currentProductIndex}.width`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
+                              <FormControl>
+                                  <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
+                              </FormControl>
+                              </FormItem>
+                          )}
+                          />
+                          <FormField
+                          control={form.control}
+                          name={`products.${currentProductIndex}.height`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
+                              <FormControl>
+                                  <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
+                              </FormControl>
+                              </FormItem>
+                          )}
+                          />
+                          <FormField
+                          control={form.control}
+                          name={`products.${currentProductIndex}.depth`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
+                              <FormControl>
+                                  <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
+                              </FormControl>
+                              </FormItem>
+                          )}
+                          />
+                      </div>
+                  </div>
+                  </CardContent>
+              </Card>
+          )}
+          
+          {currentStep === 7 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>{productStepTitle("Material")}</CardTitle>
+                      <CardDescription>
+                          Choose one or more materials for this product.
+                      </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      <FormField
+                          control={form.control}
+                          name={`products.${currentProductIndex}.material`}
+                          render={({ field }) => (
+                              <FormItem>
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                  {availableMaterials.map((mat) => {
+                                  const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
+                                  const isSelected = field.value?.includes(mat.name);
+                                  return (
+                                      <button
+                                      key={mat.name}
+                                      type="button"
+                                      onClick={() => {
+                                          const newValue = isSelected
+                                              ? field.value?.filter(name => name !== mat.name)
+                                              : [...(field.value || []), mat.name];
+                                          field.onChange(newValue);
+                                      }}
+                                      className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
+                                          isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                      )}
+                                      >
+                                      <IconComponent className="h-8 w-8" />
+                                      <span className="font-medium text-sm text-center">{mat.name}</span>
+                                      </button>
+                                  )
+                                  })}
+                              </div>
+                              <FormMessage className="pt-4" />
+                              </FormItem>
+                          )}
+                      />
+                  </CardContent>
+              </Card>
+          )}
 
-        {currentStep === 8 && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <FormField
-                    control={form.control}
-                    name={`products.${currentProductIndex}.colors`}
-                    render={() => (
-                        <FormItem>
-                        <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                             <div>
-                                <h4 className="font-medium text-sm">Custom Colors</h4>
-                                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
-                                    {customColorOptions.map((option) => (
-                                        <FormField
-                                            key={option.name}
-                                            control={form.control}
-                                            name={`products.${currentProductIndex}.colors`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                <FormControl>
-                                                    <Checkbox
-                                                    checked={field.value?.includes(option.name)}
-                                                    onCheckedChange={(checked) => {
-                                                        return checked
-                                                        ? field.onChange([...(field.value || []), option.name])
-                                                        : field.onChange(
-                                                            field.value?.filter(
-                                                                (value) => value !== option.name
-                                                            )
-                                                            )
-                                                    }}
-                                                    className="sr-only"
-                                                    id={`color-${option.name}`}
-                                                    />
-                                                </FormControl>
-                                                <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
-                                                    <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
-                                                </Label>
-                                                </FormItem>
-                                            )}
-                                            />
-                                    ))}
-                                </div>
-                            </div>
+          {currentStep === 8 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      <FormField
+                      control={form.control}
+                      name={`products.${currentProductIndex}.colors`}
+                      render={() => (
+                          <FormItem>
+                          <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
+                              <div>
+                                  <h4 className="font-medium text-sm">Custom Colors</h4>
+                                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
+                                      {customColorOptions.map((option) => (
+                                          <FormField
+                                              key={option.name}
+                                              control={form.control}
+                                              name={`products.${currentProductIndex}.colors`}
+                                              render={({ field }) => (
+                                                  <FormItem>
+                                                  <FormControl>
+                                                      <Checkbox
+                                                      checked={field.value?.includes(option.name)}
+                                                      onCheckedChange={(checked) => {
+                                                          return checked
+                                                          ? field.onChange([...(field.value || []), option.name])
+                                                          : field.onChange(
+                                                              field.value?.filter(
+                                                                  (value) => value !== option.name
+                                                              )
+                                                              )
+                                                      }}
+                                                      className="sr-only"
+                                                      id={`color-${option.name}`}
+                                                      />
+                                                  </FormControl>
+                                                  <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
+                                                      <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
+                                                      <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
+                                                  </Label>
+                                                  </FormItem>
+                                              )}
+                                              />
+                                      ))}
+                                  </div>
+                              </div>
 
-                            <Separator className="my-6" />
+                              <Separator className="my-6" />
 
-                            <div>
-                                <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
-                                    {woodFinishOptions.map((option) => (
-                                        <FormField
-                                            key={option.name}
-                                            control={form.control}
-                                            name={`products.${currentProductIndex}.colors`}
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                <FormControl>
-                                                    <Checkbox
-                                                    checked={field.value?.includes(option.name)}
-                                                    onCheckedChange={(checked) => {
-                                                        return checked
-                                                        ? field.onChange([...(field.value || []), option.name])
-                                                        : field.onChange(
-                                                            field.value?.filter(
-                                                                (value) => value !== option.name
-                                                            )
-                                                            )
-                                                    }}
-                                                    className="sr-only"
-                                                    id={`wood-${option.name}`}
-                                                    />
-                                                </FormControl>
-                                                <Label htmlFor={`wood-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
-                                                    <Image 
-                                                        src={option.imageUrl} 
-                                                        alt={option.name} 
-                                                        width={120} 
-                                                        height={120}
-                                                        className={cn("rounded-md h-28 w-full object-cover border-2 border-transparent group-hover:border-primary", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2 border-primary")}
-                                                    />
-                                                    <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
-                                                </Label>
-                                                </FormItem>
-                                            )}
-                                            />
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                              <div>
+                                  <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
+                                      {woodFinishOptions.map((option) => (
+                                          <FormField
+                                              key={option.name}
+                                              control={form.control}
+                                              name={`products.${currentProductIndex}.colors`}
+                                              render={({ field }) => (
+                                                  <FormItem>
+                                                  <FormControl>
+                                                      <Checkbox
+                                                      checked={field.value?.includes(option.name)}
+                                                      onCheckedChange={(checked) => {
+                                                          return checked
+                                                          ? field.onChange([...(field.value || []), option.name])
+                                                          : field.onChange(
+                                                              field.value?.filter(
+                                                                  (value) => value !== option.name
+                                                              )
+                                                              )
+                                                      }}
+                                                      className="sr-only"
+                                                      id={`wood-${option.name}`}
+                                                      />
+                                                  </FormControl>
+                                                  <Label htmlFor={`wood-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
+                                                      <Image 
+                                                          src={option.imageUrl} 
+                                                          alt={option.name} 
+                                                          width={120} 
+                                                          height={120}
+                                                          className={cn("rounded-md h-28 w-full object-cover border-2 border-transparent group-hover:border-primary", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2 border-primary")}
+                                                      />
+                                                      <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
+                                                  </Label>
+                                                  </FormItem>
+                                              )}
+                                              />
+                                      ))}
+                                  </div>
+                              </div>
+                          </div>
 
-                         <FormField
-                            control={form.control}
-                            name={`products.${currentProductIndex}.colorAsAttachment`}
-                            render={({ field }) => (
-                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
-                                <FormControl>
-                                    <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={(checked) => {
-                                        field.onChange(checked);
-                                        if (checked) {
-                                            form.setValue(`products.${currentProductIndex}.colors`, []);
-                                        }
-                                    }}
-                                    />
-                                </FormControl>
-                                <div className="space-y-1 leading-none">
-                                    <FormLabel>
-                                    Color as Attached Picture
-                                    </FormLabel>
-                                </div>
-                                </FormItem>
-                            )}
-                            />
+                          <FormField
+                              control={form.control}
+                              name={`products.${currentProductIndex}.colorAsAttachment`}
+                              render={({ field }) => (
+                                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
+                                  <FormControl>
+                                      <Checkbox
+                                      checked={field.value}
+                                      onCheckedChange={(checked) => {
+                                          field.onChange(checked);
+                                          if (checked) {
+                                              form.setValue(`products.${currentProductIndex}.colors`, []);
+                                          }
+                                      }}
+                                      />
+                                  </FormControl>
+                                  <div className="space-y-1 leading-none">
+                                      <FormLabel>
+                                      Color as Attached Picture
+                                      </FormLabel>
+                                  </div>
+                                  </FormItem>
+                              )}
+                              />
 
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                </CardContent>
-             </Card>
-        )}
-        
-        {currentStep === 9 && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Review Products</CardTitle>
-                    <CardDescription>Review the products you've added to this order. You can add another product or proceed to the final step.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {watchedProducts.map((product, index) => {
-                        const category = productSettings?.productCategories.find(c => c.name === product.category);
-                        const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                        return (
-                            <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-grow">
-                                    <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
-                                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(6); }}>
-                                    Edit
-                                </Button>
-                            </div>
-                        )
-                    })}
-                    <Separator />
-                     <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full">Add Another Product</Button>
-                </CardContent>
-            </Card>
-        )}
-        
-        {currentStep === 10 && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Pricing & Payment</CardTitle>
-                    <CardDescription>Set the price for each product and record any pre-payment.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                     <FormField
-                        control={form.control}
-                        name="incomeAmount"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Total Order Price</FormLabel>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
-                                </FormControl>
-                            </div>
-                            <FormDescription>This is the sum of all product prices.</FormDescription>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    
-                    <div className="space-y-4 rounded-md border p-4">
-                        <h4 className="font-medium">Product Prices</h4>
-                        {watchedProducts.map((product, index) => (
-                             <FormField
-                                key={product.id}
-                                control={control}
-                                name={`products.${index}.price`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
-                                        <div className="relative">
-                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                            <FormControl>
-                                                <Input type="number" placeholder="0.00" className="pl-8" {...field} />
-                                            </FormControl>
-                                        </div>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
-                    </div>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                      />
+                  </CardContent>
+              </Card>
+          )}
+          
+          {currentStep === 9 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Review Products</CardTitle>
+                      <CardDescription>Review the products you've added to this order. You can add another product or proceed to the final step.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                      {watchedProducts.map((product, index) => {
+                          const category = productSettings?.productCategories.find(c => c.name === product.category);
+                          const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                          return (
+                              <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
+                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-grow">
+                                      <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
+                                      <p className="text-sm text-muted-foreground">{product.category}</p>
+                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(6); }}>
+                                      Edit
+                                  </Button>
+                              </div>
+                          )
+                      })}
+                      <Separator />
+                      <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full">Add Another Product</Button>
+                  </CardContent>
+              </Card>
+          )}
+          
+          {currentStep === 10 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Pricing & Payment</CardTitle>
+                      <CardDescription>Set the price for each product and record any pre-payment.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      <FormField
+                          control={form.control}
+                          name="incomeAmount"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel>Total Order Price</FormLabel>
+                              <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <FormControl>
+                                      <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
+                                  </FormControl>
+                              </div>
+                              <FormDescription>This is the sum of all product prices.</FormDescription>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      
+                      <div className="space-y-4 rounded-md border p-4">
+                          <h4 className="font-medium">Product Prices</h4>
+                          {watchedProducts.map((product, index) => (
+                              <FormField
+                                  key={product.id}
+                                  control={control}
+                                  name={`products.${index}.price`}
+                                  render={({ field }) => (
+                                      <FormItem>
+                                          <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
+                                          <div className="relative">
+                                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                              <FormControl>
+                                                  <Input type="number" placeholder="0.00" className="pl-8" {...field} />
+                                              </FormControl>
+                                          </div>
+                                          <FormMessage />
+                                      </FormItem>
+                                  )}
+                              />
+                          ))}
+                      </div>
 
-                    <FormField
-                        control={form.control}
-                        name="prepaidAmount"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Pre-paid Amount</FormLabel>
-                            <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <FormControl>
-                                    <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value ?? ''} />
-                                </FormControl>
-                            </div>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="paymentDetails"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Payment Details</FormLabel>
-                            <FormControl>
-                                <Textarea
-                                placeholder="e.g., 50% upfront, Paid via Stripe #..."
-                                {...field}
-                                value={field.value ?? ''}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </CardContent>
-            </Card>
-        )}
+                      <FormField
+                          control={form.control}
+                          name="prepaidAmount"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel>Pre-paid Amount</FormLabel>
+                              <div className="relative">
+                                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <FormControl>
+                                      <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value ?? ''} />
+                                  </FormControl>
+                              </div>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name="paymentDetails"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel>Payment Details</FormLabel>
+                              <FormControl>
+                                  <Textarea
+                                  placeholder="e.g., 50% upfront, Paid via Stripe #..."
+                                  {...field}
+                                  value={field.value ?? ''}
+                                  />
+                              </FormControl>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                      />
+                  </CardContent>
+              </Card>
+          )}
 
-        {currentStep === 11 && (
-             <Card>
-                <CardHeader>
-                    <CardTitle>Scheduling & Status</CardTitle>
-                    <CardDescription>Finalize the order status and deadline.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Order Status</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a status" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
-                                        <SelectItem key={status} value={status}>{status}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    <FormField
-                    control={form.control}
-                    name="deadline"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                        <FormLabel>Deadline</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <FormControl>
-                                <Button
-                                type="button"
-                                variant={"outline"}
-                                className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP")
-                                ) : (
-                                    <span>Pick a date</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                            </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                date < new Date(new Date().setHours(0,0,0,0))
-                                }
-                            />
-                            </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control}
-                    name="isUrgent"
-                    render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                            <FormLabel>Urgent Order</FormLabel>
-                            <FormDescription>
-                            Prioritize this order in the queue.
-                            </FormDescription>
-                        </div>
-                        <FormControl>
-                            <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            />
-                        </FormControl>
-                        </FormItem>
-                    )}
-                    />
-                </CardContent>
-            </Card>
-        )}
+          {currentStep === 11 && (
+              <Card>
+                  <CardHeader>
+                      <CardTitle>Scheduling & Status</CardTitle>
+                      <CardDescription>Finalize the order status and deadline.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                      <FormField
+                          control={form.control}
+                          name="status"
+                          render={({ field }) => (
+                              <FormItem>
+                              <FormLabel>Order Status</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                  <SelectTrigger>
+                                      <SelectValue placeholder="Select a status" />
+                                  </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                      {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
+                                          <SelectItem key={status} value={status}>{status}</SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
+                              <FormMessage />
+                              </FormItem>
+                          )}
+                          />
+                      <FormField
+                      control={form.control}
+                      name="deadline"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                          <FormLabel>Deadline</FormLabel>
+                          <Popover>
+                              <PopoverTrigger asChild>
+                              <FormControl>
+                                  <Button
+                                  type="button"
+                                  variant={"outline"}
+                                  className={cn(
+                                      "pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                  )}
+                                  >
+                                  {field.value ? (
+                                      format(field.value, "PPP")
+                                  ) : (
+                                      <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                              </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  disabled={(date) =>
+                                  date < new Date(new Date().setHours(0,0,0,0))
+                                  }
+                              />
+                              </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                      />
+                      <FormField
+                      control={form.control}
+                      name="isUrgent"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                          <div className="space-y-0.5">
+                              <FormLabel>Urgent Order</FormLabel>
+                              <FormDescription>
+                              Prioritize this order in the queue.
+                              </FormDescription>
+                          </div>
+                          <FormControl>
+                              <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              />
+                          </FormControl>
+                          </FormItem>
+                      )}
+                      />
+                  </CardContent>
+              </Card>
+          )}
 
-         <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
-             <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
-             <div className="flex items-center gap-2">
-                {currentStep > 1 && (
-                    <Button variant="outline" type="button" onClick={prevStep}>
-                        <ArrowLeft className="mr-2" /> Back
-                    </Button>
-                )}
-                
-                {currentStep < 9 && currentStep !== 2 && (
-                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
-                        {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                        Next <ArrowRight className="ml-2" />
-                    </Button>
-                )}
+          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
+              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
+              <div className="flex items-center gap-2">
+                  {currentStep > 1 && (
+                      <Button variant="outline" type="button" onClick={prevStep}>
+                          <ArrowLeft className="mr-2" /> Back
+                      </Button>
+                  )}
+                  
+                  {currentStep < 9 && currentStep !== 2 && (
+                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                          {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                          Next <ArrowRight className="ml-2" />
+                      </Button>
+                  )}
 
-                 {(initialOrder && currentStep === 2) && (
-                    <Button type="button" onClick={() => setCurrentStep(10)}>
-                        Continue to Final Steps <ArrowRight className="ml-2" />
-                    </Button>
-                 )}
-                 
-                 {currentStep === 9 && (
-                     <Button type="button" onClick={() => setCurrentStep(10)}>
-                        Continue to Final Steps <ArrowRight className="ml-2" />
-                    </Button>
-                 )}
+                  {(initialOrder && currentStep === 2) && (
+                      <Button type="button" onClick={() => setCurrentStep(10)}>
+                          Continue to Final Steps <ArrowRight className="ml-2" />
+                      </Button>
+                  )}
+                  
+                  {currentStep === 9 && (
+                      <Button type="button" onClick={() => setCurrentStep(10)}>
+                          Continue to Final Steps <ArrowRight className="ml-2" />
+                      </Button>
+                  )}
 
-                {(currentStep === 10 || currentStep === 11) && (
-                    <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
-                        {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {initialOrder ? 'Save Changes' : 'Finish Order'}
-                    </Button>
-                )}
-             </div>
-        </div>
-      </form>
-    </Form>
-    <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Any unsaved changes will be lost.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel>Stay on page</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDiscard}>
-                    Discard changes
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
+                  {(currentStep === 10 || currentStep === 11) && (
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
+                          {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {initialOrder ? 'Save Changes' : 'Finish Order'}
+                      </Button>
+                  )}
+              </div>
+          </div>
+        </form>
+      </Form>
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Any unsaved changes will be lost.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                  <AlertDialogCancel>Stay on page</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDiscard}>
+                      Discard changes
+                  </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
-
-    
