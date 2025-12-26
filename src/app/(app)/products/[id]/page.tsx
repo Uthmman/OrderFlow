@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Suspense, use } from "react";
+import { use, Suspense } from "react";
 import { useRouter, notFound } from "next/navigation";
 import { ProductProvider, useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
