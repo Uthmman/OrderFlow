@@ -260,29 +260,33 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
+    // This effect runs only once on initial load to set the starting step.
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
       return;
     }
-    
-    // This effect should only run ONCE on initial load to set the starting step.
+
     if (initialOrder) {
+      // If we are editing an existing order...
       if (!initialOrder.products || initialOrder.products.length === 0) {
-        setCurrentStep(3); 
+        // ...and it has no products, start at category selection for a new product.
+        setCurrentStep(3);
         if (getValues('products').length === 0) {
           setValue('products', [{
             id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
           }], { shouldDirty: true });
         }
       } else {
-        setCurrentStep(2); 
+        // ...and it has products, start at the product hub.
+        setCurrentStep(2);
       }
     } else {
+      // If this is a brand new order, always start at the customer details step.
       setCurrentStep(1);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrder, getValues, setValue]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -343,20 +347,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (initialOrder && [6, 7, 8].includes(currentStep)) {
         setCurrentStep(2); // Finished product config, go to hub
     } else if (currentStep === 3) {
-      // After category selection
-      if (!initialOrder) {
-        setCurrentStep(4); // New order: Category -> Product Source
-      } else {
-        setCurrentStep(5); // Existing order, editing a product: Category -> Attachments
-      }
+        // After category selection, always go to product source selection
+        setCurrentStep(4);
     } else if (currentStep === 4 && !initialOrder) {
-      // From Product Source, can only go to attachments
-      setCurrentStep(5);
+        // This is handled by button clicks inside the step now
     } else if (currentStep === 9) {
-      // From review, go to pricing
-      setCurrentStep(10);
+        // From review, go to pricing
+        setCurrentStep(10);
     } else {
-      setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
   };
 
@@ -493,9 +492,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   useEffect(() => {
     const isFormValid = form.formState.isValid;
     if (isDirty && initialOrder && isFormValid && Object.keys(dirtyFields).length > 0) {
-      performSave(getValues());
+      performSave(debouncedValues);
     }
-  }, [debouncedValues, isDirty, initialOrder, dirtyFields, getValues, form.formState.isValid, performSave]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedValues]);
 
 
  const requestMicPermission = async () => {
@@ -1564,23 +1564,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       </Button>
                   )}
                   
-                  {currentStep < 9 && currentStep !== 2 && (
+                  {currentStep < 9 && currentStep !== 2 && currentStep !== 4 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                           {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                           Next <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {(initialOrder && currentStep === 2) && (
+                  {((initialOrder && currentStep === 2) || currentStep === 9) && (
                       <Button type="button" onClick={() => setCurrentStep(10)}>
                           Continue to Final Steps <ArrowRight className="ml-2" />
                       </Button>
-                  )}
-                  
-                  {currentStep === 9 && (
-                       <Button type="button" onClick={() => setCurrentStep(10)} className="w-full sm:w-auto">
-                          Continue to Final Steps <ArrowRight className="ml-2" />
-                       </Button>
                   )}
 
                   {(currentStep === 10 || currentStep === 11) && (
