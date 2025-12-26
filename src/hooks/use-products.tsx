@@ -99,9 +99,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const addOrderIdToProduct = useCallback(async (productId: string, orderId: string) => {
     const productRef = doc(firestore, 'products', productId);
     try {
-        await updateDoc(productRef, {
+        // Use set with merge to create the document if it doesn't exist, or update it if it does.
+        await setDoc(productRef, {
             orderIds: arrayUnion(orderId)
-        });
+        }, { merge: true });
     } catch (error) {
         console.error(`Failed to add orderId to product ${productId}:`, error);
     }
