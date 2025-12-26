@@ -42,7 +42,7 @@ function ProductDetailContent({ id }: { id: string }) {
   const { orders, loading: ordersLoading } = useOrders();
 
   if (productsLoading || ordersLoading) {
-    return <div>Loading...</div>;
+    return <div className="text-center py-16">Loading product details...</div>;
   }
 
   const product = getProductById(id);
@@ -143,6 +143,7 @@ function ProductDetailContent({ id }: { id: string }) {
 
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
     const { id } = use(params);
+
     return (
         <ProductProvider>
             <OrderProvider>
