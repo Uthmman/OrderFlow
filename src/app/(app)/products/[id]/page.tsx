@@ -3,7 +3,7 @@
 
 import { Suspense } from "react";
 import { useRouter, notFound, useParams } from "next/navigation";
-import { ProductProvider, useProducts } from "@/hooks/use-products";
+import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft }
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
-import { OrderProvider, useOrders } from "@/hooks/use-orders";
+import { useOrders } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
@@ -145,14 +145,8 @@ function ProductDetailContent() {
 
 export default function ProductDetailPage() {
     return (
-        <ProductProvider>
-            <OrderProvider>
-                <Suspense fallback={<div>Loading product details...</div>}>
-                    <ProductDetailContent />
-                </Suspense>
-            </OrderProvider>
-        </ProductProvider>
+        <Suspense fallback={<div>Loading product details...</div>}>
+            <ProductDetailContent />
+        </Suspense>
     )
 }
-
-    
