@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 import { useRouter, notFound } from "next/navigation";
 import { ProductProvider, useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
 }
 
 function ProductDetailContent({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = use(params);
   const router = useRouter();
   const { getProductById, loading } = useProducts();
 
