@@ -33,7 +33,7 @@ function ProductCatalog() {
   const filteredProducts = useMemo(() => {
     return (products || []).filter(product => {
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
-      const matchesSearch = product.productName.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = product.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? true;
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, searchTerm]);
