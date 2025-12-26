@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -32,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon } from "lucide-react"
+import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -165,15 +164,16 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
-  { id: 2, title: 'Category', fields: ['products.0.category'] },
-  { id: 3, title: 'Choose Product', fields: [] },
-  { id: 4, title: 'Attachments', fields: [] },
-  { id: 5, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
-  { id: 6, title: 'Material', fields: ['products.0.material'] },
-  { id: 7, title: 'Color', fields: ['products.0.colors'] },
-  { id: 8, title: 'Review Products', fields: [] },
-  { id: 9, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 10, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
+  { id: 2, title: 'Product Setup', fields: [] }, // Edit mode hub
+  { id: 3, title: 'Category', fields: ['products.0.category'] },
+  { id: 4, title: 'Choose Product', fields: [] },
+  { id: 5, title: 'Attachments', fields: [] },
+  { id: 6, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
+  { id: 7, title: 'Material', fields: ['products.0.material'] },
+  { id: 8, title: 'Color', fields: ['products.0.colors'] },
+  { id: 9, title: 'Review Products', fields: [] }, // Create mode review
+  { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
+  { id: 11, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -222,7 +222,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         status: "In Progress" as OrderStatus,
         incomeAmount: 0,
         prepaidAmount: 0,
-        paymentDetails: '',
         customerId: '',
         deadline: new Date(),
         location: { town: '' },
@@ -301,7 +300,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
-                 setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+                 setCurrentStep(2); // Go to product hub in edit mode
                  setIsManualSaving(false);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
@@ -319,7 +318,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   };
 
   const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    if(initialOrder && [6,7,8].includes(currentStep)) {
+        setCurrentStep(2); // Go back to product hub from product editing
+    } else {
+        setCurrentStep(prev => Math.max(prev - 1, 1));
+    }
   };
 
   const handleExistingProductSelect = (product: Product) => {
@@ -327,10 +330,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const updatedProducts = [...currentProducts];
     updatedProducts[currentProductIndex] = { ...product, price: product.price || 0 };
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(4);
+    setCurrentStep(5); // Go to attachments
   };
   
-  const addAnotherProduct = () => {
+  const handleAddAnotherProduct = () => {
     const newProduct: Product = {
         id: uuidv4(),
         productName: '',
@@ -345,8 +348,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
     setCurrentProductIndex(currentProducts.length);
-    setCurrentStep(2);
+    setCurrentStep(3); // Go to category selection
   };
+
+  const handleEditProduct = (index: number) => {
+      setCurrentProductIndex(index);
+      setCurrentStep(6); // Jump to product details editing
+  }
 
 
   // --- Auto-saving Logic ---
@@ -685,18 +693,40 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const productStepTitle = (title: string) => {
     return watchedProducts.length > 1 ? `${title} (Product ${currentProductIndex + 1})` : title;
   }
+  
+  const getStepTitle = () => {
+    // If editing and at step 2, show "Product Setup"
+    if (initialOrder && currentStep === 2) {
+      return "Product Setup";
+    }
+    // Adjust for the edit-mode step 2
+    const stepIndex = initialOrder && currentStep > 2 ? currentStep -1 : currentStep;
+    const stepConfig = STEPS.find(s => s.id === stepIndex);
+    if (!stepConfig) return "Unknown Step";
 
-  const stepTitle = STEPS[currentStep - 1].title;
-  const isProductStep = currentStep > 1 && currentStep < 8; 
-  const finalTitle = isProductStep ? productStepTitle(stepTitle) : stepTitle;
+    const isProductStep = stepConfig.id >= 3 && stepConfig.id <= 8;
+    return isProductStep ? productStepTitle(stepConfig.title) : stepConfig.title;
+  };
+  
+  const getProgress = () => {
+    const totalSteps = STEPS.length - (initialOrder ? 3 : 1); // Adjust total steps based on mode
+    let currentProgressStep = currentStep;
+    if (initialOrder) { // Adjust current step for edit mode
+        if (currentStep === 2) currentProgressStep = 2; // Product Hub
+        else if (currentStep > 2) currentProgressStep = currentStep - 1;
+    }
+    return (currentProgressStep / totalSteps) * 100;
+  }
+  
+  const finalTitle = getStepTitle();
 
 
   return (
     <>
     <div className="mb-8 space-y-4">
-        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
+        <Progress value={getProgress()} className="w-full" />
         <div className="flex justify-between items-center">
-            <p className="text-sm font-medium">Step {currentStep} of {STEPS.length}: {finalTitle}</p>
+            <p className="text-sm font-medium">{finalTitle}</p>
             <div className="text-sm text-muted-foreground">
                 {isAutoSaving ? (
                     <div className="flex items-center gap-2">
@@ -796,8 +826,41 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 </CardContent>
             </Card>
         )}
+        
+        {initialOrder && currentStep === 2 && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Product Setup</CardTitle>
+                    <CardDescription>Review the products in this order. You can edit an existing product or add a new one.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {watchedProducts.map((product, index) => {
+                        const category = productSettings?.productCategories.find(c => c.name === product.category);
+                        const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                        return (
+                            <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
+                                <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-grow">
+                                    <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
+                                    <p className="text-sm text-muted-foreground">{product.category}</p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
+                                    <Edit className="mr-2" /> Edit
+                                </Button>
+                            </div>
+                        )
+                    })}
+                    <Separator />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
+                            <PlusCircleIcon className="mr-2"/> Add New Product
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )}
 
-        {currentStep === 2 && (
+        {(!initialOrder || currentStep === 3) && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Product Category")}</CardTitle>
@@ -822,7 +885,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                     type="button"
                                                     onClick={() => {
                                                         field.onChange(cat.name);
-                                                        nextStep();
+                                                        setCurrentStep(4);
                                                     }}
                                                     className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
                                                         isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
@@ -843,7 +906,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 3 && (
+        {(!initialOrder || currentStep === 4) && (
             <Card>
                 <CardHeader>
                 <CardTitle>{productStepTitle("Product Source")}</CardTitle>
@@ -855,7 +918,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <button
                             type="button"
-                            onClick={() => nextStep()}
+                            onClick={() => setCurrentStep(5)}
                             className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
                         >
                             <PlusCircleIcon className="h-10 w-10 text-primary" />
@@ -899,7 +962,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {currentStep === 4 && (
+        {(!initialOrder || currentStep === 5) && (
             <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Attachments")}</CardTitle>
@@ -984,7 +1047,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 6 && (
             <Card>
                 <CardHeader>
                 <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
@@ -1070,7 +1133,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {currentStep === 6 && (
+        {currentStep === 7 && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Material")}</CardTitle>
@@ -1116,7 +1179,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 7 && (
+        {currentStep === 8 && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
@@ -1244,7 +1307,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
         
-        {currentStep === 8 && (
+        {currentStep === 9 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Review Products</CardTitle>
@@ -1261,7 +1324,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
                                     <p className="text-sm text-muted-foreground">{product.category}</p>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(2); }}>
+                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(3); }}>
                                     Edit
                                 </Button>
                             </div>
@@ -1269,8 +1332,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     })}
                     <Separator />
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" onClick={addAnotherProduct} className="w-full sm:w-auto">Add Another Product</Button>
-                        <Button type="button" variant="outline" onClick={() => setCurrentStep(9)} className="w-full sm:w-auto">
+                        <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">Add Another Product</Button>
+                        <Button type="button" variant="outline" onClick={() => setCurrentStep(10)} className="w-full sm:w-auto">
                             Continue to Final Step <ArrowRight className="ml-2" />
                         </Button>
                     </div>
@@ -1278,7 +1341,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {currentStep === 9 && (
+        {currentStep === 10 && (
              <Card>
                 <CardHeader>
                     <CardTitle>Pricing & Payment</CardTitle>
@@ -1363,7 +1426,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {currentStep === 10 && (
+        {currentStep === 11 && (
              <Card>
                 <CardHeader>
                     <CardTitle>Scheduling & Status</CardTitle>
@@ -1460,27 +1523,41 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
              <div className="flex items-center gap-2">
-                {currentStep > 1 && currentStep !== 8 && (
+                {currentStep > 1 && (
                     <Button variant="outline" type="button" onClick={prevStep}>
                         <ArrowLeft className="mr-2" /> Back
                     </Button>
                 )}
                 
-                {currentStep < 9 && currentStep !== 3 && currentStep !== 8 && (
-                    <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                {/* --- CREATE MODE NAVIGATION --- */}
+                {!initialOrder && currentStep < 9 && currentStep !== 2 && (
+                    <Button type="button" onClick={() => setCurrentStep(c => c + 1)} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
-
-                 {currentStep === 9 && (
+                
+                 {!initialOrder && currentStep === 9 && (
                     <Button type="button" onClick={() => setCurrentStep(10)} disabled={isSubmitting}>
                          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
 
-                {currentStep === 10 && (
+                 {/* --- EDIT MODE NAVIGATION --- */}
+                 {initialOrder && currentStep === 2 && (
+                      <Button type="button" onClick={() => setCurrentStep(10)}>
+                          Continue to Final Steps <ArrowRight className="ml-2" />
+                      </Button>
+                 )}
+                  {initialOrder && [6,7,8].includes(currentStep) && (
+                      <Button type="button" onClick={() => setCurrentStep(2)}>
+                          Done Editing Product
+                      </Button>
+                  )}
+
+
+                {(currentStep === 10 || currentStep === 11) && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                         {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {initialOrder ? 'Save Changes' : 'Finish Order'}
@@ -1509,3 +1586,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
