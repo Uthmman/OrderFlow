@@ -1,4 +1,5 @@
 
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -166,12 +167,12 @@ const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Product Setup', fields: [] }, // Edit mode hub
   { id: 3, title: 'Category', fields: ['products.0.category'] },
-  { id: 4, title: 'Choose Product', fields: [] },
+  { id: 4, title: 'Product Source', fields: [] },
   { id: 5, title: 'Attachments', fields: [] },
   { id: 6, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
   { id: 7, title: 'Material', fields: ['products.0.material'] },
   { id: 8, title: 'Color', fields: ['products.0.colors'] },
-  { id: 9, title: 'Review Products', fields: [] }, // Create mode review
+  { id: 9, title: 'Review Products', fields: [] }, // Create mode review step
   { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
   { id: 11, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
@@ -275,9 +276,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (stepConfig) {
       if(currentStep === 1) {
           fieldsToValidate = stepConfig.fields || [];
-      } else if (initialOrder && currentStep === 2) { // Product hub
-          setCurrentStep(10); // Skip to final steps
-          return;
       } else {
           const productFields = stepConfig.fields || [];
           fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
@@ -285,9 +283,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
     
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
-
     if (!isValid) return;
 
+    // Special logic for new order creation (Step 1 -> Step 2)
     if (!initialOrder && currentStep === 1) {
         setIsManualSaving(true);
         try {
@@ -303,7 +301,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
-                 setCurrentStep(2);
+                 setCurrentStep(2); // Manually set to step 2 after success
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
@@ -312,11 +310,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         } finally {
              setIsManualSaving(false);
         }
-        return; // Important: return here to prevent setCurrentStep from running
+        return; // Return here to prevent setCurrentStep from running again
     }
     
-    if (initialOrder && currentStep > 2 && currentStep < 10) {
-        setCurrentStep(2); // Go back to product hub after editing a product part
+    // When finishing a product configuration, go back to the hub
+    if (initialOrder && currentStep === 8) {
+        setCurrentStep(2);
     } else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
@@ -333,9 +332,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleExistingProductSelect = (product: Product) => {
     const currentProducts = getValues('products');
     const updatedProducts = [...currentProducts];
-    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0 };
+    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() }; // Give it a new unique ID for this order
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(5); // Go to attachments
+    setCurrentStep(6); // Go to edit details
   };
   
   const handleAddAnotherProduct = () => {
@@ -353,7 +352,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
     setCurrentProductIndex(currentProducts.length);
-    setCurrentStep(3); // Go to category selection
+    setCurrentStep(3); // Go to category selection for the new product
   };
 
   const handleEditProduct = (index: number) => {
@@ -865,7 +864,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {(!initialOrder || currentStep === 3) && (
+        {currentStep === 3 && (
              <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Product Category")}</CardTitle>
@@ -890,7 +889,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                     type="button"
                                                     onClick={() => {
                                                         field.onChange(cat.name);
-                                                        setCurrentStep(4);
+                                                        if (!initialOrder) setCurrentStep(4);
+                                                        else nextStep();
                                                     }}
                                                     className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
                                                         isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
@@ -911,7 +911,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
 
-        {(!initialOrder || currentStep === 4) && (
+        {currentStep === 4 && (
             <Card>
                 <CardHeader>
                 <CardTitle>{productStepTitle("Product Source")}</CardTitle>
@@ -967,7 +967,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             </Card>
         )}
         
-        {(!initialOrder || currentStep === 5) && (
+        {currentStep === 5 && (
             <Card>
                 <CardHeader>
                     <CardTitle>{productStepTitle("Attachments")}</CardTitle>
@@ -1312,7 +1312,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
         
-        {currentStep === 9 && (
+        {!initialOrder && currentStep === 9 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Review Products</CardTitle>
@@ -1329,19 +1329,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
                                     <p className="text-sm text-muted-foreground">{product.category}</p>
                                 </div>
-                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(3); }}>
+                                <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(index); setCurrentStep(6); }}>
                                     Edit
                                 </Button>
                             </div>
                         )
                     })}
                     <Separator />
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">Add Another Product</Button>
-                        <Button type="button" variant="outline" onClick={() => setCurrentStep(10)} className="w-full sm:w-auto">
-                            Continue to Final Step <ArrowRight className="ml-2" />
-                        </Button>
-                    </div>
+                     <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full">Add Another Product</Button>
                 </CardContent>
             </Card>
         )}
@@ -1534,38 +1529,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 
-                {/* --- CREATE MODE NAVIGATION --- */}
-                {!initialOrder && currentStep === 1 && (
-                    <Button type="button" onClick={nextStep} disabled={isManualSaving}>
-                         {isManualSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {currentStep < 10 && currentStep !== 2 && (initialOrder ? currentStep !== 8 : currentStep !== 9) && (
+                     <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
 
-                {!initialOrder && currentStep > 1 && currentStep < 9 && (
-                    <Button type="button" onClick={nextStep}>
-                        Next <ArrowRight className="ml-2" />
-                    </Button>
-                )}
-                
-                 {!initialOrder && currentStep === 9 && (
+                 {(initialOrder && currentStep === 2) && (
                     <Button type="button" onClick={() => setCurrentStep(10)}>
-                        Next <ArrowRight className="ml-2" />
+                        Continue to Final Steps <ArrowRight className="ml-2" />
                     </Button>
-                )}
-
-                 {/* --- EDIT MODE NAVIGATION --- */}
-                 {initialOrder && currentStep === 2 && (
-                      <Button type="button" onClick={() => setCurrentStep(10)}>
-                          Continue to Final Steps <ArrowRight className="ml-2" />
-                      </Button>
                  )}
-                  {initialOrder && currentStep > 2 && currentStep < 10 && (
-                      <Button type="button" onClick={nextStep}>
-                          Done <ArrowRight className="ml-2" />
-                      </Button>
-                  )}
-
+                 
+                 {(!initialOrder && currentStep === 9) && (
+                     <Button type="button" onClick={() => setCurrentStep(10)}>
+                        Continue to Final Steps <ArrowRight className="ml-2" />
+                    </Button>
+                 )}
 
                 {(currentStep === 10 || currentStep === 11) && (
                     <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
