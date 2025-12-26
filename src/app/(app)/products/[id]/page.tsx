@@ -13,6 +13,7 @@ import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
 import { OrderProvider, useOrders } from "@/hooks/use-orders";
+import { CustomerProvider } from "@/hooks/use-customers";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
@@ -130,7 +131,9 @@ function ProductDetailContent({ id }: { id: string }) {
             <CardDescription>A list of all orders that include this product.</CardDescription>
         </CardHeader>
         <CardContent>
+          <CustomerProvider>
             <OrderTable orders={productOrders} preferenceKey="orderSortPreference" />
+          </CustomerProvider>
         </CardContent>
       </Card>
     </div>
