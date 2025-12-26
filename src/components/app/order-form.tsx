@@ -275,6 +275,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (stepConfig) {
       if(currentStep === 1) {
           fieldsToValidate = stepConfig.fields || [];
+      } else if (initialOrder && currentStep === 2) { // Product hub
+          setCurrentStep(10); // Skip to final steps
+          return;
       } else {
           const productFields = stepConfig.fields || [];
           fieldsToValidate = productFields.length > 0 ? productStepFields(currentProductIndex, productFields) : [];
@@ -300,21 +303,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
-                 setCurrentStep(2); // Go to product hub in edit mode
-                 setIsManualSaving(false);
+                 setCurrentStep(2);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-                setIsManualSaving(false);
             }
-            return;
         } catch (error) {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+        } finally {
              setIsManualSaving(false);
-             return;
         }
+        return; // Important: return here to prevent setCurrentStep from running
     }
     
-    setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    if (initialOrder && currentStep > 2 && currentStep < 10) {
+        setCurrentStep(2); // Go back to product hub after editing a product part
+    } else {
+        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    }
   };
 
   const prevStep = () => {
@@ -695,27 +700,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }
   
   const getStepTitle = () => {
-    // If editing and at step 2, show "Product Setup"
+    const stepConfig = STEPS.find(s => s.id === currentStep);
+    if (!stepConfig) return "Unknown Step";
+
     if (initialOrder && currentStep === 2) {
       return "Product Setup";
     }
-    // Adjust for the edit-mode step 2
-    const stepIndex = initialOrder && currentStep > 2 ? currentStep -1 : currentStep;
-    const stepConfig = STEPS.find(s => s.id === stepIndex);
-    if (!stepConfig) return "Unknown Step";
 
     const isProductStep = stepConfig.id >= 3 && stepConfig.id <= 8;
     return isProductStep ? productStepTitle(stepConfig.title) : stepConfig.title;
   };
   
   const getProgress = () => {
-    const totalSteps = STEPS.length - (initialOrder ? 3 : 1); // Adjust total steps based on mode
+    const totalSteps = STEPS.length - (initialOrder ? 3 : 1);
     let currentProgressStep = currentStep;
-    if (initialOrder) { // Adjust current step for edit mode
-        if (currentStep === 2) currentProgressStep = 2; // Product Hub
-        else if (currentStep > 2) currentProgressStep = currentStep - 1;
+
+    if (initialOrder) {
+        if (currentStep === 2) currentProgressStep = 2; // Product Hub is step 2
+        else if (currentStep > 2 && currentStep < 10) currentProgressStep = 3; // Any product edit is part of a single "product config" meta-step
+        else if (currentStep >= 10) currentProgressStep = currentStep - 6; // Adjust for removed product steps
     }
-    return (currentProgressStep / totalSteps) * 100;
+    return (currentProgressStep / (initialOrder ? 5 : totalSteps)) * 100;
   }
   
   const finalTitle = getStepTitle();
@@ -1530,16 +1535,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 )}
                 
                 {/* --- CREATE MODE NAVIGATION --- */}
-                {!initialOrder && currentStep < 9 && currentStep !== 2 && (
-                    <Button type="button" onClick={() => setCurrentStep(c => c + 1)} disabled={isSubmitting}>
-                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {!initialOrder && currentStep === 1 && (
+                    <Button type="button" onClick={nextStep} disabled={isManualSaving}>
+                         {isManualSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Next <ArrowRight className="ml-2" />
+                    </Button>
+                )}
+
+                {!initialOrder && currentStep > 1 && currentStep < 9 && (
+                    <Button type="button" onClick={nextStep}>
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
                 
                  {!initialOrder && currentStep === 9 && (
-                    <Button type="button" onClick={() => setCurrentStep(10)} disabled={isSubmitting}>
-                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button type="button" onClick={() => setCurrentStep(10)}>
                         Next <ArrowRight className="ml-2" />
                     </Button>
                 )}
@@ -1550,9 +1560,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           Continue to Final Steps <ArrowRight className="ml-2" />
                       </Button>
                  )}
-                  {initialOrder && [6,7,8].includes(currentStep) && (
-                      <Button type="button" onClick={() => setCurrentStep(2)}>
-                          Done Editing Product
+                  {initialOrder && currentStep > 2 && currentStep < 10 && (
+                      <Button type="button" onClick={nextStep}>
+                          Done <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
@@ -1586,5 +1596,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
