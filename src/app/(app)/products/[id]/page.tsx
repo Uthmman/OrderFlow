@@ -33,8 +33,7 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     )
 }
 
-function ProductDetailContent({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+function ProductDetailContent({ id }: { id: string }) {
   const router = useRouter();
   const { getProductById, loading } = useProducts();
 
@@ -121,11 +120,12 @@ function ProductDetailContent({ params }: { params: { id: string } }) {
   );
 }
 
+// This is now a Server Component that passes the ID to the Client Component
 export default function ProductDetailPage({ params }: { params: { id: string } }) {
     return (
         <ProductProvider>
             <Suspense fallback={<div>Loading product details...</div>}>
-                <ProductDetailContent params={params} />
+                <ProductDetailContent id={params.id} />
             </Suspense>
         </ProductProvider>
     )
