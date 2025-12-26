@@ -174,7 +174,7 @@ const STEPS = [
   { id: 8, title: 'Color', fields: ['products.0.colors'] },
   { id: 9, title: 'Review Products', fields: [] }, // Create mode review step
   { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 11, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
+  { id: 11, 'title': 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -261,10 +261,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
-    // If we're editing an order and it has no products, jump to product creation
     if (initialOrder && (!initialOrder.products || initialOrder.products.length === 0)) {
-        setCurrentStep(3); // Jump to category selection
-        // Add a default product to the form state to work with
+        setCurrentStep(3);
         if (getValues('products').length === 0) {
             setValue('products', [{
                 id: uuidv4(),
@@ -308,7 +306,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) return;
 
-    // Special logic for new order creation (Step 1 -> Step 2)
     if (!initialOrder && currentStep === 1) {
         setIsManualSaving(true);
         try {
@@ -323,22 +320,25 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             const newOrderId = await onSave(draftOrderPayload);
             
             if (newOrderId) {
-                 router.replace(`/orders/${newOrderId}/edit`, { scroll: false });
-                 // Let the useEffect handle the step change
+                 router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
+                 setCurrentStep(3);
             } else {
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
             }
         } catch (error) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message || 'Could not create a draft for the order.' });
         } finally {
              setIsManualSaving(false);
         }
-        return; // Return here to prevent setCurrentStep from running again
+        return;
     }
     
-    // When finishing a product configuration, go back to the hub
-    if (initialOrder && currentStep === 8) {
-        setCurrentStep(2);
+    if (initialOrder && [6, 7, 8].includes(currentStep)) {
+      if (currentStep === 8) {
+        setCurrentStep(2); // Finished product config, go to hub
+      } else {
+        setCurrentStep(prev => prev + 1); // Go to next product micro-step
+      }
     } else {
         setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
     }
@@ -346,7 +346,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const prevStep = () => {
     if(initialOrder && [6,7,8].includes(currentStep)) {
-        setCurrentStep(2); // Go back to product hub from product editing
+        setCurrentStep(2);
     } else {
         setCurrentStep(prev => Math.max(prev - 1, 1));
     }
@@ -355,9 +355,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleExistingProductSelect = (product: Product) => {
     const currentProducts = getValues('products');
     const updatedProducts = [...currentProducts];
-    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() }; // Give it a new unique ID for this order
+    updatedProducts[currentProductIndex] = { ...product, price: product.price || 0, id: uuidv4() };
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(6); // Go to edit details
+    setCurrentStep(6);
   };
   
   const handleAddAnotherProduct = () => {
@@ -375,16 +375,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
     setCurrentProductIndex(currentProducts.length);
-    setCurrentStep(3); // Go to category selection for the new product
+    setCurrentStep(3);
   };
 
   const handleEditProduct = (index: number) => {
       setCurrentProductIndex(index);
-      setCurrentStep(6); // Jump to product details editing
+      setCurrentStep(6);
   }
 
-
-  // --- Auto-saving Logic ---
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 2000); 
 
@@ -470,7 +468,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
   }, [initialOrder, customers, updateOrder, form]);
 
-  // Auto-save effect
   useEffect(() => {
     const isFormValid = form.formState.isValid;
     if (isDirty && initialOrder && isFormValid && Object.keys(dirtyFields).length > 0) {
@@ -912,8 +909,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                     type="button"
                                                     onClick={() => {
                                                         field.onChange(cat.name);
-                                                        if (!initialOrder) setCurrentStep(4);
-                                                        else nextStep();
+                                                        nextStep();
                                                     }}
                                                     className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
                                                         isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
@@ -1335,7 +1331,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
              </Card>
         )}
         
-        {!initialOrder && currentStep === 9 && (
+        {currentStep === 9 && (
             <Card>
                 <CardHeader>
                     <CardTitle>Review Products</CardTitle>
@@ -1552,7 +1548,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                 )}
                 
-                {currentStep < 10 && currentStep !== 2 && (initialOrder ? currentStep !== 8 : currentStep !== 9) && (
+                {currentStep < 9 && currentStep !== 2 && (
                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                         Next <ArrowRight className="ml-2" />
                     </Button>
@@ -1564,7 +1560,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </Button>
                  )}
                  
-                 {(!initialOrder && currentStep === 9) && (
+                 {currentStep === 9 && (
                      <Button type="button" onClick={() => setCurrentStep(10)}>
                         Continue to Final Steps <ArrowRight className="ml-2" />
                     </Button>
