@@ -642,15 +642,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
   }, [selectedCustomer, setValue, getValues, isDirty]);
   
-  useEffect(() => {
-      if (watchedCategory) {
-          const currentName = getValues(`products.${currentProductIndex}.productName`);
-          if (!currentName) {
-              setValue(`products.${currentProductIndex}.productName`, watchedCategory, { shouldDirty: true, shouldValidate: true });
-          }
-      }
-  }, [watchedCategory, currentProductIndex, setValue, getValues]);
-  
   const totalIncome = watchedProducts.reduce((sum, p) => sum + (p.price || 0), 0);
   useEffect(() => {
       if (form.getValues('incomeAmount') !== totalIncome) {
