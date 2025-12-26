@@ -327,8 +327,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const updatedProducts = [...currentProducts];
     updatedProducts[currentProductIndex] = { ...product, price: product.price || 0 };
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    // Skip to review step
-    setCurrentStep(8);
+    setCurrentStep(4);
   };
   
   const addAnotherProduct = () => {
