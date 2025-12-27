@@ -200,6 +200,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isInitialLoadRef = useRef(true);
 
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
@@ -264,20 +265,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
+    if (!isInitialLoadRef.current) return;
+    
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
+      isInitialLoadRef.current = false;
       return;
     }
   
     if (initialOrder) {
-      // It's an existing order.
       const hasProducts = initialOrder.products && initialOrder.products.length > 0;
       if (hasProducts) {
-        // Existing order with products, start at the product hub.
-        setCurrentStep(2);
+        setCurrentStep(2); // Existing order with products, go to hub
       } else {
-        // Existing order but NO products (e.g., a draft), start product creation.
+        // Existing order draft (no products), go to category selection
         setCurrentStep(3);
         if (getValues('products').length === 0) {
           setValue('products', [{
@@ -286,18 +288,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         }
       }
     } else {
-      // This is a new order creation, start at step 1.
-      setCurrentStep(1);
+      setCurrentStep(1); // New order, start at customer selection
     }
+    isInitialLoadRef.current = false;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrder]); // Depend only on initialOrder to set the starting point.
+  }, [initialOrder, searchParams]);
 
 
   const filteredCatalogProducts = useMemo(() => {
     if (!catalogProducts) return [];
     return catalogProducts.filter(p => 
       p.category === watchedCategory && 
-      p.productName.toLowerCase().includes(catalogSearchTerm.toLowerCase())
+      (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()) ?? true)
     );
   }, [catalogProducts, watchedCategory, catalogSearchTerm]);
 
@@ -350,16 +352,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
     
     // Main navigation logic
-    if (initialOrder && [6, 7, 8].includes(currentStep)) {
-        setCurrentStep(9); // Finished product config, go to review hub
-    } else if (currentStep === 3) {
-        setCurrentStep(4); // After category, go to source selection
-    } else if (currentStep === 9) {
-        // From review, go to pricing
-        setCurrentStep(10);
-    } else {
-        setCurrentStep(prev => Math.min(prev + 1, STEPS.length));
+    let nextStepNumber = currentStep + 1;
+    
+    if (initialOrder) {
+        if (currentStep === 3) {
+            nextStepNumber = 4; // After Category -> Product Source
+        } else if ([6, 7, 8].includes(currentStep)) {
+            nextStepNumber = 9; // Finished product config, go to review hub
+        } else if (currentStep === 9) {
+            nextStepNumber = 10; // From review, go to pricing
+        }
     }
+
+    setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
   };
 
   const prevStep = () => {
@@ -1628,5 +1633,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
