@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
