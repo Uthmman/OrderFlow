@@ -1516,12 +1516,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormLabel>Deadline</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value instanceof Date ? field.value.toLocaleDateString('en-CA') : ''}
+                                  value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
                                   onChange={(e) => {
                                       const dateString = e.target.value;
                                       if (dateString) {
                                           const [year, month, day] = dateString.split('-').map(Number);
-                                          // Create date in UTC to avoid timezone issues
+                                          // Create date in UTC to avoid timezone issues from native picker
                                           const date = new Date(Date.UTC(year, month - 1, day));
                                           field.onChange(date);
                                       } else {
