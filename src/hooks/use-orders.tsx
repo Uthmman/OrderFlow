@@ -345,6 +345,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     const cleanData = removeUndefined(dataToUpdate);
     if (Object.keys(cleanData).length > 0) {
+        // Ensure deadline is a valid timestamp
+        if (cleanData.deadline && !(cleanData.deadline instanceof Timestamp)) {
+            cleanData.deadline = new Date(cleanData.deadline);
+        }
         await updateDoc(orderRef, cleanData);
     }
 };

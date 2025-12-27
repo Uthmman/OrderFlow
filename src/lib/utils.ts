@@ -27,24 +27,17 @@ export function formatTimestamp(timestamp: any): string {
   
   let date: Date;
 
-  // 1. Handle Firestore Timestamps
-  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  }
-  // 2. Handle existing Date objects
-  else if (timestamp instanceof Date) {
+  if (timestamp.seconds) { // Firestore Timestamp
+    date = timestamp.toDate();
+  } else if (timestamp instanceof Date) { // JavaScript Date Object
     date = timestamp;
-  }
-  // 3. Handle ISO strings or other date strings
-  else if (typeof timestamp === 'string') {
+  } else if (typeof timestamp === 'string') { // ISO string or similar
     date = new Date(timestamp);
-  }
-  // 4. If none of the above, we cannot process it.
-  else {
+  } else {
     return 'Invalid Date';
   }
 
-  // Final check for a valid date object after all conversions
+  // Check if the created date is valid
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }

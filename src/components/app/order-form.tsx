@@ -1514,37 +1514,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Deadline</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                                "w-full pl-3 text-left font-normal",
-                                                !field.value && "text-muted-foreground"
-                                            )}
-                                        >
-                                            {field.value ? (
-                                                format(field.value, "PPP")
-                                            ) : (
-                                                <span>Pick a date</span>
-                                            )}
-                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={field.value}
-                                            onSelect={field.onChange}
-                                            disabled={(date) =>
-                                                date < new Date(new Date().setHours(0,0,0,0))
-                                            }
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
+                                <Input
+                                  type="date"
+                                  value={field.value instanceof Date ? field.value.toLocaleDateString('en-CA') : ''}
+                                  onChange={(e) => {
+                                      const dateString = e.target.value;
+                                      if (dateString) {
+                                          const [year, month, day] = dateString.split('-').map(Number);
+                                          // Create date in UTC to avoid timezone issues
+                                          const date = new Date(Date.UTC(year, month - 1, day));
+                                          field.onChange(date);
+                                      } else {
+                                          field.onChange(null);
+                                      }
+                                  }}
+                                  className="w-full"
+                                />
                                 <FormMessage />
                                 </FormItem>
                             )}
