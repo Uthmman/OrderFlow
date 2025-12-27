@@ -262,27 +262,29 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   useEffect(() => {
     // This effect runs only once on initial load to set the starting step.
-    if (searchParams.get('step')) {
-        setCurrentStep(parseInt(searchParams.get('step') as string, 10));
-        return;
-    }
-
-    if (initialOrder) {
-      if (!initialOrder.products || initialOrder.products.length === 0) {
-        setCurrentStep(3);
-        if (getValues('products').length === 0) {
-          setValue('products', [{
-            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
-          }], { shouldDirty: true });
+    if (!initialOrder) {
+        const stepFromUrl = searchParams.get('step');
+        if (stepFromUrl) {
+            setCurrentStep(parseInt(stepFromUrl, 10));
+        } else {
+            setCurrentStep(1);
         }
-      } else {
-        setCurrentStep(2);
-      }
-    } else {
-      setCurrentStep(1);
+    } else { // It's an existing order
+        if (!initialOrder.products || initialOrder.products.length === 0) {
+            // Existing order has no products, start product creation flow
+            setCurrentStep(3);
+            if (getValues('products').length === 0) {
+              setValue('products', [{
+                id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
+              }], { shouldDirty: true });
+            }
+        } else {
+            // Existing order with products, show the hub
+            setCurrentStep(2);
+        }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Intentionally empty to run only once on mount.
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -345,8 +347,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (initialOrder && [6, 7, 8].includes(currentStep)) {
         setCurrentStep(2); // Finished product config, go to hub
     } else if (currentStep === 3) {
-        // After category selection, always go to product source selection
-        setCurrentStep(4);
+        setCurrentStep(initialOrder ? 5 : 4);
     } else if (currentStep === 4 && !initialOrder) {
         // This is handled by button clicks inside the step now
     } else if (currentStep === 9) {
@@ -377,7 +378,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(10); 
+    setCurrentStep(9); 
   };
   
   const handleAddAnotherProduct = () => {
@@ -480,7 +481,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     try {
         await updateOrder(orderPayload);
-        // Do not reset the form on auto-save
     } catch (e) {
         console.error("Auto-save failed:", e);
     } finally {
@@ -1621,5 +1621,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    
