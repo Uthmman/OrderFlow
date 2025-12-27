@@ -55,14 +55,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ...props }) => {
-            const { ...rest } = props;
-            return <ChevronLeft className="h-4 w-4" {...rest} />
-        },
-        IconRight: ({ ...props }) => {
-            const { ...rest } = props;
-            return <ChevronRight className="h-4 w-4" {...rest} />
-        },
+        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
+        IconRight: () => <ChevronRight className="h-4 w-4" />,
       }}
       {...props}
     />
@@ -71,4 +65,3 @@ function Calendar({
 Calendar.displayName = "Calendar"
 
 export { Calendar }
-
