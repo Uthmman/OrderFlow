@@ -23,7 +23,7 @@ export function formatOrderId(orderId: string) {
 }
 
 export function formatTimestamp(timestamp: any): string {
-  if (!timestamp) return '';
+  if (!timestamp) return 'Invalid Date';
   
   let date: Date;
 
@@ -35,19 +35,16 @@ export function formatTimestamp(timestamp: any): string {
   else if (timestamp instanceof Date) {
     date = timestamp;
   }
-  // 3. Handle ISO strings (e.g., from JSON or new Date().toISOString())
+  // 3. Handle ISO strings or other date strings
   else if (typeof timestamp === 'string') {
-    // For "yyyy-MM-dd" input, parsing as new Date("yyyy-MM-dd") can result in UTC interpretation.
-    // The 'T00:00:00' ensures it's interpreted in the local timezone, preventing off-by-one day errors.
-    const dateString = timestamp.includes('T') ? timestamp : `${timestamp}T00:00:00`;
-    date = new Date(dateString);
+    date = new Date(timestamp);
   }
   // 4. If none of the above, we cannot process it.
   else {
     return 'Invalid Date';
   }
 
-  // Final check for a valid date object
+  // Final check for a valid date object after all conversions
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }

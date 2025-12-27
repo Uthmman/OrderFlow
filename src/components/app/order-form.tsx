@@ -106,17 +106,16 @@ interface OrderFormProps {
 }
 
 const toDate = (timestamp: any): Date | undefined => {
+    if (!timestamp) return undefined;
     if (timestamp instanceof Date) {
         return timestamp;
     }
-    if (timestamp instanceof Timestamp) {
-        return timestamp.toDate();
+    if (timestamp && typeof timestamp.seconds === 'number') {
+        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
     }
     if (typeof timestamp === 'string') {
-        return new Date(timestamp);
-    }
-    if (timestamp && timestamp.seconds) {
-        return new Date(timestamp.seconds * 1000);
+        const date = new Date(timestamp);
+        return isNaN(date.getTime()) ? undefined : date;
     }
     return undefined;
 }
@@ -1515,25 +1514,37 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Deadline</FormLabel>
-                                <FormControl>
-                                     <Input
-                                        type="date"
-                                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                                        onChange={(e) => {
-                                            const dateString = e.target.value;
-                                            if (dateString) {
-                                                // The input gives "yyyy-MM-dd". JS Date constructor may interpret this as UTC midnight.
-                                                // To avoid timezone shifts, create date components manually.
-                                                const [year, month, day] = dateString.split('-').map(Number);
-                                                const localDate = new Date(year, month - 1, day);
-                                                field.onChange(localDate);
-                                            } else {
-                                                field.onChange(null);
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                        <Button
+                                            variant={"outline"}
+                                            className={cn(
+                                                "w-full pl-3 text-left font-normal",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                        >
+                                            {field.value ? (
+                                                format(field.value, "PPP")
+                                            ) : (
+                                                <span>Pick a date</span>
+                                            )}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={field.value}
+                                            onSelect={field.onChange}
+                                            disabled={(date) =>
+                                                date < new Date(new Date().setHours(0,0,0,0))
                                             }
-                                        }}
-                                        className="w-full"
-                                    />
-                                </FormControl>
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                                 </FormItem>
                             )}
