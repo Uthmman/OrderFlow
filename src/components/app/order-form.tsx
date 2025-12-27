@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar, CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit } from "lucide-react"
+import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -1508,47 +1508,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                               </FormItem>
                           )}
                           />
-                      <FormField
-                      control={form.control}
-                      name="deadline"
-                      render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                          <FormLabel>Deadline</FormLabel>
-                          <Popover>
-                              <PopoverTrigger asChild>
-                              <FormControl>
-                                  <Button
-                                  type="button"
-                                  variant={"outline"}
-                                  className={cn(
-                                      "pl-3 text-left font-normal",
-                                      !field.value && "text-muted-foreground"
-                                  )}
-                                  >
-                                  {field.value ? (
-                                      format(field.value, "PPP")
-                                  ) : (
-                                      <span>Pick a date</span>
-                                  )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </Button>
-                              </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  disabled={(date) =>
-                                  date < new Date(new Date().setHours(0,0,0,0))
-                                  }
-                              />
-                              </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                          </FormItem>
-                      )}
-                      />
+                        <FormField
+                            control={form.control}
+                            name="deadline"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Deadline</FormLabel>
+                                <FormControl>
+                                    <Input 
+                                        type="date"
+                                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                        onChange={(e) => {
+                                            const date = e.target.value ? new Date(e.target.value) : null;
+                                            field.onChange(date);
+                                        }}
+                                        className="w-full"
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                       <FormField
                       control={form.control}
                       name="isUrgent"
