@@ -25,30 +25,30 @@ export function formatOrderId(orderId: string) {
 export function formatTimestamp(timestamp: any): string {
   if (!timestamp) return '';
   
-  // Handle Date objects
+  let date: Date;
+
   if (timestamp instanceof Date) {
-    return timestamp.toLocaleDateString();
+    date = timestamp;
+  } else if (timestamp && typeof timestamp.seconds === 'number') {
+    // Handle Firestore Timestamps
+    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  } else if (typeof timestamp === 'string') {
+    // Handle ISO strings or other string formats
+    date = new Date(timestamp);
+  } else {
+    return 'Invalid Date';
   }
 
-  // Handle Firestore Timestamps
-  if (timestamp instanceof Timestamp) {
-    return timestamp.toDate().toLocaleDateString();
+  // Check if the created date is valid
+  if (isNaN(date.getTime())) {
+    return 'Invalid Date';
   }
   
-  // Handle ISO strings or other string formats
-  if (typeof timestamp === 'string') {
-    const date = new Date(timestamp);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString();
-    }
-  }
-
-  // Handle object with seconds/nanoseconds (from Firestore)
-   if (timestamp.seconds) {
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  }
-  
-  return 'Invalid Date';
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 // Helper function to compress an image file on the client

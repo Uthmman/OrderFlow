@@ -66,6 +66,7 @@ import * as LucideIcons from 'lucide-react';
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
+import { Calendar } from "../ui/calendar"
 
 const productSchema = z.object({
   id: z.string(),
@@ -1515,12 +1516,20 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Deadline</FormLabel>
                                 <FormControl>
-                                    <Input 
+                                     <Input
                                         type="date"
                                         value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                                         onChange={(e) => {
-                                            const date = e.target.value ? new Date(e.target.value) : null;
-                                            field.onChange(date);
+                                            const dateString = e.target.value;
+                                            if (dateString) {
+                                                // The input gives "yyyy-MM-dd". JS Date constructor may interpret this as UTC midnight.
+                                                // To avoid timezone shifts, create date components manually.
+                                                const [year, month, day] = dateString.split('-').map(Number);
+                                                const localDate = new Date(year, month - 1, day);
+                                                field.onChange(localDate);
+                                            } else {
+                                                field.onChange(null);
+                                            }
                                         }}
                                         className="w-full"
                                     />
