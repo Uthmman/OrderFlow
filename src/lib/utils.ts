@@ -27,19 +27,27 @@ export function formatTimestamp(timestamp: any): string {
   
   let date: Date;
 
-  if (timestamp instanceof Date) {
-    date = timestamp;
-  } else if (timestamp && typeof timestamp.seconds === 'number') {
-    // Handle Firestore Timestamps
+  // 1. Handle Firestore Timestamps
+  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
     date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  } else if (typeof timestamp === 'string') {
-    // Handle ISO strings or other string formats
-    date = new Date(timestamp);
-  } else {
+  }
+  // 2. Handle existing Date objects
+  else if (timestamp instanceof Date) {
+    date = timestamp;
+  }
+  // 3. Handle ISO strings (e.g., from JSON or new Date().toISOString())
+  else if (typeof timestamp === 'string') {
+    // For "yyyy-MM-dd" input, parsing as new Date("yyyy-MM-dd") can result in UTC interpretation.
+    // The 'T00:00:00' ensures it's interpreted in the local timezone, preventing off-by-one day errors.
+    const dateString = timestamp.includes('T') ? timestamp : `${timestamp}T00:00:00`;
+    date = new Date(dateString);
+  }
+  // 4. If none of the above, we cannot process it.
+  else {
     return 'Invalid Date';
   }
 
-  // Check if the created date is valid
+  // Final check for a valid date object
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }
@@ -50,6 +58,7 @@ export function formatTimestamp(timestamp: any): string {
     day: 'numeric',
   });
 }
+
 
 // Helper function to compress an image file on the client
 export const compressImage = (file: File): Promise<File> => {
