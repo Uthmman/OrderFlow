@@ -24,18 +24,30 @@ export function formatOrderId(orderId: string) {
 
 export function formatTimestamp(timestamp: any): string {
   if (!timestamp) return '';
+  
+  // Handle Date objects
   if (timestamp instanceof Date) {
     return timestamp.toLocaleDateString();
   }
+
+  // Handle Firestore Timestamps
   if (timestamp instanceof Timestamp) {
     return timestamp.toDate().toLocaleDateString();
   }
+  
+  // Handle ISO strings or other string formats
   if (typeof timestamp === 'string') {
-    return new Date(timestamp).toLocaleDateString();
+    const date = new Date(timestamp);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString();
+    }
   }
+
+  // Handle object with seconds/nanoseconds (from Firestore)
    if (timestamp.seconds) {
     return new Date(timestamp.seconds * 1000).toLocaleDateString();
   }
+  
   return 'Invalid Date';
 }
 
