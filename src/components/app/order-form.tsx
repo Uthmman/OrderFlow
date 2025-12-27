@@ -175,9 +175,9 @@ const STEPS = [
   { id: 6, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
   { id: 7, title: 'Material', fields: ['products.0.material'] },
   { id: 8, title: 'Color', fields: ['products.0.colors'] },
-  { id: 9, title: 'Review Products', fields: [] }, // Create mode review step
+  { id: 9, title: 'Review Products', fields: [] },
   { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 11, 'title': 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
+  { id: 11, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -266,30 +266,28 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   useEffect(() => {
     if (!isInitialLoadRef.current) return;
-    
+  
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
-      isInitialLoadRef.current = false;
-      return;
-    }
-  
-    if (initialOrder) {
-      const hasProducts = initialOrder.products && initialOrder.products.length > 0;
-      if (hasProducts) {
-        setCurrentStep(2); // Existing order with products, go to hub
-      } else {
-        // Existing order draft (no products), go to category selection
-        setCurrentStep(3);
+    } else if (initialOrder) {
+      // If it's a draft (status: Pending), but has no products, it's a new draft being edited.
+      if (initialOrder.status === 'Pending' && (!initialOrder.products || initialOrder.products.length === 0)) {
+        setCurrentStep(3); // Start at category selection
         if (getValues('products').length === 0) {
           setValue('products', [{
             id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
           }], { shouldDirty: true });
         }
+      } else {
+        // Any other existing order starts at the product hub.
+        setCurrentStep(2);
       }
     } else {
-      setCurrentStep(1); // New order, start at customer selection
+      // It's a completely new order, not a draft yet.
+      setCurrentStep(1);
     }
+  
     isInitialLoadRef.current = false;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrder, searchParams]);
@@ -314,11 +312,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           fieldsToValidate = stepConfig.fields || [];
       } else if (currentStep === 3) {
           fieldsToValidate = [`products.${currentProductIndex}.category`];
-      } else {
-          const productFields = stepConfig.fields || [];
-          const fieldsToSkip = ['products.0.productName', 'products.0.description'];
-          const filteredProductFields = productFields.filter(f => !fieldsToSkip.includes(f));
-          fieldsToValidate = filteredProductFields.length > 0 ? productStepFields(currentProductIndex, filteredProductFields) : [];
+      } else if (currentStep === 10) {
+          fieldsToValidate = ['incomeAmount'];
       }
     }
     
@@ -353,17 +348,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     
     // Main navigation logic
     let nextStepNumber = currentStep + 1;
-    
-    if (initialOrder) {
-        if (currentStep === 3) {
-            nextStepNumber = 4; // After Category -> Product Source
-        } else if ([6, 7, 8].includes(currentStep)) {
-            nextStepNumber = 9; // Finished product config, go to review hub
-        } else if (currentStep === 9) {
-            nextStepNumber = 10; // From review, go to pricing
-        }
-    }
 
+    // After category for a new product, go to product source
+    if (currentStep === 3) {
+        nextStepNumber = 4;
+    }
+    
     setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
   };
 
@@ -490,6 +480,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     try {
         await updateOrder(orderPayload);
+        // Do not reset the form here, it causes navigation issues
     } catch (e) {
         console.error("Auto-save failed:", e);
     } finally {
@@ -1604,7 +1595,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       </Button>
                   )}
 
-                  {(currentStep === 10 || currentStep === 11) && (
+                  {currentStep === 10 && (
+                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                          Next <ArrowRight className="ml-2" />
+                      </Button>
+                  )}
+
+                  {currentStep === 11 && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                           {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           {initialOrder ? 'Save Changes' : 'Finish Order'}
