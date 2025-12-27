@@ -105,6 +105,9 @@ interface OrderFormProps {
 }
 
 const toDate = (timestamp: any): Date | undefined => {
+    if (timestamp instanceof Date) {
+        return timestamp;
+    }
     if (timestamp instanceof Timestamp) {
         return timestamp.toDate();
     }
@@ -261,30 +264,33 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
-    // This effect runs only once on initial load to set the starting step.
-    if (!initialOrder) {
-        const stepFromUrl = searchParams.get('step');
-        if (stepFromUrl) {
-            setCurrentStep(parseInt(stepFromUrl, 10));
-        } else {
-            setCurrentStep(1);
-        }
-    } else { // It's an existing order
-        if (!initialOrder.products || initialOrder.products.length === 0) {
-            // Existing order has no products, start product creation flow
-            setCurrentStep(3);
-            if (getValues('products').length === 0) {
-              setValue('products', [{
-                id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
-              }], { shouldDirty: true });
-            }
-        } else {
-            // Existing order with products, show the hub
-            setCurrentStep(2);
-        }
+    const stepFromUrl = searchParams.get('step');
+    if (stepFromUrl) {
+      setCurrentStep(parseInt(stepFromUrl, 10));
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Intentionally empty to run only once on mount.
+  
+    if (initialOrder) {
+      // It's an existing order.
+      const hasProducts = initialOrder.products && initialOrder.products.length > 0;
+      if (hasProducts) {
+        // Existing order with products, start at the product hub.
+        setCurrentStep(2);
+      } else {
+        // Existing order but NO products (e.g., a draft), start product creation.
+        setCurrentStep(3);
+        if (getValues('products').length === 0) {
+          setValue('products', [{
+            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
+          }], { shouldDirty: true });
+        }
+      }
+    } else {
+      // This is a new order creation, start at step 1.
+      setCurrentStep(1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOrder]); // Depend only on initialOrder to set the starting point.
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -345,11 +351,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     
     // Main navigation logic
     if (initialOrder && [6, 7, 8].includes(currentStep)) {
-        setCurrentStep(2); // Finished product config, go to hub
+        setCurrentStep(9); // Finished product config, go to review hub
     } else if (currentStep === 3) {
-        setCurrentStep(initialOrder ? 5 : 4);
-    } else if (currentStep === 4 && !initialOrder) {
-        // This is handled by button clicks inside the step now
+        setCurrentStep(4); // After category, go to source selection
     } else if (currentStep === 9) {
         // From review, go to pricing
         setCurrentStep(10);
@@ -360,10 +364,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const prevStep = () => {
      if (initialOrder && [5, 6, 7, 8].includes(currentStep)) {
-        setCurrentStep(2); // Back to product hub
-    } else if (!initialOrder && currentStep === 9) {
+        setCurrentStep(4); // From product config back to source selection
+    } else if (currentStep === 9) {
         setCurrentStep(4); // Back from review to product source
-    } else if (!initialOrder && currentStep === 4) {
+    } else if (currentStep === 4) {
         setCurrentStep(3); // Back from product source to category
     }
     else {
@@ -374,7 +378,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleExistingProductSelect = (product: Product) => {
     const currentProducts = getValues('products');
     const updatedProducts = [...currentProducts];
-    const newProduct = { ...product, price: product.price || 0, id: uuidv4() };
+    const newProduct = { ...product, price: Number(product.price) || 0, id: uuidv4() };
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
@@ -414,7 +418,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (fromProductId && catalogProducts.length > 0) {
         const product = catalogProducts.find(p => p.id === fromProductId);
         if (product) {
-            setValue('products', [{...product, price: product.price || 0, id: uuidv4()}], { shouldDirty: true });
+            setValue('products', [{...product, price: Number(product.price) || 0, id: uuidv4()}], { shouldDirty: true });
         }
     } else if (isNewProduct) {
         setValue('products', [{
@@ -649,7 +653,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
   }, [selectedCustomer, setValue, getValues, isDirty]);
   
-  const totalIncome = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  const totalIncome = useMemo(() => {
+    return watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  }, [watchedProducts]);
+
   useEffect(() => {
       if (form.getValues('incomeAmount') !== totalIncome) {
         setValue('incomeAmount', totalIncome, { shouldDirty: true });
@@ -1621,3 +1628,5 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
+
+    
