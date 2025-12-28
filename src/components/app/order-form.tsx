@@ -1523,7 +1523,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormLabel>Order Date</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
+                                  value={formatToYyyyMmDd(field.value)}
                                   onChange={(e) => field.onChange(new Date(e.target.value))}
                                   className="w-full"
                                 />
@@ -1539,12 +1539,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormLabel>Deadline</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
+                                  value={formatToYyyyMmDd(field.value)}
                                   onChange={(e) => {
-                                        // Add a time component to avoid timezone off-by-one errors
-                                        const date = new Date(e.target.value + 'T00:00:00');
-                                        field.onChange(date);
-                                    }}
+                                      const date = new Date(e.target.value);
+                                      // Adjust for timezone offset to prevent date from being off by one day
+                                      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                                      field.onChange(new Date(date.getTime() + userTimezoneOffset));
+                                  }}
                                   className="w-full"
                                 />
                                 <FormMessage />

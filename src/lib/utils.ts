@@ -1,5 +1,4 @@
 
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
@@ -24,15 +23,20 @@ export function formatOrderId(orderId: string) {
 }
 
 export function formatTimestamp(timestamp: any): string {
-  if (!timestamp) return 'Invalid Date';
-  
   let date: Date;
 
+  if (!timestamp) {
+    return 'Invalid Date';
+  }
+
+  // Convert from various formats to a JavaScript Date object
   if (timestamp instanceof Date) {
     date = timestamp;
-  } else if (timestamp && typeof timestamp.seconds === 'number') {
+  } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+    // Firestore Timestamp
     date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
   } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    // String or number (milliseconds)
     const parsedDate = new Date(timestamp);
     if (!isNaN(parsedDate.getTime())) {
       date = parsedDate;
@@ -43,16 +47,19 @@ export function formatTimestamp(timestamp: any): string {
     return 'Invalid Date';
   }
 
+  // Final check if a valid date was created
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }
-  
+
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC', // Use UTC to avoid off-by-one day errors from local timezone conversion
   });
 }
+
 
 // Helper to format a Date object to "yyyy-MM-dd" for input[type=date]
 export function formatToYyyyMmDd(date: Date | any): string {
@@ -68,11 +75,11 @@ export function formatToYyyyMmDd(date: Date | any): string {
   
   if (isNaN(d.getTime())) return '';
 
-  // To prevent timezone issues where it might be off by one day
-  const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-  const adjustedDate = new Date(d.getTime() - userTimezoneOffset);
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
   
-  return adjustedDate.toISOString().split('T')[0];
+  return `${year}-${month}-${day}`;
 }
 
 
