@@ -66,7 +66,6 @@ import * as LucideIcons from 'lucide-react';
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
-import { Calendar } from "../ui/calendar"
 
 const productSchema = z.object({
   id: z.string(),
@@ -1523,14 +1522,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                   type="date"
                                   value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                                   onChange={(e) => {
-                                      const dateString = e.target.value;
-                                      if (dateString) {
-                                          const [year, month, day] = dateString.split('-').map(Number);
-                                          const date = new Date(Date.UTC(year, month - 1, day));
-                                          field.onChange(date);
-                                      } else {
-                                          field.onChange(null);
-                                      }
+                                    const dateString = e.target.value;
+                                    const date = new Date(dateString);
+                                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                                    field.onChange(new Date(date.getTime() + userTimezoneOffset));
                                   }}
                                   className="w-full"
                                 />
@@ -1548,14 +1543,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                   type="date"
                                   value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                                   onChange={(e) => {
-                                      const dateString = e.target.value;
-                                      if (dateString) {
-                                          const [year, month, day] = dateString.split('-').map(Number);
-                                          const date = new Date(Date.UTC(year, month - 1, day));
-                                          field.onChange(date);
-                                      } else {
-                                          field.onChange(null);
-                                      }
+                                    const dateString = e.target.value;
+                                    const date = new Date(dateString);
+                                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                                    field.onChange(new Date(date.getTime() + userTimezoneOffset));
                                   }}
                                   className="w-full"
                                 />

@@ -28,11 +28,16 @@ export function formatTimestamp(timestamp: any): string {
   
   let date: Date;
 
-  if (timestamp instanceof Date) {
+  // Convert Firestore Timestamp to Date
+  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+    date = timestamp.toDate();
+  } 
+  // Already a JS Date object
+  else if (timestamp instanceof Date) {
     date = timestamp;
-  } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  } else if (typeof timestamp === 'string') {
+  }
+  // Try parsing a string
+  else if (typeof timestamp === 'string') {
     const parsedDate = new Date(timestamp);
     // Check if the string was a valid date string
     if (!isNaN(parsedDate.getTime())) {
@@ -40,7 +45,9 @@ export function formatTimestamp(timestamp: any): string {
     } else {
       return 'Invalid Date';
     }
-  } else {
+  }
+  // If none of the above, it's an invalid type
+  else {
     return 'Invalid Date';
   }
 
@@ -53,6 +60,7 @@ export function formatTimestamp(timestamp: any): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC', // Use UTC to prevent off-by-one day errors
   });
 }
 
