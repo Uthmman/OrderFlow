@@ -32,8 +32,10 @@ export function formatTimestamp(timestamp: any): string {
   // Convert from various formats to a JavaScript Date object
   if (timestamp instanceof Date) {
     date = timestamp;
+  } else if (timestamp instanceof Timestamp) {
+    date = timestamp.toDate();
   } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    // Firestore Timestamp
+    // Firestore Timestamp-like object
     date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
   } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
     // String or number (milliseconds)
@@ -51,13 +53,13 @@ export function formatTimestamp(timestamp: any): string {
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }
+  
+  // Use UTC methods to prevent timezone shift issues
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + 1; // getUTCMonth() is 0-indexed
+  const day = date.getUTCDate();
 
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC', // Use UTC to avoid off-by-one day errors from local timezone conversion
-  });
+  return `${month}/${day}/${year}`;
 }
 
 
@@ -69,8 +71,15 @@ export function formatToYyyyMmDd(date: Date | any): string {
     d = date;
   } else if (date.seconds) { // Firestore Timestamp
     d = date.toDate();
-  } else {
-    d = new Date(date); // Fallback for strings
+  } else if (typeof date === 'string' && date.includes('T')) { // ISO string
+    d = new Date(date);
+  }
+  else if (typeof date === 'string') { // yyyy-mm-dd string
+    const parts = date.split('-').map(p => parseInt(p, 10));
+    d = new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  else {
+    return ''; // Invalid format
   }
   
   if (isNaN(d.getTime())) return '';
