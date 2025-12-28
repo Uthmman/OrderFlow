@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { useState, use } from "react";
@@ -14,7 +13,7 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+  const { id } = use(params);
   const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
