@@ -223,7 +223,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     };
     
     const defaultValues = {
-        products: [], // Start with an empty array
+        products: [defaultProduct],
         isUrgent: false,
         status: "In Progress" as OrderStatus,
         incomeAmount: 0,
@@ -233,11 +233,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         deadline: new Date(),
         testDate: undefined,
         location: { town: '' },
+        paymentDetails: '',
     };
 
     if (!orderToMap) {
-        // For new orders, add one blank product to start
-        return { ...defaultValues, products: [defaultProduct] };
+        return defaultValues as OrderFormValues;
     }
     
     const products = orderToMap.products && orderToMap.products.length > 0
@@ -245,7 +245,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             ...p,
             colorAsAttachment: p.colors?.includes("As Attached Picture")
         }))
-        : [];
+        : [defaultProduct];
 
     return {
         ...defaultValues,
@@ -255,7 +255,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         testDate: toDate(orderToMap.testDate),
         location: orderToMap.location || { town: '' },
         products,
-        paymentDetails: orderToMap.paymentDetails || '',
     } as OrderFormValues;
   }, []);
 
@@ -1541,7 +1540,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <Input
                                   type="date"
                                   value={field.value ? formatToYyyyMmDd(field.value) : ''}
-                                  onChange={(e) => field.onChange(new Date(e.target.value))}
+                                  onChange={(e) => {
+                                        // Add a time component to avoid timezone off-by-one errors
+                                        const date = new Date(e.target.value + 'T00:00:00');
+                                        field.onChange(date);
+                                    }}
                                   className="w-full"
                                 />
                                 <FormMessage />
@@ -1557,7 +1560,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <Input
                                   type="date"
                                   value={field.value ? formatToYyyyMmDd(field.value) : ''}
-                                  onChange={(e) => field.onChange(new Date(e.target.value))}
+                                  onChange={(e) => {
+                                    // Add a time component to avoid timezone off-by-one errors
+                                    const date = new Date(e.target.value + 'T00:00:00');
+                                    field.onChange(date);
+                                  }}
                                   className="w-full"
                                 />
                                 <FormMessage />

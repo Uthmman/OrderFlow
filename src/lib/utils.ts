@@ -28,30 +28,21 @@ export function formatTimestamp(timestamp: any): string {
   
   let date: Date;
 
-  // Convert Firestore Timestamp to Date
-  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    date = timestamp.toDate();
-  } 
-  // Already a JS Date object
-  else if (timestamp instanceof Date) {
+  if (timestamp instanceof Date) {
     date = timestamp;
-  }
-  // Try parsing a string (like from an input[type=date])
-  else if (typeof timestamp === 'string') {
-    // Add time part to handle timezone correctly
-    const parsedDate = new Date(`${timestamp}T00:00:00`);
+  } else if (timestamp && typeof timestamp.seconds === 'number') {
+    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    const parsedDate = new Date(timestamp);
     if (!isNaN(parsedDate.getTime())) {
       date = parsedDate;
     } else {
       return 'Invalid Date';
     }
-  }
-  // If none of the above, it's an invalid type
-  else {
+  } else {
     return 'Invalid Date';
   }
 
-  // Final check to ensure the created date is valid
   if (isNaN(date.getTime())) {
     return 'Invalid Date';
   }
@@ -60,7 +51,6 @@ export function formatTimestamp(timestamp: any): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: 'UTC', // Use UTC to prevent off-by-one day errors
   });
 }
 
@@ -78,10 +68,11 @@ export function formatToYyyyMmDd(date: Date | any): string {
   
   if (isNaN(d.getTime())) return '';
 
-  const year = d.getFullYear();
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const day = d.getDate().toString().padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  // To prevent timezone issues where it might be off by one day
+  const userTimezoneOffset = d.getTimezoneOffset() * 60000;
+  const adjustedDate = new Date(d.getTime() - userTimezoneOffset);
+  
+  return adjustedDate.toISOString().split('T')[0];
 }
 
 
