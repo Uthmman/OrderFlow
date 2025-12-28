@@ -36,10 +36,10 @@ export function formatTimestamp(timestamp: any): string {
   else if (timestamp instanceof Date) {
     date = timestamp;
   }
-  // Try parsing a string
+  // Try parsing a string (like from an input[type=date])
   else if (typeof timestamp === 'string') {
-    const parsedDate = new Date(timestamp);
-    // Check if the string was a valid date string
+    // Add time part to handle timezone correctly
+    const parsedDate = new Date(`${timestamp}T00:00:00`);
     if (!isNaN(parsedDate.getTime())) {
       date = parsedDate;
     } else {
@@ -62,6 +62,26 @@ export function formatTimestamp(timestamp: any): string {
     day: 'numeric',
     timeZone: 'UTC', // Use UTC to prevent off-by-one day errors
   });
+}
+
+// Helper to format a Date object to "yyyy-MM-dd" for input[type=date]
+export function formatToYyyyMmDd(date: Date | any): string {
+  if (!date) return '';
+  let d: Date;
+  if (date instanceof Date) {
+    d = date;
+  } else if (date.seconds) { // Firestore Timestamp
+    d = date.toDate();
+  } else {
+    d = new Date(date); // Fallback for strings
+  }
+  
+  if (isNaN(d.getTime())) return '';
+
+  const year = d.getFullYear();
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 

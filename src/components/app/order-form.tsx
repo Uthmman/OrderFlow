@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatToYyyyMmDd } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material, Product } from "@/lib/types"
@@ -93,6 +93,7 @@ const formSchema = z.object({
   paymentDetails: z.string().optional(),
   creationDate: z.date({ required_error: "An order date is required." }),
   deadline: z.date({ required_error: "A deadline is required." }),
+  testDate: z.date().optional(),
   isUrgent: z.boolean().default(false),
 })
 
@@ -230,6 +231,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         customerId: '',
         creationDate: new Date(),
         deadline: new Date(),
+        testDate: undefined,
         location: { town: '' },
     };
 
@@ -250,6 +252,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         ...orderToMap,
         creationDate: toDate(orderToMap.creationDate) || new Date(),
         deadline: toDate(orderToMap.deadline) || new Date(),
+        testDate: toDate(orderToMap.testDate),
         location: orderToMap.location || { town: '' },
         products,
         paymentDetails: orderToMap.paymentDetails || '',
@@ -727,6 +730,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         customerName,
         deadline: values.deadline,
         creationDate: values.creationDate,
+        testDate: values.testDate,
       };
 
       await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>, !initialOrder);
@@ -1520,13 +1524,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormLabel>Order Date</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                                  onChange={(e) => {
-                                    const dateString = e.target.value;
-                                    const date = new Date(dateString);
-                                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-                                    field.onChange(new Date(date.getTime() + userTimezoneOffset));
-                                  }}
+                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
+                                  onChange={(e) => field.onChange(new Date(e.target.value))}
                                   className="w-full"
                                 />
                                 <FormMessage />
@@ -1541,13 +1540,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <FormLabel>Deadline</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                                  onChange={(e) => {
-                                    const dateString = e.target.value;
-                                    const date = new Date(dateString);
-                                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-                                    field.onChange(new Date(date.getTime() + userTimezoneOffset));
-                                  }}
+                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
+                                  onChange={(e) => field.onChange(new Date(e.target.value))}
+                                  className="w-full"
+                                />
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="testDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Test Date</FormLabel>
+                                <Input
+                                  type="date"
+                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
+                                  onChange={(e) => field.onChange(new Date(e.target.value))}
                                   className="w-full"
                                 />
                                 <FormMessage />

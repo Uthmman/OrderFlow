@@ -120,6 +120,7 @@ export type Order = {
   prepaidAmount?: number;
   isUrgent: boolean;
   creationDate: any; // Can be string or Firestore Timestamp
+  testDate?: any; // For test purposes
   paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;

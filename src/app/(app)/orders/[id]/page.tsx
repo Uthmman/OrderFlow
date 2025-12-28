@@ -700,6 +700,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     <Clock className="h-4 w-4 text-muted-foreground"/>
                                     <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
                                 </div>
+                                {order.testDate && (
+                                <div className="flex items-center gap-3">
+                                    <Clock className="h-4 w-4 text-muted-foreground"/>
+                                    <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
+                                </div>
+                                )}
                                 {order.location && (
                                      <div className="flex items-center gap-3">
                                         <MapPin className="h-4 w-4 text-muted-foreground"/>
@@ -787,6 +793,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             <Clock className="h-4 w-4 text-muted-foreground"/>
                             <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
                         </div>
+                         {order.testDate && (
+                            <div className="flex items-center gap-3">
+                                <Clock className="h-4 w-4 text-muted-foreground"/>
+                                <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
+                            </div>
+                        )}
                         {order.location && (
                              <div className="flex items-center gap-3">
                                 <MapPin className="h-4 w-4 text-muted-foreground"/>
