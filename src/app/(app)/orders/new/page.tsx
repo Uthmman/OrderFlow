@@ -19,11 +19,11 @@ function NewOrderPageContent() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSaveOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>) => {
+  const handleSaveOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => {
     setIsSubmitting(true);
     
     try {
-        const orderId = await addOrder(orderData);
+        const orderId = await addOrder(orderData, isNew);
         if (orderId) {
             toast({
                 title: "Order Created",

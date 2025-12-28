@@ -92,6 +92,7 @@ const formSchema = z.object({
   incomeAmount: z.coerce.number().min(0, "Price cannot be negative."),
   prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
+  creationDate: z.date({ required_error: "An order date is required." }),
   deadline: z.date({ required_error: "A deadline is required." }),
   isUrgent: z.boolean().default(false),
 })
@@ -100,7 +101,7 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSave: (data: Omit<Order, 'id' | 'creationDate'>) => Promise<string | undefined>;
+  onSave: (data: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => Promise<string | undefined>;
   submitButtonText?: string;
   isSubmitting?: boolean;
 }
@@ -177,7 +178,7 @@ const STEPS = [
   { id: 8, title: 'Color', fields: ['products.0.colors'] },
   { id: 9, title: 'Review Products', fields: [] },
   { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 11, title: 'Scheduling & Status', fields: ['status', 'deadline', 'isUrgent'] }
+  { id: 11, title: 'Scheduling & Status', fields: ['status', 'creationDate', 'deadline', 'isUrgent'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
@@ -228,6 +229,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         incomeAmount: 0,
         prepaidAmount: 0,
         customerId: '',
+        creationDate: new Date(),
         deadline: new Date(),
         location: { town: '' },
     };
@@ -247,6 +249,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     return {
         ...defaultValues,
         ...orderToMap,
+        creationDate: toDate(orderToMap.creationDate) || new Date(),
         deadline: toDate(orderToMap.deadline) || new Date(),
         location: orderToMap.location || { town: '' },
         products,
@@ -329,9 +332,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 ...values,
                 customerName,
                 status: 'Pending' as const,
+                creationDate: values.creationDate || new Date(),
                 deadline: values.deadline || new Date(),
             };
-            const newOrderId = await onSave(draftOrderPayload);
+            const newOrderId = await onSave(draftOrderPayload, true);
             
             if (newOrderId) {
                  router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
@@ -723,9 +727,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         status: values.status,
         customerName,
         deadline: values.deadline,
+        creationDate: values.creationDate,
       };
 
-      await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>);
+      await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>, !initialOrder);
       
       if (initialOrder) {
         toast({
@@ -1510,18 +1515,42 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           />
                         <FormField
                             control={form.control}
+                            name="creationDate"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Order Date</FormLabel>
+                                <Input
+                                  type="date"
+                                  value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                                  onChange={(e) => {
+                                      const dateString = e.target.value;
+                                      if (dateString) {
+                                          const [year, month, day] = dateString.split('-').map(Number);
+                                          const date = new Date(Date.UTC(year, month - 1, day));
+                                          field.onChange(date);
+                                      } else {
+                                          field.onChange(null);
+                                      }
+                                  }}
+                                  className="w-full"
+                                />
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
                             name="deadline"
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Deadline</FormLabel>
                                 <Input
                                   type="date"
-                                  value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                                  value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
                                   onChange={(e) => {
                                       const dateString = e.target.value;
                                       if (dateString) {
                                           const [year, month, day] = dateString.split('-').map(Number);
-                                          // Create date in UTC to avoid timezone issues from native picker
                                           const date = new Date(Date.UTC(year, month - 1, day));
                                           field.onChange(date);
                                       } else {

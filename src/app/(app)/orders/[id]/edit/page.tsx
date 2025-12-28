@@ -14,7 +14,7 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+  const { id } = params;
   const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
@@ -67,7 +67,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
         <ProductSettingProvider>
             <OrderForm
                 order={order}
-                onSave={handleUpdateOrder}
+                onSave={(data) => handleUpdateOrder(data)}
                 submitButtonText="Save Changes"
                 isSubmitting={isSubmitting}
             />

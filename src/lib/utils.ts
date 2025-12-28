@@ -1,4 +1,5 @@
 
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
@@ -27,20 +28,19 @@ export function formatTimestamp(timestamp: any): string {
   
   let date: Date;
 
-  // Check if it's a Firestore Timestamp
-  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  } 
-  // Check if it's already a JavaScript Date object
-  else if (timestamp instanceof Date) {
+  if (timestamp instanceof Date) {
     date = timestamp;
-  } 
-  // Check if it's a string that can be parsed
-  else if (typeof timestamp === 'string') {
-    date = new Date(timestamp);
-  } 
-  // Fallback for any other type
-  else {
+  } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+  } else if (typeof timestamp === 'string') {
+    const parsedDate = new Date(timestamp);
+    // Check if the string was a valid date string
+    if (!isNaN(parsedDate.getTime())) {
+      date = parsedDate;
+    } else {
+      return 'Invalid Date';
+    }
+  } else {
     return 'Invalid Date';
   }
 

@@ -21,7 +21,7 @@ import { useProducts } from './use-products';
 interface OrderContextType {
   orders: Order[];
   loading: boolean;
-  addOrder: (order: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => Promise<string | undefined>;
+  addOrder: (order: Omit<Order, 'id'>, isNew: boolean) => Promise<string | undefined>;
   updateOrder: (order: Order, chatMessage?: { text: string; file?: File; }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -199,20 +199,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   }
 
 
-  const addOrder = async (orderData: Omit<Order, 'id' | 'creationDate' | 'ownerId'>) => {
+  const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
-    
-    // Check if we are creating a new product or using an existing one.
-    for (const product of orderData.products) {
-        if (!product.productName) continue;
 
-        const productsRef = collection(firestore, "products");
-        const q = query(productsRef, where("productName", "==", product.productName));
-        const querySnapshot = await getDocs(q);
+    if (isNew) {
+        // Check if we are creating a new product or using an existing one.
+        for (const product of orderData.products) {
+            if (!product.productName) continue;
 
-        if (querySnapshot.empty) {
-            // Product doesn't exist, so add it to the catalog.
-            await addProduct(product);
+            const productsRef = collection(firestore, "products");
+            const q = query(productsRef, where("productName", "==", product.productName));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                // Product doesn't exist, so add it to the catalog.
+                await addProduct(product);
+            }
         }
     }
     
@@ -222,7 +224,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const finalOrderData: Order = {
         ...orderData,
         id: orderId,
-        creationDate: serverTimestamp(),
+        creationDate: orderData.creationDate,
         ownerId: user.id,
         status: orderData.status || 'Pending',
     };
