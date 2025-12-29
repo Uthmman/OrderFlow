@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     if (!orders) return { totalRevenue: 0, ordersInProgress: 0, urgentOrders: 0 };
-    const totalRevenue = orders.reduce((acc, order) => acc + (order.incomeAmount || 0), 0);
+    const totalRevenue = orders.reduce((acc, order) => acc + (Number(order.incomeAmount) || 0), 0);
     const ordersInProgress = orders.filter(o => o.status === "In Progress" || o.status === "Designing" || o.status === "Manufacturing").length;
     const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
     
