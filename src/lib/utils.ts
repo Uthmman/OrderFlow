@@ -53,12 +53,8 @@ export function formatTimestamp(timestamp: any): string {
     return 'Invalid Date';
   }
   
-  // Use UTC methods to prevent timezone shift issues
-  const year = date.getUTCFullYear();
-  const month = date.getUTCMonth() + 1; // getUTCMonth() is 0-indexed
-  const day = date.getUTCDate();
-
-  return `${month}/${day}/${year}`;
+  // Use toLocaleDateString for a simple, locale-aware date format
+  return date.toLocaleDateString();
 }
 
 
@@ -70,12 +66,12 @@ export function formatToYyyyMmDd(date: Date | any): string {
     d = date;
   } else if (date.seconds) { // Firestore Timestamp
     d = date.toDate();
-  } else if (typeof date === 'string' && date.includes('T')) { // ISO string
+  } else if (typeof date === 'string') {
+    // Handles both ISO strings and yyyy-mm-dd strings
     d = new Date(date);
-  }
-  else if (typeof date === 'string') { // yyyy-mm-dd string
-    const parts = date.split('-').map(p => parseInt(p, 10));
-    d = new Date(parts[0], parts[1] - 1, parts[2]);
+     // The date constructor might parse a yyyy-mm-dd string as UTC, causing off-by-one day errors.
+     // Let's correct for the timezone offset.
+    d = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
   }
   else {
     return ''; // Invalid format

@@ -115,12 +115,12 @@ export type Order = {
   products: Product[];
   status: OrderStatus;
   location: { town: string; };
-  deadline: any; // Can be string or Firestore Timestamp
+  deadline: Timestamp | Date | string;
   incomeAmount: number;
   prepaidAmount?: number;
   isUrgent: boolean;
-  creationDate: any; // Can be string or Firestore Timestamp
-  testDate?: any; // For test purposes
+  creationDate: Timestamp | Date | string;
+  testDate?: Timestamp | Date | string;
   paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;
@@ -149,10 +149,4 @@ export type ProductCategory = {
 
 export type Material = {
   name: string;
-  icon: string;
-}
-
-export type ProductSettings = {
-  productCategories: ProductCategory[];
-  materials: Material[];
-}
+  icon:
