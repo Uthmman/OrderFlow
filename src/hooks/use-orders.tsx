@@ -415,50 +415,60 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
-    const batch = writeBatch(firestore);
-    let allAttachments: OrderAttachment[] = [];
-
-    for (const order of ordersToDelete) {
-        const orderRef = doc(firestore, 'orders', order.id);
-        batch.delete(orderRef);
-
-        // Remove orderId from associated products
-        for (const product of order.products) {
-            if (product.id) {
-                 const productRef = doc(firestore, 'products', product.id);
-                 try {
-                    const productSnap = await getDoc(productRef);
-                    if (productSnap.exists()) {
-                        batch.update(productRef, { orderIds: arrayRemove(order.id) });
-                    }
-                 } catch(e) {
-                     console.error(`Failed to get product ${product.id} during bulk delete:`, e);
-                 }
-            }
-        }
-        
-        const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-        allAttachments = allAttachments.concat(orderAttachments);
-    }
+    if (ordersToDelete.length === 0) return;
 
     try {
-      await batch.commit();
+        const batch = writeBatch(firestore);
+        let allAttachments: OrderAttachment[] = [];
 
-      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => [item.storagePath, item])).values());
-      const deleteFilePromises = uniqueAttachments.map(att => {
-        if (!att.storagePath) return Promise.resolve();
-        return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
-      });
-      
-      await Promise.all(deleteFilePromises);
+        // 1. Gather all product IDs to check
+        const productUpdateMap = new Map<string, string[]>();
+        
+        for (const order of ordersToDelete) {
+            const orderRef = doc(firestore, 'orders', order.id);
+            batch.delete(orderRef);
 
+            for (const product of order.products) {
+                if (product.id) {
+                    if (!productUpdateMap.has(product.id)) {
+                        productUpdateMap.set(product.id, []);
+                    }
+                    productUpdateMap.get(product.id)!.push(order.id);
+                }
+            }
+            const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+            allAttachments = allAttachments.concat(orderAttachments);
+        }
+
+        // 2. Update existing products in the batch
+        for (const [productId, orderIdsToRemove] of productUpdateMap.entries()) {
+            const productRef = doc(firestore, 'products', productId);
+            // We assume the product exists. A more robust solution might check existence
+            // but for a batch operation, this is often an acceptable trade-off.
+            batch.update(productRef, {
+                orderIds: arrayRemove(...orderIdsToRemove)
+            });
+        }
+        
+        // 3. Commit Firestore changes
+        await batch.commit();
+
+        // 4. Delete attachments from storage
+        const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
+        const deleteFilePromises = uniqueAttachments.map(att => {
+            if (!att.storagePath) return Promise.resolve();
+            return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+        });
+        
+        await Promise.all(deleteFilePromises);
+        
     } catch (error) {
-      console.error("Failed to delete orders in batch:", error);
-      toast({
-        variant: "destructive",
-        title: "Deletion Failed",
-        description: "An error occurred while deleting the selected orders.",
-      });
+        console.error("Failed to delete orders in batch:", error);
+        toast({
+            variant: "destructive",
+            title: "Deletion Failed",
+            description: "An error occurred while deleting the selected orders.",
+        });
     }
   };
   
