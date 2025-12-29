@@ -66,6 +66,7 @@ import * as LucideIcons from 'lucide-react';
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
+import { Calendar } from "@/components/ui/calendar"
 
 const productSchema = z.object({
   id: z.string(),
