@@ -173,7 +173,7 @@ function OrderActions({ order }: { order: Order }) {
                     <>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('cancel'); }}>
+                             <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('cancel'); }}>
                                 Cancel Order
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
@@ -505,20 +505,19 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-  const defaultSort: SortingState = [{ id: 'creationDate', desc: true }];
-  
-  const savedSortPreference = userProfile?.[preferenceKey];
-  const initialSort: SortingState = savedSortPreference 
-      ? [{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]
-      : defaultSort;
-  
-  const [sorting, setSorting] = React.useState<SortingState>(initialSort);
+  // 1. Initialize with a safe default
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
 
+  // 2. Use an effect to apply user preferences after mount
   React.useEffect(() => {
-    if (!isUserLoading && savedSortPreference) {
-      setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
+    if (!isUserLoading && userProfile?.[preferenceKey]) {
+      const savedSortPreference = userProfile[preferenceKey];
+      if (savedSortPreference) {
+        setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
+      }
     }
-  }, [savedSortPreference, isUserLoading]);
+  }, [isUserLoading, userProfile, preferenceKey]);
+
 
   const orders = propOrders ?? contextOrders;
   
