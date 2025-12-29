@@ -27,7 +27,7 @@ interface UsersContextType {
   user: AppUser | null; // The current user's profile
   createUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
   updateUserRole: (uid: string, role: Role) => Promise<void>;
-  updateUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => Promise<void>;
+  updateUserProfile: (uid: string, data: Partial<Omit<AppUser, 'id' | 'role' | 'dashboardOrderSortPreference'>>) => Promise<void>;
   updateUserPreferences: (uid: string, prefs: Partial<Pick<AppUser, 'orderSortPreference' | 'dashboardOrderSortPreference'>>) => void;
 }
 

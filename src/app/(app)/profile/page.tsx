@@ -14,11 +14,18 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
 import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Role } from "@/lib/types";
+import { useFirebase } from "@/firebase";
 
 const profileFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
   avatarUrl: z.string().url().optional(),
+  orderSortPreference: z.object({
+    field: z.enum(["creationDate", "deadline"]),
+    direction: z.enum(["asc", "desc"]),
+  }).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -42,11 +49,14 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function ProfilePage() {
     const { user, loading } = useUser();
-    const { updateUserProfile } = useUsers();
+    const { authUser } = useFirebase();
+    const { updateUserProfile, updateUserRole } = useUsers();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isPrimaryAdmin = authUser?.email === 'zenbabfurniture@gmail.com';
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileFormSchema),
@@ -54,6 +64,7 @@ export default function ProfilePage() {
             name: user?.name || "",
             email: user?.email || "",
             avatarUrl: user?.avatarUrl,
+            orderSortPreference: user?.orderSortPreference || { field: 'deadline', direction: 'asc' },
         }
     });
     
@@ -120,7 +131,7 @@ export default function ProfilePage() {
             <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">My Profile</h1>
                 <p className="text-muted-foreground">
-                    Update your personal information.
+                    Update your personal information and preferences.
                 </p>
             </div>
             <Form {...form}>
@@ -198,6 +209,93 @@ export default function ProfilePage() {
                             />
                         </CardContent>
                     </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Display Preferences</CardTitle>
+                            <CardDescription>Set your default sorting preferences for order tables.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                             <FormField
+                                control={form.control}
+                                name="orderSortPreference"
+                                render={() => (
+                                   <div className="grid grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name="orderSortPreference.field"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Sort By</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select a field" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="deadline">Deadline</SelectItem>
+                                                            <SelectItem value="creationDate">Order Date</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="orderSortPreference.direction"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Order</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl>
+                                                            <SelectTrigger>
+                                                                <SelectValue placeholder="Select an order" />
+                                                            </SelectTrigger>
+                                                        </FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="asc">Ascending</SelectItem>
+                                                            <SelectItem value="desc">Descending</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </FormItem>
+                                            )}
+                                        />
+                                   </div>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
+                    
+                    {isPrimaryAdmin && (
+                        <Card>
+                             <CardHeader>
+                                <CardTitle>Admin Tools</CardTitle>
+                                <CardDescription>Temporarily change your role to view the app as another user type.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="max-w-xs space-y-2">
+                                     <FormLabel>View As</FormLabel>
+                                     <Select
+                                        value={user.role}
+                                        onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
+                                      >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Admin">Admin</SelectItem>
+                                            <SelectItem value="Manager">Manager</SelectItem>
+                                            <SelectItem value="Sales">Sales</SelectItem>
+                                            <SelectItem value="Designer">Designer</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+
                      <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
                         <Button type="submit" disabled={isSubmitting || !form.formState.isDirty}>
                             {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
