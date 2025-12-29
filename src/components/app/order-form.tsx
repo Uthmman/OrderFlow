@@ -1521,33 +1521,72 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Order Date</FormLabel>
-                                <Input
-                                  type="date"
-                                  value={formatToYyyyMmDd(field.value)}
-                                  onChange={(e) => field.onChange(new Date(e.target.value))}
-                                  className="w-full"
-                                />
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                                 </FormItem>
                             )}
-                        />
+                            />
                         <FormField
                             control={form.control}
                             name="deadline"
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Deadline</FormLabel>
-                                <Input
-                                  type="date"
-                                  value={formatToYyyyMmDd(field.value)}
-                                  onChange={(e) => {
-                                      const date = new Date(e.target.value);
-                                      // Adjust for timezone offset to prevent date from being off by one day
-                                      const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-                                      field.onChange(new Date(date.getTime() + userTimezoneOffset));
-                                  }}
-                                  className="w-full"
-                                />
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -1558,16 +1597,34 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Test Date</FormLabel>
-                                <Input
-                                  type="date"
-                                  value={field.value ? formatToYyyyMmDd(field.value) : ''}
-                                  onChange={(e) => {
-                                    // Add a time component to avoid timezone off-by-one errors
-                                    const date = new Date(e.target.value + 'T00:00:00');
-                                    field.onChange(date);
-                                  }}
-                                  className="w-full"
-                                />
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
                                 <FormMessage />
                                 </FormItem>
                             )}
