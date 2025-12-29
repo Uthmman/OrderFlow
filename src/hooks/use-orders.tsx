@@ -370,97 +370,114 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 };
 
- const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
-    const orderRef = doc(firestore, 'orders', orderId);
-    
-    const orderToDelete = orders?.find(o => o.id === orderId);
-    if(orderToDelete) {
-        for (const product of orderToDelete.products) {
-            if (product.id) {
-                const productRef = doc(firestore, 'products', product.id);
-                try {
-                    const productSnap = await getDoc(productRef);
-                    if (productSnap.exists()) {
-                        await updateDoc(productRef, {
-                            orderIds: arrayRemove(orderId)
-                        });
-                    }
-                } catch (e) {
-                    console.error(`Failed to update product ${product.id}:`, e);
-                }
-            }
-        }
-    }
+  const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
+      const orderRef = doc(firestore, 'orders', orderId);
+      const orderToDelete = orders?.find(o => o.id === orderId);
 
-    deleteDocumentNonBlocking(orderRef);
+      if (orderToDelete) {
+          for (const product of orderToDelete.products) {
+              if (product.id) {
+                  const productRef = doc(firestore, 'products', product.id);
+                  try {
+                      // Check if product exists before trying to update it
+                      const productSnap = await getDoc(productRef);
+                      if (productSnap.exists()) {
+                          await updateDoc(productRef, {
+                              orderIds: arrayRemove(orderId)
+                          });
+                      }
+                  } catch (e) {
+                      console.error(`Failed to update product ${product.id}:`, e);
+                  }
+              }
+          }
+      }
 
-    const allAttachments = attachments.concat(
-      orderToDelete?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
-    );
-    
-    const uniqueAttachments = Array.from(new Map(allAttachments.map(item => [item.storagePath, item])).values());
+      await deleteDoc(orderRef);
 
-    const deletePromises = (uniqueAttachments || []).map(att => {
-      if (!att.storagePath) return Promise.resolve();
-      return deleteFileFlow({ fileName: att.storagePath }).catch(error => {
-        console.error(`Failed to delete attachment ${att.storagePath}:`, error);
+      const allAttachments = attachments.concat(
+          orderToDelete?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
+      );
+
+      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
+
+      const deletePromises = (uniqueAttachments || []).map(att => {
+          if (!att.storagePath) return Promise.resolve();
+          return deleteFileFlow({ fileName: att.storagePath }).catch(error => {
+              console.error(`Failed to delete attachment ${att.storagePath}:`, error);
+          });
       });
-    });
 
-    try {
-      await Promise.all(deletePromises);
-    } catch (error) {
-      console.error("One or more files could not be deleted from Backblaze B2.", error);
-    }
+      try {
+          await Promise.all(deletePromises);
+      } catch (error) {
+          console.error("One or more files could not be deleted from Backblaze B2.", error);
+      }
   };
-
-  const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
+  
+    const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
     if (ordersToDelete.length === 0) return;
 
     try {
-        const batch = writeBatch(firestore);
-        let allAttachments: OrderAttachment[] = [];
+      // Stage 1: Gather all unique product IDs and attachments
+      const productUpdateMap = new Map<string, string[]>();
+      let allAttachments: OrderAttachment[] = [];
 
-        // 1. Gather all product IDs to check
-        const productUpdateMap = new Map<string, string[]>();
-        
-        for (const order of ordersToDelete) {
-            const orderRef = doc(firestore, 'orders', order.id);
-            batch.delete(orderRef);
-
-            for (const product of order.products) {
-                if (product.id) {
-                    if (!productUpdateMap.has(product.id)) {
-                        productUpdateMap.set(product.id, []);
-                    }
-                    productUpdateMap.get(product.id)!.push(order.id);
-                }
+      for (const order of ordersToDelete) {
+        for (const product of order.products) {
+          if (product.id) {
+            if (!productUpdateMap.has(product.id)) {
+              productUpdateMap.set(product.id, []);
             }
-            const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-            allAttachments = allAttachments.concat(orderAttachments);
+            productUpdateMap.get(product.id)!.push(order.id);
+          }
         }
+        const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+        allAttachments = allAttachments.concat(orderAttachments);
+      }
+      
+      const allProductIds = Array.from(productUpdateMap.keys());
+      const existingProductIds = new Set<string>();
 
-        // 2. Update existing products in the batch
-        for (const [productId, orderIdsToRemove] of productUpdateMap.entries()) {
-            const productRef = doc(firestore, 'products', productId);
-            // We assume the product exists. A more robust solution might check existence
-            // but for a batch operation, this is often an acceptable trade-off.
-            batch.update(productRef, {
-                orderIds: arrayRemove(...orderIdsToRemove)
-            });
-        }
-        
-        // 3. Commit Firestore changes
-        await batch.commit();
-
-        // 4. Delete attachments from storage
-        const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
-        const deleteFilePromises = uniqueAttachments.map(att => {
-            if (!att.storagePath) return Promise.resolve();
-            return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+      // Stage 2: Asynchronously verify which products exist
+      if (allProductIds.length > 0) {
+        const productQueries = allProductIds.map(id => getDoc(doc(firestore, 'products', id)));
+        const productSnapshots = await Promise.all(productQueries);
+        productSnapshots.forEach(snap => {
+            if (snap.exists()) {
+                existingProductIds.add(snap.id);
+            }
         });
+      }
+      
+      // Stage 3: Build and commit the batch write
+      const batch = writeBatch(firestore);
+      
+      for (const order of ordersToDelete) {
+        const orderRef = doc(firestore, 'orders', order.id);
+        batch.delete(orderRef);
+      }
+
+      for (const [productId, orderIdsToRemove] of productUpdateMap.entries()) {
+        // CRITICAL: Only update products that we've verified exist
+        if (existingProductIds.has(productId)) {
+          const productRef = doc(firestore, 'products', productId);
+          batch.update(productRef, {
+            orderIds: arrayRemove(...orderIdsToRemove)
+          });
+        }
+      }
+
+      await batch.commit();
+
+      // Stage 4: Delete file attachments
+      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
+      const deleteFilePromises = uniqueAttachments.map(att => {
+        if (!att.storagePath) return Promise.resolve();
+        return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+      });
         
-        await Promise.all(deleteFilePromises);
+      await Promise.all(deleteFilePromises);
         
     } catch (error) {
         console.error("Failed to delete orders in batch:", error);
