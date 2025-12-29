@@ -512,7 +512,7 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
+  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'deadline', desc: false }]);
 
   React.useEffect(() => {
     if (!isUserLoading && userProfile && userProfile[preferenceKey]) {
