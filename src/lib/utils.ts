@@ -29,31 +29,23 @@ export function formatOrderId(orderId: string) {
 }
 
 export function formatTimestamp(timestamp: any): string {
-  // ADD THESE TWO LINES:
-  console.log("DEBUG: Date Input Type ->", typeof timestamp);
-  console.log("DEBUG: Date Input Value ->", timestamp);
-
   if (!timestamp) {
     return 'Invalid Date';
   }
 
-  // Case 1: It's already a JavaScript Date object
+  // Case 1: It's a plain object like { seconds: ..., nanoseconds: ... }
+  // This is the most robust check for the "prototype loss" problem.
+  if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number') {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+  
+  // Case 2: It's already a JavaScript Date object
   if (timestamp instanceof Date) {
     if (isNaN(timestamp.getTime())) return 'Invalid Date';
     return timestamp.toLocaleDateString();
   }
   
-  // Case 2: It's a Firestore Timestamp object (has .toDate method)
-  if (timestamp && typeof timestamp.toDate === 'function') {
-    return timestamp.toDate().toLocaleDateString();
-  }
-  
-  // Case 3: It's a plain object from Firestore { seconds: ..., nanoseconds: ... } after prototype loss
-  if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  }
-
-  // Case 4: It's a string or a number that can be parsed by new Date()
+  // Case 3: It's a string or a number that can be parsed by new Date()
   if (typeof timestamp === 'string' || typeof timestamp === 'number') {
     const date = new Date(timestamp);
     if (!isNaN(date.getTime())) {
