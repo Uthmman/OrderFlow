@@ -117,7 +117,8 @@ function OrderActions({ order }: { order: Order }) {
     const [dialogAction, setDialogAction] = React.useState<'cancel' | 'delete' | null>(null);
     const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
-    const handleAction = () => {
+    const handleAction = (e: React.MouseEvent) => {
+        e.stopPropagation();
         if (dialogAction === 'cancel') {
             updateOrder({ ...order, status: "Cancelled" });
             toast({
@@ -142,6 +143,12 @@ function OrderActions({ order }: { order: Order }) {
             description: `Order ${formatOrderId(order.id)} has been updated.`,
         });
     };
+
+    const handleDialogTrigger = (e: React.MouseEvent, action: 'cancel' | 'delete') => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDialogAction(action);
+    }
 
     return (
         <AlertDialog>
@@ -173,12 +180,12 @@ function OrderActions({ order }: { order: Order }) {
                     <>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
-                             <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('cancel'); }}>
+                             <DropdownMenuItem className="text-destructive" onSelect={(e) => handleDialogTrigger(e, 'cancel')}>
                                 Cancel Order
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('delete'); }}>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => handleDialogTrigger(e, 'delete')}>
                                 Delete Order
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
@@ -186,7 +193,7 @@ function OrderActions({ order }: { order: Order }) {
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-             <AlertDialogContent>
+             <AlertDialogContent onClick={(e) => e.stopPropagation()}>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -505,12 +512,10 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-  // 1. Initialize with a safe default
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'creationDate', desc: true }]);
 
-  // 2. Use an effect to apply user preferences after mount
   React.useEffect(() => {
-    if (!isUserLoading && userProfile?.[preferenceKey]) {
+    if (!isUserLoading && userProfile && userProfile[preferenceKey]) {
       const savedSortPreference = userProfile[preferenceKey];
       if (savedSortPreference) {
         setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
