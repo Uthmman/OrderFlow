@@ -12,8 +12,9 @@ import {
   useReactTable,
   ColumnFiltersState,
   SortingState,
+  Table,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, AlertTriangle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2 } from "lucide-react"
 import { differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 
 import { Button } from "@/components/ui/button"
@@ -113,27 +114,25 @@ function OrderActions({ order }: { order: Order }) {
     const { deleteOrder, updateOrder } = useOrders();
     const { toast } = useToast();
     const { user, role } = useUser();
+    const [dialogAction, setDialogAction] = React.useState<'cancel' | 'delete' | null>(null);
     const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
-
-    const handleCancel = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent card click
-        updateOrder({ ...order, status: "Cancelled" });
-        toast({
-            title: "Order Cancelled",
-            description: `Order ${formatOrderId(order.id)} has been cancelled.`,
-        });
-    }
-
-    const handleDelete = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-        deleteOrder(order.id, allAttachments);
-        toast({
-            title: "Order Deleted",
-            description: `Order ${formatOrderId(order.id)} has been permanently deleted.`,
-        });
-    }
+    const handleAction = () => {
+        if (dialogAction === 'cancel') {
+            updateOrder({ ...order, status: "Cancelled" });
+            toast({
+                title: "Order Cancelled",
+                description: `Order ${formatOrderId(order.id)} has been cancelled.`,
+            });
+        } else if (dialogAction === 'delete') {
+            const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+            deleteOrder(order.id, allAttachments);
+            toast({
+                title: "Order Deleted",
+                description: `Order ${formatOrderId(order.id)} has been permanently deleted.`,
+            });
+        }
+    };
 
     const handleToggleUrgent = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -142,7 +141,7 @@ function OrderActions({ order }: { order: Order }) {
             title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
             description: `Order ${formatOrderId(order.id)} has been updated.`,
         });
-      };
+    };
 
     return (
         <AlertDialog>
@@ -153,7 +152,7 @@ function OrderActions({ order }: { order: Order }) {
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
                   View Details
@@ -163,7 +162,7 @@ function OrderActions({ order }: { order: Order }) {
                         Edit Order
                     </DropdownMenuItem>
                  )}
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleToggleUrgent(e); }}>
+                <DropdownMenuItem onClick={handleToggleUrgent}>
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
                 </DropdownMenuItem>
@@ -174,12 +173,12 @@ function OrderActions({ order }: { order: Order }) {
                     <>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('cancel'); }}>
                                 Cancel Order
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => { e.preventDefault(); setDialogAction('delete'); }}>
                                 Delete Order
                             </DropdownMenuItem>
                         </AlertDialogTrigger>
@@ -191,13 +190,17 @@ function OrderActions({ order }: { order: Order }) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the order
-                        and remove its data from our servers.
+                      {dialogAction === 'cancel' 
+                        ? "This will cancel the order. This can be undone by changing the order status."
+                        : "This action cannot be undone. This will permanently delete the order and remove its data from our servers."
+                      }
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                    <AlertDialogAction onClick={handleAction}>
+                        {dialogAction === 'cancel' ? 'Cancel Order' : 'Delete Order'}
+                    </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
@@ -341,11 +344,13 @@ function OrderTableToolbar({
   table, 
   preferenceKey 
 }: { 
-  table: ReturnType<typeof useReactTable<Order>>, 
+  table: Table<Order>, 
   preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference'
 }) {
   const { user } = useUser();
   const { updateUserPreferences } = useUsers();
+  const { deleteMultipleOrders } = useOrders();
+  const { toast } = useToast();
 
   const handleSortChange = (newSorting: SortingState) => {
     table.setSorting(newSorting);
@@ -359,10 +364,23 @@ function OrderTableToolbar({
     }
   };
 
+  const handleDeleteSelected = () => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const ordersToDelete = selectedRows.map(row => row.original);
+    deleteMultipleOrders(ordersToDelete);
+    table.resetRowSelection();
+    toast({
+      title: `${ordersToDelete.length} Order(s) Deleted`,
+      description: "The selected orders have been permanently deleted.",
+    });
+  }
+
   const currentSort = table.getState().sorting[0];
   const sortField = currentSort?.id as SortField || 'creationDate';
   const sortDirection = currentSort?.desc ? 'desc' : 'asc';
   
+  const numSelected = table.getFilteredSelectedRowModel().rows.length;
+
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
        <Input
@@ -393,6 +411,27 @@ function OrderTableToolbar({
                 </SelectContent>
             </Select>
         <DataTableViewOptions table={table} />
+        {numSelected > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" className="h-9">
+                <Trash2 className="mr-2 h-4 w-4" /> Delete ({numSelected})
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete {numSelected} order(s) and all associated data.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
         <Link href="/orders/new">
             <Button size="sm" className="h-9">
                 <PlusCircle className="mr-2 h-4 w-4" />
@@ -404,7 +443,7 @@ function OrderTableToolbar({
   )
 }
 
-function MobileOrderList({ table }: { table: ReturnType<typeof useReactTable<Order>> }) {
+function MobileOrderList({ table }: { table: Table<Order> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
     const firstProduct = (order: Order) => (order.products && order.products.length > 0) ? order.products[0] : null;

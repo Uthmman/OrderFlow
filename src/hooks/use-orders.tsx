@@ -24,6 +24,7 @@ interface OrderContextType {
   addOrder: (order: Omit<Order, 'id'>, isNew: boolean) => Promise<string | undefined>;
   updateOrder: (order: Order, chatMessage?: { text: string; file?: File; }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
+  deleteMultipleOrders: (ordersToDelete: Order[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
   addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
@@ -406,6 +407,39 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       console.error("One or more files could not be deleted from Backblaze B2.", error);
     }
   };
+
+  const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
+    const batch = writeBatch(firestore);
+    let allAttachments: OrderAttachment[] = [];
+
+    for (const order of ordersToDelete) {
+        const orderRef = doc(firestore, 'orders', order.id);
+        batch.delete(orderRef);
+        
+        const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+        allAttachments = allAttachments.concat(orderAttachments);
+    }
+
+    try {
+      await batch.commit();
+
+      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => [item.storagePath, item])).values());
+      const deleteFilePromises = uniqueAttachments.map(att => {
+        if (!att.storagePath) return Promise.resolve();
+        return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+      });
+      
+      await Promise.all(deleteFilePromises);
+
+    } catch (error) {
+      console.error("Failed to delete orders in batch:", error);
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: "An error occurred while deleting the selected orders.",
+      });
+    }
+  };
   
   const getOrderById = useCallback((orderId: string) => {
     return orders?.find(order => order.id === orderId);
@@ -417,6 +451,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       addOrder,
       updateOrder,
       deleteOrder,
+      deleteMultipleOrders,
       getOrderById,
       uploadProgress,
       addAttachment,
