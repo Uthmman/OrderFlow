@@ -112,8 +112,11 @@ const toDate = (timestamp: any): Date | undefined => {
     if (timestamp instanceof Date) {
         return timestamp;
     }
-    if (timestamp && typeof timestamp.seconds === 'number') {
-        return new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
+    if (timestamp && typeof timestamp.toDate === 'function') { // Firestore Timestamp
+        return timestamp.toDate();
+    }
+    if (timestamp && typeof timestamp.seconds === 'number') { // Plain object from Firestore
+        return new Date(timestamp.seconds * 1000);
     }
     if (typeof timestamp === 'string') {
         const date = new Date(timestamp);
@@ -783,6 +786,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   
   const finalTitle = getStepTitle();
 
+  // ADD THIS LINE:
+  console.log("DEBUG: Current Form Values ->", form.watch(['creationDate', 'deadline', 'testDate']));
 
   return (
     <>

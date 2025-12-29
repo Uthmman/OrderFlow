@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
@@ -28,8 +29,12 @@ export function formatOrderId(orderId: string) {
 }
 
 export function formatTimestamp(timestamp: any): string {
+  // ADD THESE TWO LINES:
+  console.log("DEBUG: Date Input Type ->", typeof timestamp);
+  console.log("DEBUG: Date Input Value ->", timestamp);
+
   if (!timestamp) {
-    return ''; // Return empty for null/undefined to avoid "Invalid Date"
+    return 'Invalid Date';
   }
 
   // Case 1: It's already a JavaScript Date object
@@ -39,7 +44,7 @@ export function formatTimestamp(timestamp: any): string {
   }
   
   // Case 2: It's a Firestore Timestamp object (has .toDate method)
-  if (timestamp instanceof Timestamp || (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.toDate === 'function')) {
+  if (timestamp && typeof timestamp.toDate === 'function') {
     return timestamp.toDate().toLocaleDateString();
   }
   
@@ -66,19 +71,17 @@ export function formatToYyyyMmDd(date: Date | any): string {
   let d: Date;
   if (date instanceof Date) {
     d = date;
-  } else if (date.seconds) { // Firestore Timestamp or plain object
+  } else if (date && typeof date.seconds === 'number') { // Handles Firestore Timestamp & plain object
     d = new Date(date.seconds * 1000);
   } else if (typeof date === 'string') {
-    // Handles both ISO strings and yyyy-mm-dd strings
     const parsedDate = new Date(date);
-     // If the string is just 'yyyy-mm-dd', it's parsed as UTC. Correct for timezone offset.
+    // Correct for timezone offset if the string is just 'yyyy-mm-dd'
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         d = new Date(parsedDate.getTime() + parsedDate.getTimezoneOffset() * 60000);
     } else {
         d = parsedDate;
     }
-  }
-  else {
+  } else {
     return ''; // Invalid format
   }
   
