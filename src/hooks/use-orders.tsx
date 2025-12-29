@@ -224,7 +224,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const finalOrderData: Order = {
         ...orderData,
         id: orderId,
-        creationDate: orderData.creationDate,
+        creationDate: Timestamp.fromDate(orderData.creationDate as Date),
+        deadline: Timestamp.fromDate(orderData.deadline as Date),
+        testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
         ownerId: user.id,
         status: orderData.status || 'Pending',
     };
@@ -260,6 +262,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     const dataToUpdate: Partial<Order> = { ...orderData };
     delete (dataToUpdate as any).id; 
+
+    // Convert JS Dates back to Firestore Timestamps before saving
+    if (dataToUpdate.creationDate instanceof Date) {
+        dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
+    }
+    if (dataToUpdate.deadline instanceof Date) {
+        dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
+    }
+    if (dataToUpdate.testDate) {
+        if (dataToUpdate.testDate instanceof Date) {
+             dataToUpdate.testDate = Timestamp.fromDate(dataToUpdate.testDate);
+        }
+    } else {
+        dataToUpdate.testDate = undefined;
+    }
+
 
     const usersToNotify = Array.from(new Set([
         ...(orderData.assignedTo || []),
