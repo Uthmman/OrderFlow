@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -374,12 +373,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const orderRef = doc(firestore, 'orders', orderId);
       const orderToDelete = orders?.find(o => o.id === orderId);
 
-      if (orderToDelete) {
+      if (orderToDelete && Array.isArray(orderToDelete.products)) {
           for (const product of orderToDelete.products) {
               if (product.id) {
                   const productRef = doc(firestore, 'products', product.id);
                   try {
-                      // Check if product exists before trying to update it
                       const productSnap = await getDoc(productRef);
                       if (productSnap.exists()) {
                           await updateDoc(productRef, {
@@ -396,7 +394,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       await deleteDoc(orderRef);
 
       const allAttachments = attachments.concat(
-          orderToDelete?.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
+          orderToDelete?.products?.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []
       );
 
       const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
@@ -415,31 +413,31 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       }
   };
   
-    const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
-    if (ordersToDelete.length === 0) return;
+  const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
+    if (!ordersToDelete || ordersToDelete.length === 0) return;
 
     try {
-      // Stage 1: Gather all unique product IDs and attachments
       const productUpdateMap = new Map<string, string[]>();
       let allAttachments: OrderAttachment[] = [];
 
       for (const order of ordersToDelete) {
-        for (const product of order.products) {
-          if (product.id) {
-            if (!productUpdateMap.has(product.id)) {
-              productUpdateMap.set(product.id, []);
+        if (Array.isArray(order.products)) {
+          for (const product of order.products) {
+            if (product.id) {
+              if (!productUpdateMap.has(product.id)) {
+                productUpdateMap.set(product.id, []);
+              }
+              productUpdateMap.get(product.id)!.push(order.id);
             }
-            productUpdateMap.get(product.id)!.push(order.id);
           }
+          const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+          allAttachments = allAttachments.concat(orderAttachments);
         }
-        const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-        allAttachments = allAttachments.concat(orderAttachments);
       }
       
       const allProductIds = Array.from(productUpdateMap.keys());
       const existingProductIds = new Set<string>();
 
-      // Stage 2: Asynchronously verify which products exist
       if (allProductIds.length > 0) {
         const productQueries = allProductIds.map(id => getDoc(doc(firestore, 'products', id)));
         const productSnapshots = await Promise.all(productQueries);
@@ -450,7 +448,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         });
       }
       
-      // Stage 3: Build and commit the batch write
       const batch = writeBatch(firestore);
       
       for (const order of ordersToDelete) {
@@ -459,7 +456,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       }
 
       for (const [productId, orderIdsToRemove] of productUpdateMap.entries()) {
-        // CRITICAL: Only update products that we've verified exist
         if (existingProductIds.has(productId)) {
           const productRef = doc(firestore, 'products', productId);
           batch.update(productRef, {
@@ -470,7 +466,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       await batch.commit();
 
-      // Stage 4: Delete file attachments
       const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
       const deleteFilePromises = uniqueAttachments.map(att => {
         if (!att.storagePath) return Promise.resolve();
@@ -520,3 +515,5 @@ export function useOrders() {
   }
   return context;
 }
+
+    
