@@ -118,6 +118,11 @@ const toDate = (timestamp: any): Date | undefined => {
     }
     if (typeof timestamp === 'string') {
         const date = new Date(timestamp);
+        // If the date string is just yyyy-mm-dd, it's parsed as UTC. 
+        // We need to adjust it to the local timezone to prevent off-by-one errors.
+        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
+             return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+        }
         return isNaN(date.getTime()) ? undefined : date;
     }
     return undefined;

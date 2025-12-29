@@ -33,27 +33,25 @@ export function formatTimestamp(timestamp: any): string {
     return 'Invalid Date';
   }
 
-  // Case 1: It's a plain object like { seconds: ..., nanoseconds: ... }
-  // This is the most robust check for the "prototype loss" problem.
-  if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number') {
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  }
-  
-  // Case 2: It's already a JavaScript Date object
+  // Handles Firestore Timestamp, plain objects { seconds, nanoseconds }, and JS Date
+  let date: Date;
   if (timestamp instanceof Date) {
-    if (isNaN(timestamp.getTime())) return 'Invalid Date';
-    return timestamp.toLocaleDateString();
-  }
-  
-  // Case 3: It's a string or a number that can be parsed by new Date()
-  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-    const date = new Date(timestamp);
-    if (!isNaN(date.getTime())) {
-      return date.toLocaleDateString();
-    }
+    date = timestamp;
+  } else if (timestamp instanceof Timestamp) {
+    date = timestamp.toDate();
+  } else if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number') {
+    date = new Date(timestamp.seconds * 1000);
+  } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    date = new Date(timestamp);
+  } else {
+    return 'Invalid Date';
   }
 
-  return 'Invalid Date'; // Fallback for any other unexpected format
+  if (isNaN(date.getTime())) {
+    return 'Invalid Date';
+  }
+
+  return date.toLocaleDateString();
 }
 
 
@@ -61,15 +59,17 @@ export function formatTimestamp(timestamp: any): string {
 export function formatToYyyyMmDd(date: Date | any): string {
   if (!date) return '';
   let d: Date;
+
   if (date instanceof Date) {
     d = date;
   } else if (date && typeof date.seconds === 'number') { // Handles Firestore Timestamp & plain object
     d = new Date(date.seconds * 1000);
   } else if (typeof date === 'string') {
+    // For ISO strings, new Date() is fine. For 'yyyy-mm-dd', we need to adjust for timezone.
     const parsedDate = new Date(date);
-    // Correct for timezone offset if the string is just 'yyyy-mm-dd'
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        d = new Date(parsedDate.getTime() + parsedDate.getTimezoneOffset() * 60000);
+        // This creates the date in UTC, preventing timezone shifts from the local browser time
+        d = new Date(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate());
     } else {
         d = parsedDate;
     }
