@@ -7,6 +7,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number) {
+  if (typeof amount !== 'number') {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(0);
+  }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -26,23 +32,23 @@ export function formatTimestamp(timestamp: any): string {
     return ''; // Return empty for null/undefined to avoid "Invalid Date"
   }
 
-  // Case 1: It's a Firestore Timestamp object (has .toDate method)
-  if (timestamp instanceof Timestamp || (typeof timestamp.toDate === 'function')) {
-    return timestamp.toDate().toLocaleDateString();
-  }
-  
-  // Case 2: It's a plain object from Firestore { seconds: ..., nanoseconds: ... }
-  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    return new Date(timestamp.seconds * 1000).toLocaleDateString();
-  }
-
-  // Case 3: It's already a JavaScript Date object
+  // Case 1: It's already a JavaScript Date object
   if (timestamp instanceof Date) {
     if (isNaN(timestamp.getTime())) return 'Invalid Date';
     return timestamp.toLocaleDateString();
   }
+  
+  // Case 2: It's a Firestore Timestamp object (has .toDate method)
+  if (timestamp instanceof Timestamp || (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.toDate === 'function')) {
+    return timestamp.toDate().toLocaleDateString();
+  }
+  
+  // Case 3: It's a plain object from Firestore { seconds: ..., nanoseconds: ... } after prototype loss
+  if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
 
-  // Case 4: It's a string or a number
+  // Case 4: It's a string or a number that can be parsed by new Date()
   if (typeof timestamp === 'string' || typeof timestamp === 'number') {
     const date = new Date(timestamp);
     if (!isNaN(date.getTime())) {
@@ -60,14 +66,17 @@ export function formatToYyyyMmDd(date: Date | any): string {
   let d: Date;
   if (date instanceof Date) {
     d = date;
-  } else if (date.seconds) { // Firestore Timestamp
-    d = date.toDate();
+  } else if (date.seconds) { // Firestore Timestamp or plain object
+    d = new Date(date.seconds * 1000);
   } else if (typeof date === 'string') {
     // Handles both ISO strings and yyyy-mm-dd strings
-    d = new Date(date);
-     // The date constructor might parse a yyyy-mm-dd string as UTC, causing off-by-one day errors.
-     // Let's correct for the timezone offset.
-    d = new Date(d.getTime() + d.getTimezoneOffset() * 60000);
+    const parsedDate = new Date(date);
+     // If the string is just 'yyyy-mm-dd', it's parsed as UTC. Correct for timezone offset.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        d = new Date(parsedDate.getTime() + parsedDate.getTimezoneOffset() * 60000);
+    } else {
+        d = parsedDate;
+    }
   }
   else {
     return ''; // Invalid format

@@ -143,10 +143,4 @@ export type ColorSettings = {
 }
 
 export type ProductCategory = {
-  name: string;
-  icon: string;
-}
-
-export type Material = {
-  name: string;
-  icon:
+  
