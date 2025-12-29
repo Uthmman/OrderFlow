@@ -232,7 +232,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const defaultValues = {
         products: [defaultProduct],
         isUrgent: false,
-        status: "In Progress" as OrderStatus,
+        status: "Pending" as OrderStatus, // Default to Pending for new drafts
         incomeAmount: 0,
         prepaidAmount: 0,
         customerId: '',

@@ -202,54 +202,67 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
+    // This logic runs when a draft is being created for the first time
     if (isNew) {
-        // Check if we are creating a new product or using an existing one.
-        for (const product of orderData.products) {
-            if (!product.productName) continue;
+        const newOrderRef = doc(collection(firestore, "orders"));
+        const orderId = newOrderRef.id;
 
-            const productsRef = collection(firestore, "products");
-            const q = query(productsRef, where("productName", "==", product.productName));
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
-                // Product doesn't exist, so add it to the catalog.
-                await addProduct(product);
-            }
-        }
+        const draftOrder: Order = {
+            ...orderData,
+            id: orderId,
+            creationDate: Timestamp.fromDate(orderData.creationDate as Date),
+            deadline: Timestamp.fromDate(orderData.deadline as Date),
+            testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+            ownerId: user.id,
+            status: 'Pending', // Drafts are always 'Pending'
+        };
+        const cleanData = removeUndefined(draftOrder);
+        await setDoc(newOrderRef, cleanData);
+        await addOrderToCustomer(orderData.customerId, orderId);
+        return orderId;
     }
     
-    const newOrderRef = doc(collection(firestore, "orders"));
-    const orderId = newOrderRef.id;
-    
-    const finalOrderData: Order = {
+    // This logic runs when the final "Create Order" button is clicked for a new order
+    // The orderData here comes from the form, which was initialized from a draft
+    const orderId = (orderData as any).id;
+    const orderRef = doc(firestore, 'orders', orderId);
+
+    const finalOrderData: Partial<Order> = {
         ...orderData,
-        id: orderId,
+        status: 'In Progress', // Finalized new orders are 'In Progress'
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
-        ownerId: user.id,
-        status: orderData.status || 'Pending',
     };
     
-    const cleanData = removeUndefined(finalOrderData);
-    await setDoc(newOrderRef, cleanData, {});
-
-    await addOrderToCustomer(orderData.customerId, orderId);
-
-    // Add orderId to the product's order history
+    // Check if we are creating a new product or using an existing one.
     for (const product of orderData.products) {
-        if (product.id) {
-            await addOrderIdToProduct(product.id, orderId);
+        if (!product.productName) continue;
+
+        const productsRef = collection(firestore, "products");
+        const q = query(productsRef, where("productName", "==", product.productName));
+        const querySnapshot = await getDocs(q);
+
+        if (querySnapshot.empty) {
+            // Product doesn't exist, so add it to the catalog.
+            const newProductId = await addProduct(product);
+             if (newProductId) {
+                await addOrderIdToProduct(newProductId, orderId);
+            }
+        } else {
+            const existingProductId = querySnapshot.docs[0].id;
+            await addOrderIdToProduct(existingProductId, orderId);
         }
     }
+    
+    const cleanData = removeUndefined(finalOrderData);
+    await updateDoc(orderRef, cleanData);
 
-    if (orderData.status !== 'Pending') {
-        triggerNotification(firestore, [user.id], {
-          type: 'New Order Created',
-          message: `You created a new order: #${orderId.slice(-5)}.`,
-          orderId: orderId
-        });
-    }
+    triggerNotification(firestore, [user.id], {
+      type: 'New Order Created',
+      message: `You created a new order: #${orderId.slice(-5)}.`,
+      orderId: orderId
+    });
     
     return orderId;
   };
@@ -422,16 +435,16 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
       for (const order of ordersToDelete) {
         if (Array.isArray(order.products)) {
-          for (const product of order.products) {
-            if (product.id) {
-              if (!productUpdateMap.has(product.id)) {
-                productUpdateMap.set(product.id, []);
-              }
-              productUpdateMap.get(product.id)!.push(order.id);
+            for (const product of order.products) {
+                if (product.id) {
+                if (!productUpdateMap.has(product.id)) {
+                    productUpdateMap.set(product.id, []);
+                }
+                productUpdateMap.get(product.id)!.push(order.id);
+                }
             }
-          }
-          const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-          allAttachments = allAttachments.concat(orderAttachments);
+            const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+            allAttachments = allAttachments.concat(orderAttachments);
         }
       }
       
@@ -515,5 +528,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
