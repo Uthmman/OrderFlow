@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -373,15 +373,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
  const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
     const orderRef = doc(firestore, 'orders', orderId);
     
-    // Also remove the orderId from the products' order history
     const orderToDelete = orders?.find(o => o.id === orderId);
     if(orderToDelete) {
         for (const product of orderToDelete.products) {
             if (product.id) {
                 const productRef = doc(firestore, 'products', product.id);
-                await updateDoc(productRef, {
-                    orderIds: arrayRemove(orderId)
-                });
+                try {
+                    const productSnap = await getDoc(productRef);
+                    if (productSnap.exists()) {
+                        await updateDoc(productRef, {
+                            orderIds: arrayRemove(orderId)
+                        });
+                    }
+                } catch (e) {
+                    console.error(`Failed to update product ${product.id}:`, e);
+                }
             }
         }
     }
@@ -415,6 +421,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     for (const order of ordersToDelete) {
         const orderRef = doc(firestore, 'orders', order.id);
         batch.delete(orderRef);
+
+        // Remove orderId from associated products
+        for (const product of order.products) {
+            if (product.id) {
+                 const productRef = doc(firestore, 'products', product.id);
+                 try {
+                    const productSnap = await getDoc(productRef);
+                    if (productSnap.exists()) {
+                        batch.update(productRef, { orderIds: arrayRemove(order.id) });
+                    }
+                 } catch(e) {
+                     console.error(`Failed to get product ${product.id} during bulk delete:`, e);
+                 }
+            }
+        }
         
         const orderAttachments = order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
         allAttachments = allAttachments.concat(orderAttachments);
@@ -456,7 +477,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       uploadProgress,
       addAttachment,
       removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, deleteOrder]);
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, deleteOrder, deleteMultipleOrders]);
 
   return (
     <OrderContext.Provider value={value}>
@@ -472,5 +493,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
