@@ -267,33 +267,31 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                     
-                    {isPrimaryAdmin && (
-                        <Card>
-                             <CardHeader>
-                                <CardTitle>Admin Tools</CardTitle>
-                                <CardDescription>Temporarily change your role to view the app as another user type.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="max-w-xs space-y-2">
-                                     <FormLabel>View As</FormLabel>
-                                     <Select
-                                        value={user.role}
-                                        onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
-                                      >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a role" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Admin">Admin</SelectItem>
-                                            <SelectItem value="Manager">Manager</SelectItem>
-                                            <SelectItem value="Sales">Sales</SelectItem>
-                                            <SelectItem value="Designer">Designer</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                    <Card>
+                         <CardHeader>
+                            <CardTitle>User Role</CardTitle>
+                            <CardDescription>Change your current role to view the app as another user type.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="max-w-xs space-y-2">
+                                 <FormLabel>Current Role</FormLabel>
+                                 <Select
+                                    value={user.role}
+                                    onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
+                                  >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Admin">Admin</SelectItem>
+                                        <SelectItem value="Manager">Manager</SelectItem>
+                                        <SelectItem value="Sales">Sales</SelectItem>
+                                        <SelectItem value="Designer">Designer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
 
 
                      <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
