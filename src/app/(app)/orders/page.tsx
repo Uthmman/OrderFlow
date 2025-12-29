@@ -23,6 +23,7 @@ export default function OrdersPage() {
   };
 
   const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
+  const inProgressStatuses: OrderStatus[] = ["In Progress"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
@@ -32,6 +33,7 @@ export default function OrdersPage() {
 
   const tabs = useMemo(() => [
     { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
+    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
     { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
     { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
     { value: "manufacturing", label: "Manufacturing", orders: getOrdersByStatus(manufacturingStatuses) },
