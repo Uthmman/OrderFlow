@@ -511,15 +511,17 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
   const { user: userProfile, loading: isUserLoading } = useUser();
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-
-  const [sorting, setSorting] = React.useState<SortingState>([{ id: 'deadline', desc: false }]);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   React.useEffect(() => {
-    if (!isUserLoading && userProfile && userProfile[preferenceKey]) {
+    if (isUserLoading) return; // Wait until user loading is finished
+
+    if (userProfile && userProfile[preferenceKey]) {
       const savedSortPreference = userProfile[preferenceKey];
-      if (savedSortPreference) {
-        setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
-      }
+      setSorting([{ id: savedSortPreference.field, desc: savedSortPreference.direction === 'desc' }]);
+    } else {
+      // If no saved preference, set the default
+      setSorting([{ id: 'deadline', desc: false }]);
     }
   }, [isUserLoading, userProfile, preferenceKey]);
 
