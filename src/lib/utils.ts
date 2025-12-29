@@ -22,39 +22,35 @@ export function formatOrderId(orderId: string) {
 }
 
 export function formatTimestamp(timestamp: any): string {
-  let date: Date;
-
   if (!timestamp) {
-    return 'Invalid Date';
+    return ''; // Return empty for null/undefined to avoid "Invalid Date"
   }
 
-  // Convert from various formats to a JavaScript Date object
-  if (timestamp instanceof Date) {
-    date = timestamp;
-  } else if (timestamp instanceof Timestamp) {
-    date = timestamp.toDate();
-  } else if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
-    // Firestore Timestamp-like object
-    date = new Timestamp(timestamp.seconds, timestamp.nanoseconds).toDate();
-  } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
-    // String or number (milliseconds)
-    const parsedDate = new Date(timestamp);
-    if (!isNaN(parsedDate.getTime())) {
-      date = parsedDate;
-    } else {
-      return 'Invalid Date';
-    }
-  } else {
-    return 'Invalid Date';
-  }
-
-  // Final check if a valid date was created
-  if (isNaN(date.getTime())) {
-    return 'Invalid Date';
+  // Case 1: It's a Firestore Timestamp object (has .toDate method)
+  if (timestamp instanceof Timestamp || (typeof timestamp.toDate === 'function')) {
+    return timestamp.toDate().toLocaleDateString();
   }
   
-  // Use toLocaleDateString for a simple, locale-aware date format
-  return date.toLocaleDateString();
+  // Case 2: It's a plain object from Firestore { seconds: ..., nanoseconds: ... }
+  if (timestamp && typeof timestamp.seconds === 'number' && typeof timestamp.nanoseconds === 'number') {
+    return new Date(timestamp.seconds * 1000).toLocaleDateString();
+  }
+
+  // Case 3: It's already a JavaScript Date object
+  if (timestamp instanceof Date) {
+    if (isNaN(timestamp.getTime())) return 'Invalid Date';
+    return timestamp.toLocaleDateString();
+  }
+
+  // Case 4: It's a string or a number
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    const date = new Date(timestamp);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString();
+    }
+  }
+
+  return 'Invalid Date'; // Fallback for any other unexpected format
 }
 
 
