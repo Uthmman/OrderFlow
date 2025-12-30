@@ -55,17 +55,16 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const { role } = useUser();
 
-  const isDesigner = role === 'Designer';
-  const isManager = role === 'Manager';
+  const isAdmin = role === 'Admin';
 
   React.useEffect(() => {
-    if (isDesigner || isManager) {
+    if (!isAdmin) {
         setColumnVisibility((prev) => ({
             ...prev,
             incomeAmount: false,
         }));
     }
-  }, [isDesigner, isManager]);
+  }, [isAdmin]);
 
   const table = useReactTable({
     data,

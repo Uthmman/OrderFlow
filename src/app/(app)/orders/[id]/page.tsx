@@ -703,7 +703,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
   const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
   const isDesigner = role === 'Designer';
-  const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+  const canViewSensitiveData = role === 'Admin';
 
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
