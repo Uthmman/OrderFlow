@@ -21,12 +21,14 @@ import {
   Palette,
   Shapes,
   Library,
+  MessageSquare,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
 const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
+    { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/products", icon: Library, label: "Products", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin'] },

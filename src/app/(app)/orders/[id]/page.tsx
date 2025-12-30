@@ -679,7 +679,7 @@ function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { op
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading, role } = useUser();
@@ -695,7 +695,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   
   const order = getOrderById(id);
 
-  if (customersLoading || userLoading || colorsLoading || !order) {
+  if (ordersLoading || customersLoading || userLoading || colorsLoading || !order) {
     return <div>Loading...</div>;
   }
 
