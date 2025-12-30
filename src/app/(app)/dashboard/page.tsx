@@ -13,8 +13,8 @@ import { ProductProvider } from "@/hooks/use-products"
 import { CustomerProvider } from "@/hooks/use-customers"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
-import { addDays, isWithinInterval, parseISO, isToday } from "date-fns"
-import { Order } from "@/lib/types"
+import { addDays, isWithinInterval, parseISO } from "date-fns"
+import { Order, OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
@@ -46,17 +46,16 @@ export default function Dashboard() {
     });
   }, [orders, dateRange]);
 
-  const ordersDueToday = useMemo(() => {
+  const upcomingOrders = useMemo(() => {
+    const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
     return orders
-      .filter(order => {
-        const deadlineDate = parseOrderDate(order.deadline);
-        return deadlineDate ? isToday(deadlineDate) : false;
-      })
+      .filter(order => activeStatuses.includes(order.status))
       .sort((a, b) => {
         const dateA = parseOrderDate(a.deadline)?.getTime() || 0;
         const dateB = parseOrderDate(b.deadline)?.getTime() || 0;
         return dateA - dateB;
-      });
+      })
+      .slice(0, 5);
   }, [orders]);
 
   const ordersInProgress = useMemo(() => {
@@ -193,19 +192,19 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <Card>
             <CardHeader>
-                <CardTitle className="font-headline">Due Today</CardTitle>
-                <CardDescription>These orders must be completed or shipped by the end of today.</CardDescription>
+                <CardTitle className="font-headline">Upcoming Deadlines</CardTitle>
+                <CardDescription>The next 5 orders with the nearest deadlines.</CardDescription>
             </CardHeader>
             <CardContent>
             <CustomerProvider>
                 <ProductProvider>
-                    <OrderTable orders={ordersDueToday.slice(0, 5)} preferenceKey="dashboardOrderSortPreference" />
+                    <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" />
                 </ProductProvider>
             </CustomerProvider>
             </CardContent>
             <CardFooter className="justify-end">
                 <Button asChild variant="ghost" size="sm">
-                    <Link href="/orders">See More <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                    <Link href="/orders">See All Orders <ArrowRight className="ml-2 h-4 w-4"/></Link>
                 </Button>
             </CardFooter>
         </Card>
@@ -232,5 +231,3 @@ export default function Dashboard() {
     </div>
   )
 }
-
-    
