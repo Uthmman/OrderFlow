@@ -190,11 +190,11 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
         if (printWindow) {
             const receiptContent = document.getElementById('receipt-content')?.innerHTML;
             if (receiptContent) {
-                printWindow.document.write(\`
+                printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Order Receipt - \${formatOrderId(order.id)}</title>
-                            <script src="https://cdn.tailwindcss.com"><\/script>
+                            <title>Order Receipt - ${formatOrderId(order.id)}</title>
+                            <script src="https://cdn.tailwindcss.com"></script>
                             <style>
                                 @media print {
                                     body { -webkit-print-color-adjust: exact; }
@@ -203,11 +203,11 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         </head>
                         <body>
                             <div class="p-8">
-                                \${receiptContent}
+                                ${receiptContent}
                             </div>
                         </body>
                     </html>
-                \`);
+                `);
                 printWindow.document.close();
                 printWindow.focus();
                 // Delay print to ensure styles are applied
@@ -225,7 +225,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: \${formatOrderId(order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: ${formatOrderId(order.id)}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -264,7 +264,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         <div className="text-right">
                             <h3 className="font-semibold text-slate-600 mb-2 border-b pb-1">Payment Status</h3>
                             <Badge
-                                className={\`text-lg \${ balance <= 0 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}\`}>
+                                className={`text-lg ${ balance <= 0 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
                                 {balance <= 0 ? "Paid in Full" : "Balance Due"}
                             </Badge>
                         </div>
@@ -623,7 +623,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         updateOrder({ ...order, status: "Cancelled" });
         toast({
             title: "Order Cancelled",
-            description: `Order \${formatOrderId(order.id)} has been cancelled.`,
+            description: `Order ${formatOrderId(order.id)} has been cancelled.`,
         });
     }
 
@@ -633,7 +633,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
-            description: `\${formatOrderId(order.id)} has been deleted.`,
+            description: `${formatOrderId(order.id)} has been deleted.`,
         });
         router.push("/orders");
     };
@@ -642,8 +642,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         if (!order) return;
         updateOrder({ ...order, isUrgent: !order.isUrgent });
         toast({
-            title: `Urgency \${order.isUrgent ? "Removed" : "Added"}`,
-            description: `\${formatOrderId(order.id)} has been updated.`,
+            title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
+            description: `${formatOrderId(order.id)} has been updated.`,
         });
     };
 
@@ -652,7 +652,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         updateOrder({ ...order, status: newStatus });
         toast({
             title: "Status Updated",
-            description: `Order \${formatOrderId(order.id)} status changed to \${newStatus}.`
+            description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
         });
     };
 
@@ -663,7 +663,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             await updateOrder({ ...order, status: newStatus });
              toast({
                 title: "Status Updated",
-                description: `Order status changed to \${newStatus}.`
+                description: `Order status changed to ${newStatus}.`
             });
         } catch (error) {
             toast({
@@ -685,7 +685,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
         // Update status and post BOM to chat
         updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
-            text: `Bill of Materials Submitted:\n\${bom}`,
+            text: `Bill of Materials Submitted:\n${bom}`,
             file: undefined
         });
 
@@ -697,7 +697,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     
     const handleDuplicate = () => {
         if (!order) return;
-        router.push(`/orders/new?duplicate=\${order.id}`);
+        router.push(`/orders/new?duplicate=${order.id}`);
     }
 
     const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
@@ -802,7 +802,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                              </DialogContent>
                          )}
                     </Dialog>
-                    <Link href={\`/orders/\${order.id}/edit\`}>
+                    <Link href={`/orders/${order.id}/edit`}>
                         <Button variant="outline" size="icon">
                           <Edit />
                         </Button>
@@ -948,7 +948,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                             <CardTitle>Customer</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={\`/customers/\${customer.id}\`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                            <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
                                             <p className="text-sm text-muted-foreground">{customer.email}</p>
                                             <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
                                         </CardContent>
@@ -1041,7 +1041,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     <CardTitle>Customer</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
-                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={\`/customers/\${customer.id}\`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
                                     <p className="text-sm text-muted-foreground">{customer.email}</p>
                                     <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
                                 </CardContent>
@@ -1117,5 +1117,6 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     </>
   );
 }
+
 
     
