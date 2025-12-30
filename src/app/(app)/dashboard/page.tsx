@@ -13,7 +13,7 @@ import { ProductProvider } from "@/hooks/use-products"
 import { CustomerProvider } from "@/hooks/use-customers"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
-import { addDays, isWithinInterval, parseISO } from "date-fns"
+import { addDays, isWithinInterval, parseISO, isToday } from "date-fns"
 import { Order } from "@/lib/types"
 
 export default function Dashboard() {
@@ -24,31 +24,37 @@ export default function Dashboard() {
     from: addDays(new Date(), -30),
     to: new Date(),
   });
+  
+  const parseOrderDate = (date: any): Date | null => {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    if (date && 'toDate' in date) return date.toDate(); // Firestore Timestamp
+    if (typeof date === 'string') return parseISO(date);
+    return null;
+  }
 
-  const filteredOrders = useMemo(() => {
+  const revenueOrders = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) {
       return orders;
     }
     return orders.filter(order => {
-        // order.creationDate could be a string, a Date, or a Firestore Timestamp
-        let creationDate: Date;
-        if (typeof order.creationDate === 'string') {
-            creationDate = parseISO(order.creationDate);
-        } else if (order.creationDate instanceof Date) {
-            creationDate = order.creationDate;
-        } else if (order.creationDate && 'toDate' in order.creationDate) { // Firestore Timestamp
-            creationDate = order.creationDate.toDate();
-        } else {
-            return false; // Or handle as an error
-        }
+        const creationDate = parseOrderDate(order.creationDate);
+        if (!creationDate) return false;
         return isWithinInterval(creationDate, { start: dateRange.from!, end: dateRange.to! });
     });
   }, [orders, dateRange]);
 
+  const recentOrders = useMemo(() => {
+    return orders.filter(order => {
+        const deadlineDate = parseOrderDate(order.deadline);
+        const isDueToday = deadlineDate ? isToday(deadlineDate) : false;
+        const isInProgress = order.status === "In Progress";
+        return isDueToday || isInProgress;
+    });
+  }, [orders]);
+
 
   const stats = useMemo(() => {
-    const revenueOrders = dateRange?.from && dateRange?.to ? filteredOrders : orders;
-    
     const totalRevenue = revenueOrders.reduce((acc, order) => {
       const prepaid = order.prepaidAmount || 0;
       if (order.paymentStatus === 'Paid') {
@@ -57,19 +63,22 @@ export default function Dashboard() {
       return acc + prepaid;
     }, 0);
 
-    const ordersInProgress = filteredOrders.filter(o => o.status === "In Progress").length;
-    const ordersInProduction = filteredOrders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
-    const urgentOrders = filteredOrders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
-    const totalOrders = filteredOrders.length;
+    // These stats are now independent of the date range
+    const ordersInProgress = orders.filter(o => o.status === "In Progress").length;
+    const ordersInProduction = orders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
+    const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
+    
+    // This stat IS based on the date range
+    const totalOrdersInPeriod = revenueOrders.length;
     
     return {
       totalRevenue,
       ordersInProgress,
       ordersInProduction,
       urgentOrders,
-      totalOrders,
+      totalOrders: totalOrdersInPeriod,
     }
-  }, [orders, filteredOrders, dateRange]);
+  }, [orders, revenueOrders]);
 
   if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;
@@ -173,13 +182,13 @@ export default function Dashboard() {
       
       <Card>
         <CardHeader>
-            <CardTitle className="font-headline">Recent Orders</CardTitle>
-            <CardDescription>A list of the most recent orders within the selected date range.</CardDescription>
+            <CardTitle className="font-headline">Action Required</CardTitle>
+            <CardDescription>Orders due today and those currently in progress.</CardDescription>
         </CardHeader>
         <CardContent>
           <CustomerProvider>
             <ProductProvider>
-                <OrderTable orders={filteredOrders} preferenceKey="dashboardOrderSortPreference" />
+                <OrderTable orders={recentOrders} preferenceKey="dashboardOrderSortPreference" />
             </ProductProvider>
           </CustomerProvider>
         </CardContent>
@@ -188,3 +197,5 @@ export default function Dashboard() {
     </div>
   )
 }
+
+    
