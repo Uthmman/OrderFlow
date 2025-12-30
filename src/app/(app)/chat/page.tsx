@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useOrders } from '@/hooks/use-orders';
@@ -6,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { Order, OrderChatMessage } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { format, formatDistanceToNowStrict } from 'date-fns';
+import { format, isToday, isThisWeek, parseISO } from 'date-fns';
 
 function getLastMessage(order: Order): OrderChatMessage | null {
   if (!order.chatMessages || order.chatMessages.length === 0) {
@@ -16,22 +17,23 @@ function getLastMessage(order: Order): OrderChatMessage | null {
   return order.chatMessages[order.chatMessages.length - 1];
 }
 
+function parseTimestamp(timestamp: any): Date {
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp?.seconds) return new Date(timestamp.seconds * 1000);
+    return parseISO(timestamp);
+}
+
+
 function formatLastMessageTimestamp(timestamp: any): string {
     if (!timestamp) return '';
-    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-    const now = new Date();
+    const date = parseTimestamp(timestamp);
 
-    const diffInDays = (now.getTime() - date.getTime()) / (1000 * 3600 * 24);
-
-    if (diffInDays < 1 && now.getDate() === date.getDate()) {
-        // Today: show time
-        return format(date, 'p');
-    } else if (diffInDays < 7) {
-        // This week: show day name
-        return format(date, 'eee');
+    if (isToday(date)) {
+        return format(date, 'p'); // e.g., 4:30 PM
+    } else if (isThisWeek(date, { weekStartsOn: 1 /* Monday */ })) {
+        return format(date, 'eee'); // e.g., 'Wed'
     } else {
-        // Older: show date
-        return format(date, 'PP');
+        return format(date, 'MMM d'); // e.g., 'Jul 23'
     }
 }
 
@@ -51,8 +53,8 @@ export default function ChatPage() {
     const lastMessageA = getLastMessage(a);
     const lastMessageB = getLastMessage(b);
 
-    const timeA = lastMessageA ? new Date(lastMessageA.timestamp).getTime() : new Date(a.creationDate).getTime();
-    const timeB = lastMessageB ? new Date(lastMessageB.timestamp).getTime() : new Date(b.creationDate).getTime();
+    const timeA = lastMessageA ? parseTimestamp(lastMessageA.timestamp).getTime() : parseTimestamp(a.creationDate).getTime();
+    const timeB = lastMessageB ? parseTimestamp(lastMessageB.timestamp).getTime() : parseTimestamp(b.creationDate).getTime();
     
     return timeB - timeA;
   });
