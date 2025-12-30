@@ -1,14 +1,14 @@
 
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -334,7 +334,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     );
 }
 
-const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void }) => {
+const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDesignAttachmentDelete }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void }) => {
     const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
     const allColorOptions = [
         ...(colorSettings?.woodFinishes || []),
@@ -423,7 +423,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete }: { 
                 {product.attachments && product.attachments.length > 0 && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Attachments</CardTitle>
+                            <CardTitle>Customer Attachments</CardTitle>
                         </CardHeader>
                         <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {product.attachments.map((att) => (
@@ -437,14 +437,117 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete }: { 
                         </CardContent>
                     </Card>
                 )}
+
+                {product.designAttachments && product.designAttachments.length > 0 && (
+                     <Card>
+                        <CardHeader>
+                            <CardTitle>Design Attachments</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {product.designAttachments.map((att) => (
+                            <AttachmentPreview 
+                                    key={att.storagePath} 
+                                    att={att} 
+                                    onDelete={() => onDesignAttachmentDelete(att)}
+                                    onImageClick={onImageClick}
+                                />
+                            ))}
+                        </CardContent>
+                    </Card>
+                )}
             </AccordionContent>
         </AccordionItem>
     );
 }
 
+function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: () => void }) {
+    const { addAttachment, uploadProgress } = useOrders();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const { toast } = useToast();
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        setIsUploading(true);
+        try {
+            const uploadPromises = Array.from(files).map(file => 
+                addAttachment(order.id, productIndex, file, true)
+            );
+            
+            const results = await Promise.all(uploadPromises);
+
+            if (results.every(res => res !== undefined)) {
+                toast({
+                    title: "Design Uploaded",
+                    description: "The design files have been attached and the status has been updated.",
+                });
+                onFinished();
+            } else {
+                throw new Error("One or more file uploads failed.");
+            }
+
+        } catch (error) {
+             toast({
+                variant: "destructive",
+                title: "Upload Failed",
+                description: (error as Error).message || "Could not upload design files.",
+            });
+        } finally {
+            setIsUploading(false);
+            onOpenChange(false);
+        }
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Finish Design</DialogTitle>
+                    <DialogDescription>
+                        Upload the final design files to mark this step as complete. This will change the order status to "Design Ready".
+                    </DialogDescription>
+                </DialogHeader>
+                <div 
+                    className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                >
+                    {isUploading ? (
+                        <>
+                            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
+                            <p className="text-muted-foreground">Uploading files...</p>
+                        </>
+                    ) : (
+                        <>
+                            <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                            <p className="font-semibold">Click to upload or drag & drop</p>
+                            <p className="text-xs text-muted-foreground">PDF, AI, PSD, PNG, etc.</p>
+                        </>
+                    )}
+                     <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={isUploading}
+                    />
+                </div>
+                 {Object.keys(uploadProgress).length > 0 && (
+                    <div className="text-sm text-muted-foreground">Overall progress will be shown here if implemented</div>
+                )}
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>Cancel</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading, role } = useUser();
@@ -452,7 +555,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
-
+  const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
+  const [isLoadingStatusChange, setIsLoadingStatusChange] = useState(false);
   
   if (ordersLoading || customersLoading || userLoading || colorsLoading) {
     return <div>Loading...</div>;
@@ -466,10 +570,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
   const customer = getCustomerById(order.customerId);
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
-  const canChangeStatus = ['Admin', 'Manager', 'Designer'].includes(role || '');
+  const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
+  const isDesigner = role === 'Designer';
   const canViewSensitiveData = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
-  const allImageAttachments = (order.products || []).flatMap(p => p.attachments || []).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
+  const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
         if (!order) return;
@@ -482,7 +587,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleDelete = () => {
         if (!order) return;
-        const allAttachments = (order.products || []).flatMap(p => p.attachments || []);
+        const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
@@ -508,6 +613,30 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
         });
     };
+
+    const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
+        if (!order) return;
+        setIsLoadingStatusChange(true);
+        try {
+            await updateOrder({ ...order, status: newStatus });
+             toast({
+                title: "Status Updated",
+                description: `Order status changed to ${newStatus}.`
+            });
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: "Update Failed",
+                description: (error as Error).message,
+            });
+        } finally {
+            setIsLoadingStatusChange(false);
+        }
+    }
+
+    const handleDesignFinished = () => {
+        handleDesignerStatusChange('Design Ready');
+    };
     
     const handleDuplicate = () => {
         if (!order) return;
@@ -516,8 +645,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
         if (!order) return;
-        removeAttachment(order.id, productIndex, attachmentToDelete);
+        removeAttachment(order.id, productIndex, attachmentToDelete, false);
     };
+
+    const handleDeleteDesignAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
+        if (!order) return;
+        removeAttachment(order.id, productIndex, attachmentToDelete, true);
+    }
 
     const handleImageClick = (clickedAttachment: OrderAttachment) => {
         const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url);
@@ -551,6 +685,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                 order={order}
                 onImageClick={handleImageClick}
                 onAttachmentDelete={(att) => handleDeleteAttachment(index, att)}
+                onDesignAttachmentDelete={(att) => handleDeleteDesignAttachment(index, att)}
             />
         ))}
     </Accordion>
@@ -558,6 +693,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
 
   return (
+    <>
     <div className="flex flex-col gap-8">
       <div>
         <div className="flex justify-between items-start">
@@ -566,21 +702,32 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
                         Order {formatOrderId(order.id)}
                     </h1>
-                    <div className="flex items-center gap-2">
-                        {canChangeStatus ? (
-                           <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                        ) : (
-                          order.status && <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
-                        )}
-                        {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
-                    </div>
+                     {canChangeStatus && (
+                        <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                    )}
+                    {isDesigner && (
+                        <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                    )}
+                    {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
                 </div>
-                <p className="text-muted-foreground mt-1">
-                  {canViewSensitiveData ? `Detailed view of order from ${order.customerName}.` : 'Detailed view of order.'}
-                </p>
+                 <h2 className="text-lg text-muted-foreground mt-1">
+                    {order.customerName} - {order.products?.[0]?.productName || 'Custom Order'}
+                </h2>
             </div>
-            {canEdit && (
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
+                {isDesigner && order.status === 'In Progress' && (
+                    <Button onClick={() => handleDesignerStatusChange('Designing')} disabled={isLoadingStatusChange}>
+                        {isLoadingStatusChange ? <Loader2 className="mr-2 animate-spin" /> : null}
+                        Start Design
+                    </Button>
+                )}
+                 {isDesigner && order.status === 'Designing' && (
+                    <Button onClick={() => setFinishDesignDialogOpen(true)}>
+                        Design Finished
+                    </Button>
+                )}
+                {canEdit && (
+                    <>
                     <Dialog>
                         <DialogTrigger asChild>
                             <Button variant="outline" size="icon">
@@ -662,8 +809,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                             </AlertDialog>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                </div>
-            )}
+                    </>
+                )}
+            </div>
         </div>
       </div>
 
@@ -902,5 +1050,15 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         </DialogContent>
       </Dialog>
     </div>
+    <FinishDesignDialog 
+        open={finishDesignDialogOpen}
+        onOpenChange={setFinishDesignDialogOpen}
+        order={order}
+        productIndex={0} /* Assuming one product per order for now for simplicity */
+        onFinished={handleDesignFinished}
+    />
+    </>
   );
 }
+
+    
