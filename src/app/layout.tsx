@@ -8,6 +8,7 @@ import { UserProvider } from '@/hooks/use-user';
 export const metadata: Metadata = {
   title: 'OrderFlow',
   description: 'Streamline your order management process.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
