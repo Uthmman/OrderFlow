@@ -10,28 +10,54 @@ import { Order, OrderStatus } from "@/lib/types";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { CustomerProvider } from "@/hooks/use-customers";
+import { useUser } from "@/hooks/use-user";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import Link from "next/link";
 
 export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
+  const { user, role } = useUser();
   const [activeTab, setActiveTab] = useState("active");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const getOrdersByStatus = (statuses: OrderStatus[]) => {
-    return orders.filter(order => statuses.includes(order.status));
+    return orders.filter(order => 
+        statuses.includes(order.status) &&
+        (
+            order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (order.products && order.products[0] && order.products[0].productName.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+    );
   };
-
-  const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
+  
+  // Define status groups
   const inProgressStatuses: OrderStatus[] = ["In Progress"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
+  const inProductionStatuses: OrderStatus[] = ["Manufacturing", "Painting"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
+  const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
 
-  const tabs = useMemo(() => [
+  // Define tabs based on role
+  const designerTabs = useMemo(() => [
+    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
+    { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
+    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
+    { value: "inProduction", label: "In Production", orders: getOrdersByStatus(inProductionStatuses) },
+    { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
+    { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
+  ], [orders, searchTerm]);
+
+  const defaultTabs = useMemo(() => [
     { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
     { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
     { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
@@ -40,8 +66,19 @@ export default function OrdersPage() {
     { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
     { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
     { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) },
-    { value: "all", label: "All", orders: orders },
-  ], [orders]);
+    { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
+  ], [orders, searchTerm]);
+
+  const tabs = role === 'Designer' ? designerTabs : defaultTabs;
+
+  // Set initial active tab based on role
+  useState(() => {
+    if (role === 'Designer') {
+      setActiveTab('inProgress');
+    } else {
+      setActiveTab('active');
+    }
+  });
 
 
   if (loading) {
@@ -52,15 +89,29 @@ export default function OrdersPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold font-headline tracking-tight">Orders</h1>
-        <p className="text-muted-foreground">
-          Manage all {orders.length} orders in the system.
-        </p>
       </div>
+      
+       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div className="relative flex-1 w-full sm:w-auto">
+                 <Input
+                    placeholder="Filter by customer, ID, or product..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 w-full"
+                />
+            </div>
+            <Link href="/orders/new">
+                <Button size="sm" className="h-9 w-full sm:w-auto">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    New Order
+                </Button>
+            </Link>
+       </div>
 
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="w-full sm:flex-1">
-                    <TabsList className="flex-wrap h-auto">
+                <div className="w-full sm:flex-1 overflow-x-auto">
+                    <TabsList className="flex-wrap h-auto sm:h-10">
                        {tabs.map(tab => (
                             <TabsTrigger key={tab.value} value={tab.value}>
                                 {tab.label} ({tab.orders.length})

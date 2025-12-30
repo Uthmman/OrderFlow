@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import * as React from "react"
@@ -390,15 +389,7 @@ function OrderTableToolbar({
 
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
-       <Input
-          placeholder="Filter by customer, ID, or product..."
-          value={(table.getColumn("customerName")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("customerName")?.setFilterValue(event.target.value)
-          }
-          className="h-9 w-full sm:w-[150px] lg:w-[250px]"
-        />
-      <div className="flex items-center gap-2">
+       <div className="flex items-center gap-2">
            <Select value={sortField} onValueChange={(v) => handleSortChange([{ id: v, desc: sortDirection === 'desc' }])}>
                 <SelectTrigger className="h-9 w-full sm:w-[150px]">
                     <SelectValue placeholder="Sort by" />
@@ -439,12 +430,6 @@ function OrderTableToolbar({
             </AlertDialogContent>
           </AlertDialog>
         )}
-        <Link href="/orders/new">
-            <Button size="sm" className="h-9">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">New Order</span>
-            </Button>
-        </Link>
       </div>
     </div>
   )
@@ -512,22 +497,22 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
 
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-  const getInitialSorting = (): SortingState => {
+  const getInitialSorting = React.useCallback((): SortingState => {
     if (userProfile && userProfile[preferenceKey]) {
       const { field, direction } = userProfile[preferenceKey]!;
       return [{ id: field, desc: direction === 'desc' }];
     }
     return [{ id: 'deadline', desc: false }];
-  };
+  }, [userProfile, preferenceKey]);
+
 
   const [sorting, setSorting] = React.useState<SortingState>(getInitialSorting);
   
   React.useEffect(() => {
-    if (!isUserLoading) {
-      setSorting(getInitialSorting());
+    if (!isUserLoading && userProfile) {
+        setSorting(getInitialSorting());
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserLoading, userProfile, preferenceKey]);
+  }, [isUserLoading, userProfile, getInitialSorting]);
 
 
   const orders = propOrders ?? contextOrders;
@@ -573,8 +558,7 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
             </DataTable>
         </div>
          <div className="block md:hidden">
-             <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
-            <div className="mt-4">
+             <div className="mt-4">
                  <MobileOrderList table={table} />
             </div>
              <div className="mt-4">
