@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer, Product } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2 } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -636,10 +636,50 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
+function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, onSubmit: (paymentDetails: string) => void }) {
+    const [paymentDetails, setPaymentDetails] = useState(order.paymentDetails || '');
+    const { toast } = useToast();
+    const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
+
+    const handleSubmit = () => {
+        onSubmit(paymentDetails);
+        onOpenChange(false);
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Confirm Shipment with Balance Due</DialogTitle>
+                    <DialogDescription>
+                        This order has a remaining balance of <span className="font-bold">{formatCurrency(balance)}</span>. Please confirm payment arrangements before shipping.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div>
+                        <Label htmlFor="payment-details">Payment Details</Label>
+                        <Textarea 
+                            id="payment-details"
+                            placeholder="e.g., Customer will pay remaining balance upon delivery."
+                            value={paymentDetails}
+                            onChange={(e) => setPaymentDetails(e.target.value)}
+                            rows={4}
+                            className="mt-2"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSubmit}>Confirm and Ship</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading, role } = useUser();
@@ -649,17 +689,14 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
   const [paintUsageDialogOpen, setPaintUsageDialogOpen] = useState(false);
+  const [paymentConfirmationDialogOpen, setPaymentConfirmationDialogOpen] = useState(false);
   const [statusToChange, setStatusToChange] = useState<OrderStatus | null>(null);
   const [isLoadingStatusChange, setIsLoadingStatusChange] = useState(false);
   
-  if (ordersLoading || customersLoading || userLoading || colorsLoading) {
-    return <div>Loading...</div>;
-  }
-  
   const order = getOrderById(id);
-  
-  if (!order) {
-    notFound();
+
+  if (customersLoading || userLoading || colorsLoading || !order) {
+    return <div>Loading...</div>;
   }
 
   const customer = getCustomerById(order.customerId);
@@ -701,10 +738,16 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
+        const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
+
+        setStatusToChange(newStatus);
+
         if (newStatus === 'Completed') {
-            setStatusToChange(newStatus);
             setPaintUsageDialogOpen(true);
-        } else {
+        } else if (newStatus === 'Shipped' && balance > 0) {
+            setPaymentConfirmationDialogOpen(true);
+        }
+        else {
             updateOrder({ ...order, status: newStatus });
             toast({
                 title: "Status Updated",
@@ -731,6 +774,35 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         });
     };
 
+    const handlePaymentConfirmationSubmit = (paymentDetails: string) => {
+        if (!order || !statusToChange) return;
+        
+        updateOrder({ 
+            ...order, 
+            status: statusToChange, 
+            paymentStatus: 'Balance Due',
+            paymentDetails 
+        });
+
+        toast({
+            title: "Order Shipped",
+            description: `Order ${formatOrderId(order.id)} status is now Shipped with a balance due.`
+        });
+    };
+
+    const handleMarkAsPaid = () => {
+        if (!order) return;
+        updateOrder({
+            ...order,
+            paymentStatus: 'Paid',
+            prepaidAmount: order.incomeAmount, // Assume full amount is now paid
+        });
+        toast({
+            title: "Order Marked as Paid",
+            description: "The order is now fully paid.",
+        })
+    }
+
 
     const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
         if (!order) return;
@@ -755,11 +827,9 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     const handleDesignFinished = (bom: string) => {
         if (!order || !order.products || order.products.length === 0) return;
         
-        // Update product with BOM
         const updatedProducts = [...order.products];
         updatedProducts[0].billOfMaterials = bom;
 
-        // Update status and post BOM to chat
         updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
             text: `Bill of Materials Submitted:\n${bom}`,
             file: undefined
@@ -899,6 +969,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                 <DropdownMenuItem onClick={handleDuplicate}>
                                 Duplicate Order
                             </DropdownMenuItem>
+                             {canChangeStatus && order.paymentStatus !== 'Paid' && (
+                                <DropdownMenuItem onClick={handleMarkAsPaid}>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    <span>Mark as Paid</span>
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -1009,6 +1085,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                         <span className="text-sm">Balance Due</span>
                                         <span className="text-sm">{formatCurrency(balance)}</span>
                                     </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-sm text-muted-foreground">Payment Status</span>
+                                        <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
+                                    </div>
                                     <Separator />
                                     <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                                     </>
@@ -1102,6 +1182,10 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                 <span className="text-sm">Balance Due</span>
                                 <span className="text-sm">{formatCurrency(balance)}</span>
                             </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-muted-foreground">Payment Status</span>
+                                <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
+                            </div>
                             <Separator />
                             <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                             </>
@@ -1194,6 +1278,12 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         open={paintUsageDialogOpen}
         onOpenChange={setPaintUsageDialogOpen}
         onSubmit={handlePaintUsageSubmit}
+    />
+     <PaymentConfirmationDialog
+        open={paymentConfirmationDialogOpen}
+        onOpenChange={setPaymentConfirmationDialogOpen}
+        order={order}
+        onSubmit={handlePaymentConfirmationSubmit}
     />
     </>
   );

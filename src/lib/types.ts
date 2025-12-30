@@ -109,12 +109,15 @@ export type Product = {
   billOfMaterials?: string;
 }
 
+export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid';
+
 export type Order = {
   id:string;
   customerName: string;
   customerId: string;
   products: Product[];
   status: OrderStatus;
+  paymentStatus?: PaymentStatus;
   location: { town: string; };
   deadline: Timestamp | Date | string;
   incomeAmount: number;

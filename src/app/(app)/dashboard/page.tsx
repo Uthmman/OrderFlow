@@ -3,87 +3,157 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { DollarSign, Package, Users, Activity } from "lucide-react"
+import { DollarSign, Package, Users, Activity, PackageCheck, Briefcase } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
 import { ProductProvider } from "@/hooks/use-products"
 import { CustomerProvider } from "@/hooks/use-customers"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { DateRange } from "react-day-picker"
+import { addDays, isWithinInterval, parseISO } from "date-fns"
+import { Order } from "@/lib/types"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
   const { user, role, loading: userLoading } = useUser();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: addDays(new Date(), -30),
+    to: new Date(),
+  });
+
+  const filteredOrders = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) {
+      return orders;
+    }
+    return orders.filter(order => {
+        // order.creationDate could be a string, a Date, or a Firestore Timestamp
+        let creationDate: Date;
+        if (typeof order.creationDate === 'string') {
+            creationDate = parseISO(order.creationDate);
+        } else if (order.creationDate instanceof Date) {
+            creationDate = order.creationDate;
+        } else if (order.creationDate && 'toDate' in order.creationDate) { // Firestore Timestamp
+            creationDate = order.creationDate.toDate();
+        } else {
+            return false; // Or handle as an error
+        }
+        return isWithinInterval(creationDate, { start: dateRange.from!, end: dateRange.to! });
+    });
+  }, [orders, dateRange]);
+
 
   const stats = useMemo(() => {
-    if (!orders) return { totalRevenue: 0, ordersInProgress: 0, urgentOrders: 0 };
-    const totalRevenue = orders.reduce((acc, order) => acc + (Number(order.incomeAmount) || 0), 0);
-    const ordersInProgress = orders.filter(o => o.status === "In Progress" || o.status === "Designing" || o.status === "Manufacturing").length;
-    const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
+    const revenueOrders = dateRange?.from && dateRange?.to ? filteredOrders : orders;
+    
+    const totalRevenue = revenueOrders.reduce((acc, order) => {
+      const prepaid = order.prepaidAmount || 0;
+      if (order.paymentStatus === 'Paid') {
+        return acc + order.incomeAmount;
+      }
+      return acc + prepaid;
+    }, 0);
+
+    const ordersInProgress = filteredOrders.filter(o => o.status === "In Progress").length;
+    const ordersInProduction = filteredOrders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
+    const urgentOrders = filteredOrders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
+    const totalOrders = filteredOrders.length;
     
     return {
       totalRevenue,
       ordersInProgress,
-      urgentOrders
+      ordersInProduction,
+      urgentOrders,
+      totalOrders,
     }
-  }, [orders]);
+  }, [orders, filteredOrders, dateRange]);
 
   if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;
   }
 
-  const canViewRevenue = role === 'Admin';
+  const canViewSensitiveData = role === 'Admin';
 
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          An overview of your business operations.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+        <div>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">
+            An overview of your business operations.
+            </p>
+        </div>
+        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
-        {canViewRevenue && (
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        {canViewSensitiveData && (
+            <>
             <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                Total Revenue
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-                <p className="text-xs text-muted-foreground">
-                Based on all orders
-                </p>
-            </CardContent>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">
+                    Total Revenue
+                    </CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
+                    <p className="text-xs text-muted-foreground">
+                    Based on selected period
+                    </p>
+                </CardContent>
             </Card>
+             <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">+{customers.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  All time customers
+                </p>
+              </CardContent>
+            </Card>
+            </>
         )}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <PackageCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{customers.length}</div>
-            <p className="text-xs text-muted-foreground">
-              All time customers
+            <div className="text-2xl font-bold">+{stats.totalOrders}</div>
+             <p className="text-xs text-muted-foreground">
+                In selected period
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Orders in Progress</CardTitle>
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{stats.ordersInProgress}</div>
             <p className="text-xs text-muted-foreground">
               Currently active orders
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Production</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">+{stats.ordersInProduction}</div>
+             <p className="text-xs text-muted-foreground">
+                Manufacturing or Painting
             </p>
           </CardContent>
         </Card>
@@ -104,12 +174,12 @@ export default function Dashboard() {
       <Card>
         <CardHeader>
             <CardTitle className="font-headline">Recent Orders</CardTitle>
-            <CardDescription>A list of the most recent orders.</CardDescription>
+            <CardDescription>A list of the most recent orders within the selected date range.</CardDescription>
         </CardHeader>
         <CardContent>
           <CustomerProvider>
             <ProductProvider>
-                <OrderTable preferenceKey="dashboardOrderSortPreference" />
+                <OrderTable orders={filteredOrders} preferenceKey="dashboardOrderSortPreference" />
             </ProductProvider>
           </CustomerProvider>
         </CardContent>
