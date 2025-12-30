@@ -44,13 +44,15 @@ export default function Dashboard() {
     });
   }, [orders, dateRange]);
 
-  const recentOrders = useMemo(() => {
+  const ordersDueToday = useMemo(() => {
     return orders.filter(order => {
         const deadlineDate = parseOrderDate(order.deadline);
-        const isDueToday = deadlineDate ? isToday(deadlineDate) : false;
-        const isInProgress = order.status === "In Progress";
-        return isDueToday || isInProgress;
+        return deadlineDate ? isToday(deadlineDate) : false;
     });
+  }, [orders]);
+
+  const ordersInProgress = useMemo(() => {
+    return orders.filter(order => order.status === "In Progress");
   }, [orders]);
 
 
@@ -64,7 +66,7 @@ export default function Dashboard() {
     }, 0);
 
     // These stats are now independent of the date range
-    const ordersInProgress = orders.filter(o => o.status === "In Progress").length;
+    const ordersInProgressCount = orders.filter(o => o.status === "In Progress").length;
     const ordersInProduction = orders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
     const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
     
@@ -73,7 +75,7 @@ export default function Dashboard() {
     
     return {
       totalRevenue,
-      ordersInProgress,
+      ordersInProgress: ordersInProgressCount,
       ordersInProduction,
       urgentOrders,
       totalOrders: totalOrdersInPeriod,
@@ -180,22 +182,35 @@ export default function Dashboard() {
         </Card>
       </div>
       
-      <Card>
-        <CardHeader>
-            <CardTitle className="font-headline">Action Required</CardTitle>
-            <CardDescription>Orders due today and those currently in progress.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <CustomerProvider>
-            <ProductProvider>
-                <OrderTable orders={recentOrders} preferenceKey="dashboardOrderSortPreference" />
-            </ProductProvider>
-          </CustomerProvider>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">Due Today</CardTitle>
+                <CardDescription>These orders must be completed or shipped by the end of today.</CardDescription>
+            </CardHeader>
+            <CardContent>
+            <CustomerProvider>
+                <ProductProvider>
+                    <OrderTable orders={ordersDueToday} preferenceKey="dashboardOrderSortPreference" />
+                </ProductProvider>
+            </CustomerProvider>
+            </CardContent>
+        </Card>
+         <Card>
+            <CardHeader>
+                <CardTitle className="font-headline">In Progress Orders</CardTitle>
+                <CardDescription>All orders that are currently active and being worked on.</CardDescription>
+            </CardHeader>
+            <CardContent>
+            <CustomerProvider>
+                <ProductProvider>
+                    <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" />
+                </ProductProvider>
+            </CustomerProvider>
+            </CardContent>
+        </Card>
+      </div>
 
     </div>
   )
 }
-
-    
