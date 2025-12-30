@@ -387,6 +387,15 @@ function OrderTableToolbar({
   
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
 
+  // Don't render sorting controls on the dashboard
+  if (preferenceKey === 'dashboardOrderSortPreference') {
+      return (
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+              <DataTableViewOptions table={table} />
+          </div>
+      )
+  }
+
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
        <div className="flex items-center gap-2">
@@ -488,9 +497,10 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
 interface OrderTableProps {
     orders?: Order[];
     preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference';
+    hidePagination?: boolean;
 }
 
-function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTableProps) {
+function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination = false }: OrderTableProps) {
   const { orders: contextOrders, loading } = useOrders();
   const router = useRouter();
   const { user: userProfile, loading: isUserLoading } = useUser();
@@ -553,7 +563,7 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => router.push(`/orders/${row.original.id}`)}>
+            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => router.push(`/orders/${row.original.id}`)} hidePagination={hidePagination}>
                 <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
             </DataTable>
         </div>
@@ -561,9 +571,11 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
              <div className="mt-4">
                  <MobileOrderList table={table} />
             </div>
-             <div className="mt-4">
-                <DataTablePagination table={table} />
-            </div>
+             {!hidePagination && (
+                <div className="mt-4">
+                    <DataTablePagination table={table} />
+                </div>
+             )}
         </div>
     </>
   )

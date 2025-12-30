@@ -198,7 +198,7 @@ export default function Dashboard() {
             <CardContent>
             <CustomerProvider>
                 <ProductProvider>
-                    <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" />
+                    <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
                 </ProductProvider>
             </CustomerProvider>
             </CardContent>
@@ -216,7 +216,7 @@ export default function Dashboard() {
             <CardContent>
             <CustomerProvider>
                 <ProductProvider>
-                    <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" />
+                    <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
                 </ProductProvider>
             </CustomerProvider>
             </CardContent>

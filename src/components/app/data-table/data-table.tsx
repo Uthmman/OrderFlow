@@ -36,6 +36,7 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   children?: React.ReactNode
   onRowClick?: (row: Row<TData>) => void;
+  hidePagination?: boolean;
 }
 
 export function DataTable<TData, TValue>({
@@ -43,6 +44,7 @@ export function DataTable<TData, TValue>({
   data,
   children,
   onRowClick,
+  hidePagination = false,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -142,7 +144,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      {!hidePagination && <DataTablePagination table={table} />}
     </div>
   )
 }
