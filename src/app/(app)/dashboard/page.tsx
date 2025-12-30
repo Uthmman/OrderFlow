@@ -1,9 +1,9 @@
 
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { DollarSign, Package, Users, Activity, PackageCheck, Briefcase } from "lucide-react"
+import { DollarSign, Package, Users, Activity, PackageCheck, Briefcase, ArrowRight } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
@@ -15,6 +15,8 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
 import { addDays, isWithinInterval, parseISO, isToday } from "date-fns"
 import { Order } from "@/lib/types"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
@@ -45,10 +47,16 @@ export default function Dashboard() {
   }, [orders, dateRange]);
 
   const ordersDueToday = useMemo(() => {
-    return orders.filter(order => {
+    return orders
+      .filter(order => {
         const deadlineDate = parseOrderDate(order.deadline);
         return deadlineDate ? isToday(deadlineDate) : false;
-    });
+      })
+      .sort((a, b) => {
+        const dateA = parseOrderDate(a.deadline)?.getTime() || 0;
+        const dateB = parseOrderDate(b.deadline)?.getTime() || 0;
+        return dateA - dateB;
+      });
   }, [orders]);
 
   const ordersInProgress = useMemo(() => {
@@ -191,10 +199,15 @@ export default function Dashboard() {
             <CardContent>
             <CustomerProvider>
                 <ProductProvider>
-                    <OrderTable orders={ordersDueToday} preferenceKey="dashboardOrderSortPreference" />
+                    <OrderTable orders={ordersDueToday.slice(0, 5)} preferenceKey="dashboardOrderSortPreference" />
                 </ProductProvider>
             </CustomerProvider>
             </CardContent>
+            <CardFooter className="justify-end">
+                <Button asChild variant="ghost" size="sm">
+                    <Link href="/orders">See More <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+            </CardFooter>
         </Card>
          <Card>
             <CardHeader>
@@ -208,9 +221,16 @@ export default function Dashboard() {
                 </ProductProvider>
             </CustomerProvider>
             </CardContent>
+             <CardFooter className="justify-end">
+                <Button asChild variant="ghost" size="sm">
+                    <Link href="/orders?tab=inProgress">See More <ArrowRight className="ml-2 h-4 w-4"/></Link>
+                </Button>
+            </CardFooter>
         </Card>
       </div>
 
     </div>
   )
 }
+
+    
