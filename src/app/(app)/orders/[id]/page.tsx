@@ -43,6 +43,8 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
@@ -188,10 +190,10 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
         if (printWindow) {
             const receiptContent = document.getElementById('receipt-content')?.innerHTML;
             if (receiptContent) {
-                printWindow.document.write(`
+                printWindow.document.write(\`
                     <html>
                         <head>
-                            <title>Order Receipt - ${formatOrderId(order.id)}</title>
+                            <title>Order Receipt - \${formatOrderId(order.id)}</title>
                             <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @media print {
@@ -201,11 +203,11 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         </head>
                         <body>
                             <div class="p-8">
-                                ${receiptContent}
+                                \${receiptContent}
                             </div>
                         </body>
                     </html>
-                `);
+                \`);
                 printWindow.document.close();
                 printWindow.focus();
                 // Delay print to ensure styles are applied
@@ -223,7 +225,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: ${formatOrderId(order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: \${formatOrderId(order.id)}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -262,7 +264,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         <div className="text-right">
                             <h3 className="font-semibold text-slate-600 mb-2 border-b pb-1">Payment Status</h3>
                             <Badge
-                                className={`text-lg ${ balance <= 0 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}`}>
+                                className={\`text-lg \${ balance <= 0 ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}\`}>
                                 {balance <= 0 ? "Paid in Full" : "Balance Due"}
                             </Badge>
                         </div>
@@ -460,11 +462,13 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
     );
 }
 
-function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: () => void }) {
+function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [bom, setBom] = useState('');
     const { toast } = useToast();
+    const [uploadedFileCount, setUploadedFileCount] = useState(0);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -480,10 +484,10 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
             if (results.every(res => res !== undefined)) {
                 toast({
-                    title: "Design Uploaded",
-                    description: "The design files have been attached and the status has been updated.",
+                    title: `${results.length} file(s) uploaded`,
+                    description: "The design files have been attached.",
                 });
-                onFinished();
+                setUploadedFileCount(results.length);
             } else {
                 throw new Error("One or more file uploads failed.");
             }
@@ -496,49 +500,87 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             });
         } finally {
             setIsUploading(false);
-            onOpenChange(false);
         }
     };
+    
+    const handleSubmit = () => {
+        if (uploadedFileCount === 0) {
+            toast({
+                variant: "destructive",
+                title: "No Files Uploaded",
+                description: "Please upload at least one design file."
+            });
+            return;
+        }
+        if (!bom.trim()) {
+            toast({
+                variant: "destructive",
+                title: "BOM Required",
+                description: "Please provide the Bill of Materials."
+            });
+            return;
+        }
+
+        onFinished(bom);
+        onOpenChange(false);
+        // Reset state for next time
+        setUploadedFileCount(0);
+        setBom('');
+    }
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Finish Design</DialogTitle>
+                    <DialogTitle>Finish Design & Submit BOM</DialogTitle>
                     <DialogDescription>
-                        Upload the final design files to mark this step as complete. This will change the order status to "Design Ready".
+                        Upload final design files and provide the Bill of Materials.
                     </DialogDescription>
                 </DialogHeader>
-                <div 
-                    className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                    onClick={() => fileInputRef.current?.click()}
-                >
-                    {isUploading ? (
-                        <>
-                            <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
-                            <p className="text-muted-foreground">Uploading files...</p>
-                        </>
-                    ) : (
-                        <>
-                            <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                            <p className="font-semibold">Click to upload or drag & drop</p>
-                            <p className="text-xs text-muted-foreground">PDF, AI, PSD, PNG, etc.</p>
-                        </>
+                <div className="space-y-4">
+                    <div 
+                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
+                                <p className="text-muted-foreground">Uploading files...</p>
+                            </>
+                        ) : (
+                            <>
+                                <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
+                                <p className="font-semibold">{uploadedFileCount > 0 ? `${uploadedFileCount} file(s) ready` : 'Click to upload or drag & drop'}</p>
+                                <p className="text-xs text-muted-foreground">PDF, AI, PSD, PNG, etc.</p>
+                            </>
+                        )}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            onChange={handleFileChange}
+                            className="hidden"
+                            disabled={isUploading}
+                        />
+                    </div>
+                     {Object.keys(uploadProgress).length > 0 && (
+                        <div className="text-sm text-muted-foreground">Overall progress will be shown here if implemented</div>
                     )}
-                     <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        onChange={handleFileChange}
-                        className="hidden"
-                        disabled={isUploading}
-                    />
+                    <div>
+                        <Label htmlFor="bom">Bill of Materials (BOM)</Label>
+                        <Textarea 
+                            id="bom"
+                            placeholder="Enter the list of materials and quantities..."
+                            value={bom}
+                            onChange={(e) => setBom(e.target.value)}
+                            rows={6}
+                            className="mt-2"
+                        />
+                    </div>
                 </div>
-                 {Object.keys(uploadProgress).length > 0 && (
-                    <div className="text-sm text-muted-foreground">Overall progress will be shown here if implemented</div>
-                )}
                 <DialogFooter>
                     <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isUploading}>Submit Design & BOM</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -581,7 +623,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         updateOrder({ ...order, status: "Cancelled" });
         toast({
             title: "Order Cancelled",
-            description: `Order ${formatOrderId(order.id)} has been cancelled.`,
+            description: `Order \${formatOrderId(order.id)} has been cancelled.`,
         });
     }
 
@@ -591,7 +633,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
-            description: `${formatOrderId(order.id)} has been deleted.`,
+            description: `\${formatOrderId(order.id)} has been deleted.`,
         });
         router.push("/orders");
     };
@@ -600,8 +642,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         if (!order) return;
         updateOrder({ ...order, isUrgent: !order.isUrgent });
         toast({
-            title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `${formatOrderId(order.id)} has been updated.`,
+            title: `Urgency \${order.isUrgent ? "Removed" : "Added"}`,
+            description: `\${formatOrderId(order.id)} has been updated.`,
         });
     };
 
@@ -610,7 +652,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         updateOrder({ ...order, status: newStatus });
         toast({
             title: "Status Updated",
-            description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
+            description: `Order \${formatOrderId(order.id)} status changed to \${newStatus}.`
         });
     };
 
@@ -621,7 +663,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
             await updateOrder({ ...order, status: newStatus });
              toast({
                 title: "Status Updated",
-                description: `Order status changed to ${newStatus}.`
+                description: `Order status changed to \${newStatus}.`
             });
         } catch (error) {
             toast({
@@ -634,13 +676,28 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         }
     }
 
-    const handleDesignFinished = () => {
-        handleDesignerStatusChange('Design Ready');
+    const handleDesignFinished = (bom: string) => {
+        if (!order || !order.products || order.products.length === 0) return;
+        
+        // Update product with BOM
+        const updatedProducts = [...order.products];
+        updatedProducts[0].billOfMaterials = bom;
+
+        // Update status and post BOM to chat
+        updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
+            text: `Bill of Materials Submitted:\n\${bom}`,
+            file: undefined
+        });
+
+        toast({
+            title: "Design Finished",
+            description: "Status updated to Design Ready and BOM submitted to chat."
+        });
     };
     
     const handleDuplicate = () => {
         if (!order) return;
-        router.push(`/orders/new?duplicate=${order.id}`);
+        router.push(`/orders/new?duplicate=\${order.id}`);
     }
 
     const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
@@ -745,7 +802,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                              </DialogContent>
                          )}
                     </Dialog>
-                    <Link href={`/orders/${order.id}/edit`}>
+                    <Link href={\`/orders/\${order.id}/edit\`}>
                         <Button variant="outline" size="icon">
                           <Edit />
                         </Button>
@@ -891,7 +948,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                             <CardTitle>Customer</CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                            <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={\`/customers/\${customer.id}\`} className="font-semibold hover:underline">{customer.name}</Link></div>
                                             <p className="text-sm text-muted-foreground">{customer.email}</p>
                                             <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
                                         </CardContent>
@@ -984,7 +1041,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
                                     <CardTitle>Customer</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
-                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={\`/customers/\${customer.id}\`} className="font-semibold hover:underline">{customer.name}</Link></div>
                                     <p className="text-sm text-muted-foreground">{customer.email}</p>
                                     <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
                                 </CardContent>
