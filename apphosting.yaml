@@ -1,7 +1,34 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
-
 runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  # You can specify environment variables for your application.
+  # The value of an environment variable can be a literal string or a secret.
+  # https://firebase.google.com/docs/app-hosting/configure-backend#set-env-vars
+  env:
+    - variable: B2_KEY_ID
+      secret: B2_KEY_ID
+    - variable: B2_APPLICATION_KEY
+      secret: B2_APPLICATION_KEY
+    - variable: B2_ENDPOINT
+      secret: B2_ENDPOINT
+    - variable: B2_BUCKET_NAME
+      secret: B2_BUCKET_NAME
+    - variable: B2_PUBLIC_URL_PREFIX
+      secret: B2_PUBLIC_URL_PREFIX
+    - variable: GEMINI_API_KEY
+      secret: GEMINI_API_KEY
+# The service account your App Hosting backend runs as.
+# https://firebase.google.com/docs/app-hosting/configure-backend#service-account
+serviceAccount: app-hosting-run
+# A list of secret versions that this backend is allowed to access.
+# https://firebase.google.com/docs/app-hosting/configure-backend#access-secrets
+secretEnvironmentVariables:
+  - secret: B2_KEY_ID
+  - secret: B2_APPLICATION_KEY
+  - secret: B2_ENDPOINT
+  - secret: B2_BUCKET_NAME
+  - secret: B2_PUBLIC_URL_PREFIX
+  - secret: GEMINI_API_KEY
