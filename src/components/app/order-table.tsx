@@ -382,7 +382,7 @@ function OrderTableToolbar({
   }
 
   const currentSort = table.getState().sorting[0];
-  const sortField = currentSort?.id as SortField || 'creationDate';
+  const sortField = currentSort?.id as SortField || 'deadline';
   const sortDirection = currentSort?.desc ? 'desc' : 'asc';
   
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
@@ -502,11 +502,11 @@ function OrderTableInternal({ orders: propOrders, preferenceKey }: OrderTablePro
       const { field, direction } = userProfile[preferenceKey]!;
       return [{ id: field, desc: direction === 'desc' }];
     }
+    // Default sorting: nearest deadline first
     return [{ id: 'deadline', desc: false }];
   }, [userProfile, preferenceKey]);
 
-
-  const [sorting, setSorting] = React.useState<SortingState>(getInitialSorting);
+  const [sorting, setSorting] = React.useState<SortingState>(() => getInitialSorting());
   
   React.useEffect(() => {
     if (!isUserLoading && userProfile) {

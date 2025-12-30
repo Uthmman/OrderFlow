@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { OrderTable } from "@/components/app/order-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { useOrders } from "@/hooks/use-orders";
@@ -13,7 +13,7 @@ import { CustomerProvider } from "@/hooks/use-customers";
 import { useUser } from "@/hooks/use-user";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Search } from "lucide-react";
 import Link from "next/link";
 
 export type SortField = 'creationDate' | 'deadline';
@@ -21,7 +21,7 @@ export type SortDirection = 'asc' | 'desc';
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
-  const { user, role } = useUser();
+  const { user, role, loading: userLoading } = useUser();
   const [activeTab, setActiveTab] = useState("active");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -71,17 +71,19 @@ export default function OrdersPage() {
 
   const tabs = role === 'Designer' ? designerTabs : defaultTabs;
 
-  // Set initial active tab based on role
-  useState(() => {
-    if (role === 'Designer') {
-      setActiveTab('inProgress');
-    } else {
-      setActiveTab('active');
+  // Set initial active tab based on role, once the user is loaded.
+  useEffect(() => {
+    if (!userLoading) {
+        if (role === 'Designer') {
+            setActiveTab('inProgress');
+        } else {
+            setActiveTab('active');
+        }
     }
-  });
+  }, [userLoading, role]);
 
 
-  if (loading) {
+  if (loading || userLoading) {
     return <div>Loading orders...</div>;
   }
 
@@ -93,11 +95,12 @@ export default function OrdersPage() {
       
        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
             <div className="relative flex-1 w-full sm:w-auto">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                  <Input
                     placeholder="Filter by customer, ID, or product..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 w-full"
+                    className="pl-8 w-full sm:w-[300px] lg:w-[400px]"
                 />
             </div>
             <Link href="/orders/new">
