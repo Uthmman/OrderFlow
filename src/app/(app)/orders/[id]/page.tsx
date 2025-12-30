@@ -587,6 +587,56 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     )
 }
 
+function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, onSubmit: (paintUsage: string) => void }) {
+    const [paintUsage, setPaintUsage] = useState('');
+    const { toast } = useToast();
+
+    const handleSubmit = () => {
+        if (!paintUsage.trim()) {
+            toast({
+                variant: "destructive",
+                title: "Paint Usage Required",
+                description: "Please provide the paint usage details."
+            });
+            return;
+        }
+        onSubmit(paintUsage);
+        onOpenChange(false);
+        setPaintUsage('');
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Record Paint Usage</DialogTitle>
+                    <DialogDescription>
+                        Enter the paint usage details for this completed order. This will be added to the Bill of Materials.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                    <div>
+                        <Label htmlFor="paint-usage">Paint Usage Details</Label>
+                        <Textarea 
+                            id="paint-usage"
+                            placeholder="e.g., 2L of White Gloss, 0.5L of Primer..."
+                            value={paintUsage}
+                            onChange={(e) => setPaintUsage(e.target.value)}
+                            rows={6}
+                            className="mt-2"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button onClick={handleSubmit}>Submit Paint Usage</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   const { id } = use(params);
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
@@ -598,6 +648,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
+  const [paintUsageDialogOpen, setPaintUsageDialogOpen] = useState(false);
+  const [statusToChange, setStatusToChange] = useState<OrderStatus | null>(null);
   const [isLoadingStatusChange, setIsLoadingStatusChange] = useState(false);
   
   if (ordersLoading || customersLoading || userLoading || colorsLoading) {
@@ -649,12 +701,36 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
-        updateOrder({ ...order, status: newStatus });
+        if (newStatus === 'Completed') {
+            setStatusToChange(newStatus);
+            setPaintUsageDialogOpen(true);
+        } else {
+            updateOrder({ ...order, status: newStatus });
+            toast({
+                title: "Status Updated",
+                description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
+            });
+        }
+    };
+    
+    const handlePaintUsageSubmit = (paintUsage: string) => {
+        if (!order || !order.products || order.products.length === 0 || !statusToChange) return;
+        
+        const updatedProducts = [...order.products];
+        const currentBOM = updatedProducts[0].billOfMaterials || '';
+        updatedProducts[0].billOfMaterials = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
+
+        updateOrder({ ...order, products: updatedProducts, status: statusToChange }, {
+            text: `Paint Usage Submitted:\n${paintUsage}`,
+            file: undefined
+        });
+
         toast({
-            title: "Status Updated",
-            description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
+            title: "Order Completed",
+            description: "Paint usage recorded and status updated."
         });
     };
+
 
     const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
         if (!order) return;
@@ -1114,6 +1190,11 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         productIndex={0} /* Assuming one product per order for now for simplicity */
         onFinished={handleDesignFinished}
     />
+     <PaintUsageDialog
+        open={paintUsageDialogOpen}
+        onOpenChange={setPaintUsageDialogOpen}
+        onSubmit={handlePaintUsageSubmit}
+    />
     </>
   );
 }
@@ -1121,3 +1202,4 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
 
     
     
+
