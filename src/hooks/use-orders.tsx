@@ -21,7 +21,7 @@ interface OrderContextType {
   orders: Order[];
   loading: boolean;
   addOrder: (order: Omit<Order, 'id'>, isNew: boolean) => Promise<string | undefined>;
-  updateOrder: (order: Order, chatMessage?: { text: string; file?: File; }) => Promise<void>;
+  updateOrder: (order: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   deleteMultipleOrders: (ordersToDelete: Order[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -267,7 +267,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return orderId;
   };
 
-  const updateOrder = async (orderData: Order, chatMessage?: { text: string; file?: File; }) => {
+  const updateOrder = async (orderData: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => {
     if (!user) throw new Error("User must be logged in to update an order.");
 
     const orderRef = doc(firestore, 'orders', orderData.id);
@@ -295,9 +295,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
 
     const usersToNotify = Array.from(new Set([
-        ...(orderData.assignedTo || []),
-        orderData.ownerId,
-    ])).filter(id => id !== user.id);
+        ...(originalOrder?.assignedTo || []),
+        originalOrder?.ownerId,
+    ])).filter(id => id && id !== user.id) as string[];
 
     const timestamp = new Date().toISOString();
     
@@ -312,13 +312,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             isSystemMessage: true
         });
 
-        if (originalOrder.status !== orderData.status) {
+        if (originalOrder.status !== orderData.status && orderData.status) {
             newMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
             if (orderData.status === 'Completed') {
-                for (const product of orderData.products) {
+                const productsToUpdate = orderData.products || originalOrder.products;
+                for (const product of productsToUpdate) {
                     const productsRef = collection(firestore, "products");
                     const q = query(productsRef, where("productName", "==", product.productName));
                     const querySnapshot = await getDocs(q);
@@ -332,7 +333,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 }
             }
         }
-        if (originalOrder.isUrgent !== orderData.isUrgent) {
+        if (originalOrder.isUrgent !== orderData.isUrgent && orderData.isUrgent !== undefined) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
             newMessages.push(createSystemMessage(`Order ${urgencyText}`));
             if (usersToNotify.length > 0) {
