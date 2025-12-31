@@ -273,10 +273,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
 
-    // Create a mutable copy for updates.
+    // Create a mutable copy for updates, but exclude chatMessages.
     const dataToUpdate: any = { ...orderData };
     delete dataToUpdate.id; // Don't try to write the id field
-    delete dataToUpdate.chatMessages; // Handle chat messages separately with arrayUnion
+    delete dataToUpdate.chatMessages; // Chat messages are handled separately.
 
     // Convert JS Dates back to Firestore Timestamps before saving
     if (dataToUpdate.creationDate instanceof Date) {
@@ -358,7 +358,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const uploadedAttachment = await handleFileUpload(chatMessage.file);
                 newChatMessage.attachment = uploadedAttachment;
             } catch (error) {
-                throw error;
+                throw error; // Propagate error to stop execution
             }
         }
         newMessages.push(newChatMessage);
@@ -371,14 +371,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             });
         }
     }
-
-    if (newMessages.length > 0) {
-        dataToUpdate.chatMessages = arrayUnion(...newMessages);
-    }
     
+    // First, update the main document fields without chat messages.
     const cleanData = removeUndefined(dataToUpdate);
     if (Object.keys(cleanData).length > 0) {
         await updateDoc(orderRef, cleanData);
+    }
+    
+    // Then, if there are new messages, update the chatMessages array atomically.
+    if (newMessages.length > 0) {
+        await updateDoc(orderRef, {
+            chatMessages: arrayUnion(...newMessages)
+        });
     }
 };
 
