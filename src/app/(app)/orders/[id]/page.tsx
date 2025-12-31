@@ -1,9 +1,9 @@
 
 "use client";
 
-import { use, useState, useRef, useEffect } from "react";
+import { use, useState, useRef, useEffect, Suspense } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus } from "@/lib/types";
@@ -677,13 +677,14 @@ function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { op
     );
 }
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+function OrderDetailPageContent({ params }: { params: { id: string } }) {
+  const { id } = params;
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { user, loading: userLoading, role } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
@@ -698,6 +699,8 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
   if (ordersLoading || customersLoading || userLoading || colorsLoading || !order) {
     return <div>Loading...</div>;
   }
+  
+  const defaultTab = searchParams.get('tab') || 'details';
 
   const customer = getCustomerById(order.customerId);
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
@@ -1025,7 +1028,7 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
       </div>
 
         {/* Mobile: Tabs */}
-       <Tabs defaultValue="details" className="w-full lg:hidden">
+       <Tabs defaultValue={defaultTab} className="w-full lg:hidden">
             <TabsList>
                 <TabsTrigger value="details">
                     <Info className="mr-2" /> Details
@@ -1287,4 +1290,13 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
     />
     </>
   );
+}
+
+
+export default function OrderDetailPage({ params }: { params: { id: string } }) {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <OrderDetailPageContent params={params} />
+        </Suspense>
+    )
 }

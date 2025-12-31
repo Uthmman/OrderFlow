@@ -92,7 +92,7 @@ export default function ChatPage() {
               return (
                 <Link
                   key={order.id}
-                  href={`/orders/${order.id}`}
+                  href={`/orders/${order.id}?tab=chat`}
                   className="flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-muted/50 transition-colors"
                 >
                   <Avatar className="h-12 w-12">
