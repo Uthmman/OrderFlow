@@ -55,6 +55,7 @@ import { useUser } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -637,31 +638,46 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
-function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, onSubmit: (paymentDetails: string) => void }) {
+function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, onSubmit: (paymentStatus: PaymentStatus, paymentDetails: string) => void }) {
     const [paymentDetails, setPaymentDetails] = useState(order.paymentDetails || '');
-    const { toast } = useToast();
+    const [finalPaymentStatus, setFinalPaymentStatus] = useState<PaymentStatus>('Balance Due');
     const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
 
     const handleSubmit = () => {
-        onSubmit(paymentDetails);
+        onSubmit(finalPaymentStatus, paymentDetails);
         onOpenChange(false);
     }
+    
+    const isPaid = finalPaymentStatus === 'Paid';
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Confirm Shipment with Balance Due</DialogTitle>
-                    <DialogDescription>
-                        This order has a remaining balance of <span className="font-bold">{formatCurrency(balance)}</span>. Please confirm payment arrangements before shipping.
+                    <DialogTitle>Confirm Shipment & Final Payment</DialogTitle>
+                     <DialogDescription>
+                        The order has a remaining balance of <span className="font-bold">{formatCurrency(balance)}</span>. Please confirm the final payment status.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="space-y-6 pt-4">
+                    <div>
+                        <Label>Final Payment Status</Label>
+                        <RadioGroup defaultValue={finalPaymentStatus} onValueChange={(value: PaymentStatus) => setFinalPaymentStatus(value)} className="mt-2">
+                             <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Paid" id="paid" />
+                                <Label htmlFor="paid">Paid in Full</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="Balance Due" id="balance-due" />
+                                <Label htmlFor="balance-due">Balance Still Due</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
                     <div>
                         <Label htmlFor="payment-details">Payment Details</Label>
                         <Textarea 
                             id="payment-details"
-                            placeholder="e.g., Customer will pay remaining balance upon delivery."
+                            placeholder={isPaid ? "e.g., Final payment received via bank transfer." : "e.g., Customer will pay remaining balance upon delivery."}
                             value={paymentDetails}
                             onChange={(e) => setPaymentDetails(e.target.value)}
                             rows={4}
@@ -742,16 +758,14 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
 
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
-        const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
 
-        setStatusToChange(newStatus);
+        setStatusToChange(newStatus); // Store the intended status
 
-        if (newStatus === 'Completed') {
+        if (newStatus === 'Completed' && order.status === 'Painting') {
             setPaintUsageDialogOpen(true);
-        } else if (newStatus === 'Shipped' && balance > 0) {
+        } else if (newStatus === 'Shipped' && canViewSensitiveData) { // Only admin can ship
             setPaymentConfirmationDialogOpen(true);
-        }
-        else {
+        } else {
             updateOrder({ ...order, status: newStatus });
             toast({
                 title: "Status Updated",
@@ -765,32 +779,34 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         
         const updatedProducts = [...order.products];
         const currentBOM = updatedProducts[0].billOfMaterials || '';
-        updatedProducts[0].billOfMaterials = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
+        const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
+        updatedProducts[0].billOfMaterials = bomUpdate;
 
+        // Directly call updateOrder with the new status and product info
         updateOrder({ ...order, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
             file: undefined
-        });
-
-        toast({
-            title: "Order Completed",
-            description: "Paint usage recorded and status updated."
+        }).then(() => {
+             toast({
+                title: "Order Completed",
+                description: "Paint usage recorded and status updated."
+            });
         });
     };
 
-    const handlePaymentConfirmationSubmit = (paymentDetails: string) => {
+    const handlePaymentConfirmationSubmit = (paymentStatus: PaymentStatus, paymentDetails: string) => {
         if (!order || !statusToChange) return;
         
         updateOrder({ 
             ...order, 
-            status: statusToChange, 
-            paymentStatus: 'Balance Due',
+            status: 'Shipped', 
+            paymentStatus: paymentStatus,
             paymentDetails 
         });
 
         toast({
             title: "Order Shipped",
-            description: `Order ${formatOrderId(order.id)} status is now Shipped with a balance due.`
+            description: `Order ${formatOrderId(order.id)} status is now Shipped.`
         });
     };
 

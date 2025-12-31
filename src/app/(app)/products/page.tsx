@@ -170,16 +170,20 @@ function ProductCatalog() {
                     {productSettings?.productCategories.map(cat => {
                          const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
                          return (
-                            <button
+                            <Link
+                                href={`/products/category/${encodeURIComponent(cat.name)}`}
                                 key={cat.name}
-                                onClick={() => setSelectedCategory(cat.name)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    router.push(`/products/category/${encodeURIComponent(cat.name)}`);
+                                }}
                                 className={cn("flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-full transition-colors", 
                                     selectedCategory === cat.name ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
                                 )}
                             >
                                 <IconComponent className="h-4 w-4" />
                                 {cat.name}
-                            </button>
+                            </Link>
                          )
                     })}
                 </div>
