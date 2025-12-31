@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, isToday, isThisWeek, parseISO } from 'date-fns';
 
 function getLastMessage(order: Order): OrderChatMessage | null {
-  if (!order.chatMessages || order.chatMessages.length === 0) {
+  if (!order.chatMessages || !Array.isArray(order.chatMessages) || order.chatMessages.length === 0) {
     return null;
   }
   // Sort messages by timestamp to find the latest one, as they might not be sorted.
