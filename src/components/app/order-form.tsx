@@ -120,7 +120,7 @@ const toDate = (timestamp: any): Date | undefined => {
         const date = new Date(timestamp);
         // If the date string is just yyyy-mm-dd, it's parsed as UTC. 
         // We need to adjust it to the local timezone to prevent off-by-one errors.
-        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
+        if (/^d{4}-d{2}-d{2}$/.test(timestamp)) {
              return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
         }
         return isNaN(date.getTime()) ? undefined : date;
@@ -176,17 +176,17 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
-  { id: 2, title: 'Product Setup', fields: [] }, // Edit mode hub
-  { id: 3, title: 'Category', fields: ['products.0.category'] },
+  { id: 2, title: 'Product Setup', fields: [] }, // Hub for editing existing products
+  { id: 3, title: 'Product Category', fields: ['products.0.category'] },
   { id: 4, title: 'Product Source', fields: [] },
-  { id: 5, title: 'Attachments', fields: [] },
-  { id: 6, title: 'Product Details & Dimensions', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
-  { id: 7, title: 'Material', fields: ['products.0.material'] },
-  { id: 8, title: 'Color', fields: ['products.0.colors'] },
-  { id: 9, title: 'Review Products', fields: [] },
-  { id: 10, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
-  { id: 11, title: 'Scheduling & Status', fields: ['status', 'creationDate', 'deadline', 'isUrgent'] }
+  { id: 5, title: 'Product Details & Attachments', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
+  { id: 6, title: 'Material', fields: ['products.0.material'] },
+  { id: 7, title: 'Color', fields: ['products.0.colors'] },
+  { id: 8, title: 'Review Products', fields: [] },
+  { id: 9, title: 'Pricing & Payment', fields: ['incomeAmount', 'prepaidAmount', 'paymentDetails'] },
+  { id: 10, title: 'Scheduling & Status', fields: ['status', 'creationDate', 'deadline', 'isUrgent'] }
 ];
+
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
   const router = useRouter();
@@ -275,28 +275,25 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
-  useEffect(() => {
+ useEffect(() => {
     if (!isInitialLoadRef.current) return;
   
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) {
       setCurrentStep(parseInt(stepFromUrl, 10));
     } else if (initialOrder) {
-      // If it's a draft (status: Pending), but has no products, it's a new draft being edited.
-      if (initialOrder.status === 'Pending' && (!initialOrder.products || initialOrder.products.length === 0)) {
-        setCurrentStep(3); // Start at category selection
+      if (initialOrder.status === 'Pending' && (!initialOrder.products || initialOrder.products.length === 0 || !initialOrder.products[0].category)) {
+        setCurrentStep(3); // Start at category selection for a new draft
         if (getValues('products').length === 0) {
           setValue('products', [{
             id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
           }], { shouldDirty: true });
         }
       } else {
-        // Any other existing order starts at the product hub.
-        setCurrentStep(2);
+        setCurrentStep(2); // Existing order/product starts at the product hub
       }
     } else {
-      // It's a completely new order, not a draft yet.
-      setCurrentStep(1);
+      setCurrentStep(1); // Brand new order
     }
   
     isInitialLoadRef.current = false;
@@ -323,7 +320,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           fieldsToValidate = stepConfig.fields || [];
       } else if (currentStep === 3) {
           fieldsToValidate = [`products.${currentProductIndex}.category`];
-      } else if (currentStep === 10) {
+      } else if (currentStep === 9) {
           fieldsToValidate = ['incomeAmount'];
       }
     }
@@ -370,9 +367,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   };
 
   const prevStep = () => {
-     if (initialOrder && [5, 6, 7, 8].includes(currentStep)) {
+     if (initialOrder && [5, 6, 7].includes(currentStep)) {
         setCurrentStep(4); // From product config back to source selection
-    } else if (currentStep === 9) {
+    } else if (currentStep === 8) {
         setCurrentStep(4); // Back from review to product source
     } else if (currentStep === 4) {
         setCurrentStep(3); // Back from product source to category
@@ -389,7 +386,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(9); 
+    setCurrentStep(8); 
   };
   
   const handleAddAnotherProduct = () => {
@@ -412,7 +409,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const handleEditProduct = (index: number) => {
       setCurrentProductIndex(index);
-      setCurrentStep(6);
+      setCurrentStep(5);
   }
 
   const watchedValues = watch();
@@ -673,8 +670,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
 
   const renderFilePreview = (attachment: OrderAttachment) => {
-    const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-    const isAudio = attachment.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
+    const isImage = attachment.fileName.match(/.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = attachment.fileName.match(/.(mp3|wav|ogg|webm)$/i);
 
     return (
         <div key={attachment.storagePath} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
@@ -771,20 +768,28 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       return "Product Setup";
     }
 
-    const isProductStep = stepConfig.id >= 3 && stepConfig.id <= 8;
+    const isProductStep = stepConfig.id >= 3 && stepConfig.id <= 7;
     return isProductStep ? productStepTitle(stepConfig.title) : stepConfig.title;
   };
   
   const getProgress = () => {
-    const totalSteps = STEPS.length - (initialOrder ? 3 : 1);
+    // Total steps for a new order is 10.
+    const totalStepsForNew = 10;
+    // Total steps for an existing order depends on the path.
+    const totalStepsForExisting = 5; 
+
     let currentProgressStep = currentStep;
 
-    if (initialOrder) {
-        if (currentStep === 2) currentProgressStep = 2; // Product Hub is step 2
-        else if (currentStep > 2 && currentStep < 10) currentProgressStep = 3; // Any product edit is part of a single "product config" meta-step
-        else if (currentStep >= 10) currentProgressStep = currentStep - 6; // Adjust for removed product steps
+    if (initialOrder) { // Logic for editing an existing order
+        if (currentStep === 2) currentProgressStep = 1; // Product Hub
+        else if (currentStep >= 5 && currentStep <= 7) currentProgressStep = 2; // Product config steps
+        else if (currentStep === 8) currentProgressStep = 3; // Review
+        else if (currentStep === 9) currentProgressStep = 4; // Pricing
+        else if (currentStep === 10) currentProgressStep = 5; // Scheduling
+        return (currentProgressStep / totalStepsForExisting) * 100;
+    } else { // Logic for a new order
+        return (currentProgressStep / totalStepsForNew) * 100;
     }
-    return (currentProgressStep / (initialOrder ? 5 : totalSteps)) * 100;
   }
   
   const finalTitle = getStepTitle();
@@ -1033,11 +1038,91 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           {currentStep === 5 && (
               <Card>
                   <CardHeader>
-                      <CardTitle>{productStepTitle("Attachments")}</CardTitle>
-                      <CardDescription>Upload relevant images, documents, or record a voice memo.</CardDescription>
+                  <CardTitle>{productStepTitle("Product Details & Attachments")}</CardTitle>
+                  <CardDescription>
+                      Fill in the main details, specifications, and attachments for the product.
+                  </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                      {!initialOrder ? (
+                  <CardContent className="space-y-6">
+                    <FormField
+                        control={form.control}
+                        name={`products.${currentProductIndex}.productName`}
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Product Name</FormLabel>
+                            <FormControl>
+                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                    
+                    <FormField
+                        control={form.control}
+                        name={`products.${currentProductIndex}.description`}
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Detailed Description</FormLabel>
+                            <FormControl>
+                            <Textarea
+                                placeholder="Provide a detailed description of the order requirements..."
+                                rows={4}
+                                {...field}
+                            />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+
+                    <div className="space-y-2">
+                        <Label>Dimensions (cm)</Label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <FormField
+                            control={form.control}
+                            name={`products.${currentProductIndex}.width`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name={`products.${currentProductIndex}.height`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                            <FormField
+                            control={form.control}
+                            name={`products.${currentProductIndex}.depth`}
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
+                                <FormControl>
+                                    <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                </FormItem>
+                            )}
+                            />
+                        </div>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium">Attachments</h3>
+                       {!initialOrder ? (
                           <Alert variant="default">
                               <Loader2 className="h-4 w-4 animate-spin" />
                               <AlertTitle>Action Required</AlertTitle>
@@ -1111,97 +1196,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           )}
                           </>
                       )}
+                    </div>
                   </CardContent>
               </Card>
           )}
 
           {currentStep === 6 && (
-              <Card>
-                  <CardHeader>
-                  <CardTitle>{productStepTitle("Product Details & Dimensions")}</CardTitle>
-                  <CardDescription>
-                      Fill in the main details and specifications of the order.
-                  </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                  <FormField
-                      control={form.control}
-                      name={`products.${currentProductIndex}.productName`}
-                      render={({ field }) => (
-                          <FormItem>
-                          <FormLabel>Product Name</FormLabel>
-                          <FormControl>
-                              <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                          </FormItem>
-                      )}
-                      />
-                  
-                  <FormField
-                      control={form.control}
-                      name={`products.${currentProductIndex}.description`}
-                      render={({ field }) => (
-                      <FormItem>
-                          <FormLabel>Detailed Description</FormLabel>
-                          <FormControl>
-                          <Textarea
-                              placeholder="Provide a detailed description of the order requirements..."
-                              rows={4}
-                              {...field}
-                          />
-                          </FormControl>
-                          <FormMessage />
-                      </FormItem>
-                      )}
-                  />
-
-                  <div className="space-y-2">
-                      <Label>Dimensions (cm)</Label>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <FormField
-                          control={form.control}
-                          name={`products.${currentProductIndex}.width`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
-                              <FormControl>
-                                  <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
-                              </FormControl>
-                              </FormItem>
-                          )}
-                          />
-                          <FormField
-                          control={form.control}
-                          name={`products.${currentProductIndex}.height`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
-                              <FormControl>
-                                  <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
-                              </FormControl>
-                              </FormItem>
-                          )}
-                          />
-                          <FormField
-                          control={form.control}
-                          name={`products.${currentProductIndex}.depth`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
-                              <FormControl>
-                                  <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
-                              </FormControl>
-                              </FormItem>
-                          )}
-                          />
-                      </div>
-                  </div>
-                  </CardContent>
-              </Card>
-          )}
-          
-          {currentStep === 7 && (
               <Card>
                   <CardHeader>
                       <CardTitle>{productStepTitle("Material")}</CardTitle>
@@ -1247,7 +1247,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          {currentStep === 8 && (
+          {currentStep === 7 && (
               <Card>
                   <CardHeader>
                       <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
@@ -1375,7 +1375,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
           
-          {currentStep === 9 && (
+          {currentStep === 8 && (
               <Card>
                   <CardHeader>
                       <CardTitle>Review Products</CardTitle>
@@ -1408,7 +1408,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
           
-          {currentStep === 10 && (
+          {currentStep === 9 && (
               <Card>
                   <CardHeader>
                       <CardTitle>Pricing & Payment</CardTitle>
@@ -1493,7 +1493,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          {currentStep === 11 && (
+          {currentStep === 10 && (
               <Card>
                   <CardHeader>
                       <CardTitle>Scheduling & Status</CardTitle>
@@ -1669,26 +1669,26 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       </Button>
                   )}
                   
-                  {currentStep < 9 && currentStep !== 2 && currentStep !== 4 && (
+                  {currentStep < 8 && currentStep !== 2 && currentStep !== 4 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                           {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                           Next <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {((initialOrder && currentStep === 2) || currentStep === 9) && (
-                      <Button type="button" onClick={() => setCurrentStep(10)}>
+                  {((initialOrder && currentStep === 2) || currentStep === 8) && (
+                      <Button type="button" onClick={() => setCurrentStep(9)}>
                           Continue to Final Steps <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {currentStep === 10 && (
+                  {currentStep === 9 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                           Next <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {currentStep === 11 && (
+                  {currentStep === 10 && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                           {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           {initialOrder ? 'Save Changes' : 'Finish Order'}
@@ -1717,5 +1717,3 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     </>
   )
 }
-
-    

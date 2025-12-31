@@ -13,27 +13,41 @@ function getLastMessage(order: Order): OrderChatMessage | null {
   if (!order.chatMessages || order.chatMessages.length === 0) {
     return null;
   }
-  // The messages are already sorted by timestamp in the hook, so we can just take the last one.
-  return order.chatMessages[order.chatMessages.length - 1];
+  // Sort messages by timestamp to find the latest one, as they might not be sorted.
+  const sortedMessages = [...order.chatMessages].sort((a, b) => 
+    parseTimestamp(b.timestamp).getTime() - parseTimestamp(a.timestamp).getTime()
+  );
+  return sortedMessages[0];
 }
+
 
 function parseTimestamp(timestamp: any): Date {
     if (timestamp instanceof Date) return timestamp;
     if (timestamp?.seconds) return new Date(timestamp.seconds * 1000);
-    return parseISO(timestamp);
+    // Handle ISO strings, including those from Firestore serverTimestamp
+    if (typeof timestamp === 'string') {
+        return parseISO(timestamp);
+    }
+    // Fallback for an already-created Date object that was stringified
+    return new Date(timestamp);
 }
 
 
 function formatLastMessageTimestamp(timestamp: any): string {
     if (!timestamp) return '';
-    const date = parseTimestamp(timestamp);
+    try {
+        const date = parseTimestamp(timestamp);
 
-    if (isToday(date)) {
-        return format(date, 'p'); // e.g., 4:30 PM
-    } else if (isThisWeek(date, { weekStartsOn: 1 /* Monday */ })) {
-        return format(date, 'eee'); // e.g., 'Wed'
-    } else {
-        return format(date, 'MMM d'); // e.g., 'Jul 23'
+        if (isToday(date)) {
+            return format(date, 'p'); // e.g., 4:30 PM
+        } else if (isThisWeek(date, { weekStartsOn: 1 /* Monday */ })) {
+            return format(date, 'eee'); // e.g., 'Wed'
+        } else {
+            return format(date, 'MMM d'); // e.g., 'Jul 23'
+        }
+    } catch (e) {
+        console.error("Failed to parse timestamp:", timestamp, e);
+        return "";
     }
 }
 
@@ -53,8 +67,8 @@ export default function ChatPage() {
     const lastMessageA = getLastMessage(a);
     const lastMessageB = getLastMessage(b);
 
-    const timeA = lastMessageA ? parseTimestamp(lastMessageA.timestamp).getTime() : parseTimestamp(a.creationDate).getTime();
-    const timeB = lastMessageB ? parseTimestamp(lastMessageB.timestamp).getTime() : parseTimestamp(b.creationDate).getTime();
+    const timeA = lastMessageA ? parseTimestamp(lastMessageA.timestamp).getTime() : (a.creationDate ? parseTimestamp(a.creationDate).getTime() : 0);
+    const timeB = lastMessageB ? parseTimestamp(lastMessageB.timestamp).getTime() : (b.creationDate ? parseTimestamp(b.creationDate).getTime() : 0);
     
     return timeB - timeA;
   });

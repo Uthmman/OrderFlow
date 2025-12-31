@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, type ReactNode } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app/app-sidebar";
 import { AppHeader } from "@/components/app/app-header";
@@ -15,10 +15,12 @@ import { useAuth } from "@/firebase";
 import { NotificationProvider } from "@/hooks/use-notifications";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
+import { ProductSettingProvider } from "@/hooks/use-product-settings";
+
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
 
-function AuthGuard({ children }: { children: React.ReactNode }) {
+function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading, role } = useUser();
   const router = useRouter();
   const auth = useAuth();
@@ -68,30 +70,32 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return null;
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider>
-      <CustomerProvider>
-          <ColorSettingProvider>
-            <ProductProvider>
-                <OrderProvider>
-                <NotificationProvider>
-                    <div className="flex h-screen w-full flex-col">
-                    <AppHeader />
-                    <div className="flex flex-1 overflow-hidden">
-                        <AppSidebar />
-                        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                        <AuthGuard>
-                            {children}
-                        </AuthGuard>
-                        </main>
-                    </div>
-                    </div>
-                </NotificationProvider>
-                </OrderProvider>
-            </ProductProvider>
-          </ColorSettingProvider>
-      </CustomerProvider>
-    </SidebarProvider>
+    <AuthGuard>
+      <SidebarProvider>
+        <CustomerProvider>
+            <ColorSettingProvider>
+              <ProductSettingProvider>
+                <ProductProvider>
+                    <OrderProvider>
+                    <NotificationProvider>
+                        <div className="flex h-screen w-full flex-col">
+                        <AppHeader />
+                        <div className="flex flex-1 overflow-hidden">
+                            <AppSidebar />
+                            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                                {children}
+                            </main>
+                        </div>
+                        </div>
+                    </NotificationProvider>
+                    </OrderProvider>
+                </ProductProvider>
+              </ProductSettingProvider>
+            </ColorSettingProvider>
+        </CustomerProvider>
+      </SidebarProvider>
+    </AuthGuard>
   );
 }
