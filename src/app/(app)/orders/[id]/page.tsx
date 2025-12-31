@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
@@ -677,8 +678,8 @@ function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { op
     );
 }
 
-function OrderDetailPageContent({ params }: { params: { id: string } }) {
-  const { id } = params;
+function OrderDetailPageContent({ params: paramsProp }: { params: { id: string } }) {
+  const { id } = use(paramsProp);
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
