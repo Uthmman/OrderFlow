@@ -273,8 +273,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
 
-    const dataToUpdate: Partial<Order> = { ...orderData };
-    delete (dataToUpdate as any).id; 
+    // Create a mutable copy for updates.
+    const dataToUpdate: any = { ...orderData };
+    delete dataToUpdate.id; // Don't try to write the id field
+    delete dataToUpdate.chatMessages; // Handle chat messages separately with arrayUnion
 
     // Convert JS Dates back to Firestore Timestamps before saving
     if (dataToUpdate.creationDate instanceof Date) {
@@ -283,7 +285,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (dataToUpdate.deadline instanceof Date) {
         dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
     }
-    if (dataToUpdate.testDate) {
+     if (dataToUpdate.testDate) {
         if (dataToUpdate.testDate instanceof Date) {
              dataToUpdate.testDate = Timestamp.fromDate(dataToUpdate.testDate);
         }
@@ -371,9 +373,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     if (newMessages.length > 0) {
-        dataToUpdate.chatMessages = arrayUnion(...newMessages) as any;
-    } else {
-        delete dataToUpdate.chatMessages;
+        dataToUpdate.chatMessages = arrayUnion(...newMessages);
     }
     
     const cleanData = removeUndefined(dataToUpdate);
@@ -482,7 +482,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
       const deleteFilePromises = uniqueAttachments.map(att => {
         if (!att.storagePath) return Promise.resolve();
-        return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+        return deleteFileFlow({ fileName: att.fileName }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
       });
         
       await Promise.all(deleteFilePromises);
