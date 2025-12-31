@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -7,8 +8,18 @@ import { useProductSettings, ProductSettingProvider } from '@/hooks/use-product-
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PlusCircle, Search, LayoutGrid, List, Loader2, RefreshCw } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { PlusCircle, Search, LayoutGrid, List, Loader2, RefreshCw, Trash2, Package } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
@@ -16,9 +27,13 @@ import Link from 'next/link';
 import { OrderProvider, useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
+import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Product } from '@/lib/types';
+
 
 function ProductCatalog() {
-  const { products, loading: productsLoading, syncProductsFromOrders } = useProducts();
+  const { products, loading: productsLoading, syncProductsFromOrders, deleteProducts } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
   const { productSettings, loading: settingsLoading } = useProductSettings();
   const { user, role } = useUser();
@@ -29,6 +44,9 @@ function ProductCatalog() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   const filteredProducts = useMemo(() => {
     return (products || []).filter(product => {
@@ -56,6 +74,44 @@ function ProductCatalog() {
         setIsSyncing(false);
     }
   }
+  
+  const handleProductSelect = (productId: string) => {
+    setSelectedProducts(prev => 
+        prev.includes(productId) 
+            ? prev.filter(id => id !== productId)
+            : [...prev, productId]
+    );
+  };
+  
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true);
+    try {
+        const productsToDelete = products.filter(p => selectedProducts.includes(p.id));
+        await deleteProducts(productsToDelete);
+        toast({
+            title: "Products Deleted",
+            description: `${selectedProducts.length} product(s) have been removed from the catalog.`
+        });
+        setSelectedProducts([]);
+    } catch (error) {
+         toast({
+            variant: "destructive",
+            title: "Deletion Failed",
+            description: (error as Error).message || "An error occurred while deleting products.",
+        });
+    } finally {
+        setIsDeleting(false);
+    }
+  }
+  
+  const handleSelectAll = () => {
+    if(selectedProducts.length === filteredProducts.length) {
+        setSelectedProducts([]);
+    } else {
+        setSelectedProducts(filteredProducts.map(p => p.id));
+    }
+  }
+
 
   if (productsLoading || settingsLoading || ordersLoading) {
     return <div className="text-center p-8">Loading products...</div>;
@@ -81,17 +137,6 @@ function ProductCatalog() {
                   className="pl-8 w-full"
                 />
               </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Categories</SelectItem>
-                  {productSettings?.productCategories.map(cat => (
-                    <SelectItem key={cat.name} value={cat.name}>{cat.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
              <div className="flex items-center gap-2">
                 <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('grid')}>
@@ -111,6 +156,70 @@ function ProductCatalog() {
                 </Button>
             </div>
           </div>
+          
+           <div className="space-y-4 mb-6">
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        onClick={() => setSelectedCategory('All')}
+                        className={cn("px-4 py-2 text-sm font-medium border rounded-full transition-colors", 
+                            selectedCategory === 'All' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                        )}
+                    >
+                        All Categories
+                    </button>
+                    {productSettings?.productCategories.map(cat => {
+                         const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
+                         return (
+                            <button
+                                key={cat.name}
+                                onClick={() => setSelectedCategory(cat.name)}
+                                className={cn("flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-full transition-colors", 
+                                    selectedCategory === cat.name ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                                )}
+                            >
+                                <IconComponent className="h-4 w-4" />
+                                {cat.name}
+                            </button>
+                         )
+                    })}
+                </div>
+            </div>
+
+            {role === 'Admin' && (
+                <div className="flex items-center gap-4 mb-6 p-3 bg-muted rounded-lg">
+                    <Checkbox
+                        id="select-all"
+                        checked={selectedProducts.length > 0 && selectedProducts.length === filteredProducts.length}
+                        onCheckedChange={handleSelectAll}
+                    />
+                    <label htmlFor="select-all" className="text-sm font-medium">
+                        {selectedProducts.length > 0 ? `${selectedProducts.length} selected` : 'Select All'}
+                    </label>
+                    {selectedProducts.length > 0 && (
+                       <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" disabled={isDeleting}>
+                                {isDeleting ? <Loader2 className="mr-2 animate-spin"/> : <Trash2 className="mr-2" />}
+                                Delete Selected
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete the selected products and their data.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteSelected}>Delete Products</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    )}
+                </div>
+            )}
+
 
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
@@ -122,19 +231,38 @@ function ProductCatalog() {
                     const category = productSettings?.productCategories.find(c => c.name === product.category);
                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
+                    const isSelected = selectedProducts.includes(product.id);
 
                     return (
-                        <Card key={product.id} className="flex flex-col overflow-hidden group h-full">
-                            <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity flex-grow flex flex-col">
-                                <CardHeader className="p-0">
-                                    <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
-                                        {primaryAttachment?.url ? (
-                                            <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                                        ) : (
-                                            <IconComponent className="h-16 w-16 text-muted-foreground" />
-                                        )}
+                        <Card key={product.id} className={cn("flex flex-col overflow-hidden group h-full transition-all", isSelected && "ring-2 ring-primary")}>
+                            <div className="relative">
+                                {role === 'Admin' && (
+                                     <div className="absolute top-2 left-2 z-10 bg-background/80 rounded-sm">
+                                        <Checkbox 
+                                            checked={isSelected}
+                                            onCheckedChange={() => handleProductSelect(product.id)}
+                                            className="m-1"
+                                        />
                                     </div>
-                                </CardHeader>
+                                )}
+                                 {(product.orderIds?.length || 0) > 0 && (
+                                    <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold">
+                                        {product.orderIds?.length}
+                                    </div>
+                                )}
+                                <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity">
+                                    <CardHeader className="p-0">
+                                        <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
+                                            {primaryAttachment?.url ? (
+                                                <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                                            ) : (
+                                                <IconComponent className="h-16 w-16 text-muted-foreground" />
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                </Link>
+                            </div>
+                            <Link href={`/products/${product.id}`} className="flex-grow flex flex-col">
                                 <CardContent className="p-4 flex-grow">
                                     <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
                                     <CardDescription>{product.category}</CardDescription>
@@ -155,15 +283,28 @@ function ProductCatalog() {
                     const category = productSettings?.productCategories.find(c => c.name === product.category);
                     const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
+                    const isSelected = selectedProducts.includes(product.id);
+
                     return (
-                        <Card key={product.id} className="transition-colors hover:bg-muted/50">
+                        <Card key={product.id} className={cn("transition-colors hover:bg-muted/50", isSelected && "ring-2 ring-primary")}>
                           <div className="flex items-center p-4 gap-4">
+                             {role === 'Admin' && (
+                                <Checkbox
+                                    checked={isSelected}
+                                    onCheckedChange={() => handleProductSelect(product.id)}
+                                />
+                             )}
                             <Link href={`/products/${product.id}`} className="flex-grow flex items-center gap-4">
                                 <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative">
                                 {primaryAttachment?.url ? (
                                         <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover rounded-md" />
                                     ) : (
                                         <IconComponent className="h-8 w-8 text-muted-foreground" />
+                                    )}
+                                     {(product.orderIds?.length || 0) > 0 && (
+                                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold">
+                                            {product.orderIds?.length}
+                                        </div>
                                     )}
                                 </div>
                                 <div className="flex-grow">

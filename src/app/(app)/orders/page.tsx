@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -43,9 +44,10 @@ export default function OrdersPage() {
   const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
   const paintingStatuses: OrderStatus[] = ["Painting"];
   const inProductionStatuses: OrderStatus[] = ["Manufacturing", "Painting"];
+  const shippedStatuses: OrderStatus[] = ["Shipped"];
   const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
-  const activeStatuses: OrderStatus[] = ["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
+  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
 
   // Define tabs based on role
   const designerTabs = useMemo(() => [
@@ -57,17 +59,23 @@ export default function OrdersPage() {
     { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
   ], [orders, searchTerm]);
 
-  const defaultTabs = useMemo(() => [
-    { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
-    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
-    { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
-    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
-    { value: "manufacturing", label: "Manufacturing", orders: getOrdersByStatus(manufacturingStatuses) },
-    { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
-    { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
-    { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) },
-    { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
-  ], [orders, searchTerm]);
+  const defaultTabs = useMemo(() => {
+    const tabs = [
+        { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
+        { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
+        { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
+        { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
+        { value: "manufacturing", label: "Manufacturing", orders: getOrdersByStatus(manufacturingStatuses) },
+        { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
+        { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
+    ];
+    if (role === 'Admin') {
+        tabs.push({ value: "shipped", label: "Shipped", orders: getOrdersByStatus(shippedStatuses) });
+    }
+    tabs.push({ value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) });
+    tabs.push({ value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) });
+    return tabs;
+  }, [orders, searchTerm, role]);
 
   const tabs = role === 'Designer' ? designerTabs : defaultTabs;
 
@@ -77,7 +85,7 @@ export default function OrdersPage() {
         if (role === 'Designer') {
             setActiveTab('inProgress');
         } else {
-            setActiveTab('active');
+            setActiveTab('inProgress');
         }
     }
   }, [userLoading, role]);
@@ -112,16 +120,14 @@ export default function OrdersPage() {
        </div>
 
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="w-full sm:flex-1 overflow-x-auto">
-                    <TabsList className="flex-wrap h-auto sm:h-10">
-                       {tabs.map(tab => (
-                            <TabsTrigger key={tab.value} value={tab.value}>
-                                {tab.label} ({tab.orders.length})
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
-                </div>
+            <div className="w-full overflow-x-auto">
+                <TabsList className="flex-wrap h-auto sm:h-10">
+                   {tabs.map(tab => (
+                        <TabsTrigger key={tab.value} value={tab.value}>
+                            {tab.label} ({tab.orders.length})
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
             </div>
             <Card className="mt-4">
                 <CardContent className="pt-6">

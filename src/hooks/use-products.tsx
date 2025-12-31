@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch, arrayUnion } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch, arrayUnion, deleteDoc } from 'firebase/firestore';
 import type { Order, Product } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
@@ -15,6 +16,7 @@ interface ProductContextType {
   loading: boolean;
   addProduct: (product: Partial<Product>) => Promise<string | undefined>;
   updateProduct: (productId: string, productData: Partial<Product>) => Promise<void>;
+  deleteProducts: (productsToDelete: Product[]) => Promise<void>;
   getProductById: (id: string) => Product | undefined;
   syncProductsFromOrders: (orders: Order[]) => Promise<number>;
   addOrderIdToProduct: (productId: string, orderId: string) => Promise<void>;
@@ -144,6 +146,15 @@ export function ProductProvider({ children }: { children: ReactNode }) {
 
     return newProductsCount;
   }, [firestore, products]);
+  
+  const deleteProducts = useCallback(async (productsToDelete: Product[]) => {
+    const batch = writeBatch(firestore);
+    productsToDelete.forEach(product => {
+        const productRef = doc(firestore, 'products', product.id);
+        batch.delete(productRef);
+    });
+    await batch.commit();
+  }, [firestore]);
 
 
   const value = useMemo(() => ({
@@ -151,10 +162,11 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     loading,
     addProduct,
     updateProduct,
+    deleteProducts,
     getProductById,
     syncProductsFromOrders,
     addOrderIdToProduct,
-  }), [products, loading, addProduct, updateProduct, getProductById, syncProductsFromOrders, addOrderIdToProduct]);
+  }), [products, loading, addProduct, updateProduct, deleteProducts, getProductById, syncProductsFromOrders, addOrderIdToProduct]);
 
   return (
     <ProductContext.Provider value={value}>

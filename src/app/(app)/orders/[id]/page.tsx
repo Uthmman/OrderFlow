@@ -195,7 +195,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                     <html>
                         <head>
                             <title>Order Receipt - ${formatOrderId(order.id)}</title>
-                            <script src="https://cdn.tailwindcss.com"></script>
+                            <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @media print {
                                     body { -webkit-print-color-adjust: exact; }
@@ -761,13 +761,13 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
     };
     
     const handlePaintUsageSubmit = (paintUsage: string) => {
-        if (!order || !order.products || order.products.length === 0 || !statusToChange) return;
+        if (!order || !order.products || order.products.length === 0) return;
         
         const updatedProducts = [...order.products];
         const currentBOM = updatedProducts[0].billOfMaterials || '';
         updatedProducts[0].billOfMaterials = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
 
-        updateOrder({ ...order, products: updatedProducts, status: statusToChange }, {
+        updateOrder({ ...order, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
             file: undefined
         });
