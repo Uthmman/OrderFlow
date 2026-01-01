@@ -317,7 +317,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
-            if (orderData.status === 'Completed') {
+             if (orderData.status === 'Completed') {
                 const productsToUpdate = orderData.products || originalOrder.products;
                 // Guard clause to prevent crash if products are not iterable
                 if (!Array.isArray(productsToUpdate)) {

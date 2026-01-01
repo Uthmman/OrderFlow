@@ -695,7 +695,8 @@ function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { op
 }
 
 function OrderDetailPageContent({ params: paramsProp }: { params: { id: string } }) {
-  const { id } = use(paramsProp);
+  const params = use(paramsProp);
+  const id = params.id;
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
@@ -775,12 +776,14 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
     };
     
     const handlePaintUsageSubmit = (paintUsage: string) => {
-        if (!order || !order.products || order.products.length === 0) return;
-        
-        const updatedProducts = [...order.products];
-        const currentBOM = updatedProducts[0].billOfMaterials || '';
-        const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
-        updatedProducts[0].billOfMaterials = bomUpdate;
+        if (!order) return;
+
+        const updatedProducts = [...(order.products || [])];
+        if (updatedProducts.length > 0) {
+            const currentBOM = updatedProducts[0].billOfMaterials || '';
+            const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
+            updatedProducts[0].billOfMaterials = bomUpdate;
+        }
 
         updateOrder({ id: order.id, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
