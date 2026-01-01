@@ -45,7 +45,7 @@ export default function OrdersPage() {
   const paintingStatuses: OrderStatus[] = ["Painting"];
   const inProductionStatuses: OrderStatus[] = ["Manufacturing", "Painting"];
   const shippedStatuses: OrderStatus[] = ["Shipped"];
-  const completedStatuses: OrderStatus[] = ["Completed", "Shipped"];
+  const completedStatuses: OrderStatus[] = ["Completed"];
   const cancelledStatuses: OrderStatus[] = ["Cancelled"];
   const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
 
@@ -73,7 +73,7 @@ export default function OrdersPage() {
         tabs.push({ value: "shipped", label: "Shipped", orders: getOrdersByStatus(shippedStatuses) });
     }
     tabs.push({ value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) });
-    tabs.push({ value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) });
+    tabs.push({ value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...shippedStatuses, ...cancelledStatuses, "Pending"]) });
     return tabs;
   }, [orders, searchTerm, role]);
 
