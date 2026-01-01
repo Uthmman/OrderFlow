@@ -125,6 +125,7 @@ export type Order = {
   isUrgent: boolean;
   creationDate: Timestamp | Date | string;
   testDate?: Timestamp | Date | string;
+  paidDate?: Timestamp | Date | string;
   paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;

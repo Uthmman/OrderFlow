@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -290,6 +291,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     } else {
         dataToUpdate.testDate = undefined;
     }
+    if (dataToUpdate.paidDate) {
+        if (dataToUpdate.paidDate instanceof Date) {
+             dataToUpdate.paidDate = Timestamp.fromDate(dataToUpdate.paidDate);
+        }
+    } else {
+        dataToUpdate.paidDate = undefined;
+    }
 
 
     const usersToNotify = Array.from(new Set([
@@ -318,6 +326,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
              if (orderData.status === 'Completed') {
                 const productsToUpdate = orderData.products || originalOrder.products;
                 
+                // Guard clause to prevent crash if products are not iterable
                 if (!Array.isArray(productsToUpdate)) {
                     console.error("updateOrder: Cannot update products on 'Completed' because productsToUpdate is not an array.", productsToUpdate);
                     return; 

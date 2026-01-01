@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
@@ -637,62 +638,6 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
-function PaymentConfirmationDialog({ open, onOpenChange, order, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, onSubmit: (paymentStatus: PaymentStatus, paymentDetails: string) => void }) {
-    const [paymentDetails, setPaymentDetails] = useState(order.paymentDetails || '');
-    const [finalPaymentStatus, setFinalPaymentStatus] = useState<PaymentStatus>('Balance Due');
-    const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
-
-    const handleSubmit = () => {
-        onSubmit(finalPaymentStatus, paymentDetails);
-        onOpenChange(false);
-    }
-    
-    const isPaid = finalPaymentStatus === 'Paid';
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Confirm Shipment & Final Payment</DialogTitle>
-                     <DialogDescription>
-                        The order has a remaining balance of <span className="font-bold">{formatCurrency(balance)}</span>. Please confirm the final payment status.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6 pt-4">
-                    <div>
-                        <Label>Final Payment Status</Label>
-                        <RadioGroup defaultValue={finalPaymentStatus} onValueChange={(value: PaymentStatus) => setFinalPaymentStatus(value)} className="mt-2">
-                             <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="Paid" id="paid" />
-                                <Label htmlFor="paid">Paid in Full</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="Balance Due" id="balance-due" />
-                                <Label htmlFor="balance-due">Balance Still Due</Label>
-                            </div>
-                        </RadioGroup>
-                    </div>
-                    <div>
-                        <Label htmlFor="payment-details">Payment Details</Label>
-                        <Textarea 
-                            id="payment-details"
-                            placeholder={isPaid ? "e.g., Final payment received via bank transfer." : "e.g., Customer will pay remaining balance upon delivery."}
-                            value={paymentDetails}
-                            onChange={(e) => setPaymentDetails(e.target.value)}
-                            rows={4}
-                            className="mt-2"
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Confirm and Ship</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
 function OrderDetailPageContent({ params: paramsProp }: { params: { id: string } }) {
   const params = use(paramsProp);
   const id = params.id;
@@ -707,7 +652,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
   const [paintUsageDialogOpen, setPaintUsageDialogOpen] = useState(false);
-  const [paymentConfirmationDialogOpen, setPaymentConfirmationDialogOpen] = useState(false);
   const [statusToChange, setStatusToChange] = useState<OrderStatus | null>(null);
   const [isLoadingStatusChange, setIsLoadingStatusChange] = useState(false);
   
@@ -767,10 +711,14 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
 
         if (newStatus === 'Completed' && order.status === 'Painting') {
             setPaintUsageDialogOpen(true);
-        } else if (newStatus === 'Shipped' && canViewSensitiveData) { // Only admin can ship
-            setPaymentConfirmationDialogOpen(true);
+        } else if (newStatus === 'Shipped') {
+            updateOrder({ ...order, status: 'Shipped' });
+             toast({
+                title: "Order Shipped",
+                description: `Order ${formatOrderId(order.id)} status is now Shipped.`
+            });
         } else {
-            updateOrder({ id: order.id, status: newStatus, products: order.products });
+            updateOrder({ ...order, status: newStatus });
             toast({
                 title: "Status Updated",
                 description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
@@ -788,7 +736,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
             updatedProducts[0].billOfMaterials = bomUpdate;
         }
 
-        updateOrder({ id: order.id, products: updatedProducts, status: 'Completed' }, {
+        updateOrder({ ...order, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
             file: undefined
         }).then(() => {
@@ -799,33 +747,16 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         });
     };
 
-    const handlePaymentConfirmationSubmit = (paymentStatus: PaymentStatus, paymentDetails: string) => {
-        if (!order || !statusToChange) return;
-        
-        updateOrder({ 
-            id: order.id,
-            status: 'Shipped', 
-            paymentStatus: paymentStatus,
-            paymentDetails,
-            products: order.products,
-        });
-
-        toast({
-            title: "Order Shipped",
-            description: `Order ${formatOrderId(order.id)} status is now Shipped.`
-        });
-    };
-
      const handleTogglePaidStatus = () => {
         if (!order) return;
 
         if (isPaid) {
             // If already paid, mark as unpaid (Balance Due)
             updateOrder({
-                id: order.id,
+                ...order,
                 paymentStatus: 'Balance Due',
                 prepaidAmount: 0, 
-                products: order.products,
+                paidDate: undefined,
             });
             toast({
                 title: "Order Marked as Unpaid",
@@ -834,10 +765,10 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         } else {
             // If unpaid, mark as paid
             updateOrder({
-                id: order.id,
+                ...order,
                 paymentStatus: 'Paid',
                 prepaidAmount: order.incomeAmount,
-                products: order.products,
+                paidDate: new Date(),
             });
             toast({
                 title: "Order Marked as Paid",
@@ -851,7 +782,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         if (!order) return;
         setIsLoadingStatusChange(true);
         try {
-            await updateOrder({ id: order.id, status: newStatus, products: order.products });
+            await updateOrder({ ...order, status: newStatus });
              toast({
                 title: "Status Updated",
                 description: `Order status changed to ${newStatus}.`
@@ -873,7 +804,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         const updatedProducts = [...order.products];
         updatedProducts[0].billOfMaterials = bom;
 
-        updateOrder({ id: order.id, products: updatedProducts, status: 'Design Ready' }, {
+        updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
             text: `Bill of Materials Submitted:\n${bom}`,
             file: undefined
         });
@@ -1103,6 +1034,12 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                     <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
                                 </div>
                                 )}
+                                {order.paidDate && (
+                                <div className="flex items-center gap-3">
+                                    <CheckCircle className="h-4 w-4 text-muted-foreground"/>
+                                    <span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span>
+                                </div>
+                                )}
                                 {order.location && (
                                      <div className="flex items-center gap-3">
                                         <MapPin className="h-4 w-4 text-muted-foreground"/>
@@ -1204,6 +1141,12 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                 <Clock className="h-4 w-4 text-muted-foreground"/>
                                 <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
                             </div>
+                        )}
+                        {order.paidDate && (
+                        <div className="flex items-center gap-3">
+                            <CheckCircle className="h-4 w-4 text-muted-foreground"/>
+                            <span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span>
+                        </div>
                         )}
                         {order.location && (
                              <div className="flex items-center gap-3">
@@ -1328,12 +1271,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         open={paintUsageDialogOpen}
         onOpenChange={setPaintUsageDialogOpen}
         onSubmit={handlePaintUsageSubmit}
-    />
-     <PaymentConfirmationDialog
-        open={paymentConfirmationDialogOpen}
-        onOpenChange={setPaymentConfirmationDialogOpen}
-        order={order}
-        onSubmit={handlePaymentConfirmationSubmit}
     />
     </>
   );
