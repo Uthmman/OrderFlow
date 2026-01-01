@@ -85,15 +85,15 @@ const productSchema = z.object({
 })
 
 const formSchema = z.object({
-  customerId: z.string().min(1, "Customer is required."),
-  location: z.object({ town: z.string().min(2, "Order location is required.") }),
+  customerId: z.string().min(1, "Customer is required.").optional(),
+  location: z.object({ town: z.string().min(2, "Order location is required.") }).optional(),
   products: z.array(productSchema).min(1, "At least one product is required."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
-  incomeAmount: z.coerce.number().min(0, "Price cannot be negative."),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]).optional(),
+  incomeAmount: z.coerce.number().min(0, "Price cannot be negative.").optional(),
   prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
-  creationDate: z.date({ required_error: "An order date is required." }),
-  deadline: z.date({ required_error: "A deadline is required." }),
+  creationDate: z.date({ required_error: "An order date is required." }).optional(),
+  deadline: z.date({ required_error: "A deadline is required." }).optional(),
   testDate: z.date().optional(),
   isUrgent: z.boolean().default(false),
 })
@@ -102,9 +102,10 @@ type OrderFormValues = z.infer<typeof formSchema>
 
 interface OrderFormProps {
   order?: Order;
-  onSave: (data: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => Promise<string | undefined>;
+  onSave?: (data: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => Promise<string | undefined>;
   submitButtonText?: string;
   isSubmitting?: boolean;
+  isProductCreationMode?: boolean;
 }
 
 const toDate = (timestamp: any): Date | undefined => {
@@ -188,17 +189,17 @@ const STEPS = [
 ];
 
 
-export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
-  const { products: catalogProducts, loading: productsLoading } = useProducts();
+  const { products: catalogProducts, loading: productsLoading, addProduct } = useProducts();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { productSettings, loading: productSettingsLoading } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(isProductCreationMode ? 3 : 1);
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -292,13 +293,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       } else {
         setCurrentStep(2); // Existing order/product starts at the product hub
       }
-    } else {
+    } else if (!isProductCreationMode) {
       setCurrentStep(1); // Brand new order
+    } else {
+       if (getValues('products').length === 0) {
+          setValue('products', [{
+            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
+          }], { shouldDirty: true });
+        }
     }
   
     isInitialLoadRef.current = false;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOrder, searchParams]);
+  }, [initialOrder, searchParams, isProductCreationMode]);
 
 
   const filteredCatalogProducts = useMemo(() => {
@@ -329,6 +336,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (!isValid) return;
 
     if (!initialOrder && currentStep === 1) {
+        if (!onSave) return;
         setIsManualSaving(true);
         try {
             const values = getValues();
@@ -370,7 +378,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
      if (initialOrder && [5, 6, 7].includes(currentStep)) {
         setCurrentStep(4); // From product config back to source selection
     } else if (currentStep === 8) {
-        setCurrentStep(4); // Back from review to product source
+        setCurrentStep(isProductCreationMode ? 7 : 4); // Back from review to color selection in product mode
     } else if (currentStep === 4) {
         setCurrentStep(3); // Back from product source to category
     }
@@ -455,7 +463,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const isSubmitting = isExternallySubmitting || isManualSaving;
 
   const performSave = useCallback(async (values: OrderFormValues) => {
-    if (!initialOrder) return;
+    if (!initialOrder || !onSave) return;
     
     setIsAutoSaving(true);
     const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
@@ -495,7 +503,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     } finally {
         setIsAutoSaving(false);
     }
-  }, [initialOrder, customers, updateOrder]);
+  }, [initialOrder, customers, updateOrder, onSave]);
 
   useEffect(() => {
     const isFormValid = form.formState.isValid;
@@ -616,27 +624,48 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && initialOrder) {
+    if (event.target.files && (initialOrder || isProductCreationMode)) {
       const files = Array.from(event.target.files);
       files.forEach(file => {
-        startTransition(() => {
-            addAttachment(initialOrder.id, currentProductIndex, file).then(newAttachment => {
-                if (newAttachment) {
-                    const currentProducts = getValues('products');
-                    const updatedProducts = [...currentProducts];
-                    const productToUpdate = updatedProducts[currentProductIndex];
-                    productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
-                    setValue('products', updatedProducts, { shouldDirty: true });
-                }
-            });
+          startTransition(() => {
+            if (isProductCreationMode) {
+              // Handle attachment logic for product creation mode without an order
+              const newAttachment: OrderAttachment = {
+                  fileName: file.name,
+                  url: URL.createObjectURL(file), // Temporary URL
+                  storagePath: '', // Will be filled on save
+                  file: file, // Store the file object itself
+              } as any;
+              const currentProducts = getValues('products');
+              const updatedProducts = [...currentProducts];
+              const productToUpdate = updatedProducts[currentProductIndex];
+              productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
+              setValue('products', updatedProducts, { shouldDirty: true });
+            } else if (initialOrder) {
+              addAttachment(initialOrder.id, currentProductIndex, file).then(newAttachment => {
+                  if (newAttachment) {
+                      const currentProducts = getValues('products');
+                      const updatedProducts = [...currentProducts];
+                      const productToUpdate = updatedProducts[currentProductIndex];
+                      productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
+                      setValue('products', updatedProducts, { shouldDirty: true });
+                  }
+              });
+            }
         });
       })
     }
   };
 
   const handleRemoveAttachment = (attachment: OrderAttachment) => {
-    if (initialOrder) {
+    if (initialOrder && !isProductCreationMode) {
         removeAttachment(initialOrder.id, currentProductIndex, attachment);
+    } else {
+        const currentProducts = getValues('products');
+        const updatedProducts = [...currentProducts];
+        const productToUpdate = updatedProducts[currentProductIndex];
+        productToUpdate.attachments = (productToUpdate.attachments || []).filter(att => att.url !== attachment.url);
+        setValue('products', updatedProducts, { shouldDirty: true });
     }
   };
   
@@ -674,7 +703,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const isAudio = attachment.fileName.match(/.(mp3|wav|ogg|webm)$/i);
 
     return (
-        <div key={attachment.storagePath} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
+        <div key={attachment.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">
                 {isImage ? (
                     <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
@@ -703,6 +732,31 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   
  const handleFormSubmit = async (values: OrderFormValues) => {
     setIsManualSaving(true);
+    if (isProductCreationMode) {
+        // Handle standalone product creation
+        try {
+            const productToCreate = values.products[0];
+            const newProductId = await addProduct(productToCreate);
+            if (newProductId) {
+                toast({
+                    title: "Product Created",
+                    description: `${productToCreate.productName} has been successfully created.`,
+                });
+                router.push(`/products/${newProductId}`);
+            }
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not create the product.'
+            });
+        } finally {
+            setIsManualSaving(false);
+        }
+        return;
+    }
+
+    if (!onSave) return;
     try {
       const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
       
@@ -757,7 +811,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const createOrderStatuses = allStatuses.filter(s => s !== "Pending");
   
   const productStepTitle = (title: string) => {
-    return watchedProducts.length > 1 ? `${title} (Product ${currentProductIndex + 1})` : title;
+    return watchedProducts.length > 1 && !isProductCreationMode ? `${title} (Product ${currentProductIndex + 1})` : title;
   }
   
   const getStepTitle = () => {
@@ -780,6 +834,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     let currentProgressStep = currentStep;
 
+    if (isProductCreationMode) {
+        // Steps 3, 4, 5, 6, 7 -> mapped to 1, 2, 3, 4, 5
+        const productCreationSteps = [3, 4, 5, 6, 7, 8];
+        const currentIdx = productCreationSteps.indexOf(currentStep);
+        return ((currentIdx + 1) / productCreationSteps.length) * 100;
+    }
+
     if (initialOrder) { // Logic for editing an existing order
         if (currentStep === 2) currentProgressStep = 1; // Product Hub
         else if (currentStep >= 5 && currentStep <= 7) currentProgressStep = 2; // Product config steps
@@ -793,7 +854,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }
   
   const finalTitle = getStepTitle();
-
+  const finalSteps = isProductCreationMode ? [3, 4, 5, 6, 7, 8] : STEPS.map(s => s.id);
+  const finalStepNumber = finalSteps[finalSteps.length - 1];
 
   return (
     <>
@@ -816,7 +878,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       <Form {...form}>
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
           
-          {currentStep === 1 && (
+          {currentStep === 1 && !isProductCreationMode && (
               <Card>
                   <CardHeader>
                       <CardTitle>Customer & Location</CardTitle>
@@ -901,7 +963,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
           
-          {initialOrder && currentStep === 2 && (
+          {initialOrder && currentStep === 2 && !isProductCreationMode && (
               <Card>
                   <CardHeader>
                       <CardTitle>Product Setup</CardTitle>
@@ -1122,7 +1184,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium">Attachments</h3>
-                       {!initialOrder ? (
+                       {!(initialOrder || isProductCreationMode) ? (
                           <Alert variant="default">
                               <Loader2 className="h-4 w-4 animate-spin" />
                               <AlertTitle>Action Required</AlertTitle>
@@ -1146,7 +1208,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                               multiple
                                               onChange={handleFileChange}
                                               className="hidden"
-                                              disabled={!initialOrder}
+                                              disabled={!(initialOrder || isProductCreationMode)}
                                           />
                                       </div>
                                   </FormControl>
@@ -1379,7 +1441,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                   <CardHeader>
                       <CardTitle>Review Products</CardTitle>
-                      <CardDescription>Review the products you've added to this order. You can add another product or proceed to the final step.</CardDescription>
+                      <CardDescription>Review the products you've added. You can add another product or proceed to the next step.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                       {watchedProducts.map((product, index) => {
@@ -1398,17 +1460,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                               </div>
                           )
                       })}
-                      <Separator />
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
-                           <PlusCircleIcon className="mr-2"/> Add Another Product
-                        </Button>
-                      </div>
+                      {!isProductCreationMode && (
+                        <>
+                          <Separator />
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
+                              <PlusCircleIcon className="mr-2"/> Add Another Product
+                            </Button>
+                          </div>
+                        </>
+                      )}
                   </CardContent>
               </Card>
           )}
           
-          {currentStep === 9 && (
+          {currentStep === 9 && !isProductCreationMode && (
               <Card>
                   <CardHeader>
                       <CardTitle>Pricing & Payment</CardTitle>
@@ -1493,7 +1559,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          {currentStep === 10 && (
+          {currentStep === 10 && !isProductCreationMode && (
               <Card>
                   <CardHeader>
                       <CardTitle>Scheduling & Status</CardTitle>
@@ -1663,35 +1729,34 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
               <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && (
+                  {currentStep > 1 && currentStep !== 3 && (
                       <Button variant="outline" type="button" onClick={prevStep}>
                           <ArrowLeft className="mr-2" /> Back
                       </Button>
                   )}
+                   {currentStep === 3 && !isProductCreationMode && (
+                       <Button variant="outline" type="button" onClick={() => setCurrentStep(1)}>
+                          <ArrowLeft className="mr-2" /> Back
+                      </Button>
+                   )}
                   
-                  {currentStep < 8 && currentStep !== 2 && currentStep !== 4 && (
+                  {currentStep < finalStepNumber && currentStep !== 2 && currentStep !== 4 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                           {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
                           Next <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {((initialOrder && currentStep === 2) || currentStep === 8) && (
+                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
                       <Button type="button" onClick={() => setCurrentStep(9)}>
                           Continue to Final Steps <ArrowRight className="ml-2" />
                       </Button>
                   )}
 
-                  {currentStep === 9 && (
-                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
-                          Next <ArrowRight className="ml-2" />
-                      </Button>
-                  )}
-
-                  {currentStep === 10 && (
+                  {currentStep === finalStepNumber && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                           {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          {initialOrder ? 'Save Changes' : 'Finish Order'}
+                          {isProductCreationMode ? 'Create Product' : (initialOrder ? 'Save Changes' : 'Finish Order')}
                       </Button>
                   )}
               </div>
