@@ -902,6 +902,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
 
   const prepaid = order.prepaidAmount || 0;
   const balance = (order.incomeAmount || 0) - prepaid;
+  const isPaid = balance <= 0 && order.incomeAmount > 0;
 
   const orderDetailsContent = (
      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
@@ -993,7 +994,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                 <DropdownMenuItem onClick={handleDuplicate}>
                                 Duplicate Order
                             </DropdownMenuItem>
-                             {canChangeStatus && order.paymentStatus !== 'Paid' && (
+                             {canChangeStatus && !isPaid && (
                                 <DropdownMenuItem onClick={handleMarkAsPaid}>
                                     <CheckCircle className="mr-2 h-4 w-4" />
                                     <span>Mark as Paid</span>
@@ -1111,8 +1112,13 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
                                         <span className="text-sm text-muted-foreground">Payment Status</span>
-                                        <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
+                                        <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
                                     </div>
+                                    {!isPaid && (
+                                        <Button size="sm" className="w-full" onClick={handleMarkAsPaid}>
+                                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
+                                        </Button>
+                                    )}
                                     <Separator />
                                     <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                                     </>
@@ -1208,8 +1214,13 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-sm text-muted-foreground">Payment Status</span>
-                                <Badge variant={order.paymentStatus === 'Paid' ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
+                                <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
                             </div>
+                             {!isPaid && (
+                                <Button size="sm" className="w-full" onClick={handleMarkAsPaid}>
+                                    <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
+                                </Button>
+                            )}
                             <Separator />
                             <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                             </>
