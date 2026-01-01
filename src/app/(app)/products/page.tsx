@@ -149,26 +149,24 @@ function ProductCatalog() {
         <p className="text-muted-foreground">Browse and manage all available products.</p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-        <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-initial">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-                placeholder="Search products..."
+                placeholder="Search all products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
             />
-            </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
             {role === 'Admin' && (
-                <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
+                <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="flex-1 sm:flex-initial">
                     {isSyncing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
                     Sync
                 </Button>
             )}
-            <Button onClick={() => router.push('/products/new')}>
+            <Button onClick={() => router.push('/products/new')} className="flex-1 sm:flex-initial">
                 <PlusCircle className="mr-2" /> New Product
             </Button>
         </div>
@@ -180,9 +178,13 @@ function ProductCatalog() {
             const count = categoryCounts[cat.name] || 0;
             const link = cat.name === 'All Products' ? '/products' : `/products/category/${encodeURIComponent(cat.name)}`;
             
+            // For "All Products", we don't need a category page, we are already on it. But we still show the card.
+            const CardComponent = cat.name === 'All Products' ? 'div' : Link;
+            const cardProps = cat.name === 'All Products' ? {} : { href: link };
+
             return (
-              <Link href={link} key={cat.name}>
-                <Card className="hover:border-primary transition-colors group h-full">
+              <CardComponent key={cat.name} {...cardProps}>
+                <Card className={cn("hover:border-primary transition-colors group h-full", cat.name !== 'All Products' && 'cursor-pointer')}>
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-start">
                         <IconComponent className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -198,7 +200,7 @@ function ProductCatalog() {
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              </CardComponent>
             )
           })}
         </div>

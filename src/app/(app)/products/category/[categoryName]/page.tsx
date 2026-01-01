@@ -1,13 +1,14 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useRouter } from "next/navigation";
 import { useProducts, ProductProvider } from '@/hooks/use-products';
 import { useProductSettings, ProductSettingProvider } from '@/hooks/use-product-settings';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, ArrowLeft } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { PlusCircle, ArrowLeft, Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import * as LucideIcons from 'lucide-react';
@@ -18,17 +19,29 @@ function CategoryProductCatalog() {
   const params = useParams();
   const categoryName = decodeURIComponent(params.categoryName as string);
   const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
   
   const { products, loading: productsLoading } = useProducts();
   const { productSettings, loading: settingsLoading } = useProductSettings();
 
   const filteredProducts = useMemo(() => {
+    let baseProducts = [];
     if (categoryName === 'Custom') {
         const allCategories = new Set(productSettings?.productCategories.map(c => c.name));
-        return (products || []).filter(product => !product.category || !allCategories.has(product.category));
+        baseProducts = (products || []).filter(product => !product.category || !allCategories.has(product.category));
+    } else {
+        baseProducts = (products || []).filter(product => product.category === categoryName);
     }
-    return (products || []).filter(product => product.category === categoryName);
-  }, [products, categoryName, productSettings]);
+    
+    if (!searchTerm) {
+        return baseProducts;
+    }
+
+    return baseProducts.filter(product => 
+        product.productName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+  }, [products, categoryName, productSettings, searchTerm]);
 
   const category = productSettings?.productCategories.find(c => c.name === categoryName);
   const iconName = categoryName === 'Custom' ? 'Wrench' : category?.icon || 'Box';
@@ -53,11 +66,21 @@ function CategoryProductCatalog() {
         </Button>
       </div>
 
+        <div className="relative w-full sm:max-w-xs">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Search in this category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full"
+            />
+        </div>
+
       <Card>
         <CardContent className="pt-6">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <p>No products found in the "{categoryName}" category.</p>
+              <p>No products found {searchTerm ? `matching "${searchTerm}"` : ''} in the "{categoryName}" category.</p>
             </div>
           ) : (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
