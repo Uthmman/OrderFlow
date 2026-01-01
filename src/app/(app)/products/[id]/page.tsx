@@ -63,9 +63,9 @@ function ProductDetailContent() {
 
   return (
     <div className="flex flex-col gap-8">
-       <div className="flex justify-between items-start">
-            <Button variant="outline" onClick={() => router.back()}><ArrowLeft className="mr-2"/> Back to Catalog</Button>
-            <Button onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
+       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+            <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto"><ArrowLeft className="mr-2"/> Back to Catalog</Button>
+            <Button onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)} className="w-full sm:w-auto">
                 <PlusCircle className="mr-2"/> Create Order from This Product
             </Button>
        </div>
