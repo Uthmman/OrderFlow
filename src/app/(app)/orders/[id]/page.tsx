@@ -803,7 +803,8 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
             id: order.id,
             status: 'Shipped', 
             paymentStatus: paymentStatus,
-            paymentDetails 
+            paymentDetails,
+            products: order.products,
         });
 
         toast({
@@ -818,6 +819,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
             id: order.id,
             paymentStatus: 'Paid',
             prepaidAmount: order.incomeAmount, // Assume full amount is now paid
+            products: order.products,
         });
         toast({
             title: "Order Marked as Paid",

@@ -272,20 +272,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
-
-    // Create a mutable copy for updates, but exclude chatMessages.
+    
     const dataToUpdate: any = { ...orderData };
-    delete dataToUpdate.id; // Don't try to write the id field
-    delete dataToUpdate.chatMessages; // Chat messages are handled separately.
+    delete dataToUpdate.id; 
+    delete dataToUpdate.chatMessages;
 
-    // Convert JS Dates back to Firestore Timestamps before saving
     if (dataToUpdate.creationDate instanceof Date) {
         dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
     }
     if (dataToUpdate.deadline instanceof Date) {
         dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
     }
-     if (dataToUpdate.testDate) {
+    if (dataToUpdate.testDate) {
         if (dataToUpdate.testDate instanceof Date) {
              dataToUpdate.testDate = Timestamp.fromDate(dataToUpdate.testDate);
         }
@@ -319,21 +317,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
              if (orderData.status === 'Completed') {
                 const productsToUpdate = orderData.products || originalOrder.products;
-                // Guard clause to prevent crash if products are not iterable
+                
                 if (!Array.isArray(productsToUpdate)) {
                     console.error("updateOrder: Cannot update products on 'Completed' because productsToUpdate is not an array.", productsToUpdate);
-                } else {
-                    for (const product of productsToUpdate) {
-                        const productsRef = collection(firestore, "products");
-                        const q = query(productsRef, where("productName", "==", product.productName));
-                        const querySnapshot = await getDocs(q);
+                    return; 
+                }
+                
+                for (const product of productsToUpdate) {
+                    const productsRef = collection(firestore, "products");
+                    const q = query(productsRef, where("productName", "==", product.productName));
+                    const querySnapshot = await getDocs(q);
 
-                        if (querySnapshot.empty) {
-                            await addProduct(product);
-                        } else {
-                            const existingProductId = querySnapshot.docs[0].id;
-                            await updateProduct(existingProductId, product);
-                        }
+                    if (querySnapshot.empty) {
+                        await addProduct(product);
+                    } else {
+                        const existingProductId = querySnapshot.docs[0].id;
+                        await updateProduct(existingProductId, product);
                     }
                 }
             }
@@ -378,17 +377,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     }
     
-    // First, update the main document fields without chat messages.
     const cleanData = removeUndefined(dataToUpdate);
+    
+    const batch = writeBatch(firestore);
+    
     if (Object.keys(cleanData).length > 0) {
-        await updateDoc(orderRef, cleanData);
+        batch.update(orderRef, cleanData);
     }
     
-    // Then, if there are new messages, update the chatMessages array atomically.
     if (newMessages.length > 0) {
-        await updateDoc(orderRef, {
+        batch.update(orderRef, {
             chatMessages: arrayUnion(...newMessages)
         });
+    }
+
+    if (Object.keys(cleanData).length > 0 || newMessages.length > 0) {
+        await batch.commit();
     }
 };
 
