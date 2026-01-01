@@ -730,78 +730,48 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     )
   }
   
- const handleFormSubmit = async (values: OrderFormValues) => {
-    setIsManualSaving(true);
-    if (isProductCreationMode) {
-        // Handle standalone product creation
-        try {
-            const productToCreate = values.products[0];
-            const newProductId = await addProduct(productToCreate);
-            if (newProductId) {
-                toast({
-                    title: "Product Created",
-                    description: `${productToCreate.productName} has been successfully created.`,
-                });
-                router.push(`/products/${newProductId}`);
-            }
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not create the product.'
-            });
-        } finally {
-            setIsManualSaving(false);
-        }
-        return;
-    }
-
+  const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
+    setIsManualSaving(true);
     try {
-      const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-      
-      const updatedProducts = values.products.map(p => {
-        let finalColors = p.colors;
-        if ((p as any).colorAsAttachment) {
-            finalColors = ["As Attached Picture"];
-        }
-        return {
-            ...p,
-            colors: finalColors,
-            dimensions: p.width && p.height && p.depth ? {
-                width: p.width,
-                height: p.height,
-                depth: p.depth,
-            } : undefined,
-        }
-      });
-      
-      const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-      
-      const orderPayload = {
-        ...(initialOrder || {}),
-        ...values,
-        products: updatedProducts,
-        incomeAmount: totalIncome,
-        status: values.status,
-        customerName,
-        deadline: values.deadline,
-        creationDate: values.creationDate,
-        testDate: values.testDate,
-      };
-
-      await onSave(orderPayload as Omit<Order, 'creationDate' | 'id'>, !initialOrder);
-      
-      if (initialOrder) {
-        toast({
-            title: "Order Updated",
-            description: "Your changes have been saved."
+        const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
+        
+        const updatedProducts = values.products.map(p => {
+            let finalColors = p.colors;
+            if ((p as any).colorAsAttachment) {
+                finalColors = ["As Attached Picture"];
+            }
+            return {
+                ...p,
+                colors: finalColors,
+                dimensions: p.width && p.height && p.depth ? {
+                    width: p.width,
+                    height: p.height,
+                    depth: p.depth,
+                } : undefined,
+            }
         });
-        router.push(`/orders/${initialOrder.id}`);
-      }
+
+        const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+        
+        const payload = {
+            ...(initialOrder || {}),
+            ...values,
+            products: updatedProducts,
+            incomeAmount: totalIncome,
+            status: isProductCreationMode ? undefined : (values.status || 'In Progress'),
+            customerName: isProductCreationMode ? undefined : customerName,
+            deadline: values.deadline,
+            creationDate: values.creationDate,
+            testDate: values.testDate,
+        };
+
+        await onSave(payload as any, !initialOrder);
+
     } catch (error) {
+        // Error toast is handled by the parent component's onSave implementation
     } finally {
-      setIsManualSaving(false);
+        setIsManualSaving(false);
     }
   };
   
@@ -1756,7 +1726,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                   {currentStep === finalStepNumber && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
                           {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          {isProductCreationMode ? 'Create Product' : (initialOrder ? 'Save Changes' : 'Finish Order')}
+                          {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>
                   )}
               </div>

@@ -5,16 +5,15 @@
 import { useState, use } from "react";
 import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import { Order, OrderAttachment } from "@/lib/types";
+import { Order } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
 export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const { id } = use(params);
+  const id = use(params.id);
   const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
@@ -34,12 +33,14 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
   const handleUpdateOrder = async (updatedOrderData: Omit<Order, 'id' | 'creationDate'>) => {
     setIsSubmitting(true);
     try {
-        await updateOrder({ ...order, ...updatedOrderData});
+        const fullOrderData = { ...order, ...updatedOrderData };
+        await updateOrder(fullOrderData);
         toast({
             title: "Order Updated",
             description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
         });
-        // The form will reset its dirty state inside the OrderForm component.
+        router.push(`/orders/${order.id}`);
+        return order.id;
     } catch (error) {
         console.error("Failed to update order", error);
         toast({
@@ -47,10 +48,10 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
             title: "Update Failed",
             description: (error as Error).message || "There was a problem updating the order.",
         });
+        return undefined;
     } finally {
         setIsSubmitting(false);
     }
-    return Promise.resolve(order.id);
   };
 
   return (
@@ -67,7 +68,7 @@ export default function EditOrderPage({ params }: { params: { id: string } }) {
         <ProductSettingProvider>
             <OrderForm
                 order={order}
-                onSave={(data) => handleUpdateOrder(data)}
+                onSave={handleUpdateOrder}
                 submitButtonText="Save Changes"
                 isSubmitting={isSubmitting}
             />
