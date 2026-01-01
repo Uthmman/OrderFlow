@@ -41,7 +41,6 @@ function ProductCatalog() {
   const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSyncing, setIsSyncing] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -50,11 +49,31 @@ function ProductCatalog() {
 
   const filteredProducts = useMemo(() => {
     return (products || []).filter(product => {
-      const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
       const matchesSearch = product.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ?? true;
-      return matchesCategory && matchesSearch;
+      return matchesSearch;
     });
-  }, [products, selectedCategory, searchTerm]);
+  }, [products, searchTerm]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+        'All Products': products.length,
+        'Custom': 0,
+    };
+    
+    productSettings?.productCategories.forEach(cat => {
+        counts[cat.name] = 0;
+    });
+
+    products.forEach(product => {
+        if (product.category && counts.hasOwnProperty(product.category)) {
+            counts[product.category]++;
+        } else {
+            counts['Custom']++;
+        }
+    });
+
+    return counts;
+  }, [products, productSettings]);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -112,6 +131,12 @@ function ProductCatalog() {
     }
   }
 
+  const categoryList = [
+      { name: 'All Products', icon: 'LayoutGrid' },
+      ...(productSettings?.productCategories || []),
+      { name: 'Custom', icon: 'Wrench' }
+  ]
+
 
   if (productsLoading || settingsLoading || ordersLoading) {
     return <div className="text-center p-8">Loading products...</div>;
@@ -124,210 +149,59 @@ function ProductCatalog() {
         <p className="text-muted-foreground">Browse and manage all available products.</p>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
-            <div className="flex gap-2 w-full sm:w-auto">
-              <div className="relative flex-1 sm:flex-initial">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 w-full"
-                />
-              </div>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center mb-6">
+        <div className="flex gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8 w-full"
+            />
             </div>
-             <div className="flex items-center gap-2">
-                <Button variant={viewMode === 'grid' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('grid')}>
-                    <LayoutGrid />
-                </Button>
-                <Button variant={viewMode === 'list' ? 'secondary' : 'ghost'} size="icon" onClick={() => setViewMode('list')}>
-                    <List />
-                </Button>
-                {role === 'Admin' && (
-                    <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
-                        {isSyncing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
-                        Sync
-                    </Button>
-                )}
-                 <Button onClick={() => router.push('/products/new')}>
-                    <PlusCircle className="mr-2" /> New Product
-                </Button>
-            </div>
-          </div>
-          
-           <div className="space-y-4 mb-6">
-                <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => setSelectedCategory('All')}
-                        className={cn("px-4 py-2 text-sm font-medium border rounded-full transition-colors", 
-                            selectedCategory === 'All' ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                        )}
-                    >
-                        All Categories
-                    </button>
-                    {productSettings?.productCategories.map(cat => {
-                         const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
-                         return (
-                            <Link
-                                href={`/products/category/${encodeURIComponent(cat.name)}`}
-                                key={cat.name}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    router.push(`/products/category/${encodeURIComponent(cat.name)}`);
-                                }}
-                                className={cn("flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-full transition-colors", 
-                                    selectedCategory === cat.name ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
-                                )}
-                            >
-                                <IconComponent className="h-4 w-4" />
-                                {cat.name}
-                            </Link>
-                         )
-                    })}
-                </div>
-            </div>
-
+        </div>
+        <div className="flex items-center gap-2">
             {role === 'Admin' && (
-                <div className="flex items-center gap-4 mb-6 p-3 bg-muted rounded-lg">
-                    <Checkbox
-                        id="select-all"
-                        checked={selectedProducts.length > 0 && selectedProducts.length === filteredProducts.length}
-                        onCheckedChange={handleSelectAll}
-                    />
-                    <label htmlFor="select-all" className="text-sm font-medium">
-                        {selectedProducts.length > 0 ? `${selectedProducts.length} selected` : 'Select All'}
-                    </label>
-                    {selectedProducts.length > 0 && (
-                       <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" disabled={isDeleting}>
-                                {isDeleting ? <Loader2 className="mr-2 animate-spin"/> : <Trash2 className="mr-2" />}
-                                Delete Selected
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete the selected products and their data.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={handleDeleteSelected}>Delete Products</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    )}
-                </div>
+                <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
+                    {isSyncing ? <Loader2 className="mr-2 animate-spin"/> : <RefreshCw className="mr-2"/>}
+                    Sync
+                </Button>
             )}
+            <Button onClick={() => router.push('/products/new')}>
+                <PlusCircle className="mr-2" /> New Product
+            </Button>
+        </div>
+      </div>
 
-
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <p>No products found.</p>
-            </div>
-          ) : viewMode === 'grid' ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {filteredProducts.map(product => {
-                    const category = productSettings?.productCategories.find(c => c.name === product.category);
-                    const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                    const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
-                    const isSelected = selectedProducts.includes(product.id);
-
-                    return (
-                        <Card key={product.id} className={cn("flex flex-col overflow-hidden group h-full transition-all", isSelected && "ring-2 ring-primary")}>
-                            <div className="relative">
-                                {role === 'Admin' && (
-                                     <div className="absolute top-2 left-2 z-10 bg-background/80 rounded-sm">
-                                        <Checkbox 
-                                            checked={isSelected}
-                                            onCheckedChange={() => handleProductSelect(product.id)}
-                                            className="m-1"
-                                        />
-                                    </div>
-                                )}
-                                 {(product.orderIds?.length || 0) > 0 && (
-                                    <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold">
-                                        {product.orderIds?.length}
-                                    </div>
-                                )}
-                                <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity">
-                                    <CardHeader className="p-0">
-                                        <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
-                                            {primaryAttachment?.url ? (
-                                                <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                                            ) : (
-                                                <IconComponent className="h-16 w-16 text-muted-foreground" />
-                                            )}
-                                        </div>
-                                    </CardHeader>
-                                </Link>
+       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {categoryList.map(cat => {
+            const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
+            const count = categoryCounts[cat.name] || 0;
+            const link = cat.name === 'All Products' ? '/products' : `/products/category/${encodeURIComponent(cat.name)}`;
+            
+            return (
+              <Link href={link} key={cat.name}>
+                <Card className="hover:border-primary transition-colors group h-full">
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-start">
+                        <IconComponent className="h-10 w-10 text-muted-foreground group-hover:text-primary transition-colors" />
+                        {count > 0 && (
+                             <div className="bg-primary text-primary-foreground h-7 w-7 rounded-full flex items-center justify-center text-sm font-bold">
+                                {count}
                             </div>
-                            <Link href={`/products/${product.id}`} className="flex-grow flex flex-col">
-                                <CardContent className="p-4 flex-grow">
-                                    <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
-                                    <CardDescription>{product.category}</CardDescription>
-                                </CardContent>
-                            </Link>
-                            <CardFooter className="p-4 pt-0">
-                                <Button className="w-full" size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
-                                    <PlusCircle className="mr-2"/> Order This
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    )
-                })}
-            </div>
-          ) : (
-            <div className="space-y-4">
-                {filteredProducts.map(product => {
-                    const category = productSettings?.productCategories.find(c => c.name === product.category);
-                    const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                    const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
-                    const isSelected = selectedProducts.includes(product.id);
-
-                    return (
-                        <Card key={product.id} className={cn("transition-colors hover:bg-muted/50", isSelected && "ring-2 ring-primary")}>
-                          <div className="flex items-center p-4 gap-4">
-                             {role === 'Admin' && (
-                                <Checkbox
-                                    checked={isSelected}
-                                    onCheckedChange={() => handleProductSelect(product.id)}
-                                />
-                             )}
-                            <Link href={`/products/${product.id}`} className="flex-grow flex items-center gap-4">
-                                <div className="h-16 w-16 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative">
-                                {primaryAttachment?.url ? (
-                                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover rounded-md" />
-                                    ) : (
-                                        <IconComponent className="h-8 w-8 text-muted-foreground" />
-                                    )}
-                                     {(product.orderIds?.length || 0) > 0 && (
-                                        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold">
-                                            {product.orderIds?.length}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-grow">
-                                    <p className="font-semibold hover:underline">{product.productName}</p>
-                                    <p className="text-sm text-muted-foreground">{product.category}</p>
-                                </div>
-                            </Link>
-                             <Button size="sm" onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)}>
-                                <PlusCircle className="mr-2"/> Order
-                            </Button>
-                          </div>
-                        </Card>
-                    )
-                })}
-            </div>
-          )}
-
-        </CardContent>
-      </Card>
+                        )}
+                    </div>
+                     <div className="mt-4">
+                        <p className="text-lg font-semibold">{cat.name}</p>
+                        <p className="text-sm text-muted-foreground">View all products</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
     </div>
   );
 }

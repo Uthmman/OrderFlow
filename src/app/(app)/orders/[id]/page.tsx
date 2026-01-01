@@ -766,7 +766,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         } else if (newStatus === 'Shipped' && canViewSensitiveData) { // Only admin can ship
             setPaymentConfirmationDialogOpen(true);
         } else {
-            updateOrder({ ...order, status: newStatus });
+            updateOrder({ id: order.id, status: newStatus, products: order.products });
             toast({
                 title: "Status Updated",
                 description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
@@ -783,7 +783,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         updatedProducts[0].billOfMaterials = bomUpdate;
 
         // Directly call updateOrder with the new status and product info
-        updateOrder({ ...order, products: updatedProducts, status: 'Completed' }, {
+        updateOrder({ id: order.id, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
             file: undefined
         }).then(() => {
@@ -798,7 +798,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         if (!order || !statusToChange) return;
         
         updateOrder({ 
-            ...order, 
+            id: order.id,
             status: 'Shipped', 
             paymentStatus: paymentStatus,
             paymentDetails 
@@ -813,7 +813,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
     const handleMarkAsPaid = () => {
         if (!order) return;
         updateOrder({
-            ...order,
+            id: order.id,
             paymentStatus: 'Paid',
             prepaidAmount: order.incomeAmount, // Assume full amount is now paid
         });
@@ -828,7 +828,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         if (!order) return;
         setIsLoadingStatusChange(true);
         try {
-            await updateOrder({ ...order, status: newStatus });
+            await updateOrder({ id: order.id, status: newStatus });
              toast({
                 title: "Status Updated",
                 description: `Order status changed to ${newStatus}.`
@@ -850,7 +850,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         const updatedProducts = [...order.products];
         updatedProducts[0].billOfMaterials = bom;
 
-        updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
+        updateOrder({ id: order.id, products: updatedProducts, status: 'Design Ready' }, {
             text: `Bill of Materials Submitted:\n${bom}`,
             file: undefined
         });

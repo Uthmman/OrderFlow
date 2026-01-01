@@ -23,11 +23,16 @@ function CategoryProductCatalog() {
   const { productSettings, loading: settingsLoading } = useProductSettings();
 
   const filteredProducts = useMemo(() => {
+    if (categoryName === 'Custom') {
+        const allCategories = new Set(productSettings?.productCategories.map(c => c.name));
+        return (products || []).filter(product => !product.category || !allCategories.has(product.category));
+    }
     return (products || []).filter(product => product.category === categoryName);
-  }, [products, categoryName]);
+  }, [products, categoryName, productSettings]);
 
   const category = productSettings?.productCategories.find(c => c.name === categoryName);
-  const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+  const iconName = categoryName === 'Custom' ? 'Wrench' : category?.icon || 'Box';
+  const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
 
   if (productsLoading || settingsLoading) {
     return <div className="text-center p-8">Loading products...</div>;
@@ -58,6 +63,8 @@ function CategoryProductCatalog() {
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredProducts.map(product => {
                     const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
+                    const categoryIcon = productSettings?.productCategories.find(c => c.name === product.category)?.icon || 'Box';
+                    const CategoryIcon = (LucideIcons as any)[categoryIcon] || LucideIcons.Box;
                     return (
                         <Card key={product.id} className={cn("flex flex-col overflow-hidden group h-full transition-all")}>
                             <div className="relative">
@@ -72,7 +79,7 @@ function CategoryProductCatalog() {
                                             {primaryAttachment?.url ? (
                                                 <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                                             ) : (
-                                                <IconComponent className="h-16 w-16 text-muted-foreground" />
+                                                <CategoryIcon className="h-16 w-16 text-muted-foreground" />
                                             )}
                                         </div>
                                     </CardHeader>
@@ -81,7 +88,7 @@ function CategoryProductCatalog() {
                             <Link href={`/products/${product.id}`} className="flex-grow flex flex-col">
                                 <CardContent className="p-4 flex-grow">
                                     <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
-                                    <CardDescription>{product.category}</CardDescription>
+                                    <CardDescription>{product.category || 'Custom'}</CardDescription>
                                 </CardContent>
                             </Link>
                             <CardFooter className="p-4 pt-0">
