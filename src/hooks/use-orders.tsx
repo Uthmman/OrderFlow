@@ -319,16 +319,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
             if (orderData.status === 'Completed') {
                 const productsToUpdate = orderData.products || originalOrder.products;
-                for (const product of productsToUpdate) {
-                    const productsRef = collection(firestore, "products");
-                    const q = query(productsRef, where("productName", "==", product.productName));
-                    const querySnapshot = await getDocs(q);
+                // Guard clause to prevent crash if products are not iterable
+                if (!Array.isArray(productsToUpdate)) {
+                    console.error("updateOrder: Cannot update products on 'Completed' because productsToUpdate is not an array.", productsToUpdate);
+                } else {
+                    for (const product of productsToUpdate) {
+                        const productsRef = collection(firestore, "products");
+                        const q = query(productsRef, where("productName", "==", product.productName));
+                        const querySnapshot = await getDocs(q);
 
-                    if (querySnapshot.empty) {
-                        await addProduct(product);
-                    } else {
-                        const existingProductId = querySnapshot.docs[0].id;
-                        await updateProduct(existingProductId, product);
+                        if (querySnapshot.empty) {
+                            await addProduct(product);
+                        } else {
+                            const existingProductId = querySnapshot.docs[0].id;
+                            await updateProduct(existingProductId, product);
+                        }
                     }
                 }
             }
