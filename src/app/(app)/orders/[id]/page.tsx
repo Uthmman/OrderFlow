@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
@@ -9,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -725,6 +724,10 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
   const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
   const isDesigner = role === 'Designer';
   const canViewSensitiveData = role === 'Admin';
+  
+  const prepaid = order.prepaidAmount || 0;
+  const balance = (order.incomeAmount || 0) - prepaid;
+  const isPaid = balance <= 0 && order.incomeAmount > 0;
 
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
@@ -813,18 +816,34 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         });
     };
 
-    const handleMarkAsPaid = () => {
+     const handleTogglePaidStatus = () => {
         if (!order) return;
-        updateOrder({
-            id: order.id,
-            paymentStatus: 'Paid',
-            prepaidAmount: order.incomeAmount, // Assume full amount is now paid
-            products: order.products,
-        });
-        toast({
-            title: "Order Marked as Paid",
-            description: "The order is now fully paid.",
-        })
+
+        if (isPaid) {
+            // If already paid, mark as unpaid (Balance Due)
+            updateOrder({
+                id: order.id,
+                paymentStatus: 'Balance Due',
+                prepaidAmount: 0, 
+                products: order.products,
+            });
+            toast({
+                title: "Order Marked as Unpaid",
+                description: "The order now has a balance due.",
+            });
+        } else {
+            // If unpaid, mark as paid
+            updateOrder({
+                id: order.id,
+                paymentStatus: 'Paid',
+                prepaidAmount: order.incomeAmount,
+                products: order.products,
+            });
+            toast({
+                title: "Order Marked as Paid",
+                description: "The order is now fully paid.",
+            });
+        }
     }
 
 
@@ -899,10 +918,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         document.body.removeChild(link);
     };
 
-
-  const prepaid = order.prepaidAmount || 0;
-  const balance = (order.incomeAmount || 0) - prepaid;
-  const isPaid = balance <= 0 && order.incomeAmount > 0;
 
   const orderDetailsContent = (
      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
@@ -994,10 +1009,10 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                 <DropdownMenuItem onClick={handleDuplicate}>
                                 Duplicate Order
                             </DropdownMenuItem>
-                             {canChangeStatus && !isPaid && (
-                                <DropdownMenuItem onClick={handleMarkAsPaid}>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    <span>Mark as Paid</span>
+                             {canViewSensitiveData && (
+                                <DropdownMenuItem onClick={handleTogglePaidStatus}>
+                                    {isPaid ? <RefreshCw className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+                                    <span>{isPaid ? "Mark as Unpaid" : "Mark as Paid"}</span>
                                 </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />
@@ -1114,8 +1129,8 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                         <span className="text-sm text-muted-foreground">Payment Status</span>
                                         <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
                                     </div>
-                                    {!isPaid && (
-                                        <Button size="sm" className="w-full" onClick={handleMarkAsPaid}>
+                                      {!isPaid && (
+                                        <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}>
                                             <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
                                         </Button>
                                     )}
@@ -1217,7 +1232,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                                 <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
                             </div>
                              {!isPaid && (
-                                <Button size="sm" className="w-full" onClick={handleMarkAsPaid}>
+                                <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}>
                                     <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
                                 </Button>
                             )}
@@ -1332,3 +1347,5 @@ export default function OrderDetailPage({ params }: { params: { id: string } }) 
         </Suspense>
     )
 }
+
+    
