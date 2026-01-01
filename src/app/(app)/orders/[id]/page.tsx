@@ -828,7 +828,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         if (!order) return;
         setIsLoadingStatusChange(true);
         try {
-            await updateOrder({ id: order.id, status: newStatus });
+            await updateOrder({ id: order.id, status: newStatus, products: order.products });
              toast({
                 title: "Status Updated",
                 description: `Order status changed to ${newStatus}.`
