@@ -782,7 +782,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
         updatedProducts[0].billOfMaterials = bomUpdate;
 
-        // Directly call updateOrder with the new status and product info
         updateOrder({ id: order.id, products: updatedProducts, status: 'Completed' }, {
             text: `Paint Usage Submitted:\n${paintUsage}`,
             file: undefined
