@@ -2,18 +2,19 @@
 
 "use client";
 
-import { useState, use } from "react";
+import { useState } from "react";
 import { OrderForm } from "@/components/app/order-form";
 import { useOrders } from "@/hooks/use-orders";
-import { notFound, useRouter } from "next/navigation";
+import { notFound, useRouter, useParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Order } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 
-export default function EditOrderPage({ params }: { params: { id: string } }) {
-  const id = use(params.id);
+export default function EditOrderPage() {
+  const params = useParams();
+  const id = params.id as string;
   const { getOrderById, updateOrder, loading } = useOrders();
   const { toast } = useToast();
   const router = useRouter();
