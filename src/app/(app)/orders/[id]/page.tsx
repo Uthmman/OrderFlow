@@ -461,13 +461,21 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
     );
 }
 
-function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string) => void }) {
+function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[]) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [bom, setBom] = useState('');
     const { toast } = useToast();
-    const [uploadedFileCount, setUploadedFileCount] = useState(0);
+    const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
+
+    useEffect(() => {
+        if (!open) {
+            setUploadedFiles([]);
+            setBom('');
+            setIsUploading(false);
+        }
+    }, [open]);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -476,21 +484,22 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setIsUploading(true);
         try {
             const uploadPromises = Array.from(files).map(file => 
-                addAttachment(order.id, productIndex, file, true) // Pass true for isDesignFile
+                addAttachment(order.id, productIndex, file, true)
             );
             
             const results = await Promise.all(uploadPromises);
+            const newAttachments = results.filter((res): res is OrderAttachment => res !== undefined);
 
-            if (results.every(res => res !== undefined)) {
+            if (newAttachments.length > 0) {
+                setUploadedFiles(prev => [...prev, ...newAttachments]);
                 toast({
-                    title: `${results.length} file(s) uploaded`,
-                    description: "The design files have been attached.",
+                    title: `${newAttachments.length} file(s) uploaded`,
+                    description: "The design files have been staged.",
                 });
-                setUploadedFileCount(prev => prev + results.length);
-            } else {
-                throw new Error("One or more file uploads failed.");
             }
-
+            if (newAttachments.length < files.length) {
+                 throw new Error("One or more file uploads failed.");
+            }
         } catch (error) {
              toast({
                 variant: "destructive",
@@ -499,11 +508,14 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             });
         } finally {
             setIsUploading(false);
+            if (event.target) {
+                event.target.value = '';
+            }
         }
     };
     
     const handleSubmit = () => {
-        if (uploadedFileCount === 0) {
+        if (uploadedFiles.length === 0) {
             toast({
                 variant: "destructive",
                 title: "No Files Uploaded",
@@ -520,12 +532,14 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             return;
         }
 
-        onFinished(bom);
+        onFinished(bom, uploadedFiles);
         onOpenChange(false);
-        // Reset state for next time
-        setUploadedFileCount(0);
-        setBom('');
     }
+    
+    const handleRemoveFile = (fileToRemove: OrderAttachment) => {
+        setUploadedFiles(prev => prev.filter(file => file.url !== fileToRemove.url));
+    }
+
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -549,7 +563,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                         ) : (
                             <>
                                 <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                <p className="font-semibold">{uploadedFileCount > 0 ? `${uploadedFileCount} file(s) ready` : 'Click to upload or drag & drop'}</p>
+                                <p className="font-semibold">Click to upload or drag & drop</p>
                                 <p className="text-xs text-muted-foreground">PDF, AI, PSD, PNG, etc.</p>
                             </>
                         )}
@@ -565,6 +579,26 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                      {Object.keys(uploadProgress).length > 0 && (
                         <div className="text-sm text-muted-foreground">Overall progress will be shown here if implemented</div>
                     )}
+                    
+                    {uploadedFiles.length > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Staged Files:</h4>
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                                {uploadedFiles.map(file => (
+                                    <div key={file.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
+                                        <div className="flex items-center gap-2 truncate">
+                                            <File className="h-4 w-4 flex-shrink-0" />
+                                            <span className="text-sm truncate">{file.fileName}</span>
+                                        </div>
+                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveFile(file)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <div>
                         <Label htmlFor="bom">Bill of Materials (BOM)</Label>
                         <Textarea 
@@ -635,9 +669,8 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
-function OrderDetailPageContent({ params: paramsProp }: { params: { id: string } }) {
-  const params = use(paramsProp);
-  const id = params.id;
+function OrderDetailPageContent({ params }: { params: { id: string } }) {
+  const id = use(params.id);
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
@@ -704,7 +737,7 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
 
-        setStatusToChange(newStatus); // Store the intended status
+        setStatusToChange(newStatus); 
 
         if (newStatus === 'Completed' && order.status === 'Painting') {
             setPaintUsageDialogOpen(true);
@@ -748,7 +781,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         if (!order) return;
 
         if (isPaid) {
-            // If already paid, mark as unpaid (Balance Due)
             updateOrder({
                 ...order,
                 paymentStatus: 'Balance Due',
@@ -760,7 +792,6 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
                 description: "The order now has a balance due.",
             });
         } else {
-            // If unpaid, mark as paid
             updateOrder({
                 ...order,
                 paymentStatus: 'Paid',
@@ -795,14 +826,18 @@ function OrderDetailPageContent({ params: paramsProp }: { params: { id: string }
         }
     }
 
-    const handleDesignFinished = (bom: string) => {
+    const handleDesignFinished = (bom: string, attachments: OrderAttachment[]) => {
         if (!order || !order.products || order.products.length === 0) return;
         
         const updatedProducts = [...order.products];
-        updatedProducts[0].billOfMaterials = bom;
-
+        const productToUpdate = updatedProducts[0];
+        
+        productToUpdate.billOfMaterials = bom;
+        // The attachments are already associated with the order via addAttachment, 
+        // they are passed here just to confirm submission context if needed for the chat message.
+        
         updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
-            text: `Bill of Materials Submitted:\n${bom}`,
+            text: `Bill of Materials Submitted with ${attachments.length} file(s):\n${bom}`,
             file: undefined
         });
 
