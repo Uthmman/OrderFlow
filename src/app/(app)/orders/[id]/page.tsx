@@ -122,13 +122,10 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
                  <p className="text-xs text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
                  <div className="flex items-center">
-                    {!isAudio && (
+                    {!isAudio && !isImage && (
                          <>
                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyToClipboard}>
                             <LinkIcon className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6" asChild>
-                            <a href={att.url} download={att.fileName} onClick={handleDownload}><Download className="h-4 w-4" /></a>
                         </Button>
                         </>
                     )}
@@ -479,7 +476,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setIsUploading(true);
         try {
             const uploadPromises = Array.from(files).map(file => 
-                addAttachment(order.id, productIndex, file, true)
+                addAttachment(order.id, productIndex, file, true) // Pass true for isDesignFile
             );
             
             const results = await Promise.all(uploadPromises);
@@ -489,7 +486,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                     title: `${results.length} file(s) uploaded`,
                     description: "The design files have been attached.",
                 });
-                setUploadedFileCount(results.length);
+                setUploadedFileCount(prev => prev + results.length);
             } else {
                 throw new Error("One or more file uploads failed.");
             }
