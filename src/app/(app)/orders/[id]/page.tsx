@@ -4,7 +4,7 @@
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
 import { useOrders } from "@/hooks/use-orders";
-import { notFound, useRouter, useSearchParams } from "next/navigation";
+import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus } from "@/lib/types";
@@ -224,7 +224,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: ${formatOrderId(order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: {formatOrderId(order.id)}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -669,8 +669,9 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
-function OrderDetailPageContent({ params }: { params: { id: string } }) {
-  const id = use(params.id);
+function OrderDetailPageContent() {
+  const params = useParams();
+  const id = params.id as string;
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
@@ -737,18 +738,18 @@ function OrderDetailPageContent({ params }: { params: { id: string } }) {
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!order) return;
 
-        setStatusToChange(newStatus); 
+        setStatusToChange(newStatus);
 
         if (newStatus === 'Completed' && order.status === 'Painting') {
             setPaintUsageDialogOpen(true);
         } else if (newStatus === 'Shipped') {
-            updateOrder({ ...order, status: 'Shipped' });
+            updateOrder({ ...order, status: 'Shipped', products: order.products });
              toast({
                 title: "Order Shipped",
                 description: `Order ${formatOrderId(order.id)} status is now Shipped.`
             });
         } else {
-            updateOrder({ ...order, status: newStatus });
+            updateOrder({ ...order, status: newStatus, products: order.products });
             toast({
                 title: "Status Updated",
                 description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
@@ -786,6 +787,7 @@ function OrderDetailPageContent({ params }: { params: { id: string } }) {
                 paymentStatus: 'Balance Due',
                 prepaidAmount: 0, 
                 paidDate: undefined,
+                products: order.products,
             });
             toast({
                 title: "Order Marked as Unpaid",
@@ -797,6 +799,7 @@ function OrderDetailPageContent({ params }: { params: { id: string } }) {
                 paymentStatus: 'Paid',
                 prepaidAmount: order.incomeAmount,
                 paidDate: new Date(),
+                products: order.products,
             });
             toast({
                 title: "Order Marked as Paid",
@@ -810,7 +813,7 @@ function OrderDetailPageContent({ params }: { params: { id: string } }) {
         if (!order) return;
         setIsLoadingStatusChange(true);
         try {
-            await updateOrder({ ...order, status: newStatus });
+            await updateOrder({ ...order, status: newStatus, products: order.products });
              toast({
                 title: "Status Updated",
                 description: `Order status changed to ${newStatus}.`
@@ -1309,10 +1312,10 @@ function OrderDetailPageContent({ params }: { params: { id: string } }) {
 }
 
 
-export default function OrderDetailPage({ params }: { params: { id: string } }) {
+export default function OrderDetailPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <OrderDetailPageContent params={params} />
+            <OrderDetailPageContent />
         </Suspense>
     )
 }
