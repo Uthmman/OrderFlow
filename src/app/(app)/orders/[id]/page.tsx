@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
@@ -56,6 +55,7 @@ import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -577,7 +577,18 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                         />
                     </div>
                      {Object.keys(uploadProgress).length > 0 && (
-                        <div className="text-sm text-muted-foreground">Overall progress will be shown here if implemented</div>
+                        <div className="space-y-2 pt-4">
+                            <h4 className="text-sm font-medium">Uploading...</h4>
+                            {Object.entries(uploadProgress).map(([fileName, progress]) => (
+                                <div key={fileName} className="space-y-1">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="truncate">{fileName}</span>
+                                        <span>{Math.round(progress)}%</span>
+                                    </div>
+                                    <Progress value={progress} className="h-2" />
+                                </div>
+                            ))}
+                        </div>
                     )}
                     
                     {uploadedFiles.length > 0 && (
@@ -742,14 +753,8 @@ function OrderDetailPageContent() {
 
         if (newStatus === 'Completed' && order.status === 'Painting') {
             setPaintUsageDialogOpen(true);
-        } else if (newStatus === 'Shipped') {
-            updateOrder({ ...order, status: 'Shipped', products: order.products });
-             toast({
-                title: "Order Shipped",
-                description: `Order ${formatOrderId(order.id)} status is now Shipped.`
-            });
         } else {
-            updateOrder({ ...order, status: newStatus, products: order.products });
+            updateOrder({ ...order, status: newStatus });
             toast({
                 title: "Status Updated",
                 description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
@@ -787,7 +792,6 @@ function OrderDetailPageContent() {
                 paymentStatus: 'Balance Due',
                 prepaidAmount: 0, 
                 paidDate: undefined,
-                products: order.products,
             });
             toast({
                 title: "Order Marked as Unpaid",
@@ -799,7 +803,6 @@ function OrderDetailPageContent() {
                 paymentStatus: 'Paid',
                 prepaidAmount: order.incomeAmount,
                 paidDate: new Date(),
-                products: order.products,
             });
             toast({
                 title: "Order Marked as Paid",
@@ -813,7 +816,7 @@ function OrderDetailPageContent() {
         if (!order) return;
         setIsLoadingStatusChange(true);
         try {
-            await updateOrder({ ...order, status: newStatus, products: order.products });
+            await updateOrder({ ...order, status: newStatus });
              toast({
                 title: "Status Updated",
                 description: `Order status changed to ${newStatus}.`
