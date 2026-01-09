@@ -21,6 +21,8 @@ import { useFirebase } from "@/firebase";
 const profileFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email(),
+  phoneNumber: z.string().optional(),
+  telegram: z.string().optional(),
   avatarUrl: z.string().url().optional(),
   orderSortPreference: z.object({
     field: z.enum(["creationDate", "deadline"]),
@@ -63,6 +65,8 @@ export default function ProfilePage() {
         values: {
             name: user?.name || "",
             email: user?.email || "",
+            phoneNumber: user?.phoneNumber || "",
+            telegram: user?.telegram || "",
             avatarUrl: user?.avatarUrl,
             orderSortPreference: user?.orderSortPreference || { field: 'deadline', direction: 'asc' },
         }
@@ -203,6 +207,32 @@ export default function ProfilePage() {
                                             <Input {...field} disabled />
                                         </FormControl>
                                         <FormDescription>You cannot change your email address.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="phoneNumber"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Phone Number</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="+1 234 567 890" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField
+                                control={form.control}
+                                name="telegram"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Telegram Username</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="@username" {...field} />
+                                        </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}

@@ -15,6 +15,8 @@ export type AppUser = {
   email: string;
   avatarUrl: string;
   role: Role;
+  phoneNumber?: string;
+  telegram?: string;
   orderSortPreference?: OrderSortPreference;
   dashboardOrderSortPreference?: OrderSortPreference;
 };
