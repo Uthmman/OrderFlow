@@ -196,7 +196,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 description: "Could not remove the attachment.",
             });
       }
-  }
+  };
 
 
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
@@ -298,6 +298,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         dataToUpdate.paidDate = undefined;
     }
 
+    if (originalOrder && orderData.products && orderData.products.length > originalOrder.products.length) {
+      const newProducts = orderData.products.slice(originalOrder.products.length);
+      for (const product of newProducts) {
+        if (product.productName) {
+            const newProductId = await addProduct(product);
+            if (newProductId) {
+                await addOrderIdToProduct(newProductId, orderData.id);
+            }
+        }
+      }
+    }
 
     const usersToNotify = Array.from(new Set([
         ...(originalOrder?.assignedTo || []),
@@ -321,26 +332,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             newMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
                 triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order #${orderData.id.slice(-5)} status was updated to ${orderData.status}.`, orderId: orderData.id });
-            }
-             if (orderData.status === 'Completed') {
-                const productsToUpdate = orderData.products || originalOrder.products;
-                
-                if (!Array.isArray(productsToUpdate)) {
-                    console.error("updateOrder: Cannot update products on 'Completed' because productsToUpdate is not an array.", productsToUpdate);
-                } else {
-                    for (const product of productsToUpdate) {
-                        const productsRef = collection(firestore, "products");
-                        const q = query(productsRef, where("productName", "==", product.productName));
-                        const querySnapshot = await getDocs(q);
-
-                        if (querySnapshot.empty) {
-                            await addProduct(product);
-                        } else {
-                            const existingProductId = querySnapshot.docs[0].id;
-                            await updateProduct(existingProductId, product);
-                        }
-                    }
-                }
             }
         }
         if (originalOrder.isUrgent !== orderData.isUrgent && orderData.isUrgent !== undefined) {
@@ -548,5 +539,3 @@ export function useOrders() {
   }
   return context;
 }
-
-    
