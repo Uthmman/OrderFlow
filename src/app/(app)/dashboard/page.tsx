@@ -93,7 +93,7 @@ export default function Dashboard() {
     return <div>Loading...</div>;
   }
 
-  const canViewSensitiveData = role === 'Admin';
+  const canViewSensitiveData = role === 'Admin' || role === 'Manager';
 
 
   return (

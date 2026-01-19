@@ -16,6 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Search } from "lucide-react";
 import Link from "next/link";
+import { DateRange } from "react-day-picker";
+import { isWithinInterval, parseISO } from "date-fns";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
@@ -25,16 +28,39 @@ export default function OrdersPage() {
   const { user, role, loading: userLoading } = useUser();
   const [activeTab, setActiveTab] = useState("active");
   const [searchTerm, setSearchTerm] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  const parseOrderDate = (date: any): Date | null => {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    if (date && 'toDate' in date) return date.toDate(); // Firestore Timestamp
+    if (typeof date === 'string') return parseISO(date);
+    return null;
+  }
 
   const getOrdersByStatus = (statuses: OrderStatus[]) => {
-    return orders.filter(order => 
-        statuses.includes(order.status) &&
-        (
+    return orders.filter(order => {
+        const statusMatch = statuses.includes(order.status);
+        
+        const searchMatch = (
             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.products && order.products[0] && order.products[0].productName.toLowerCase().includes(searchTerm.toLowerCase()))
-        )
-    );
+        );
+        
+        let dateMatch = true;
+        if (dateRange?.from) {
+            const creationDate = parseOrderDate(order.creationDate);
+            if (!creationDate) {
+                dateMatch = false;
+            } else {
+                const endOfRange = dateRange.to || new Date(8640000000000000);
+                dateMatch = isWithinInterval(creationDate, { start: dateRange.from, end: endOfRange });
+            }
+        }
+
+        return statusMatch && searchMatch && dateMatch;
+    });
   };
   
   // Define status groups
@@ -57,7 +83,7 @@ export default function OrdersPage() {
     { value: "inProduction", label: "In Production", orders: getOrdersByStatus(inProductionStatuses) },
     { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
     { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
-  ], [orders, searchTerm]);
+  ], [orders, searchTerm, dateRange]);
 
   const defaultTabs = useMemo(() => {
     const tabs = [
@@ -75,7 +101,7 @@ export default function OrdersPage() {
     tabs.push({ value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) });
     tabs.push({ value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...shippedStatuses, ...cancelledStatuses, "Pending"]) });
     return tabs;
-  }, [orders, searchTerm, role]);
+  }, [orders, searchTerm, role, dateRange]);
 
   const tabs = role === 'Designer' ? designerTabs : defaultTabs;
 
@@ -102,21 +128,26 @@ export default function OrdersPage() {
       </div>
       
        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <div className="relative flex-1 w-full sm:w-auto">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                 <Input
-                    placeholder="Filter by customer, ID, or product..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 w-full sm:w-[300px] lg:w-[400px]"
-                />
+            <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Filter by customer, ID, or product..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 w-full sm:w-[300px] lg:w-[400px]"
+                    />
+                </div>
+                <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
             </div>
-            <Link href="/orders/new">
-                <Button size="sm" className="h-9 w-full sm:w-auto">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    New Order
-                </Button>
-            </Link>
+            <div className="w-full sm:w-auto">
+                <Link href="/orders/new">
+                    <Button size="sm" className="h-9 w-full">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        New Order
+                    </Button>
+                </Link>
+            </div>
        </div>
 
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
