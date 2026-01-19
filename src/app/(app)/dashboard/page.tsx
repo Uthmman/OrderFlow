@@ -65,11 +65,15 @@ export default function Dashboard() {
 
   const stats = useMemo(() => {
     const totalRevenue = revenueOrders.reduce((acc, order) => {
-      const prepaid = order.prepaidAmount || 0;
-      if (order.paymentStatus === 'Paid') {
-        return acc + order.incomeAmount;
+      // For completed or shipped orders, count the full amount as revenue.
+      if (order.status === 'Completed' || order.status === 'Shipped') {
+        return acc + (order.incomeAmount || 0);
       }
-      return acc + prepaid;
+      // For other non-cancelled orders, count the pre-paid amount as cash-in-hand.
+      if (order.status !== 'Cancelled') {
+        return acc + (order.prepaidAmount || 0);
+      }
+      return acc;
     }, 0);
 
     // These stats are now independent of the date range
@@ -93,7 +97,7 @@ export default function Dashboard() {
     return <div>Loading...</div>;
   }
 
-  const canViewSensitiveData = role === 'Admin' || role === 'Manager';
+  const canViewSensitiveData = role === 'Admin';
 
 
   return (
