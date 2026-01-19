@@ -37,13 +37,7 @@ function ProductSettingsForm() {
   
   const form = useForm<ProductSettingsFormValues>({
     resolver: zodResolver(productSettingsFormSchema),
-    values: {
-      productCategories: productSettings?.productCategories || [],
-      materials: productSettings?.materials || [],
-    },
-    resetOptions: {
-      keepDirtyValues: false,
-    }
+    defaultValues: productSettings || { productCategories: [], materials: [] },
   });
 
   const { fields: categoryFields, append: appendCategory, remove: removeCategory } = useFieldArray({
@@ -63,12 +57,9 @@ function ProductSettingsForm() {
   // Sync form with external state changes
   React.useEffect(() => {
     if (productSettings) {
-      form.reset({ 
-        productCategories: productSettings.productCategories,
-        materials: productSettings.materials,
-      });
+      form.reset(productSettings);
     }
-  }, [productSettings, form]);
+  }, [productSettings, form.reset]);
   
   if (loading) {
       return (

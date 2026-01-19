@@ -1,7 +1,8 @@
+
 "use client"
 
 import * as React from "react"
-import { format, addDays, startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { format, addDays, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from "date-fns"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
@@ -68,6 +69,11 @@ export function DateRangePicker({
                     const lastMonth = subMonths(new Date(), 1);
                     setRange({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
                 }}>Last Month</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => setRange({ from: startOfYear(new Date()), to: endOfYear(new Date()) })}>This Year</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => {
+                    const lastYear = subYears(new Date(), 1);
+                    setRange({ from: startOfYear(lastYear), to: endOfYear(lastYear) });
+                }}>Last Year</Button>
                  <Button variant="ghost" className="justify-start font-normal text-destructive hover:text-destructive h-8 px-2" onClick={() => setRange(undefined)}>Clear</Button>
             </div>
              <Calendar

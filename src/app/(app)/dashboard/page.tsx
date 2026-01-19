@@ -13,7 +13,7 @@ import { ProductProvider } from "@/hooks/use-products"
 import { CustomerProvider } from "@/hooks/use-customers"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
-import { addDays, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
+import { addDays, isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
 import { Order, OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,8 @@ export default function Dashboard() {
   const { customers, loading: customersLoading } = useCustomers();
   const { user, role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: addDays(new Date(), -30),
-    to: new Date(),
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
   });
   
   const parseOrderDate = (date: any): Date | null => {
@@ -73,9 +73,8 @@ export default function Dashboard() {
 
 
   const stats = useMemo(() => {
-    // All stats that should be affected by the date range are calculated from `filteredOrdersByDate`
-    const totalRevenueInPeriod = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
     const totalOrdersInPeriod = filteredOrdersByDate.length;
+    const totalRevenueInPeriod = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
     
     // Stats that are for all-time (not affected by date range)
     const ordersInProgressCount = orders.filter(o => o.status === "In Progress").length;
