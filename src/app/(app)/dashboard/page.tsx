@@ -64,43 +64,23 @@ export default function Dashboard() {
 
 
   const stats = useMemo(() => {
-    let totalRevenue = 0;
-    const { from, to } = dateRange || {};
-
-    if (from && to) {
-        orders.forEach(order => {
-            // Add prepaid amount if creation date is in range
-            const creationDate = parseOrderDate(order.creationDate);
-            if (creationDate && isWithinInterval(creationDate, { start: from, end: to })) {
-                totalRevenue += order.prepaidAmount || 0;
-            }
-
-            // Add the balance if the paid date is in range
-            const paidDate = parseOrderDate(order.paidDate);
-            if (paidDate && isWithinInterval(paidDate, { start: from, end: to })) {
-                const balance = (order.incomeAmount || 0) - (order.prepaidAmount || 0);
-                if (balance > 0) {
-                    totalRevenue += balance;
-                }
-            }
-        });
-    }
-
+    // All stats that should be affected by the date range are calculated from `revenueOrders`
+    const totalRevenueInPeriod = revenueOrders.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
+    const totalOrdersInPeriod = revenueOrders.length;
+    
+    // Stats that are for all-time (not affected by date range)
     const ordersInProgressCount = orders.filter(o => o.status === "In Progress").length;
     const ordersInProduction = orders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
     const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
-    
-    // This stat IS based on the date range
-    const totalOrdersInPeriod = revenueOrders.length;
-    
+        
     return {
-      totalRevenue,
+      totalRevenue: totalRevenueInPeriod,
+      totalOrders: totalOrdersInPeriod,
       ordersInProgress: ordersInProgressCount,
       ordersInProduction,
       urgentOrders,
-      totalOrders: totalOrdersInPeriod,
     }
-  }, [orders, dateRange, revenueOrders]);
+  }, [orders, revenueOrders]);
 
   if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;
