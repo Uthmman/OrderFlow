@@ -5,62 +5,80 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Loader2, Trash2, PlusCircle, HelpCircle } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
 import React from "react";
 import { Separator } from "@/components/ui/separator";
 import { DynamicIcon } from "@/components/ui/dynamic-icon";
+import type { ProductCategory, Material } from "@/lib/types";
 
-const productCategorySchema = z.object({
+const categoryFormSchema = z.object({
   name: z.string().min(1, "Name is required."),
   icon: z.string().min(1, "Icon name is required."),
 });
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
-const materialSchema = z.object({
+const materialFormSchema = z.object({
   name: z.string().min(1, "Material name is required."),
   icon: z.string().min(1, "Icon name is required."),
 });
-
-const productSettingsFormSchema = z.object({
-  productCategories: z.array(productCategorySchema),
-  materials: z.array(materialSchema),
-});
-
-type ProductSettingsFormValues = z.infer<typeof productSettingsFormSchema>;
+type MaterialFormValues = z.infer<typeof materialFormSchema>;
 
 function ProductSettingsForm() {
   const { productSettings, loading, updateProductSettings } = useProductSettings();
-  
-  const form = useForm<ProductSettingsFormValues>({
-    resolver: zodResolver(productSettingsFormSchema),
-    defaultValues: productSettings || { productCategories: [], materials: [] },
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const categoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: { name: "", icon: "Box" },
   });
 
-  const { fields: categoryFields, append: appendCategory, remove: removeCategory } = useFieldArray({
-    control: form.control,
-    name: "productCategories",
-  });
-  
-  const { fields: materialFields, append: appendMaterial, remove: removeMaterial } = useFieldArray({
-    control: form.control,
-    name: "materials",
+  const materialForm = useForm<MaterialFormValues>({
+    resolver: zodResolver(materialFormSchema),
+    defaultValues: { name: "", icon: "Box" },
   });
 
-  const onSubmit = async (data: ProductSettingsFormValues) => {
-    await updateProductSettings(data);
+  const handleAddCategory = async (data: CategoryFormValues) => {
+    if (!productSettings) return;
+    setIsSubmitting(true);
+    const newCategory: ProductCategory = { name: data.name, icon: data.icon };
+    const updatedCategories = [...productSettings.productCategories, newCategory];
+    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
+    categoryForm.reset();
+    setIsSubmitting(false);
   };
 
-  // Sync form with external state changes
-  React.useEffect(() => {
-    if (productSettings) {
-      form.reset(productSettings);
-    }
-  }, [productSettings, form.reset]);
+  const handleAddMaterial = async (data: MaterialFormValues) => {
+    if (!productSettings) return;
+    setIsSubmitting(true);
+    const newMaterial: Material = { name: data.name, icon: data.icon };
+    const updatedMaterials = [...productSettings.materials, newMaterial];
+    await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+    materialForm.reset();
+    setIsSubmitting(false);
+  };
+
+  const handleDeleteCategory = async (categoryNameToDelete: string) => {
+    if (!productSettings) return;
+    const updatedCategories = productSettings.productCategories.filter(
+      (cat) => cat.name !== categoryNameToDelete
+    );
+    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
+  };
   
+  const handleDeleteMaterial = async (materialNameToDelete: string) => {
+      if (!productSettings) return;
+      const updatedMaterials = productSettings.materials.filter(
+          (mat) => mat.name !== materialNameToDelete
+      );
+      await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+  };
+
+
   if (loading) {
       return (
           <div className="flex justify-center items-center h-48">
@@ -70,153 +88,125 @@ function ProductSettingsForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>Product Categories</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => appendCategory({ name: "", icon: "Box" })}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Category
-              </Button>
-            </div>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+            <CardTitle>Product Categories</CardTitle>
             <CardDescription>
               Manage product categories and their icons. Use Lucide icon names (e.g., "Sofa") or Iconify names (e.g., "mdi:desk").
             </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <Form {...categoryForm}>
+              <form onSubmit={categoryForm.handleSubmit(handleAddCategory)} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg bg-muted/50">
+                  <FormField
+                      control={categoryForm.control}
+                      name="name"
+                      render={({ field }) => (
+                          <FormItem className="flex-grow">
+                              <FormLabel>New Category Name</FormLabel>
+                              <FormControl><Input {...field} placeholder="e.g. Sofa" /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <FormField
+                      control={categoryForm.control}
+                      name="icon"
+                      render={({ field }) => (
+                          <FormItem className="flex-grow">
+                              <FormLabel>Icon Name</FormLabel>
+                              <FormControl><Input {...field} placeholder="e.g. Sofa or mdi:desk" /></FormControl>
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
+                  <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Category
+                  </Button>
+              </form>
+            </Form>
+
+            <Separator />
+
+            <div className="space-y-2">
+                <Label>Existing Categories</Label>
+                {productSettings?.productCategories.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No categories added yet.</p>}
+                {productSettings?.productCategories.map((cat) => (
+                    <div key={cat.name} className="flex items-center gap-4 p-2 border rounded-lg">
+                        <div className="h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                           <DynamicIcon icon={cat.icon} className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <span className="font-medium flex-grow">{cat.name}</span>
+                        <span className="text-sm text-muted-foreground">{cat.icon}</span>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteCategory(cat.name)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+          <CardHeader>
+              <CardTitle>Materials</CardTitle>
+              <CardDescription>
+                  Manage the material options available for orders and their icons.
+              </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {categoryFields.map((field, index) => {
-              const iconName = form.watch(`productCategories.${index}.icon`);
-
-              return (
-                <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
-                  <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
-                    <Label>Icon</Label>
-                    <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
-                       <DynamicIcon icon={iconName} className="h-7 w-7 text-muted-foreground" />
-                    </div>
-                  </div>
-                  <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <FormField
-                        control={form.control}
-                        name={`productCategories.${index}.name`}
+               <Form {...materialForm}>
+                <form onSubmit={materialForm.handleSubmit(handleAddMaterial)} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg bg-muted/50">
+                    <FormField
+                        control={materialForm.control}
+                        name="name"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Category Name</FormLabel>
-                            <FormControl>
-                            <Input {...field} placeholder="e.g. Sofa" />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem className="flex-grow">
+                                <FormLabel>New Material Name</FormLabel>
+                                <FormControl><Input {...field} placeholder="e.g. MDF Paint" /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
                     <FormField
-                        control={form.control}
-                        name={`productCategories.${index}.icon`}
+                        control={materialForm.control}
+                        name="icon"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Icon Name</FormLabel>
-                            <FormControl>
-                            <Input {...field} placeholder="e.g. Sofa or mdi:desk" />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem className="flex-grow">
+                                <FormLabel>Icon Name</FormLabel>
+                                <FormControl><Input {...field} placeholder="e.g. PaintBucket" /></FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCategory(index)} className="flex-shrink-0">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              )
-            })}
-            {categoryFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No product categories added yet.</p>}
-          </CardContent>
-        </Card>
-        
-        <Separator />
-
-        <Card>
-            <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <CardTitle>Materials</CardTitle>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => appendMaterial({ name: "", icon: "Box" })}
-                    >
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Material
+                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Add Material
                     </Button>
-                </div>
-                <CardDescription>
-                    Manage the material options available for orders and their icons.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                 {materialFields.map((field, index) => {
-                    const iconName = form.watch(`materials.${index}.icon`);
-                    return (
-                        <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
-                             <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
-                                <Label>Icon</Label>
-                                <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
-                                <DynamicIcon icon={iconName} className="h-7 w-7 text-muted-foreground" />
-                                </div>
-                            </div>
-                            <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={form.control}
-                                    name={`materials.${index}.name`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Material Name</FormLabel>
-                                            <FormControl>
-                                                <Input {...field} placeholder="e.g. MDF Paint" />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                                 <FormField
-                                    control={form.control}
-                                    name={`materials.${index}.icon`}
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Icon Name</FormLabel>
-                                        <FormControl>
-                                        <Input {...field} placeholder="e.g. PaintBucket or mdi:paint" />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                            </div>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeMaterial(index)} className="flex-shrink-0">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                        </div>
-                    );
-                 })}
-                 {materialFields.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No materials added yet.</p>}
-            </CardContent>
-        </Card>
+                </form>
+              </Form>
 
-        <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
-            <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
-                {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
-            </Button>
-        </div>
-      </form>
-    </Form>
+              <Separator />
+
+              <div className="space-y-2">
+                  <Label>Existing Materials</Label>
+                  {productSettings?.materials.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No materials added yet.</p>}
+                  {productSettings?.materials.map((mat) => (
+                      <div key={mat.name} className="flex items-center gap-4 p-2 border rounded-lg">
+                          <div className="h-8 w-8 bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                              <DynamicIcon icon={mat.icon} className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                          <span className="font-medium flex-grow">{mat.name}</span>
+                          <span className="text-sm text-muted-foreground">{mat.icon}</span>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => handleDeleteMaterial(mat.name)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                      </div>
+                  ))}
+              </div>
+          </CardContent>
+      </Card>
+    </div>
   );
 }
 
