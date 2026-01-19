@@ -33,8 +33,13 @@ export default function OrdersPage() {
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
     if (date instanceof Date) return date;
-    if (date && 'toDate' in date) return date.toDate(); // Firestore Timestamp
-    if (typeof date === 'string') return parseISO(date);
+    // Handle Firestore Timestamp object (both instance and plain object from serialization)
+    if (date && typeof date.seconds === 'number') {
+      return new Date(date.seconds * 1000);
+    }
+    if (typeof date === 'string') {
+      return parseISO(date);
+    }
     return null;
   }
 
