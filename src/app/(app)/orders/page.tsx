@@ -8,9 +8,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useOrders } from "@/hooks/use-orders";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Order, OrderStatus } from "@/lib/types";
-import { ProductSettingProvider } from "@/hooks/use-product-settings";
-import { ProductProvider } from "@/hooks/use-products";
-import { CustomerProvider } from "@/hooks/use-customers";
 import { useUser } from "@/hooks/use-user";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -170,13 +167,7 @@ export default function OrdersPage() {
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
                         <TabsContent key={tab.value} value={tab.value} forceMount={activeTab === tab.value}>
-                           <CustomerProvider>
-                            <ProductSettingProvider>
-                                <ProductProvider>
-                                    <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
-                                </ProductProvider>
-                            </ProductSettingProvider>
-                           </CustomerProvider>
+                           <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
                         </TabsContent>
                     ))}
                 </CardContent>

@@ -2,10 +2,8 @@
 "use client";
 
 import { useState, Suspense } from "react";
-import { ProductProvider, useProducts } from "@/hooks/use-products";
-import { ProductSettingProvider } from "@/hooks/use-product-settings";
+import { useProducts } from "@/hooks/use-products";
 import { OrderForm } from "@/components/app/order-form";
-import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Order } from "@/lib/types";
@@ -53,15 +51,11 @@ function NewProductPageContent() {
           Follow the steps to add a new product to your catalog.
         </p>
       </div>
-      <ColorSettingProvider>
-        <ProductSettingProvider>
-            <OrderForm 
-                onSave={handleSaveProduct}
-                isSubmitting={isSubmitting} 
-                isProductCreationMode={true}
-            />
-        </ProductSettingProvider>
-      </ColorSettingProvider>
+      <OrderForm 
+          onSave={handleSaveProduct}
+          isSubmitting={isSubmitting} 
+          isProductCreationMode={true}
+      />
     </div>
   );
 }
@@ -70,9 +64,7 @@ function NewProductPageContent() {
 export default function NewProductPage() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
-            <ProductProvider>
-                <NewProductPageContent />
-            </ProductProvider>
+            <NewProductPageContent />
         </Suspense>
     )
 }

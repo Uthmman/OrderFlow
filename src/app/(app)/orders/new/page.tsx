@@ -8,10 +8,7 @@ import { useRouter } from "next/navigation";
 import { Order, OrderAttachment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useState, Suspense, useEffect } from "react";
-import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { formatOrderId } from "@/lib/utils";
-import { ProductSettingProvider } from "@/hooks/use-product-settings";
-
 
 function NewOrderPageContent() {
   const { addOrder } = useOrders();
@@ -61,15 +58,11 @@ function NewOrderPageContent() {
           Fill out the form below to add a new order.
         </p>
       </div>
-      <ColorSettingProvider>
-        <ProductSettingProvider>
-            <OrderForm 
-                onSave={handleSaveOrder} 
-                isSubmitting={isSubmitting} 
-                submitButtonText="Create Order"
-            />
-        </ProductSettingProvider>
-      </ColorSettingProvider>
+      <OrderForm 
+          onSave={handleSaveOrder} 
+          isSubmitting={isSubmitting} 
+          submitButtonText="Create Order"
+      />
     </div>
   );
 }

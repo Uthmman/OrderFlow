@@ -9,11 +9,9 @@ import { useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
-import { ProductProvider } from "@/hooks/use-products"
-import { CustomerProvider } from "@/hooks/use-customers"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
-import { addDays, isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
+import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
 import { Order, OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -197,11 +195,7 @@ export default function Dashboard() {
                 <CardDescription>The next 5 orders with the nearest deadlines.</CardDescription>
             </CardHeader>
             <CardContent>
-            <CustomerProvider>
-                <ProductProvider>
-                    <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
-                </ProductProvider>
-            </CustomerProvider>
+                <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
             </CardContent>
             <CardFooter className="justify-end">
                 <Button asChild variant="ghost" size="sm">
@@ -215,11 +209,7 @@ export default function Dashboard() {
                 <CardDescription>All orders that are currently active and being worked on.</CardDescription>
             </CardHeader>
             <CardContent>
-            <CustomerProvider>
-                <ProductProvider>
-                    <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
-                </ProductProvider>
-            </CustomerProvider>
+                <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
             </CardContent>
              <CardFooter className="justify-end">
                 <Button asChild variant="ghost" size="sm">

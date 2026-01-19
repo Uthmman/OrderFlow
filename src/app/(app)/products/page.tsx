@@ -3,8 +3,8 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useProducts, ProductProvider } from '@/hooks/use-products';
-import { useProductSettings, ProductSettingProvider } from '@/hooks/use-product-settings';
+import { useProducts } from '@/hooks/use-products';
+import { useProductSettings } from '@/hooks/use-product-settings';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
 import Link from 'next/link';
-import { OrderProvider, useOrders } from '@/hooks/use-orders';
+import { useOrders } from '@/hooks/use-orders';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { cn } from '@/lib/utils';
@@ -210,12 +210,6 @@ function ProductCatalog() {
 
 export default function ProductsPage() {
     return (
-        <ProductProvider>
-            <OrderProvider>
-                <ProductSettingProvider>
-                    <ProductCatalog />
-                </ProductSettingProvider>
-            </OrderProvider>
-        </ProductProvider>
+        <ProductCatalog />
     )
 }

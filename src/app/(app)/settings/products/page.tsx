@@ -10,7 +10,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, Trash2 } from "lucide-react";
-import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
+import { useProductSettings } from "@/hooks/use-product-settings";
 import React from "react";
 import { Separator } from "@/components/ui/separator";
 import { DynamicIcon } from "@/components/ui/dynamic-icon";
@@ -213,16 +213,14 @@ function ProductSettingsForm() {
 
 export default function ProductSettingsPage() {
     return (
-        <ProductSettingProvider>
-            <div className="flex flex-col gap-8">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline tracking-tight">Product Settings</h1>
-                    <p className="text-muted-foreground">
-                    Manage your product categories, materials, and their display icons.
-                    </p>
-                </div>
-                <ProductSettingsForm />
+        <div className="flex flex-col gap-8">
+            <div>
+                <h1 className="text-3xl font-bold font-headline tracking-tight">Product Settings</h1>
+                <p className="text-muted-foreground">
+                Manage your product categories, materials, and their display icons.
+                </p>
             </div>
-        </ProductSettingProvider>
+            <ProductSettingsForm />
+        </div>
     )
 }

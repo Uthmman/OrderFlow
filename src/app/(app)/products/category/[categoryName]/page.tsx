@@ -3,8 +3,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { useParams, useRouter } from "next/navigation";
-import { useProducts, ProductProvider } from '@/hooks/use-products';
-import { useProductSettings, ProductSettingProvider } from '@/hooks/use-product-settings';
+import { useProducts } from '@/hooks/use-products';
+import { useProductSettings } from '@/hooks/use-product-settings';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import * as LucideIcons from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { OrderProvider } from '@/hooks/use-orders';
 
 function CategoryProductCatalog() {
   const params = useParams();
@@ -133,12 +132,6 @@ function CategoryProductCatalog() {
 
 export default function CategoryPage() {
     return (
-        <ProductProvider>
-            <OrderProvider>
-                <ProductSettingProvider>
-                    <CategoryProductCatalog />
-                </ProductSettingProvider>
-            </OrderProvider>
-        </ProductProvider>
+        <CategoryProductCatalog />
     )
 }

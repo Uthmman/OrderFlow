@@ -9,7 +9,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useColorSettings, ColorSettingProvider } from "@/hooks/use-color-settings";
+import { useColorSettings } from "@/hooks/use-color-settings";
 import Image from "next/image";
 import { Loader2, Trash2, PlusCircle, UploadCloud } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -298,9 +298,7 @@ export default function SettingsPage() {
                 Manage your application settings and color palettes.
                 </p>
             </div>
-            <ColorSettingProvider>
-                <ColorSettingsForm />
-            </ColorSettingProvider>
+            <ColorSettingsForm />
         </div>
     )
 }

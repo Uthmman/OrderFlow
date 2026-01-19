@@ -56,15 +56,13 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ColorSettingProvider } from "@/hooks/use-color-settings"
 import { useUser, useUsers } from "@/hooks/use-user"
 import { cn } from "@/lib/utils";
 import { SortDirection, SortField } from "@/app/(app)/orders/page"
-import { useProductSettings, ProductSettingProvider } from "@/hooks/use-product-settings"
+import { useProductSettings } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
-import { ProductProvider } from "@/hooks/use-products"
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -583,12 +581,6 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
 
 export function OrderTable(props: OrderTableProps) {
     return (
-        <ProductProvider>
-            <ProductSettingProvider>
-                <ColorSettingProvider>
-                    <OrderTableInternal {...props} />
-                </ColorSettingProvider>
-            </ProductSettingProvider>
-        </ProductProvider>
+        <OrderTableInternal {...props} />
     )
 }
