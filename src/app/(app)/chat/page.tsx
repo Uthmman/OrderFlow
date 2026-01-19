@@ -8,6 +8,7 @@ import { Order, OrderChatMessage } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, isToday, isThisWeek, parseISO } from 'date-fns';
+import { formatProductDisplay } from '@/lib/utils';
 
 function getLastMessage(order: Order): OrderChatMessage | null {
   if (!order.chatMessages || !Array.isArray(order.chatMessages) || order.chatMessages.length === 0) {
@@ -88,7 +89,7 @@ export default function ChatPage() {
           <div className="flex flex-col">
             {sortedOrders.map((order) => {
               const lastMessage = getLastMessage(order);
-              const productName = order.products?.[0]?.productName || 'Custom Order';
+              const productName = formatProductDisplay(order.products);
               return (
                 <Link
                   key={order.id}

@@ -12,7 +12,7 @@ import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as 
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatOrderId, formatTimestamp } from "@/lib/utils";
+import { formatCurrency, formatOrderId, formatTimestamp, formatProductDisplay } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -923,7 +923,7 @@ function OrderDetailPageContent() {
                     {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
                 </div>
                  <h2 className="text-lg text-muted-foreground mt-1">
-                    {order.customerName} - {order.products?.[0]?.productName || 'Custom Order'}
+                    {order.customerName} - {formatProductDisplay(order.products)}
                 </h2>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -1322,5 +1322,3 @@ export default function OrderDetailPage() {
         </Suspense>
     )
 }
-
-    

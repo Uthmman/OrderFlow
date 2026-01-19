@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,9 +11,9 @@ import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, Trash2, PlusCircle, HelpCircle } from "lucide-react";
 import { ProductSettingProvider, useProductSettings } from "@/hooks/use-product-settings";
-import * as LucideIcons from 'lucide-react';
 import React from "react";
 import { Separator } from "@/components/ui/separator";
+import { DynamicIcon } from "@/components/ui/dynamic-icon";
 
 const productCategorySchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -97,20 +96,19 @@ function ProductSettingsForm() {
               </Button>
             </div>
             <CardDescription>
-              Manage product categories and their icons. Use any icon name from the Lucide library (e.g., "Sofa", "Bed", "DoorOpen").
+              Manage product categories and their icons. Use Lucide icon names (e.g., "Sofa") or Iconify names (e.g., "mdi:desk").
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {categoryFields.map((field, index) => {
               const iconName = form.watch(`productCategories.${index}.icon`);
-              const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
 
               return (
                 <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
                   <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
                     <Label>Icon</Label>
                     <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
-                       <IconComponent className="h-7 w-7 text-muted-foreground" />
+                       <DynamicIcon icon={iconName} className="h-7 w-7 text-muted-foreground" />
                     </div>
                   </div>
                   <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -134,7 +132,7 @@ function ProductSettingsForm() {
                         <FormItem>
                             <FormLabel>Icon Name</FormLabel>
                             <FormControl>
-                            <Input {...field} placeholder="e.g. Sofa" />
+                            <Input {...field} placeholder="e.g. Sofa or mdi:desk" />
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -174,13 +172,12 @@ function ProductSettingsForm() {
             <CardContent className="space-y-4">
                  {materialFields.map((field, index) => {
                     const iconName = form.watch(`materials.${index}.icon`);
-                    const IconComponent = (LucideIcons as any)[iconName] || HelpCircle;
                     return (
                         <div key={field.id} className="flex flex-col sm:flex-row items-end gap-4 p-4 border rounded-lg">
                              <div className="flex-shrink-0 flex flex-col items-center self-center sm:self-end">
                                 <Label>Icon</Label>
                                 <div className="h-12 w-12 bg-muted rounded-md mt-2 flex items-center justify-center overflow-hidden">
-                                <IconComponent className="h-7 w-7 text-muted-foreground" />
+                                <DynamicIcon icon={iconName} className="h-7 w-7 text-muted-foreground" />
                                 </div>
                             </div>
                             <div className="w-full flex-grow grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -204,7 +201,7 @@ function ProductSettingsForm() {
                                     <FormItem>
                                         <FormLabel>Icon Name</FormLabel>
                                         <FormControl>
-                                        <Input {...field} placeholder="e.g. PaintBucket" />
+                                        <Input {...field} placeholder="e.g. PaintBucket or mdi:paint" />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

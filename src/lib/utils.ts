@@ -2,6 +2,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
+import type { Product } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -146,3 +147,20 @@ export const compressImage = (file: File): Promise<File> => {
         };
     });
 };
+
+export function formatProductDisplay(products: Product[] | undefined): string {
+  if (!products || products.length === 0) {
+    return 'Custom Order';
+  }
+  const productNames = products.map(p => p.productName).filter(Boolean) as string[];
+  if (productNames.length === 0) {
+    return 'Custom Order';
+  }
+  if (productNames.length === 1) {
+    return productNames[0];
+  }
+  if (productNames.length === 2) {
+    return `${productNames[0]} & ${productNames[1]}`;
+  }
+  return `${productNames[0]} & ${productNames.length - 1} more`;
+}
