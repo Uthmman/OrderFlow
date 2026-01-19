@@ -13,7 +13,7 @@ import { ProductProvider } from "@/hooks/use-products"
 import { CustomerProvider } from "@/hooks/use-customers"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
-import { addDays, isWithinInterval, parseISO } from "date-fns"
+import { addDays, isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
 import { Order, OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -35,14 +35,18 @@ export default function Dashboard() {
     return null;
   }
 
-  const revenueOrders = useMemo(() => {
-    if (!dateRange?.from || !dateRange?.to) {
+  const filteredOrdersByDate = useMemo(() => {
+    if (!dateRange?.from) {
       return orders;
     }
     return orders.filter(order => {
         const creationDate = parseOrderDate(order.creationDate);
         if (!creationDate) return false;
-        return isWithinInterval(creationDate, { start: dateRange.from!, end: dateRange.to! });
+
+        const start = startOfDay(dateRange.from!);
+        const end = endOfDay(dateRange.to || dateRange.from!);
+        
+        return isWithinInterval(creationDate, { start, end });
     });
   }, [orders, dateRange]);
 
@@ -64,9 +68,9 @@ export default function Dashboard() {
 
 
   const stats = useMemo(() => {
-    // All stats that should be affected by the date range are calculated from `revenueOrders`
-    const totalRevenueInPeriod = revenueOrders.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
-    const totalOrdersInPeriod = revenueOrders.length;
+    // All stats that should be affected by the date range are calculated from `filteredOrdersByDate`
+    const totalRevenueInPeriod = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
+    const totalOrdersInPeriod = filteredOrdersByDate.length;
     
     // Stats that are for all-time (not affected by date range)
     const ordersInProgressCount = orders.filter(o => o.status === "In Progress").length;
@@ -80,7 +84,7 @@ export default function Dashboard() {
       ordersInProduction,
       urgentOrders,
     }
-  }, [orders, revenueOrders]);
+  }, [orders, filteredOrdersByDate]);
 
   if (ordersLoading || customersLoading || userLoading) {
     return <div>Loading...</div>;

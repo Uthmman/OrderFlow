@@ -1,9 +1,8 @@
-
 "use client"
 
 import * as React from "react"
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, getYear, getMonth } from "date-fns"
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react"
+import { format, addDays, startOfMonth, endOfMonth, subMonths } from "date-fns"
+import { Calendar as CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
 import { cn } from "@/lib/utils"
@@ -14,67 +13,33 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
     dateRange?: DateRange;
     onDateChange: (dateRange: DateRange | undefined) => void;
 }
 
-const getYears = () => {
-    const currentYear = getYear(new Date());
-    const years = [];
-    for (let i = currentYear; i >= currentYear - 10; i--) {
-        years.push(i.toString());
-    }
-    return years;
-}
-
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
 export function DateRangePicker({
   className,
   dateRange,
   onDateChange,
 }: DateRangePickerProps) {
-    
-  const [selectedYear, setSelectedYear] = React.useState<string>(getYear(dateRange?.from || new Date()).toString());
-  const [selectedMonth, setSelectedMonth] = React.useState<string>(getMonth(dateRange?.from || new Date()).toString());
+    const [isOpen, setIsOpen] = React.useState(false);
 
-  const handleMonthSelect = (monthIndex: string) => {
-    const month = parseInt(monthIndex, 10);
-    const year = parseInt(selectedYear, 10);
-    const from = startOfMonth(new Date(year, month));
-    const to = endOfMonth(from);
-    onDateChange({ from, to });
-    setSelectedMonth(monthIndex);
-  }
-  
-  const handleYearSelectForMonth = (year: string) => {
-      setSelectedYear(year);
-      const month = parseInt(selectedMonth, 10);
-      const from = startOfMonth(new Date(parseInt(year, 10), month));
-      const to = endOfMonth(from);
-      onDateChange({ from, to });
-  }
-
-  const handleYearSelect = (year: string) => {
-    const from = startOfYear(new Date(parseInt(year, 10), 0));
-    const to = endOfYear(from);
-    onDateChange({ from, to });
-    setSelectedYear(year);
-  }
+    const setRange = (range: DateRange | undefined) => {
+        onDateChange(range);
+        setIsOpen(false);
+    }
 
   return (
     <div className={cn("grid gap-2", className)}>
-      <Popover>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
           <Button
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full sm:w-[300px] justify-start text-left font-normal",
+              "w-full sm:w-[260px] justify-start text-left font-normal",
               !dateRange && "text-muted-foreground"
             )}
           >
@@ -89,70 +54,30 @@ export function DateRangePicker({
                 format(dateRange.from, "LLL dd, y")
               )
             ) : (
-              <span>Pick a date</span>
+              <span>Pick a date range</span>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="end">
-            <Tabs defaultValue="custom" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="custom">Custom</TabsTrigger>
-                    <TabsTrigger value="month">Month</TabsTrigger>
-                    <TabsTrigger value="year">Year</TabsTrigger>
-                </TabsList>
-                <TabsContent value="custom">
-                     <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={onDateChange}
-                        numberOfMonths={2}
-                    />
-                </TabsContent>
-                <TabsContent value="month" className="p-4">
-                    <div className="space-y-4">
-                        <p className="text-sm text-muted-foreground">Select a specific month and year.</p>
-                        <div className="flex items-center gap-2">
-                           <Select value={selectedMonth} onValueChange={handleMonthSelect}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select month" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {MONTHS.map((month, index) => (
-                                        <SelectItem key={month} value={index.toString()}>{month}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                             <Select value={selectedYear} onValueChange={handleYearSelectForMonth}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select year" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {getYears().map(year => (
-                                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="year" className="p-4">
-                   <div className="space-y-4">
-                       <p className="text-sm text-muted-foreground">Select a specific year.</p>
-                       <Select value={selectedYear} onValueChange={handleYearSelect}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select year" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {getYears().map(year => (
-                                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                   </div>
-                </TabsContent>
-            </Tabs>
+        <PopoverContent className="w-auto p-0 flex" align="end">
+            <div className="flex flex-col space-y-1 p-2 border-r">
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => setRange({ from: new Date(), to: new Date() })}>Today</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => setRange({ from: addDays(new Date(), -7), to: new Date() })}>Last 7 days</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => setRange({ from: addDays(new Date(), -30), to: new Date() })}>Last 30 days</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => setRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })}>This Month</Button>
+                <Button variant="ghost" className="justify-start font-normal h-8 px-2" onClick={() => {
+                    const lastMonth = subMonths(new Date(), 1);
+                    setRange({ from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) });
+                }}>Last Month</Button>
+                 <Button variant="ghost" className="justify-start font-normal text-destructive hover:text-destructive h-8 px-2" onClick={() => setRange(undefined)}>Clear</Button>
+            </div>
+             <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={onDateChange}
+                numberOfMonths={1}
+            />
         </PopoverContent>
       </Popover>
     </div>

@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { DateRange } from "react-day-picker";
-import { isWithinInterval, parseISO } from "date-fns";
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 export type SortField = 'creationDate' | 'deadline';
@@ -54,8 +54,9 @@ export default function OrdersPage() {
             if (!creationDate) {
                 dateMatch = false;
             } else {
-                const endOfRange = dateRange.to || new Date(8640000000000000);
-                dateMatch = isWithinInterval(creationDate, { start: dateRange.from, end: endOfRange });
+                const start = startOfDay(dateRange.from);
+                const end = endOfDay(dateRange.to || dateRange.from);
+                dateMatch = isWithinInterval(creationDate, { start, end });
             }
         }
 
