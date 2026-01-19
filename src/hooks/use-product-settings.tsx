@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -7,14 +6,13 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { ProductSettings, ProductCategory, Material } from '@/lib/types';
 
 
 interface ProductSettingsContextType {
   productSettings: ProductSettings | null;
   loading: boolean;
-  updateProductSettings: (newSettings: ProductSettings) => void;
+  updateProductSettings: (newSettings: ProductSettings) => Promise<void>;
   addCategory: (newCategory: ProductCategory) => Promise<void>;
   addMaterial: (newMaterial: Material) => Promise<void>;
 }
@@ -28,28 +26,37 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'products'), [firestore]);
   const { data: productSettings, isLoading: loading } = useDoc<ProductSettings>(settingsDocRef);
 
-  const updateProductSettings = useCallback((newSettings: ProductSettings) => {
-    setDocumentNonBlocking(settingsDocRef, newSettings, { merge: true });
-    toast({
-      title: "Settings Updated",
-      description: "Your product settings have been saved.",
-    });
+  const updateProductSettings = useCallback(async (newSettings: ProductSettings) => {
+    try {
+        await setDoc(settingsDocRef, newSettings, { merge: true });
+        toast({
+          title: "Settings Updated",
+          description: "Your product settings have been saved.",
+        });
+    } catch (error) {
+        console.error("Failed to update product settings:", error);
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: "There was a problem saving your settings.",
+        });
+    }
   }, [settingsDocRef, toast]);
 
   const addCategory = useCallback(async (newCategory: ProductCategory) => {
     if (!productSettings) return;
     
     const updatedCategories = [...productSettings.productCategories, newCategory];
-    setDocumentNonBlocking(settingsDocRef, { productCategories: updatedCategories }, { merge: true });
+    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
     
-  }, [productSettings, settingsDocRef]);
+  }, [productSettings, updateProductSettings]);
   
   const addMaterial = useCallback(async (newMaterial: Material) => {
     if (!productSettings) return;
 
     const updatedMaterials = [...productSettings.materials, newMaterial];
-    setDocumentNonBlocking(settingsDocRef, { materials: updatedMaterials }, { merge: true });
-  }, [productSettings, settingsDocRef]);
+    await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+  }, [productSettings, updateProductSettings]);
   
   // Seed initial data if it doesn't exist
   React.useEffect(() => {

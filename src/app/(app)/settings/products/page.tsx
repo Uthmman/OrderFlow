@@ -50,8 +50,8 @@ function ProductSettingsForm() {
     name: "materials",
   });
 
-  const onSubmit = (data: ProductSettingsFormValues) => {
-    updateProductSettings(data);
+  const onSubmit = async (data: ProductSettingsFormValues) => {
+    await updateProductSettings(data);
   };
 
   // Sync form with external state changes
