@@ -14,7 +14,11 @@ interface ProductSettingsContextType {
   loading: boolean;
   updateProductSettings: (newSettings: ProductSettings) => Promise<void>;
   addCategory: (newCategory: ProductCategory) => Promise<void>;
+  updateCategory: (index: number, category: ProductCategory) => Promise<void>;
+  deleteCategory: (index: number) => Promise<void>;
   addMaterial: (newMaterial: Material) => Promise<void>;
+  updateMaterial: (index: number, material: Material) => Promise<void>;
+  deleteMaterial: (index: number) => Promise<void>;
 }
 
 const ProductSettingsContext = createContext<ProductSettingsContextType | undefined>(undefined);
@@ -45,17 +49,40 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
 
   const addCategory = useCallback(async (newCategory: ProductCategory) => {
     if (!productSettings) return;
-    
     const updatedCategories = [...productSettings.productCategories, newCategory];
     await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
-    
+  }, [productSettings, updateProductSettings]);
+
+  const updateCategory = useCallback(async (index: number, updatedCategory: ProductCategory) => {
+    if (!productSettings) return;
+    const updatedCategories = [...productSettings.productCategories];
+    updatedCategories[index] = updatedCategory;
+    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
+  }, [productSettings, updateProductSettings]);
+
+  const deleteCategory = useCallback(async (index: number) => {
+    if (!productSettings) return;
+    const updatedCategories = productSettings.productCategories.filter((_, i) => i !== index);
+    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
   }, [productSettings, updateProductSettings]);
   
   const addMaterial = useCallback(async (newMaterial: Material) => {
     if (!productSettings) return;
-
     const updatedMaterials = [...productSettings.materials, newMaterial];
     await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+  }, [productSettings, updateProductSettings]);
+
+  const updateMaterial = useCallback(async (index: number, updatedMaterial: Material) => {
+    if (!productSettings) return;
+    const updatedMaterials = [...productSettings.materials];
+    updatedMaterials[index] = updatedMaterial;
+    await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+  }, [productSettings, updateProductSettings]);
+
+  const deleteMaterial = useCallback(async (index: number) => {
+      if (!productSettings) return;
+      const updatedMaterials = productSettings.materials.filter((_, i) => i !== index);
+      await updateProductSettings({ ...productSettings, materials: updatedMaterials });
   }, [productSettings, updateProductSettings]);
   
   // Seed initial data if it doesn't exist
@@ -103,8 +130,12 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
     loading,
     updateProductSettings,
     addCategory,
-    addMaterial
-  }), [productSettings, loading, updateProductSettings, addCategory, addMaterial]);
+    updateCategory,
+    deleteCategory,
+    addMaterial,
+    updateMaterial,
+    deleteMaterial,
+  }), [productSettings, loading, updateProductSettings, addCategory, updateCategory, deleteCategory, addMaterial, updateMaterial, deleteMaterial]);
 
   return (
     <ProductSettingsContext.Provider value={value}>
@@ -120,3 +151,5 @@ export function useProductSettings() {
   }
   return context;
 }
+
+    

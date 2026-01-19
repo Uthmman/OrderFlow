@@ -63,6 +63,7 @@ import { useProductSettings } from "@/hooks/use-product-settings"
 import * as LucideIcons from 'lucide-react';
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
+import { DynamicIcon } from "../ui/dynamic-icon";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -227,20 +228,18 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
-    if (!firstProduct) return <LucideIcons.Box className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
+    if (!firstProduct) return <DynamicIcon icon="Box" className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
 
     const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
     const iconName = category?.icon || 'Box';
     
-    // Check if the icon is a URL (AI-generated) or a Lucide icon name
     const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
     if (isUrl) {
-        return <Image src={iconName} alt={firstProduct.category} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
+        return <Image src={iconName} alt={firstProduct.category || "product"} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
     }
 
-    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
-    return <IconComponent className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
+    return <DynamicIcon icon={iconName} className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
 }
 
 
@@ -584,3 +583,5 @@ export function OrderTable(props: OrderTableProps) {
         <OrderTableInternal {...props} />
     )
 }
+
+    
