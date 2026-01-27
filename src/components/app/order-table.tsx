@@ -445,6 +445,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
     const firstProduct = (order: Order) => (order.products && order.products.length > 0) ? order.products[0] : null;
+    const { role } = useUser();
 
     return (
         <div className="space-y-4">
@@ -479,11 +480,13 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                             </div>
                         </CardContent>
                     </div>
-                     <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
-                        <div className="text-base font-medium w-full text-right">
-                            {formatCurrency(order.incomeAmount)}
-                        </div>
-                    </CardFooter>
+                    {role === 'Admin' &&
+                        <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
+                            <div className="text-base font-medium w-full text-right">
+                                {formatCurrency(order.incomeAmount)}
+                            </div>
+                        </CardFooter>
+                    }
                  </Card>
                 )
             })}
@@ -583,5 +586,3 @@ export function OrderTable(props: OrderTableProps) {
         <OrderTableInternal {...props} />
     )
 }
-
-    

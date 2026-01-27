@@ -9,6 +9,8 @@ import { notFound, useRouter, useParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Order } from "@/lib/types";
 import { formatOrderId } from "@/lib/utils";
+import { useUser } from "@/hooks/use-user";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function EditOrderPage() {
   const params = useParams();
@@ -17,16 +19,33 @@ export default function EditOrderPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, role, loading: userLoading } = useUser();
 
   // The hook returns the order, but it might be undefined initially while loading.
   const order = getOrderById(id);
 
-  if (loading) {
+  if (loading || userLoading) {
     return <div>Loading...</div>;
   }
 
   if (!order) {
     notFound();
+  }
+
+  const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+
+  if (!canEdit) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Access Denied</CardTitle>
+                <CardDescription>You do not have permission to edit this order.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p>Please contact an administrator if you believe this is a mistake.</p>
+            </CardContent>
+        </Card>
+    )
   }
 
   const handleUpdateOrder = async (updatedOrderData: Omit<Order, 'id' | 'creationDate'>) => {
