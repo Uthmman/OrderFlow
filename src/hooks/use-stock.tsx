@@ -1,9 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, setDoc, updateDoc, increment, serverTimestamp, query, orderBy } from 'firebase/firestore';
-import type { StockItem, StockTransaction, StockTransactionType } from '@/lib/types';
+import { collection, doc, setDoc, updateDoc, increment, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
+import type { StockItem, StockTransaction, StockTransactionType, StockSettings } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { useDoc } from '@/firebase/firestore/use-doc';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
 import { useUser } from './use-user';
@@ -12,11 +13,13 @@ import { v4 as uuidv4 } from 'uuid';
 interface StockContextType {
   stockItems: StockItem[];
   transactions: StockTransaction[];
+  stockSettings: StockSettings | null;
   loading: boolean;
   addStockItem: (item: Omit<StockItem, 'id' | 'currentQuantity' | 'lastUpdated'>) => Promise<string | undefined>;
   adjustStock: (params: { itemId: string; type: StockTransactionType; quantity: number; reason: string; orderId?: string }) => Promise<void>;
   deleteStockItem: (itemId: string) => Promise<void>;
   getItemById: (id: string) => StockItem | undefined;
+  updateStockSettings: (settings: StockSettings) => Promise<void>;
 }
 
 const StockContext = createContext<StockContextType | undefined>(undefined);
@@ -31,6 +34,18 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const transactionsRef = useMemoFirebase(() => query(collection(firestore, 'stockTransactions'), orderBy('timestamp', 'desc')), [firestore]);
   const { data: transactions, isLoading: txLoading } = useCollection<StockTransaction>(transactionsRef);
+
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'stock'), [firestore]);
+  const { data: stockSettings, isLoading: settingsLoading } = useDoc<StockSettings>(settingsDocRef);
+
+  const updateStockSettings = useCallback(async (newSettings: StockSettings) => {
+    try {
+      await setDoc(settingsDocRef, newSettings, { merge: true });
+    } catch (error) {
+      console.error("Error updating stock settings:", error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to update categories." });
+    }
+  }, [settingsDocRef, toast]);
 
   const addStockItem = useCallback(async (itemData: Omit<StockItem, 'id' | 'currentQuantity' | 'lastUpdated'>) => {
     try {
@@ -70,7 +85,6 @@ export function StockProvider({ children }: { children: ReactNode }) {
         userName: user.name || 'Unknown User',
       };
 
-      // Atomic update of quantity
       const qtyChange = type === 'In' ? quantity : -quantity;
       
       await setDoc(txRef, transaction);
@@ -81,7 +95,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
       toast({ 
         title: type === 'In' ? "Stock Added" : "Stock Used", 
-        description: `${quantity} units recorded for ${reason}.` 
+        description: `${quantity} units recorded.` 
       });
     } catch (error) {
       console.error("Error adjusting stock:", error);
@@ -91,8 +105,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const deleteStockItem = useCallback(async (itemId: string) => {
     try {
-      await setDoc(doc(firestore, 'stock', itemId), {}, { merge: false }); // Or actual delete
-      // Better to use actual delete if confirmed
+      await deleteDoc(doc(firestore, 'stock', itemId));
       toast({ title: "Item Deleted", description: "Inventory item removed." });
     } catch (error) {
       console.error("Error deleting stock item:", error);
@@ -103,15 +116,26 @@ export function StockProvider({ children }: { children: ReactNode }) {
     return stockItems?.find(item => item.id === id);
   }, [stockItems]);
 
+  // Seed default categories if none exist
+  React.useEffect(() => {
+    if (!settingsLoading && !stockSettings) {
+      updateStockSettings({
+        categories: ['Hardware', 'Material', 'Supplies', 'Paint', 'Fabric', 'Glue']
+      });
+    }
+  }, [settingsLoading, stockSettings, updateStockSettings]);
+
   const value = useMemo(() => ({
     stockItems: stockItems || [],
     transactions: transactions || [],
-    loading: itemsLoading || txLoading,
+    stockSettings: stockSettings || null,
+    loading: itemsLoading || txLoading || settingsLoading,
     addStockItem,
     adjustStock,
     deleteStockItem,
     getItemById,
-  }), [stockItems, transactions, itemsLoading, txLoading, addStockItem, adjustStock, deleteStockItem, getItemById]);
+    updateStockSettings,
+  }), [stockItems, transactions, stockSettings, itemsLoading, txLoading, settingsLoading, addStockItem, adjustStock, deleteStockItem, getItemById, updateStockSettings]);
 
   return (
     <StockContext.Provider value={value}>

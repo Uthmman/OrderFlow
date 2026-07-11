@@ -182,8 +182,14 @@ export type StockItem = {
   id: string;
   name: string;
   category?: string;
+  description?: string;
+  icon?: string;
   currentQuantity: number;
   unit: StockUnit;
   minQuantity?: number;
   lastUpdated: any;
+};
+
+export type StockSettings = {
+  categories: string[];
 };
