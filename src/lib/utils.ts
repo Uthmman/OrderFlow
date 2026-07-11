@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
@@ -65,7 +64,7 @@ export function formatToYyyyMmDd(date: Date | any): string {
     d = date;
   } else if (date && typeof date.seconds === 'number') { // Handles Firestore Timestamp & plain object
     d = new Date(date.seconds * 1000);
-  } else if (typeof timestamp === 'string') {
+  } else if (typeof date === 'string') {
     // For ISO strings, new Date() is fine. For 'yyyy-mm-dd', we need to adjust for timezone.
     const parsedDate = new Date(date);
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -167,10 +166,11 @@ export function formatProductDisplay(products: Product[] | undefined): string {
 
 /**
  * Robustly downloads a file by fetching it as a blob and creating an object URL.
- * This is more reliable for cross-origin downloads than standard <a> tags.
+ * Falls back to opening in a new tab if CORS prevents programmatic download.
  */
 export async function downloadFile(url: string, fileName: string) {
   try {
+    // Attempt fetch. This works if CORS is configured on the bucket.
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
     
@@ -187,8 +187,8 @@ export async function downloadFile(url: string, fileName: string) {
     document.body.removeChild(link);
     setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
   } catch (error) {
-    console.error("Robust download failed, falling back to direct link:", error);
-    // Fallback: Open in a new tab if blob download fails
+    // Fallback: Open in a new tab if blob download fails (likely due to CORS)
+    // We omit logging console.error here to prevent triggering Next.js dev overlays for a handled case
     window.open(url, '_blank');
   }
 }

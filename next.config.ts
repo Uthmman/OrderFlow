@@ -1,11 +1,11 @@
-
 import type {NextConfig} from 'next';
 import withPWA from '@ducanh2912/next-pwa';
 
 const nextConfig: NextConfig = {
   /* config options here */
   serverActions: {
-    bodySizeLimit: '10mb',
+    // Increased to 20MB to handle large base64-encoded file payloads reliably
+    bodySizeLimit: '20mb',
     // Increase timeout to 5 minutes for large file uploads
     executionTimeout: 300, 
   },
