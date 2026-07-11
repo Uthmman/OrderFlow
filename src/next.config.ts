@@ -5,7 +5,7 @@ import withPWA from '@ducanh2912/next-pwa';
 const nextConfig: NextConfig = {
   /* config options here */
   serverActions: {
-    bodySizeLimit: '4mb',
+    bodySizeLimit: '10mb',
     // Increase timeout to 5 minutes for large file uploads
     executionTimeout: 300, 
   },

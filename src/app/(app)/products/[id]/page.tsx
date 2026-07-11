@@ -14,11 +14,15 @@ import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
 import { useOrders } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
+import { downloadFile } from "@/lib/utils";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     return (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" download={attachment.fileName}>
+        <button 
+          onClick={() => downloadFile(attachment.url, attachment.fileName)}
+          className="text-left w-full"
+        >
             <Card className="hover:bg-muted/50 transition-colors group">
                 <CardContent className="p-3 flex items-center gap-3">
                     <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
@@ -32,7 +36,7 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
                     </Button>
                 </CardContent>
             </Card>
-        </a>
+        </button>
     )
 }
 

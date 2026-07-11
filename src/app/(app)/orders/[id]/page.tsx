@@ -12,7 +12,7 @@ import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as 
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatOrderId, formatTimestamp, formatProductDisplay } from "@/lib/utils";
+import { formatCurrency, formatOrderId, formatTimestamp, formatProductDisplay, downloadFile } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -82,12 +82,8 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
 
     const handleDownload = (e: React.MouseEvent) => {
         e.preventDefault();
-        const link = document.createElement('a');
-        link.href = att.url;
-        link.download = att.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        e.stopPropagation();
+        downloadFile(att.url, att.fileName);
     };
 
     return (
@@ -113,8 +109,8 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                     <div className="flex flex-col items-center gap-2 p-4">
                         <File className="h-10 w-10 text-muted-foreground" />
                         <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
-                         <Button size="sm" variant="outline" asChild className="mt-2">
-                            <a href={att.url} target="_blank" rel="noopener noreferrer" onClick={handleDownload}><Download className="mr-2 h-4 w-4" /> Download</a>
+                         <Button size="sm" variant="outline" onClick={handleDownload} className="mt-2">
+                            <Download className="mr-2 h-4 w-4" /> Download
                         </Button>
                     </div>
                 )}
@@ -879,12 +875,7 @@ function OrderDetailPageContent() {
     const handleDownload = (e: React.MouseEvent, url: string, fileName: string) => {
         e.preventDefault();
         e.stopPropagation();
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        downloadFile(url, fileName);
     };
 
 

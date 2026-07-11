@@ -65,7 +65,7 @@ export function formatToYyyyMmDd(date: Date | any): string {
     d = date;
   } else if (date && typeof date.seconds === 'number') { // Handles Firestore Timestamp & plain object
     d = new Date(date.seconds * 1000);
-  } else if (typeof date === 'string') {
+  } else if (typeof timestamp === 'string') {
     // For ISO strings, new Date() is fine. For 'yyyy-mm-dd', we need to adjust for timezone.
     const parsedDate = new Date(date);
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -163,4 +163,32 @@ export function formatProductDisplay(products: Product[] | undefined): string {
     return `${productNames[0]} & ${productNames[1]}`;
   }
   return `${productNames[0]} & ${productNames.length - 1} more`;
+}
+
+/**
+ * Robustly downloads a file by fetching it as a blob and creating an object URL.
+ * This is more reliable for cross-origin downloads than standard <a> tags.
+ */
+export async function downloadFile(url: string, fileName: string) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
+  } catch (error) {
+    console.error("Robust download failed, falling back to direct link:", error);
+    // Fallback: Open in a new tab if blob download fails
+    window.open(url, '_blank');
+  }
 }

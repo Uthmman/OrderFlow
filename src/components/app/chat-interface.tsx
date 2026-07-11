@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import {
@@ -22,7 +21,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { compressImage } from "@/lib/utils"
+import { compressImage, downloadFile } from "@/lib/utils"
 import { Dialog, DialogContent, DialogClose, DialogFooter } from "../ui/dialog"
 import { ScrollArea } from "../ui/scroll-area"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
@@ -67,10 +66,14 @@ const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachm
     }
     // Fallback for other file types
     return (
-        <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="mt-2 flex items-center gap-2 p-2 bg-muted rounded-md max-w-xs hover:bg-muted/80">
+        <button 
+          onClick={() => downloadFile(attachment.url, attachment.fileName)}
+          className="mt-2 flex items-center gap-2 p-2 bg-muted rounded-md max-w-xs hover:bg-muted/80 text-left w-full"
+        >
             <FileIcon className="h-6 w-6 text-muted-foreground" />
-            <span className="text-sm text-foreground truncate">{attachment.fileName}</span>
-        </a>
+            <span className="text-sm text-foreground truncate flex-1">{attachment.fileName}</span>
+            <Download className="h-4 w-4 text-muted-foreground" />
+        </button>
     )
 }
 
@@ -82,7 +85,7 @@ const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onI
             <p className="font-semibold">{message.user.name}</p>
             <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
             </div>
-            {message.text && <p className="text-sm text-muted-foreground">{message.text}</p>}
+            {message.text && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{message.text}</p>}
             {message.attachment && <ChatAttachment attachment={message.attachment} onImageClick={onImageClick}/>}
         </div>
     </div>
@@ -243,6 +246,11 @@ export function ChatInterface({ order }: { order: Order }) {
     setLoading(false);
   };
 
+  const handleDownloadInGallery = (e: React.MouseEvent, url: string, fileName: string) => {
+      e.preventDefault();
+      downloadFile(url, fileName);
+  }
+
   return (
     <>
     <Card>
@@ -345,12 +353,10 @@ export function ChatInterface({ order }: { order: Order }) {
                     </div>
                     <div className="flex justify-between items-center bg-background p-2 border-t">
                       <p className="text-sm text-muted-foreground">{att.fileName}</p>
-                      <a href={att.url} download={att.fileName} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
-                        </Button>
-                      </a>
+                      <Button variant="outline" size="sm" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
                     </div>
                   </CarouselItem>
                 ))}
