@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, type ReactNode } from "react";
@@ -16,6 +15,7 @@ import { NotificationProvider } from "@/hooks/use-notifications";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
+import { StockProvider } from "@/hooks/use-stock";
 
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
@@ -80,15 +80,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 <ProductProvider>
                     <OrderProvider>
                     <NotificationProvider>
-                        <div className="flex h-screen w-full flex-col">
-                        <AppHeader />
-                        <div className="flex flex-1 overflow-hidden">
-                            <AppSidebar />
-                            <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                                {children}
-                            </main>
-                        </div>
-                        </div>
+                        <StockProvider>
+                          <div className="flex h-screen w-full flex-col">
+                          <AppHeader />
+                          <div className="flex flex-1 overflow-hidden">
+                              <AppSidebar />
+                              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                                  {children}
+                              </main>
+                          </div>
+                          </div>
+                        </StockProvider>
                     </NotificationProvider>
                     </OrderProvider>
                 </ProductProvider>

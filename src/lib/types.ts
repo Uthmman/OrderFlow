@@ -1,5 +1,3 @@
-
-
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
@@ -163,3 +161,29 @@ export type ProductSettings = {
     productCategories: ProductCategory[];
     materials: Material[];
 }
+
+export type StockUnit = 'pcs' | 'kg' | 'liter' | 'meters' | 'set' | 'box' | 'sheets' | 'liters' | 'grams';
+
+export type StockTransactionType = 'In' | 'Out';
+
+export type StockTransaction = {
+  id: string;
+  itemId: string;
+  type: StockTransactionType;
+  quantity: number;
+  reason: string;
+  orderId?: string;
+  timestamp: any;
+  userId: string;
+  userName: string;
+};
+
+export type StockItem = {
+  id: string;
+  name: string;
+  category?: string;
+  currentQuantity: number;
+  unit: StockUnit;
+  minQuantity?: number;
+  lastUpdated: any;
+};
