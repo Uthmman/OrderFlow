@@ -10,11 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, PlusCircle, MinusCircle, History, Package, Search, Settings, Trash2, LayoutGrid, List } from 'lucide-react';
+import { Loader2, PlusCircle, MinusCircle, History, Package, Search, Settings, Trash2 } from 'lucide-react';
 import { formatTimestamp, formatOrderId, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import type { StockItem, StockUnit, StockTransactionType } from '@/lib/types';
@@ -43,7 +43,7 @@ export default function StockPage() {
     orderId: '' 
   });
 
-  const filteredItems = stockItems.filter(item => 
+  const filteredItems = (stockItems || []).filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -87,7 +87,11 @@ export default function StockPage() {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-96"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="animate-spin h-8 w-8 text-primary" />
+      </div>
+    );
   }
 
   return (
@@ -98,7 +102,7 @@ export default function StockPage() {
           <p className="text-muted-foreground">Track materials, hardware, and shop supplies.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-           <Button variant="outline" size="sm" onClick={() => setIsManagingCategories(true)}>
+          <Button variant="outline" size="sm" onClick={() => setIsManagingCategories(true)}>
             <Settings className="h-4 w-4 mr-2" /> Categories
           </Button>
           <Button size="sm" onClick={() => setIsAddingItem(true)}>
@@ -124,7 +128,6 @@ export default function StockPage() {
             />
           </div>
 
-          {/* Desktop Table View */}
           <div className="hidden lg:block">
             <Card>
               <Table>
@@ -139,18 +142,22 @@ export default function StockPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredItems.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-12 text-muted-foreground">No inventory items found.</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                        No inventory items found.
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     filteredItems.map(item => (
                       <TableRow key={item.id} className="group">
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                <DynamicIcon icon={item.icon || 'Package'} className="h-5 w-5 text-muted-foreground" />
+                              <DynamicIcon icon={item.icon || 'Package'} className="h-5 w-5 text-muted-foreground" />
                             </div>
                             <div>
-                                <p className="font-bold">{item.name}</p>
-                                <p className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">{item.description}</p>
+                              <p className="font-bold">{item.name}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-1 max-w-[250px]">{item.description}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -169,7 +176,7 @@ export default function StockPage() {
                             <Button size="sm" variant="outline" onClick={() => openAdjustmentDialog(item, 'Out')}>
                               <MinusCircle className="h-4 w-4" />
                             </Button>
-                             <Button size="sm" variant="ghost" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteStockItem(item.id)}>
+                            <Button size="sm" variant="ghost" className="text-destructive opacity-0 group-hover:opacity-100" onClick={() => deleteStockItem(item.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -182,48 +189,47 @@ export default function StockPage() {
             </Card>
           </div>
 
-          {/* Mobile Card View */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
             {filteredItems.length === 0 ? (
-                 <p className="text-center py-12 text-muted-foreground col-span-full">No inventory items found.</p>
+              <p className="text-center py-12 text-muted-foreground col-span-full">No inventory items found.</p>
             ) : filteredItems.map(item => (
-                <Card key={item.id} className="overflow-hidden">
-                    <CardHeader className="p-4 pb-2">
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
-                                    <DynamicIcon icon={item.icon || 'Package'} className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-base">{item.name}</CardTitle>
-                                    <CardDescription>{item.category}</Badge></CardDescription>
-                                </div>
-                            </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStockItem(item.id)}>
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-4 pt-2">
-                        {item.description && <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{item.description}</p>}
-                        <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
-                            <div className="flex flex-col">
-                                <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Quantity</span>
-                                <span className={cn("text-2xl font-bold", item.currentQuantity <= (item.minQuantity || 0) && "text-destructive")}>
-                                    {item.currentQuantity} <span className="text-sm font-normal text-muted-foreground">{item.unit}</span>
-                                </span>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openAdjustmentDialog(item, 'In')}>
-                                    <PlusCircle className="h-4 w-4 mr-2" /> Add
-                                </Button>
-                                <Button variant="outline" size="sm" onClick={() => openAdjustmentDialog(item, 'Out')}>
-                                    <MinusCircle className="h-4 w-4 mr-2" /> Use
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+              <Card key={item.id} className="overflow-hidden">
+                <CardHeader className="p-4 pb-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                        <DynamicIcon icon={item.icon || 'Package'} className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{item.name}</CardTitle>
+                        <CardDescription>{item.category}</CardDescription>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteStockItem(item.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-2">
+                  {item.description && <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{item.description}</p>}
+                  <div className="flex justify-between items-center bg-muted/30 p-3 rounded-lg">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Quantity</span>
+                      <span className={cn("text-2xl font-bold", item.currentQuantity <= (item.minQuantity || 0) && "text-destructive")}>
+                        {item.currentQuantity} <span className="text-sm font-normal text-muted-foreground">{item.unit}</span>
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openAdjustmentDialog(item, 'In')}>
+                        <PlusCircle className="h-4 w-4 mr-2" /> Add
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openAdjustmentDialog(item, 'Out')}>
+                        <MinusCircle className="h-4 w-4 mr-2" /> Use
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </TabsContent>
@@ -244,7 +250,11 @@ export default function StockPage() {
                 </TableHeader>
                 <TableBody>
                   {transactions.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">No transactions recorded yet.</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                        No transactions recorded yet.
+                      </TableCell>
+                    </TableRow>
                   ) : (
                     transactions.map(tx => {
                       const item = stockItems.find(i => i.id === tx.itemId);
@@ -255,8 +265,8 @@ export default function StockPage() {
                           </TableCell>
                           <TableCell className="font-medium whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                                <DynamicIcon icon={item?.icon || 'Package'} className="h-4 w-4 opacity-50" />
-                                {item?.name || 'Deleted Item'}
+                              <DynamicIcon icon={item?.icon || 'Package'} className="h-4 w-4 opacity-50" />
+                              {item?.name || 'Deleted Item'}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -268,7 +278,7 @@ export default function StockPage() {
                           <TableCell className="max-w-[200px] truncate text-sm">
                             {tx.orderId && tx.orderId !== 'none' ? (
                               <span className="flex items-center gap-1 text-primary font-medium">
-                                 <Package className="h-3 w-3" /> {formatOrderId(tx.orderId)}
+                                <Package className="h-3 w-3" /> {formatOrderId(tx.orderId)}
                               </span>
                             ) : (
                               <span className="text-muted-foreground">{tx.reason || '-'}</span>
@@ -286,7 +296,6 @@ export default function StockPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog: Add Item */}
       <Dialog open={isAddingItem} onOpenChange={setIsAddingItem}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -295,39 +304,39 @@ export default function StockPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="name">Item Name</Label>
-                    <Input id="name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g. White Wood Glue" />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={newItem.category} onValueChange={v => setNewItem({...newItem, category: v})}>
-                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                        <SelectContent>
-                            {stockSettings?.categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="name">Item Name</Label>
+                <Input id="name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g. White Wood Glue" />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="category">Category</Label>
+                <Select value={newItem.category} onValueChange={v => setNewItem({...newItem, category: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    {(stockSettings?.categories || []).map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="unit">Unit of Measure</Label>
-                    <Select value={newItem.unit} onValueChange={(v: StockUnit) => setNewItem({...newItem, unit: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            {STOCK_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
+              <div className="grid gap-2">
+                <Label htmlFor="unit">Unit of Measure</Label>
+                <Select value={newItem.unit} onValueChange={(v: StockUnit) => setNewItem({...newItem, unit: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {STOCK_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="icon">Icon Name</Label>
+                <div className="flex items-center gap-2">
+                  <Input id="icon" value={newItem.icon} onChange={e => setNewItem({...newItem, icon: e.target.value})} placeholder="Lucide icon name" />
+                  <div className="h-10 w-10 border rounded flex items-center justify-center shrink-0">
+                    <DynamicIcon icon={newItem.icon || 'Package'} />
+                  </div>
                 </div>
-                 <div className="grid gap-2">
-                    <Label htmlFor="icon">Icon Name</Label>
-                    <div className="flex items-center gap-2">
-                        <Input id="icon" value={newItem.icon} onChange={e => setNewItem({...newItem, icon: e.target.value})} placeholder="Lucide icon name" />
-                        <div className="h-10 w-10 border rounded flex items-center justify-center shrink-0">
-                            <DynamicIcon icon={newItem.icon || 'Package'} />
-                        </div>
-                    </div>
-                </div>
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="description">Description</Label>
@@ -341,7 +350,6 @@ export default function StockPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Manage Categories */}
       <Dialog open={isManagingCategories} onOpenChange={setIsManagingCategories}>
         <DialogContent>
           <DialogHeader>
@@ -360,7 +368,7 @@ export default function StockPage() {
             </div>
             <ScrollArea className="h-64 border rounded-md p-2">
               <div className="space-y-2">
-                {stockSettings?.categories.map(cat => (
+                {(stockSettings?.categories || []).map(cat => (
                   <div key={cat} className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50 group">
                     <span className="text-sm font-medium">{cat}</span>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleDeleteCategory(cat)}>
@@ -377,7 +385,6 @@ export default function StockPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Adjustment (In/Out) */}
       <Dialog open={isAdjusting} onOpenChange={setIsAdjusting}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
@@ -388,13 +395,13 @@ export default function StockPage() {
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-lg">
-                <div className="h-12 w-12 rounded-md bg-background flex items-center justify-center border shadow-sm">
-                    <DynamicIcon icon={stockItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6" />
-                </div>
-                <div>
-                    <p className="font-bold">{stockItems.find(i => i.id === adjustment.itemId)?.name}</p>
-                    <p className="text-xs text-muted-foreground">Current: {stockItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {stockItems.find(i => i.id === adjustment.itemId)?.unit}</p>
-                </div>
+              <div className="h-12 w-12 rounded-md bg-background flex items-center justify-center border shadow-sm">
+                <DynamicIcon icon={stockItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold">{stockItems.find(i => i.id === adjustment.itemId)?.name}</p>
+                <p className="text-xs text-muted-foreground">Current: {stockItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {stockItems.find(i => i.id === adjustment.itemId)?.unit}</p>
+              </div>
             </div>
 
             <div className="grid gap-2">
