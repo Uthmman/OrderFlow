@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A Genkit flow for handling file uploads and deletions with Backblaze B2.
@@ -6,7 +5,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define input schema for file uploads
@@ -41,7 +40,6 @@ function getB2Client() {
   const endpoint = process.env.B2_ENDPOINT;
 
   if (!keyId || !applicationKey || !endpoint) {
-    // Return null if configuration is incomplete. The flow will handle this.
     return null;
   }
 
@@ -68,7 +66,7 @@ export const uploadFileFlow = ai.defineFlow(
   async (input) => {
     const client = getB2Client();
     const bucketName = process.env.B2_BUCKET_NAME;
-    const publicUrlPrefix = process.env.B2_PUBLIC_URL_PREFIX;
+    let publicUrlPrefix = process.env.B2_PUBLIC_URL_PREFIX;
 
     if (!client || !bucketName || !publicUrlPrefix) {
         throw new Error('Backblaze B2 storage is not configured on the server. Please check environment variables.');
@@ -87,7 +85,10 @@ export const uploadFileFlow = ai.defineFlow(
 
     await client.send(command);
 
-    // Correct public URL structure using the public URL prefix from .env
+    // Normalize prefix to avoid double slashes
+    if (publicUrlPrefix.endsWith('/')) {
+        publicUrlPrefix = publicUrlPrefix.slice(0, -1);
+    }
     const url = `${publicUrlPrefix}/${fileName}`;
 
     return {
@@ -123,7 +124,6 @@ export const deleteFileFlow = ai.defineFlow(
             await client.send(command);
         } catch (error) {
             console.error(`Failed to delete file '${input.fileName}' from B2:`, error);
-            // Don't re-throw, just log the error. We don't want to block order deletion if a file is already gone.
         }
     }
 );

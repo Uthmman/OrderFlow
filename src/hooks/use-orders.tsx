@@ -1,15 +1,12 @@
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, serverTimestamp, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
-import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
+import { collection, doc, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
+import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
-import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useUser } from './use-user';
 import { triggerNotification } from '@/lib/notifications';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
@@ -58,7 +55,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { addOrderToCustomer } = useCustomers();
   const { firestore } = useFirebase();
   const { user } = useUser();
-  const { addProduct, updateProduct, addOrderIdToProduct } = useProducts();
+  const { addProduct, addOrderIdToProduct } = useProducts();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
@@ -70,7 +67,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       reader.readAsDataURL(file);
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove the data URI prefix e.g., "data:image/jpeg;base64,"
         const base64 = result.split(',')[1];
         if (base64) {
           resolve(base64);
@@ -114,19 +110,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         };
     } catch (error) {
         console.error(`Upload failed for ${fileName}:`, error);
-         setUploadProgress(prev => {
+        setUploadProgress(prev => {
             const newProgress = { ...prev };
             delete newProgress[fileName];
             return newProgress;
         });
-        toast({
-            variant: "destructive",
-            title: `Upload Failed: ${fileName}`,
-            description: (error as Error).message || "Could not upload file.",
-        });
         throw error;
     } finally {
-       // Hide progress bar after a short delay
        setTimeout(() => {
          setUploadProgress(prev => {
             const newProgress = { ...prev };
@@ -156,7 +146,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             return newAttachment;
         }
       } catch (error) {
-          // Error is already handled by handleFileUpload
+          toast({
+              variant: "destructive",
+              title: "Upload Failed",
+              description: (error as Error).message || "Could not upload file.",
+          });
           return undefined;
       }
   };
@@ -202,7 +196,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
-    // This logic runs when a draft is being created for the first time
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const orderId = newOrderRef.id;
@@ -214,7 +207,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             deadline: Timestamp.fromDate(orderData.deadline as Date),
             testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
             ownerId: user.id,
-            status: 'Pending', // Drafts are always 'Pending'
+            status: 'Pending',
         };
         const cleanData = removeUndefined(draftOrder);
         await setDoc(newOrderRef, cleanData);
@@ -222,20 +215,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return orderId;
     }
     
-    // This logic runs when the final "Create Order" button is clicked for a new order
-    // The orderData here comes from the form, which was initialized from a draft
     const orderId = (orderData as any).id;
     const orderRef = doc(firestore, 'orders', orderId);
 
     const finalOrderData: Partial<Order> = {
         ...orderData,
-        status: 'In Progress', // Finalized new orders are 'In Progress'
+        status: 'In Progress',
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
     };
     
-    // Check if we are creating a new product or using an existing one.
     for (const product of orderData.products) {
         if (!product.productName) continue;
 
@@ -244,7 +234,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            // Product doesn't exist, so add it to the catalog.
             const newProductId = await addProduct(product);
              if (newProductId) {
                 await addOrderIdToProduct(newProductId, orderId);
@@ -289,13 +278,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     } else {
         dataToUpdate.testDate = undefined;
-    }
-    if (dataToUpdate.paidDate) {
-        if (dataToUpdate.paidDate instanceof Date) {
-             dataToUpdate.paidDate = Timestamp.fromDate(dataToUpdate.paidDate);
-        }
-    } else {
-        dataToUpdate.paidDate = undefined;
     }
 
     if (originalOrder && orderData.products && orderData.products.length > originalOrder.products.length) {
@@ -360,7 +342,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const uploadedAttachment = await handleFileUpload(chatMessage.file);
                 newChatMessage.attachment = uploadedAttachment;
             } catch (error) {
-                throw error; // Propagate error to stop execution
+                throw error;
             }
         }
         newMessages.push(newChatMessage);
@@ -493,7 +475,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
       const deleteFilePromises = uniqueAttachments.map(att => {
         if (!att.storagePath) return Promise.resolve();
-        return deleteFileFlow({ fileName: att.fileName }).catch(err => console.error(`Failed to delete ${att.fileName}:`, err));
+        // Correctly use storagePath (the UUID key) for deletion
+        return deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.storagePath}:`, err));
       });
         
       await Promise.all(deleteFilePromises);
@@ -539,3 +522,5 @@ export function useOrders() {
   }
   return context;
 }
+
+import { useUser } from './use-user';

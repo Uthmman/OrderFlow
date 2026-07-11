@@ -1,15 +1,14 @@
-
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, getDocs, writeBatch, arrayUnion, deleteDoc } from 'firebase/firestore';
-import type { Order, Product } from '@/lib/types';
+import { collection, doc, setDoc, updateDoc, arrayUnion, writeBatch, deleteDoc } from 'firebase/firestore';
+import type { Order, Product, OrderAttachment } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
-import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { v4 as uuidv4 } from 'uuid';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { uploadFileFlow } from '@/ai/flows/backblaze-flow';
+import { compressImage } from '@/lib/utils';
 
 interface ProductContextType {
   products: Product[];
@@ -54,16 +53,59 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore]);
   const { data: products, isLoading: loading } = useCollection<Product>(productsRef);
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        if (base64) resolve(base64);
+        else reject(new Error("Failed to read file as base64."));
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const addProduct = useCallback(async (productData: Partial<Product>) => {
     try {
       const newProductRef = doc(collection(firestore, "products"));
+      
+      // Handle file uploads if they exist (stashed in the custom 'file' property during form setup)
+      const updatedAttachments: OrderAttachment[] = [];
+      if (productData.attachments && productData.attachments.length > 0) {
+        for (const att of productData.attachments) {
+            // Check if it's a new file stashed for upload
+            const file = (att as any).file as File;
+            if (file) {
+                let fileToUpload = file;
+                if (file.type.startsWith('image/')) {
+                    fileToUpload = await compressImage(file);
+                }
+                const base64 = await fileToBase64(fileToUpload);
+                const uploadResult = await uploadFileFlow({
+                    fileContent: base64,
+                    contentType: fileToUpload.type,
+                });
+                updatedAttachments.push({
+                    fileName: file.name,
+                    url: uploadResult.url,
+                    storagePath: uploadResult.fileName,
+                });
+            } else if (att.url && !att.url.startsWith('blob:')) {
+                // Keep existing permanent attachments
+                updatedAttachments.push(att);
+            }
+        }
+      }
+
       const newProduct: Product = {
         id: newProductRef.id,
         productName: productData.productName || 'Unnamed Product',
         category: productData.category || 'Uncategorized',
         description: productData.description || '',
         price: productData.price || 0,
-        attachments: productData.attachments || [],
+        attachments: updatedAttachments,
         designAttachments: productData.designAttachments || [],
         colors: productData.colors || [],
         material: productData.material || [],
@@ -101,7 +143,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const addOrderIdToProduct = useCallback(async (productId: string, orderId: string) => {
     const productRef = doc(firestore, 'products', productId);
     try {
-        // Use set with merge to create the document if it doesn't exist, or update it if it does.
         await setDoc(productRef, {
             orderIds: arrayUnion(orderId)
         }, { merge: true });
