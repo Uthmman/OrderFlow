@@ -12,7 +12,7 @@ import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage, formatOrderUniqueName } from '@/lib/utils';
 import { useProducts } from './use-products';
-
+import { useUser } from './use-user';
 
 interface OrderContextType {
   orders: Order[];
@@ -199,10 +199,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const orderId = newOrderRef.id;
+        const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
 
         const draftOrder: Order = {
             ...orderData,
             id: orderId,
+            uniqueName,
             creationDate: Timestamp.fromDate(orderData.creationDate as Date),
             deadline: Timestamp.fromDate(orderData.deadline as Date),
             testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
@@ -217,10 +219,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     const orderId = (orderData as any).id;
     const orderRef = doc(firestore, 'orders', orderId);
-    const orderUniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
+    const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
 
     const finalOrderData: Partial<Order> = {
         ...orderData,
+        uniqueName,
         status: 'In Progress',
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
@@ -250,7 +253,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     triggerNotification(firestore, [user.id], {
       type: 'New Order Created',
-      message: `You created a new order: ${orderUniqueName}.`,
+      message: `You created a new order: ${uniqueName}.`,
       orderId: orderId
     });
     
@@ -264,9 +267,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const originalOrder = orders?.find(o => o.id === orderData.id);
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;
     const finalProducts = orderData.products || originalOrder?.products;
-    const orderUniqueName = formatOrderUniqueName(finalCustomerName, finalProducts, orderData.id);
+    const uniqueName = formatOrderUniqueName(finalCustomerName, finalProducts, orderData.id);
     
-    const dataToUpdate: any = { ...orderData };
+    const dataToUpdate: any = { ...orderData, uniqueName };
     delete dataToUpdate.id; 
     delete dataToUpdate.chatMessages;
 
@@ -317,14 +320,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (originalOrder.status !== orderData.status && orderData.status) {
             newMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
             if (usersToNotify.length > 0) {
-                triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order ${orderUniqueName} status was updated to ${orderData.status}.`, orderId: orderData.id });
+                triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order ${uniqueName} status was updated to ${orderData.status}.`, orderId: orderData.id });
             }
         }
         if (originalOrder.isUrgent !== orderData.isUrgent && orderData.isUrgent !== undefined) {
             const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
             newMessages.push(createSystemMessage(`Order ${urgencyText}`));
             if (usersToNotify.length > 0) {
-                triggerNotification(firestore, usersToNotify, { type: `Order Urgency Changed`, message: `Order ${orderUniqueName} was ${urgencyText}.`, orderId: orderData.id });
+                triggerNotification(firestore, usersToNotify, { type: `Order Urgency Changed`, message: `Order ${uniqueName} was ${urgencyText}.`, orderId: orderData.id });
             }
         }
     }
@@ -354,7 +357,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         if (usersToNotify.length > 0) {
             triggerNotification(firestore, usersToNotify, {
                 type: 'New Message in Order',
-                message: `${user.name} wrote in ${orderUniqueName}: "${newChatMessage.text}"`,
+                message: `${user.name} wrote in ${uniqueName}: "${newChatMessage.text}"`,
                 orderId: orderData.id,
             });
         }
@@ -526,5 +529,3 @@ export function useOrders() {
   }
   return context;
 }
-
-import { useUser } from './use-user';

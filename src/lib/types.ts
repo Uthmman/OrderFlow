@@ -113,6 +113,7 @@ export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid'
 
 export type Order = {
   id:string;
+  uniqueName?: string;
   customerName: string;
   customerId: string;
   products: Product[];

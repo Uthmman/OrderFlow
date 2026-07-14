@@ -115,28 +115,30 @@ function OrderActions({ order }: { order: Order }) {
 
     const handleAction = (e: React.MouseEvent) => {
         e.stopPropagation();
+        const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         if (dialogAction === 'cancel') {
             updateOrder({ ...order, status: "Cancelled" });
             toast({
                 title: "Order Cancelled",
-                description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been cancelled.`,
+                description: `${orderName} has been cancelled.`,
             });
         } else if (dialogAction === 'delete') {
             const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
             deleteOrder(order.id, allAttachments);
             toast({
                 title: "Order Deleted",
-                description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been permanently deleted.`,
+                description: `${orderName} has been permanently deleted.`,
             });
         }
     };
 
     const handleToggleUrgent = (e: React.MouseEvent) => {
         e.stopPropagation();
+        const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         updateOrder({ ...order, isUrgent: !order.isUrgent });
         toast({
             title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been updated.`,
+            description: `${orderName} has been updated.`,
         });
     };
 
@@ -270,12 +272,13 @@ export const columns: ColumnDef<Order>[] = [
     ),
     cell: ({ row }) => {
         const order = row.original;
+        const displayName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{formatOrderUniqueName(order.customerName, order.products, order.id)}</Link>
+                        <Link href={`/orders/${order.id}`}>{displayName}</Link>
                     </div>
                  </div>
             </div>
@@ -448,7 +451,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                                     <CategoryIcon order={order} />
                                     <div>
                                         <CardTitle className="text-base font-bold">
-                                            {formatOrderUniqueName(order.customerName, order.products, order.id)}
+                                            {order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id)}
                                         </CardTitle>
                                         <CardDescription>
                                             <CustomerLink order={order} />
