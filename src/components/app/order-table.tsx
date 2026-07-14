@@ -13,7 +13,7 @@ import {
   Table,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2 } from "lucide-react"
-import { differenceInDays, formatDistanceToNowStrict } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -59,7 +59,6 @@ import { useUser, useUsers } from "@/hooks/use-user"
 import { cn } from "@/lib/utils";
 import { SortDirection, SortField } from "@/app/(app)/orders/page"
 import { useProductSettings } from "@/hooks/use-product-settings"
-import * as LucideIcons from 'lucide-react';
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
 import { DynamicIcon } from "../ui/dynamic-icon";
@@ -214,8 +213,6 @@ function OrderActions({ order }: { order: Order }) {
 
 function CustomerLink({ order }: { order: Order }) {
     const { user, role } = useUser();
-    
-    // Admins and Managers can view any customer. Sales can only view if they are the owner.
     const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
     if (canViewCustomer) {
@@ -232,7 +229,6 @@ const CategoryIcon = ({ order }: { order: Order }) => {
 
     const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
     const iconName = category?.icon || 'Box';
-    
     const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
     if (isUrl) {
@@ -274,7 +270,6 @@ export const columns: ColumnDef<Order>[] = [
     ),
     cell: ({ row }) => {
         const order = row.original;
-        
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
@@ -379,16 +374,14 @@ function OrderTableToolbar({
   const currentSort = table.getState().sorting[0];
   const sortField = currentSort?.id as SortField || 'deadline';
   const sortDirection = currentSort?.desc ? 'desc' : 'asc';
-  
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
 
-  // Don't render sorting controls on the dashboard
   if (preferenceKey === 'dashboardOrderSortPreference') {
       return (
           <div className="flex items-center justify-end gap-2 flex-wrap">
               <DataTableViewOptions table={table} />
           </div>
-      )
+      );
   }
 
   return (
@@ -431,11 +424,12 @@ function OrderTableToolbar({
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
                 </AlertDialogFooter>
+            </AlertDialogContent>
           </AlertDialog>
         )}
       </div>
     </div>
-  )
+  );
 }
 
 function MobileOrderList({ table }: { table: Table<Order> }) {
@@ -445,8 +439,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
 
     return (
         <div className="space-y-4">
-            {orders.map(order => {
-                return (
+            {orders.map(order => (
                  <Card key={order.id} className="hover:bg-muted/50 transition-colors">
                     <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
                         <CardHeader>
@@ -476,18 +469,17 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                             </div>
                         </CardContent>
                     </div>
-                    {role === 'Admin' &&
+                    {role === 'Admin' && (
                         <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
                             <div className="text-base font-medium w-full text-right">
                                 {formatCurrency(order.incomeAmount)}
                             </div>
                         </CardFooter>
-                    }
+                    )}
                  </Card>
-                )
-            })}
+            ))}
         </div>
-    )
+    );
 }
 
 interface OrderTableProps {
@@ -508,7 +500,6 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
       const { field, direction } = userProfile[preferenceKey]!;
       return [{ id: field, desc: direction === 'desc' }];
     }
-    // Default sorting: nearest deadline first
     return [{ id: 'deadline', desc: false }];
   }, [userProfile, preferenceKey]);
 
@@ -539,7 +530,7 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
   });
 
   if ((loading && !propOrders) || isUserLoading) {
-      return <div className="text-center p-8">Loading orders...</div>
+      return <div className="text-center p-8">Loading orders...</div>;
   }
   
   if (orders.length === 0) {
@@ -553,7 +544,7 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
                 </Button>
             </Link>
         </div>
-    )
+    );
   }
 
   return (
@@ -574,11 +565,11 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
              )}
         </div>
     </>
-  )
+  );
 }
 
 export function OrderTable(props: OrderTableProps) {
     return (
         <OrderTableInternal {...props} />
-    )
+    );
 }
