@@ -28,6 +28,13 @@ export function formatOrderId(orderId: string) {
     return `#ZF-ORD-${numericPart}`;
 }
 
+export function formatOrderUniqueName(customerName?: string, products?: Product[], orderId?: string) {
+  const firstName = customerName?.split(' ')[0] || 'Customer';
+  const productsName = formatProductDisplay(products);
+  const shortId = orderId?.slice(-5).toUpperCase() || 'XXXXX';
+  return `${firstName} - ${productsName} - ${shortId}`;
+}
+
 export function formatTimestamp(timestamp: any): string {
   if (!timestamp) {
     return 'Invalid Date';

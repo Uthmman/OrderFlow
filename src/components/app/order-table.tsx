@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -29,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus, OrderSortPreference } from "@/lib/types"
-import { formatCurrency, formatOrderId, formatTimestamp } from "@/lib/utils"
+import { formatCurrency, formatOrderId, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
@@ -121,14 +120,14 @@ function OrderActions({ order }: { order: Order }) {
             updateOrder({ ...order, status: "Cancelled" });
             toast({
                 title: "Order Cancelled",
-                description: `Order ${formatOrderId(order.id)} has been cancelled.`,
+                description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been cancelled.`,
             });
         } else if (dialogAction === 'delete') {
             const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
             deleteOrder(order.id, allAttachments);
             toast({
                 title: "Order Deleted",
-                description: `Order ${formatOrderId(order.id)} has been permanently deleted.`,
+                description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been permanently deleted.`,
             });
         }
     };
@@ -138,7 +137,7 @@ function OrderActions({ order }: { order: Order }) {
         updateOrder({ ...order, isUrgent: !order.isUrgent });
         toast({
             title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `Order ${formatOrderId(order.id)} has been updated.`,
+            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been updated.`,
         });
     };
 
@@ -159,6 +158,7 @@ function OrderActions({ order }: { order: Order }) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
                   View Details
                 </DropdownMenuItem>
@@ -270,20 +270,18 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "id",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order" />
+      <DataTableColumnHeader column={column} title="Order Name" />
     ),
     cell: ({ row }) => {
         const order = row.original;
-        const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
         
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
                  <div>
                     <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{firstProduct?.productName || 'Custom Order'}</Link>
+                        <Link href={`/orders/${order.id}`}>{formatOrderUniqueName(order.customerName, order.products, order.id)}</Link>
                     </div>
-                    <div className="text-sm text-muted-foreground">{formatOrderId(order.id)}</div>
                  </div>
             </div>
         );
@@ -433,7 +431,6 @@ function OrderTableToolbar({
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
                 </AlertDialogFooter>
-            </AlertDialogContent>
           </AlertDialog>
         )}
       </div>
@@ -444,7 +441,6 @@ function OrderTableToolbar({
 function MobileOrderList({ table }: { table: Table<Order> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
-    const firstProduct = (order: Order) => (order.products && order.products.length > 0) ? order.products[0] : null;
     const { role } = useUser();
 
     return (
@@ -459,7 +455,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                                     <CategoryIcon order={order} />
                                     <div>
                                         <CardTitle className="text-base font-bold">
-                                            {firstProduct(order)?.productName || 'Custom Order'}
+                                            {formatOrderUniqueName(order.customerName, order.products, order.id)}
                                         </CardTitle>
                                         <CardDescription>
                                             <CustomerLink order={order} />

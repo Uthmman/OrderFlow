@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState } from "react";
@@ -8,7 +6,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useParams } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Order } from "@/lib/types";
-import { formatOrderId } from "@/lib/utils";
+import { formatOrderId, formatOrderUniqueName } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -55,7 +53,7 @@ export default function EditOrderPage() {
         await updateOrder(fullOrderData);
         toast({
             title: "Order Updated",
-            description: `Order ${formatOrderId(order.id)} has been successfully updated.`,
+            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been successfully updated.`,
         });
         router.push(`/orders/${order.id}`);
         return order.id;
@@ -76,7 +74,7 @@ export default function EditOrderPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold font-headline tracking-tight">
-          Edit Order {formatOrderId(order.id)}
+          Edit {formatOrderUniqueName(order.customerName, order.products, order.id)}
         </h1>
         <p className="text-muted-foreground">
           Update the details of the order below.

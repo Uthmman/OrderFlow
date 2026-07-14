@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useOrders } from '@/hooks/use-orders';
@@ -8,7 +7,7 @@ import { Order, OrderChatMessage } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, isToday, isThisWeek, parseISO } from 'date-fns';
-import { formatProductDisplay } from '@/lib/utils';
+import { formatOrderUniqueName, formatProductDisplay } from '@/lib/utils';
 
 function getLastMessage(order: Order): OrderChatMessage | null {
   if (!order.chatMessages || !Array.isArray(order.chatMessages) || order.chatMessages.length === 0) {
@@ -89,7 +88,7 @@ export default function ChatPage() {
           <div className="flex flex-col">
             {sortedOrders.map((order) => {
               const lastMessage = getLastMessage(order);
-              const productName = formatProductDisplay(order.products);
+              const orderName = formatOrderUniqueName(order.customerName, order.products, order.id);
               return (
                 <Link
                   key={order.id}
@@ -105,7 +104,7 @@ export default function ChatPage() {
                   <div className="flex-grow overflow-hidden">
                     <div className="flex justify-between">
                       <p className="font-semibold truncate">
-                        {order.customerName} - {productName}
+                        {orderName}
                       </p>
                        {lastMessage && (
                         <p className="text-xs text-muted-foreground flex-shrink-0 ml-2">

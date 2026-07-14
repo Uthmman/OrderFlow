@@ -1,4 +1,3 @@
-
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense } from "react";
@@ -12,7 +11,7 @@ import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as 
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatOrderId, formatTimestamp, formatProductDisplay, downloadFile } from "@/lib/utils";
+import { formatCurrency, formatOrderId, formatOrderUniqueName, formatTimestamp, formatProductDisplay, downloadFile } from "@/lib/utils";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -188,7 +187,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                 printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Order Receipt - ${formatOrderId(order.id)}</title>
+                            <title>Order Receipt - ${formatOrderUniqueName(order.customerName, order.products, order.id)}</title>
                             <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @media print {
@@ -220,7 +219,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: {formatOrderId(order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: {formatOrderUniqueName(order.customerName, order.products, order.id)}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -236,7 +235,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         </div>
                         </div>
                         <div className="text-right">
-                        <h2 className="text-2xl font-bold">{formatOrderId(order.id)}</h2>
+                        <h2 className="text-2xl font-bold">{formatOrderUniqueName(order.customerName, order.products, order.id)}</h2>
                         <p className="text-slate-500">
                             Order Date: {formatTimestamp(order.creationDate)}
                         </p>
@@ -718,7 +717,7 @@ function OrderDetailPageContent() {
         updateOrder({ ...order, status: "Cancelled" });
         toast({
             title: "Order Cancelled",
-            description: `Order ${formatOrderId(order.id)} has been cancelled.`,
+            description: `Order ${formatOrderUniqueName(order.customerName, order.products, order.id)} has been cancelled.`,
         });
     }
 
@@ -728,7 +727,7 @@ function OrderDetailPageContent() {
         deleteOrder(order.id, allAttachments);
         toast({
             title: "Order Deleted",
-            description: `${formatOrderId(order.id)} has been deleted.`,
+            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been deleted.`,
         });
         router.push("/orders");
     };
@@ -738,7 +737,7 @@ function OrderDetailPageContent() {
         updateOrder({ ...order, isUrgent: !order.isUrgent });
         toast({
             title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `${formatOrderId(order.id)} has been updated.`,
+            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been updated.`,
         });
     };
 
@@ -753,7 +752,7 @@ function OrderDetailPageContent() {
             updateOrder({ ...order, status: newStatus });
             toast({
                 title: "Status Updated",
-                description: `Order ${formatOrderId(order.id)} status changed to ${newStatus}.`
+                description: `Order ${formatOrderUniqueName(order.customerName, order.products, order.id)} status changed to ${newStatus}.`
             });
         }
     };
@@ -903,7 +902,7 @@ function OrderDetailPageContent() {
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        Order {formatOrderId(order.id)}
+                        {formatOrderUniqueName(order.customerName, order.products, order.id)}
                     </h1>
                      {canChangeStatus && (
                         <StatusChanger order={order} onStatusChange={handleStatusChange} />

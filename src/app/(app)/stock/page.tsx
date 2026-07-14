@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, PlusCircle, MinusCircle, History, Package, Search, Settings, Trash2 } from 'lucide-react';
-import { formatTimestamp, formatOrderId, cn } from '@/lib/utils';
+import { formatTimestamp, formatOrderId, formatOrderUniqueName, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import type { StockItem, StockUnit, StockTransactionType } from '@/lib/types';
 
@@ -277,8 +277,13 @@ export default function StockPage() {
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate text-sm">
                             {tx.orderId && tx.orderId !== 'none' ? (
-                              <span className="flex items-center gap-1 text-primary font-medium">
-                                <Package className="h-3 w-3" /> {formatOrderId(tx.orderId)}
+                               <span className="flex items-center gap-1 text-primary font-medium">
+                                <Package className="h-3 w-3" /> {
+                                    (() => {
+                                        const foundOrder = orders.find(o => o.id === tx.orderId);
+                                        return foundOrder ? formatOrderUniqueName(foundOrder.customerName, foundOrder.products, foundOrder.id) : formatOrderId(tx.orderId!);
+                                    })()
+                                }
                               </span>
                             ) : (
                               <span className="text-muted-foreground">{tx.reason || '-'}</span>
@@ -417,7 +422,7 @@ export default function StockPage() {
                   <SelectContent>
                     <SelectItem value="none">General Shop Use</SelectItem>
                     {orders.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).map(o => (
-                      <SelectItem key={o.id} value={o.id}>{formatOrderId(o.id)} - {o.customerName}</SelectItem>
+                      <SelectItem key={o.id} value={o.id}>{formatOrderUniqueName(o.customerName, o.products, o.id)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
