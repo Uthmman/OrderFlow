@@ -25,6 +25,7 @@ interface OrderContextType {
   uploadProgress: Record<string, number>;
   addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
+  syncOrderUniqueNames: () => Promise<number>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -501,6 +502,26 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const getOrderById = useCallback((orderId: string) => {
     return orders?.find(order => order.id === orderId);
   }, [orders]);
+
+  const syncOrderUniqueNames = useCallback(async (): Promise<number> => {
+    if (!orders || orders.length === 0) return 0;
+    const batch = writeBatch(firestore);
+    let updatedCount = 0;
+
+    for (const order of orders) {
+      const expectedName = formatOrderUniqueName(order.customerName, order.products, order.id);
+      if (order.uniqueName !== expectedName) {
+        const orderRef = doc(firestore, 'orders', order.id);
+        batch.update(orderRef, { uniqueName: expectedName });
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      await batch.commit();
+    }
+    return updatedCount;
+  }, [firestore, orders]);
   
   const value = useMemo(() => ({
       orders: orders || [],
@@ -513,7 +534,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       uploadProgress,
       addAttachment,
       removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, deleteOrder, deleteMultipleOrders]);
+      syncOrderUniqueNames,
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, deleteOrder, deleteMultipleOrders, syncOrderUniqueNames]);
 
   return (
     <OrderContext.Provider value={value}>

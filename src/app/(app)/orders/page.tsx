@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -11,21 +9,24 @@ import { Order, OrderStatus } from "@/lib/types";
 import { useUser } from "@/hooks/use-user";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, RefreshCw, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DateRange } from "react-day-picker";
 import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { useToast } from "@/hooks/use-toast";
 
 export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
 
 export default function OrdersPage() {
-  const { orders, loading } = useOrders();
+  const { orders, loading, syncOrderUniqueNames } = useOrders();
   const { user, role, loading: userLoading } = useUser();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("active");
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
@@ -44,9 +45,10 @@ export default function OrdersPage() {
     return orders.filter(order => {
         const statusMatch = statuses.includes(order.status);
         
+        const displayName = order.uniqueName || order.id;
         const searchMatch = (
             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (order.products && order.products[0] && order.products[0].productName.toLowerCase().includes(searchTerm.toLowerCase()))
         );
         
@@ -66,6 +68,25 @@ export default function OrdersPage() {
     });
   };
   
+  const handleSyncNames = async () => {
+      setIsSyncing(true);
+      try {
+          const count = await syncOrderUniqueNames();
+          toast({
+              title: "Sync Complete",
+              description: `${count} order names were updated in Firestore.`,
+          });
+      } catch (error) {
+          toast({
+              variant: "destructive",
+              title: "Sync Failed",
+              description: "An error occurred while updating order names.",
+          });
+      } finally {
+          setIsSyncing(false);
+      }
+  };
+
   // Define status groups
   const inProgressStatuses: OrderStatus[] = ["In Progress"];
   const designingStatuses: OrderStatus[] = ["Designing"];
@@ -135,7 +156,7 @@ export default function OrdersPage() {
                 <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder="Filter by customer, ID, or product..."
+                        placeholder="Filter by customer, name, or product..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-8 w-full sm:w-[300px] lg:w-[400px]"
@@ -143,8 +164,20 @@ export default function OrdersPage() {
                 </div>
                 <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
             </div>
-            <div className="w-full sm:w-auto">
-                <Link href="/orders/new">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+                 {role === 'Admin' && (
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleSyncNames} 
+                        disabled={isSyncing}
+                        className="flex-1 sm:flex-initial"
+                    >
+                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                        Sync Names
+                    </Button>
+                )}
+                <Link href="/orders/new" className="flex-1 sm:flex-initial">
                     <Button size="sm" className="h-9 w-full">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         New Order
