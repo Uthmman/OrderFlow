@@ -1,6 +1,7 @@
+
 "use client";
 
-import { use, useState, useRef, useEffect, Suspense } from "react";
+import { use, useState, useRef, useEffect, Suspense, useOptimistic, useTransition } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,7 +188,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                 printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Order Receipt - ${formatOrderUniqueName(order.customerName, order.products, order.id)}</title>
+                            <title>Order Receipt - ${order.uniqueName}</title>
                             <script src="https://cdn.tailwindcss.com"><\/script>
                             <style>
                                 @media print {
@@ -219,7 +220,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     return (
         <DialogContent className="max-w-4xl p-0">
             <DialogHeader className="p-6 pb-0">
-                <DialogTitle>Order Receipt: {formatOrderUniqueName(order.customerName, order.products, order.id)}</DialogTitle>
+                <DialogTitle>Order Receipt: {order.uniqueName}</DialogTitle>
                 <DialogDescription>
                     A summary of the order for printing or saving as a PDF.
                 </DialogDescription>
@@ -235,7 +236,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         </div>
                         </div>
                         <div className="text-right">
-                        <h2 className="text-2xl font-bold">{formatOrderUniqueName(order.customerName, order.products, order.id)}</h2>
+                        <h2 className="text-2xl font-bold">{order.uniqueName}</h2>
                         <p className="text-slate-500">
                             Order Date: {formatTimestamp(order.creationDate)}
                         </p>
@@ -685,14 +686,22 @@ function OrderDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const [isPending, startTransition] = useTransition();
+
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
   const [paintUsageDialogOpen, setPaintUsageDialogOpen] = useState(false);
-  const [statusToChange, setStatusToChange] = useState<OrderStatus | null>(null);
-  const [isLoadingStatusChange, setIsLoadingStatusChange] = useState(false);
   
-  const order = getOrderById(id);
+  const orderData = getOrderById(id);
+
+  // Optimistic UI for Order Status and Urgency
+  const [optimisticOrder, setOptimisticOrder] = useOptimistic(
+    orderData,
+    (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null
+  );
+
+  const order = optimisticOrder;
 
   if (ordersLoading || customersLoading || userLoading || colorsLoading || !order) {
     return <div>Loading...</div>;
@@ -713,65 +722,74 @@ function OrderDetailPageContent() {
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
     const handleCancel = () => {
-        if (!order) return;
-        updateOrder({ ...order, status: "Cancelled" });
-        toast({
-            title: "Order Cancelled",
-            description: `Order ${formatOrderUniqueName(order.customerName, order.products, order.id)} has been cancelled.`,
+        if (!orderData) return;
+        startTransition(async () => {
+            setOptimisticOrder({ status: "Cancelled" });
+            await updateOrder({ ...orderData, status: "Cancelled" });
+            toast({
+                title: "Order Cancelled",
+                description: `Order ${order.uniqueName} has been cancelled.`,
+            });
         });
     }
 
     const handleDelete = () => {
-        if (!order) return;
-        const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-        deleteOrder(order.id, allAttachments);
+        if (!orderData) return;
+        const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+        deleteOrder(orderData.id, allAttachments);
         toast({
             title: "Order Deleted",
-            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been deleted.`,
+            description: `${order.uniqueName} has been deleted.`,
         });
         router.push("/orders");
     };
 
     const handleToggleUrgent = () => {
-        if (!order) return;
-        updateOrder({ ...order, isUrgent: !order.isUrgent });
-        toast({
-            title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `${formatOrderUniqueName(order.customerName, order.products, order.id)} has been updated.`,
+        if (!orderData) return;
+        startTransition(async () => {
+            setOptimisticOrder({ isUrgent: !orderData.isUrgent });
+            await updateOrder({ ...orderData, isUrgent: !orderData.isUrgent });
+            toast({
+                title: `Urgency ${orderData.isUrgent ? "Removed" : "Added"}`,
+                description: `${order.uniqueName} has been updated.`,
+            });
         });
     };
 
     const handleStatusChange = (newStatus: OrderStatus) => {
-        if (!order) return;
+        if (!orderData) return;
 
-        setStatusToChange(newStatus);
-
-        if (newStatus === 'Completed' && order.status === 'Painting') {
+        if (newStatus === 'Completed' && orderData.status === 'Painting') {
             setPaintUsageDialogOpen(true);
         } else {
-            updateOrder({ ...order, status: newStatus });
-            toast({
-                title: "Status Updated",
-                description: `Order ${formatOrderUniqueName(order.customerName, order.products, order.id)} status changed to ${newStatus}.`
+            startTransition(async () => {
+                setOptimisticOrder({ status: newStatus });
+                await updateOrder({ ...orderData, status: newStatus });
+                toast({
+                    title: "Status Updated",
+                    description: `Order ${order.uniqueName} status changed to ${newStatus}.`
+                });
             });
         }
     };
     
     const handlePaintUsageSubmit = (paintUsage: string) => {
-        if (!order) return;
+        if (!orderData) return;
 
-        const updatedProducts = [...(order.products || [])];
+        const updatedProducts = [...(orderData.products || [])];
         if (updatedProducts.length > 0) {
             const currentBOM = updatedProducts[0].billOfMaterials || '';
             const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
             updatedProducts[0].billOfMaterials = bomUpdate;
         }
 
-        updateOrder({ ...order, products: updatedProducts, status: 'Completed' }, {
-            text: `Paint Usage Submitted:\n${paintUsage}`,
-            file: undefined
-        }).then(() => {
-             toast({
+        startTransition(async () => {
+            setOptimisticOrder({ status: 'Completed' });
+            await updateOrder({ ...orderData, products: updatedProducts, status: 'Completed' }, {
+                text: `Paint Usage Submitted:\n${paintUsage}`,
+                file: undefined
+            });
+            toast({
                 title: "Order Completed",
                 description: "Paint usage recorded and status updated."
             });
@@ -779,72 +797,76 @@ function OrderDetailPageContent() {
     };
 
      const handleTogglePaidStatus = () => {
-        if (!order) return;
+        if (!orderData) return;
 
-        if (isPaid) {
-            updateOrder({
-                ...order,
-                paymentStatus: 'Balance Due',
-                prepaidAmount: 0, 
-                paidDate: undefined,
-            });
-            toast({
-                title: "Order Marked as Unpaid",
-                description: "The order now has a balance due.",
-            });
-        } else {
-            updateOrder({
-                ...order,
-                paymentStatus: 'Paid',
-                prepaidAmount: order.incomeAmount,
-                paidDate: new Date(),
-            });
-            toast({
-                title: "Order Marked as Paid",
-                description: "The order is now fully paid.",
-            });
-        }
+        startTransition(async () => {
+            if (isPaid) {
+                setOptimisticOrder({ paymentStatus: 'Balance Due', prepaidAmount: 0 });
+                await updateOrder({
+                    ...orderData,
+                    paymentStatus: 'Balance Due',
+                    prepaidAmount: 0, 
+                    paidDate: undefined,
+                });
+                toast({
+                    title: "Order Marked as Unpaid",
+                    description: "The order now has a balance due.",
+                });
+            } else {
+                setOptimisticOrder({ paymentStatus: 'Paid', prepaidAmount: orderData.incomeAmount });
+                await updateOrder({
+                    ...orderData,
+                    paymentStatus: 'Paid',
+                    prepaidAmount: orderData.incomeAmount,
+                    paidDate: new Date(),
+                });
+                toast({
+                    title: "Order Marked as Paid",
+                    description: "The order is now fully paid.",
+                });
+            }
+        });
     }
 
 
     const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
-        if (!order) return;
-        setIsLoadingStatusChange(true);
-        try {
-            await updateOrder({ ...order, status: newStatus });
-             toast({
-                title: "Status Updated",
-                description: `Order status changed to ${newStatus}.`
-            });
-        } catch (error) {
-            toast({
-                variant: 'destructive',
-                title: "Update Failed",
-                description: (error as Error).message,
-            });
-        } finally {
-            setIsLoadingStatusChange(false);
-        }
+        if (!orderData) return;
+        startTransition(async () => {
+            setOptimisticOrder({ status: newStatus });
+            try {
+                await updateOrder({ ...orderData, status: newStatus });
+                toast({
+                    title: "Status Updated",
+                    description: `Order status changed to ${newStatus}.`
+                });
+            } catch (error) {
+                toast({
+                    variant: 'destructive',
+                    title: "Update Failed",
+                    description: (error as Error).message,
+                });
+            }
+        });
     }
 
     const handleDesignFinished = (bom: string, attachments: OrderAttachment[]) => {
-        if (!order || !order.products || order.products.length === 0) return;
+        if (!orderData || !orderData.products || orderData.products.length === 0) return;
         
-        const updatedProducts = [...order.products];
+        const updatedProducts = [...orderData.products];
         const productToUpdate = updatedProducts[0];
-        
         productToUpdate.billOfMaterials = bom;
-        // The attachments are already associated with the order via addAttachment, 
-        // they are passed here just to confirm submission context if needed for the chat message.
         
-        updateOrder({ ...order, products: updatedProducts, status: 'Design Ready' }, {
-            text: `Bill of Materials Submitted with ${attachments.length} file(s):\n${bom}`,
-            file: undefined
-        });
+        startTransition(async () => {
+            setOptimisticOrder({ status: 'Design Ready' });
+            await updateOrder({ ...orderData, products: updatedProducts, status: 'Design Ready' }, {
+                text: `Bill of Materials Submitted with ${attachments.length} file(s):\n${bom}`,
+                file: undefined
+            });
 
-        toast({
-            title: "Design Finished",
-            description: "Status updated to Design Ready and BOM submitted to chat."
+            toast({
+                title: "Design Finished",
+                description: "Status updated to Design Ready and BOM submitted to chat."
+            });
         });
     };
     
@@ -854,13 +876,13 @@ function OrderDetailPageContent() {
     }
 
     const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
-        if (!order) return;
-        removeAttachment(order.id, productIndex, attachmentToDelete, false);
+        if (!orderData) return;
+        removeAttachment(orderData.id, productIndex, attachmentToDelete, false);
     };
 
     const handleDeleteDesignAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
-        if (!order) return;
-        removeAttachment(order.id, productIndex, attachmentToDelete, true);
+        if (!orderData) return;
+        removeAttachment(orderData.id, productIndex, attachmentToDelete, true);
     }
 
     const handleImageClick = (clickedAttachment: OrderAttachment) => {
@@ -902,7 +924,7 @@ function OrderDetailPageContent() {
             <div>
                 <div className="flex items-center gap-4 flex-wrap">
                     <h1 className="text-3xl font-bold font-headline tracking-tight">
-                        {formatOrderUniqueName(order.customerName, order.products, order.id)}
+                        {order.uniqueName}
                     </h1>
                      {canChangeStatus && (
                         <StatusChanger order={order} onStatusChange={handleStatusChange} />
@@ -918,8 +940,8 @@ function OrderDetailPageContent() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
                 {isDesigner && order.status === 'In Progress' && (
-                    <Button onClick={() => handleDesignerStatusChange('Designing')} disabled={isLoadingStatusChange}>
-                        {isLoadingStatusChange ? <Loader2 className="mr-2 animate-spin" /> : null}
+                    <Button onClick={() => handleDesignerStatusChange('Designing')} disabled={isPending}>
+                        {isPending ? <Loader2 className="mr-2 animate-spin" /> : null}
                         Start Design
                     </Button>
                 )}
@@ -1291,7 +1313,7 @@ function OrderDetailPageContent() {
     <FinishDesignDialog 
         open={finishDesignDialogOpen}
         onOpenChange={setFinishDesignDialogOpen}
-        order={order}
+        order={orderData}
         productIndex={0} /* Assuming one product per order for now for simplicity */
         onFinished={handleDesignFinished}
     />

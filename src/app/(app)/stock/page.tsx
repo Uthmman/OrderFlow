@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useStock } from '@/hooks/use-stock';
 import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -22,10 +23,11 @@ import type { StockItem, StockUnit, StockTransactionType } from '@/lib/types';
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
 
 export default function StockPage() {
-  const { stockItems, transactions, stockSettings, loading, addStockItem, adjustStock, updateStockSettings, deleteStockItem } = useStock();
+  const { stockItems, optimisticItems, transactions, stockSettings, loading, addStockItem, adjustStock, updateStockSettings, deleteStockItem } = useStock();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('inventory');
+  const [isPending, startTransition] = useTransition();
 
   // Dialog States
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -43,7 +45,7 @@ export default function StockPage() {
     orderId: '' 
   });
 
-  const filteredItems = (stockItems || []).filter(item => 
+  const filteredItems = (optimisticItems || []).filter(item => 
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -51,9 +53,11 @@ export default function StockPage() {
 
   const handleAddItem = async () => {
     if (!newItem.name || !newItem.category) return;
-    await addStockItem(newItem);
-    setNewItem({ name: '', category: '', unit: 'pcs', icon: 'Package', description: '' });
-    setIsAddingItem(false);
+    startTransition(async () => {
+        await addStockItem(newItem);
+        setNewItem({ name: '', category: '', unit: 'pcs', icon: 'Package', description: '' });
+        setIsAddingItem(false);
+    });
   };
 
   const handleAddCategory = async () => {
@@ -76,9 +80,14 @@ export default function StockPage() {
 
   const handleAdjustStock = async () => {
     if (!adjustment.itemId || adjustment.quantity <= 0) return;
-    await adjustStock(adjustment);
-    setAdjustment({ itemId: '', type: 'Out', quantity: 1, reason: '', orderId: '' });
+    
+    // Close immediately for optimistic feel
     setIsAdjusting(false);
+    
+    startTransition(async () => {
+        await adjustStock(adjustment);
+        setAdjustment({ itemId: '', type: 'Out', quantity: 1, reason: '', orderId: '' });
+    });
   };
 
   const openAdjustmentDialog = (item: StockItem, type: StockTransactionType) => {
@@ -86,7 +95,7 @@ export default function StockPage() {
     setIsAdjusting(true);
   };
 
-  if (loading) {
+  if (loading && stockItems.length === 0) {
     return (
       <div className="flex justify-center items-center h-96">
         <Loader2 className="animate-spin h-8 w-8 text-primary" />
@@ -281,7 +290,7 @@ export default function StockPage() {
                                 <Package className="h-3 w-3" /> {
                                     (() => {
                                         const foundOrder = orders.find(o => o.id === tx.orderId);
-                                        return foundOrder ? formatOrderUniqueName(foundOrder.customerName, foundOrder.products, foundOrder.id) : formatOrderId(tx.orderId!);
+                                        return foundOrder ? foundOrder.uniqueName : formatOrderId(tx.orderId!);
                                     })()
                                 }
                               </span>
@@ -350,7 +359,9 @@ export default function StockPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddingItem(false)}>Cancel</Button>
-            <Button onClick={handleAddItem}>Save Item</Button>
+            <Button onClick={handleAddItem} disabled={isPending}>
+                {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Item
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -401,16 +412,16 @@ export default function StockPage() {
           <div className="grid gap-6 py-4">
             <div className="flex items-center gap-4 bg-muted/30 p-3 rounded-lg">
               <div className="h-12 w-12 rounded-md bg-background flex items-center justify-center border shadow-sm">
-                <DynamicIcon icon={stockItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6" />
+                <DynamicIcon icon={optimisticItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-bold">{stockItems.find(i => i.id === adjustment.itemId)?.name}</p>
-                <p className="text-xs text-muted-foreground">Current: {stockItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {stockItems.find(i => i.id === adjustment.itemId)?.unit}</p>
+                <p className="font-bold">{optimisticItems.find(i => i.id === adjustment.itemId)?.name}</p>
+                <p className="text-xs text-muted-foreground">Current: {optimisticItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {optimisticItems.find(i => i.id === adjustment.itemId)?.unit}</p>
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="qty">Quantity to {adjustment.type === 'In' ? 'add' : 'use'} ({stockItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
+              <Label htmlFor="qty">Quantity to {adjustment.type === 'In' ? 'add' : 'use'} ({optimisticItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
               <Input id="qty" type="number" min="1" value={adjustment.quantity} onChange={e => setAdjustment({...adjustment, quantity: Number(e.target.value)})} />
             </div>
 
@@ -422,7 +433,7 @@ export default function StockPage() {
                   <SelectContent>
                     <SelectItem value="none">General Shop Use</SelectItem>
                     {orders.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).map(o => (
-                      <SelectItem key={o.id} value={o.id}>{formatOrderUniqueName(o.customerName, o.products, o.id)}</SelectItem>
+                      <SelectItem key={o.id} value={o.id}>{o.uniqueName}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

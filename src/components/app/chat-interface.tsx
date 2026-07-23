@@ -12,9 +12,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download, Clock } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useOptimistic, useTransition } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -25,6 +25,7 @@ import { compressImage, downloadFile } from "@/lib/utils"
 import { Dialog, DialogContent, DialogClose, DialogFooter } from "../ui/dialog"
 import { ScrollArea } from "../ui/scroll-area"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
+import { v4 as uuidv4 } from "uuid"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -78,15 +79,20 @@ const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachm
 }
 
 const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onImageClick: (attachment: OrderAttachment) => void }) => (
-    <div className="flex items-start gap-3">
+    <div className="flex items-start gap-3 relative group">
         <UserAvatar message={message} />
-        <div>
+        <div className="flex-1">
             <div className="flex items-center gap-2">
             <p className="font-semibold">{message.user.name}</p>
-            <time className="text-xs text-muted-foreground">{new Date(message.timestamp).toLocaleTimeString()}</time>
+            <time className="text-xs text-muted-foreground flex items-center gap-1">
+                {new Date(message.timestamp).toLocaleTimeString()}
+                {(message as any).sending && <Clock className="h-3 w-3 animate-pulse" />}
+            </time>
             </div>
-            {message.text && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{message.text}</p>}
-            {message.attachment && <ChatAttachment attachment={message.attachment} onImageClick={onImageClick}/>}
+            <div className={ (message as any).sending ? "opacity-70" : "" }>
+                {message.text && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{message.text}</p>}
+                {message.attachment && <ChatAttachment attachment={message.attachment} onImageClick={onImageClick}/>}
+            </div>
         </div>
     </div>
 );
@@ -103,7 +109,7 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
 export function ChatInterface({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
   const { user } = useUser();
-  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [inputValue, setInputValue] = useState("");
   const { toast } = useToast();
   
@@ -119,9 +125,15 @@ export function ChatInterface({ order }: { order: Order }) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
 
-  const chatMessages = Array.isArray(order.chatMessages) ? order.chatMessages : [];
+  const baseMessages = Array.isArray(order.chatMessages) ? order.chatMessages : [];
+  
+  // Optimistic UI for chat messages
+  const [optimisticMessages, addOptimisticMessage] = useOptimistic(
+    baseMessages,
+    (state, newMessage: OrderChatMessage) => [...state, newMessage]
+  );
 
-  const imageMessages = chatMessages
+  const imageMessages = optimisticMessages
     .filter(m => m.attachment && m.attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i))
     .map(m => m.attachment as OrderAttachment);
 
@@ -214,36 +226,49 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!inputValue.trim() && !audioBlob && !fileToUpload) || loading || !user) return;
+    if ((!inputValue.trim() && !audioBlob && !fileToUpload) || !user) return;
 
-    setLoading(true);
+    const textToSend = inputValue;
+    const currentAudioBlob = audioBlob;
+    const currentFile = fileToUpload;
 
-    try {
-        let newFile: File | undefined = undefined;
-
-        if (audioBlob) {
-            newFile = new File([audioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
-        } else if (fileToUpload) {
-            newFile = fileToUpload;
-        }
-        
-        await updateOrder(order, { text: inputValue, file: newFile });
-
-    } catch (error) {
-        console.error("Error sending message:", error);
-        toast({
-            variant: "destructive",
-            title: "Send Error",
-            description: (error as Error).message || "Could not send message.",
-        });
-    }
-
-
+    // Reset local state immediately for snappy feel
     setInputValue("");
     setAudioBlob(null);
     setFileToUpload(null);
     if(fileInputRef.current) fileInputRef.current.value = "";
-    setLoading(false);
+
+    startTransition(async () => {
+        // Add optimistic message
+        addOptimisticMessage({
+            id: uuidv4(),
+            user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl },
+            text: textToSend,
+            timestamp: new Date().toISOString(),
+            sending: true, // Custom flag for UI
+            attachment: currentFile ? { fileName: currentFile.name, url: URL.createObjectURL(currentFile), storagePath: '' } : undefined
+        } as any);
+
+        try {
+            let newFile: File | undefined = undefined;
+            if (currentAudioBlob) {
+                newFile = new File([currentAudioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
+            } else if (currentFile) {
+                newFile = currentFile;
+            }
+            
+            await updateOrder(order, { text: textToSend, file: newFile });
+        } catch (error) {
+            console.error("Error sending message:", error);
+            toast({
+                variant: "destructive",
+                title: "Send Error",
+                description: (error as Error).message || "Could not send message.",
+            });
+            // Reset input value on error so user can retry
+            setInputValue(textToSend);
+        }
+    });
   };
 
   const handleDownloadInGallery = (e: React.MouseEvent, url: string, fileName: string) => {
@@ -253,13 +278,13 @@ export function ChatInterface({ order }: { order: Order }) {
 
   return (
     <>
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">Team Chat</CardTitle>
-        <CardDescription>Collaborate and track changes for this order.</CardDescription>
+    <Card className="flex flex-col h-[500px]">
+      <CardHeader className="py-3">
+        <CardTitle className="font-headline text-lg">Team Chat</CardTitle>
+        <CardDescription className="text-xs">Collaborate and track changes for this order.</CardDescription>
       </CardHeader>
-      <CardContent className="h-96 overflow-y-auto space-y-4 p-4 border-t border-b">
-         {chatMessages.map((message, index) => (
+      <CardContent className="flex-1 overflow-y-auto space-y-4 p-4 border-t border-b scroll-smooth">
+         {optimisticMessages.map((message, index) => (
             <div key={`${message.id}-${message.timestamp}-${index}`}>
                 {message.isSystemMessage ? (
                     <SystemMessage message={message} />
@@ -271,7 +296,7 @@ export function ChatInterface({ order }: { order: Order }) {
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
          {audioUrl && !isRecording && (
-            <div className="w-full p-2 border rounded-md flex items-center justify-between">
+            <div className="w-full p-2 border rounded-md flex items-center justify-between bg-muted/30">
                <audio controls src={audioUrl} className="flex-1 h-10" />
                <Button variant="ghost" size="icon" onClick={() => setAudioBlob(null)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -279,7 +304,7 @@ export function ChatInterface({ order }: { order: Order }) {
             </div>
         )}
          {fileToUpload && fileUrl && (
-            <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2">
+            <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2 bg-muted/30">
                 <div className="flex items-center gap-2 truncate">
                     {fileToUpload.type.startsWith('image/') ? (
                         <Image src={fileUrl} alt={fileToUpload.name} width={40} height={40} className="h-10 w-10 rounded-sm object-cover" />
@@ -301,11 +326,11 @@ export function ChatInterface({ order }: { order: Order }) {
             className="hidden"
           />
           <Input 
-            placeholder={isRecording ? "Recording in progress..." : "Send a message or attach a file..."}
-            className="pr-28"
+            placeholder={isRecording ? "Recording..." : "Message or attach..."}
+            className="pr-28 h-11"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            disabled={loading || isRecording}
+            disabled={isPending || isRecording}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
             <Button 
@@ -313,7 +338,7 @@ export function ChatInterface({ order }: { order: Order }) {
                 size="icon" 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={loading || isRecording}
+                disabled={isPending || isRecording}
             >
               <Paperclip className="h-4 w-4" />
             </Button>
@@ -322,12 +347,12 @@ export function ChatInterface({ order }: { order: Order }) {
                 size="icon" 
                 type="button" 
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={loading || !!fileToUpload}
+                disabled={isPending || !!fileToUpload}
               >
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" type="submit" disabled={loading || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" type="submit" disabled={isPending || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </form>

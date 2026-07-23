@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useOptimistic } from 'react';
 import { collection, doc, setDoc, updateDoc, increment, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
 import type { StockItem, StockTransaction, StockTransactionType, StockSettings } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -12,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface StockContextType {
   stockItems: StockItem[];
+  optimisticItems: StockItem[];
   transactions: StockTransaction[];
   stockSettings: StockSettings | null;
   loading: boolean;
@@ -37,6 +39,18 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'stock'), [firestore]);
   const { data: stockSettings, isLoading: settingsLoading } = useDoc<StockSettings>(settingsDocRef);
+
+  // Optimistic UI for stock quantities
+  const [optimisticItems, addOptimisticAdjustment] = useOptimistic(
+    stockItems || [],
+    (state, adjustment: { itemId: string, change: number }) => {
+        return state.map(item => 
+            item.id === adjustment.itemId 
+            ? { ...item, currentQuantity: item.currentQuantity + adjustment.change }
+            : item
+        );
+    }
+  );
 
   const updateStockSettings = useCallback(async (newSettings: StockSettings) => {
     try {
@@ -68,6 +82,10 @@ export function StockProvider({ children }: { children: ReactNode }) {
   const adjustStock = useCallback(async ({ itemId, type, quantity, reason, orderId }: { itemId: string; type: StockTransactionType; quantity: number; reason: string; orderId?: string }) => {
     if (!user) return;
     
+    // Trigger optimistic update
+    const qtyChange = type === 'In' ? quantity : -quantity;
+    addOptimisticAdjustment({ itemId, change: qtyChange });
+
     try {
       const txId = uuidv4();
       const txRef = doc(firestore, 'stockTransactions', txId);
@@ -84,8 +102,6 @@ export function StockProvider({ children }: { children: ReactNode }) {
         userId: user.id,
         userName: user.name || 'Unknown User',
       };
-
-      const qtyChange = type === 'In' ? quantity : -quantity;
       
       await setDoc(txRef, transaction);
       await updateDoc(itemRef, {
@@ -101,7 +117,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
       console.error("Error adjusting stock:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to record stock adjustment." });
     }
-  }, [firestore, user, toast]);
+  }, [firestore, user, toast, addOptimisticAdjustment]);
 
   const deleteStockItem = useCallback(async (itemId: string) => {
     try {
@@ -127,6 +143,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     stockItems: stockItems || [],
+    optimisticItems,
     transactions: transactions || [],
     stockSettings: stockSettings || null,
     loading: itemsLoading || txLoading || settingsLoading,
@@ -135,7 +152,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
     deleteStockItem,
     getItemById,
     updateStockSettings,
-  }), [stockItems, transactions, stockSettings, itemsLoading, txLoading, settingsLoading, addStockItem, adjustStock, deleteStockItem, getItemById, updateStockSettings]);
+  }), [stockItems, optimisticItems, transactions, stockSettings, itemsLoading, txLoading, settingsLoading, addStockItem, adjustStock, deleteStockItem, getItemById, updateStockSettings]);
 
   return (
     <StockContext.Provider value={value}>
