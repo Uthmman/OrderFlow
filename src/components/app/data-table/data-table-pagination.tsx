@@ -25,12 +25,12 @@ export function DataTablePagination<TData>({
   table,
 }: DataTablePaginationProps<TData>) {
   return (
-    <div className="flex items-center justify-between px-2">
-      <div className="flex-1 text-sm text-muted-foreground">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2">
+      <div className="hidden sm:block flex-1 text-sm text-muted-foreground">
         {table.getFilteredSelectedRowModel().rows.length} of{" "}
         {table.getFilteredRowModel().rows.length} row(s) selected.
       </div>
-      <div className="flex items-center space-x-6 lg:space-x-8">
+      <div className="hidden sm:flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-medium">Rows per page</p>
           <Select
@@ -93,6 +93,32 @@ export function DataTablePagination<TData>({
             <ChevronsRightIcon className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Mobile "Load More" button */}
+      <div className="sm:hidden w-full flex flex-col gap-2">
+          {table.getCanNextPage() ? (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full font-medium" 
+                onClick={() => table.setPageSize(table.getState().pagination.pageSize + 10)}
+              >
+                  Load More
+              </Button>
+          ) : (table.getState().pagination.pageSize > 10) ? (
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-xs text-muted-foreground">Showing all {table.getFilteredRowModel().rows.length} items</p>
+                <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs h-8" 
+                    onClick={() => table.setPageSize(10)}
+                >
+                    Show Less
+                </Button>
+              </div>
+          ) : null}
       </div>
     </div>
   )
