@@ -227,17 +227,17 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
-    if (!firstProduct) return <DynamicIcon icon="Box" className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
+    if (!firstProduct) return <DynamicIcon icon="Box" className="h-12 w-12 text-muted-foreground flex-shrink-0"/>;
 
     const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
     const iconName = category?.icon || 'Box';
     const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
     if (isUrl) {
-        return <Image src={iconName} alt={firstProduct.category || "product"} width={36} height={36} className="h-9 w-9 rounded-md object-cover flex-shrink-0" />;
+        return <Image src={iconName} alt={firstProduct.category || "product"} width={48} height={48} className="h-12 w-12 rounded-md object-cover flex-shrink-0" />;
     }
 
-    return <DynamicIcon icon={iconName} className="h-9 w-9 text-muted-foreground flex-shrink-0"/>;
+    return <DynamicIcon icon={iconName} className="h-12 w-12 text-muted-foreground flex-shrink-0"/>;
 }
 
 
