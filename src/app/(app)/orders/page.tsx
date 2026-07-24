@@ -9,7 +9,7 @@ import { Order, OrderStatus } from "@/lib/types";
 import { useUser } from "@/hooks/use-user";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Search, RefreshCw, Loader2 } from "lucide-react";
+import { PlusCircle, Search } from "lucide-react";
 import Link from "next/link";
 import { DateRange } from "react-day-picker";
 import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
@@ -20,13 +20,11 @@ export type SortField = 'creationDate' | 'deadline';
 export type SortDirection = 'asc' | 'desc';
 
 export default function OrdersPage() {
-  const { orders, loading, syncOrderUniqueNames } = useOrders();
-  const { user, role, loading: userLoading } = useUser();
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("active");
+  const { orders, loading } = useOrders();
+  const { role, loading: userLoading } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState("active");
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
@@ -66,25 +64,6 @@ export default function OrdersPage() {
 
         return statusMatch && searchMatch && dateMatch;
     });
-  };
-  
-  const handleSyncNames = async () => {
-      setIsSyncing(true);
-      try {
-          const count = await syncOrderUniqueNames();
-          toast({
-              title: "Sync Complete",
-              description: `${count} order names were updated in Firestore.`,
-          });
-      } catch (error) {
-          toast({
-              variant: "destructive",
-              title: "Sync Failed",
-              description: "An error occurred while updating order names.",
-          });
-      } finally {
-          setIsSyncing(false);
-      }
   };
 
   // Define status groups
@@ -132,11 +111,7 @@ export default function OrdersPage() {
   // Set initial active tab based on role, once the user is loaded.
   useEffect(() => {
     if (!userLoading) {
-        if (role === 'Designer') {
-            setActiveTab('inProgress');
-        } else {
-            setActiveTab('inProgress');
-        }
+        setActiveTab('inProgress');
     }
   }, [userLoading, role]);
 
@@ -165,18 +140,6 @@ export default function OrdersPage() {
                 <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-                 {role === 'Admin' && (
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleSyncNames} 
-                        disabled={isSyncing}
-                        className="flex-1 sm:flex-initial"
-                    >
-                        {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                        Sync Names
-                    </Button>
-                )}
                 <Link href="/orders/new" className="flex-1 sm:flex-initial">
                     <Button size="sm" className="h-9 w-full">
                         <PlusCircle className="mr-2 h-4 w-4" />
