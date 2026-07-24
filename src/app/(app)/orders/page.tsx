@@ -127,17 +127,17 @@ export default function OrdersPage() {
       </div>
       
        <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
-                <div className="relative">
+            <div className="flex-1 flex flex-row gap-2 w-full items-center">
+                <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Filter by customer, name, or product..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8 w-full sm:w-[300px] lg:w-[400px]"
+                        className="pl-8 w-full"
                     />
                 </div>
-                <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
+                <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="w-auto" />
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Link href="/orders/new" className="flex-1 sm:flex-initial">
