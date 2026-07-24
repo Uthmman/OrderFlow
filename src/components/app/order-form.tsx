@@ -120,7 +120,7 @@ const toDate = (timestamp: any): Date | undefined => {
         const date = new Date(timestamp);
         // If the date string is just yyyy-mm-dd, it's parsed as UTC. 
         // We need to adjust it to the local timezone to prevent off-by-one errors.
-        if (/^d{4}-d{2}-d{2}$/.test(timestamp)) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
              return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
         }
         return isNaN(date.getTime()) ? undefined : date;
@@ -347,19 +347,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 creationDate: values.creationDate || new Date(),
                 deadline: values.deadline || new Date(),
             };
-            const newOrderId = await onSave(draftOrderPayload, true);
             
-            if (newOrderId) {
-                 router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
-            } else {
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-            }
+            // Optimistic navigation: Kick off save and route immediately
+            onSave(draftOrderPayload, true).then(newOrderId => {
+              if (newOrderId) {
+                startTransition(() => {
+                  router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
+                });
+              } else {
+                 setIsManualSaving(false);
+                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
+              }
+            }).catch(error => {
+              setIsManualSaving(false);
+              toast({ variant: 'destructive', title: 'Error', description: (error as Error).message || 'Could not create a draft for the order.' });
+            });
+            return;
         } catch (error) {
+            setIsManualSaving(false);
             toast({ variant: 'destructive', title: 'Error', description: (error as Error).message || 'Could not create a draft for the order.' });
-        } finally {
-             setIsManualSaving(false);
+            return;
         }
-        return;
     }
     
     // Main navigation logic
@@ -370,20 +378,26 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         nextStepNumber = 4;
     }
     
-    setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
+    startTransition(() => {
+      setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
+    });
   };
 
   const prevStep = () => {
+     let nextStepVal = currentStep - 1;
      if (initialOrder && [5, 6, 7].includes(currentStep)) {
-        setCurrentStep(4); // From product config back to source selection
+        nextStepVal = 4; // From product config back to source selection
     } else if (currentStep === 8) {
-        setCurrentStep(isProductCreationMode ? 7 : 4); // Back from review to color selection in product mode
+        nextStepVal = isProductCreationMode ? 7 : 4; // Back from review to color selection in product mode
     } else if (currentStep === 4) {
-        setCurrentStep(3); // Back from product source to category
+        nextStepVal = 3; // Back from product source to category
+    } else if (currentStep === 3 && !isProductCreationMode) {
+        nextStepVal = 1;
     }
-    else {
-        setCurrentStep(prev => Math.max(prev - 1, 1));
-    }
+
+    startTransition(() => {
+        setCurrentStep(Math.max(nextStepVal, 1));
+    });
   };
 
   const handleExistingProductSelect = (product: Product) => {
@@ -393,7 +407,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     updatedProducts[currentProductIndex] = newProduct;
 
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    setCurrentStep(8); 
+    startTransition(() => {
+        setCurrentStep(8); 
+    });
   };
   
   const handleAddAnotherProduct = () => {
@@ -410,13 +426,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     };
     const currentProducts = getValues('products');
     setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
-    setCurrentProductIndex(currentProducts.length);
-    setCurrentStep(3);
+    
+    startTransition(() => {
+        setCurrentProductIndex(currentProducts.length);
+        setCurrentStep(3);
+    });
   };
 
   const handleEditProduct = (index: number) => {
-      setCurrentProductIndex(index);
-      setCurrentStep(5);
+      startTransition(() => {
+          setCurrentProductIndex(index);
+          setCurrentStep(5);
+      });
   }
 
   const watchedValues = watch();
@@ -496,7 +517,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
     try {
         await updateOrder(orderPayload);
-        // Do not reset the form here, it causes navigation issues
     } catch (e) {
         console.error("Auto-save failed:", e);
     } finally {
@@ -753,8 +773,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
         const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
         
-        // When finishing the order from Step 10, promote 'Pending' to 'In Progress'
-        // unless the user explicitly selected a different non-pending status.
         let finalStatus = values.status;
         if (!isProductCreationMode && finalStatus === 'Pending') {
             finalStatus = 'In Progress';
@@ -772,11 +790,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             testDate: values.testDate,
         };
 
-        await onSave(payload as any, !initialOrder);
+        // Optimistic final save: redirect as soon as the save process starts
+        onSave(payload as any, !initialOrder).catch(error => {
+            setIsManualSaving(false);
+        });
 
     } catch (error) {
-        // Error toast is handled by the parent component's onSave implementation
-    } finally {
         setIsManualSaving(false);
     }
   };
@@ -803,28 +822,25 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   };
   
   const getProgress = () => {
-    // Total steps for a new order is 10.
     const totalStepsForNew = 10;
-    // Total steps for an existing order depends on the path.
     const totalStepsForExisting = 5; 
 
     let currentProgressStep = currentStep;
 
     if (isProductCreationMode) {
-        // Steps 3, 4, 5, 6, 7 -> mapped to 1, 2, 3, 4, 5
         const productCreationSteps = [3, 4, 5, 6, 7, 8];
         const currentIdx = productCreationSteps.indexOf(currentStep);
         return ((currentIdx + 1) / productCreationSteps.length) * 100;
     }
 
-    if (initialOrder) { // Logic for editing an existing order
-        if (currentStep === 2) currentProgressStep = 1; // Product Hub
-        else if (currentStep >= 5 && currentStep <= 7) currentProgressStep = 2; // Product config steps
-        else if (currentStep === 8) currentProgressStep = 3; // Review
-        else if (currentStep === 9) currentProgressStep = 4; // Pricing
-        else if (currentStep === 10) currentProgressStep = 5; // Scheduling
+    if (initialOrder) { 
+        if (currentStep === 2) currentProgressStep = 1; 
+        else if (currentStep >= 5 && currentStep <= 7) currentProgressStep = 2; 
+        else if (currentStep === 8) currentProgressStep = 3; 
+        else if (currentStep === 9) currentProgressStep = 4; 
+        else if (currentStep === 10) currentProgressStep = 5; 
         return (currentProgressStep / totalStepsForExisting) * 100;
-    } else { // Logic for a new order
+    } else { 
         return (currentProgressStep / totalStepsForNew) * 100;
     }
   }
@@ -1029,7 +1045,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <button
                               type="button"
-                              onClick={() => setCurrentStep(5)}
+                              onClick={() => startTransition(() => setCurrentStep(5))}
                               className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
                           >
                               <PlusCircleIcon className="h-10 w-10 text-primary" />
@@ -1705,16 +1721,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
               <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && currentStep !== 3 && (
+                  {currentStep > 1 && (
                       <Button variant="outline" type="button" onClick={prevStep}>
                           <ArrowLeft className="mr-2" /> Back
                       </Button>
                   )}
-                   {currentStep === 3 && !isProductCreationMode && (
-                       <Button variant="outline" type="button" onClick={() => setCurrentStep(1)}>
-                          <ArrowLeft className="mr-2" /> Back
-                      </Button>
-                   )}
                   
                   {currentStep < finalStepNumber && currentStep !== 2 && currentStep !== 4 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
@@ -1724,7 +1735,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                   )}
 
                   {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
-                      <Button type="button" onClick={() => setCurrentStep(9)}>
+                      <Button type="button" onClick={() => startTransition(() => setCurrentStep(9))}>
                           Continue to Final Steps <ArrowRight className="ml-2" />
                       </Button>
                   )}

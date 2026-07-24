@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { compressImage, formatOrderUniqueName } from '@/lib/utils';
 import { useProducts } from './use-products';
 import { useUser } from './use-user';
+import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface OrderContextType {
   orders: Order[];
@@ -215,46 +216,54 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             status: 'Pending',
         };
         const cleanData = removeUndefined(draftOrder);
-        await setDoc(newOrderRef, cleanData);
-        await addOrderToCustomer(orderData.customerId, orderId);
+        
+        // Optimistic/Non-blocking draft creation
+        setDocumentNonBlocking(newOrderRef, cleanData, {});
+        addOrderToCustomer(orderData.customerId, orderId);
+        
         return orderId;
     }
     
     // Finalizing the order (Step 10)
     const orderId = (orderData as any).id;
+    if (!orderId) throw new Error("Existing Order ID not found.");
+
     const orderRef = doc(firestore, 'orders', orderId);
     const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
 
     const finalOrderData: Partial<Order> = {
         ...orderData,
         uniqueName,
-        // Promote from 'Pending' to 'In Progress' if finishing
         status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
     };
     
-    for (const product of orderData.products) {
-        if (!product.productName) continue;
+    // Process catalog product updates in the background (Optimistic)
+    (async () => {
+      for (const product of orderData.products) {
+          if (!product.productName) continue;
 
-        const productsRef = collection(firestore, "products");
-        const q = query(productsRef, where("productName", "==", product.productName));
-        const querySnapshot = await getDocs(q);
+          const productsRef = collection(firestore, "products");
+          const q = query(productsRef, where("productName", "==", product.productName));
+          const querySnapshot = await getDocs(q);
 
-        if (querySnapshot.empty) {
-            const newProductId = await addProduct(product);
-             if (newProductId) {
-                await addOrderIdToProduct(newProductId, orderId);
-            }
-        } else {
-            const existingProductId = querySnapshot.docs[0].id;
-            await addOrderIdToProduct(existingProductId, orderId);
-        }
-    }
+          if (querySnapshot.empty) {
+              const newProductId = await addProduct(product);
+               if (newProductId) {
+                  await addOrderIdToProduct(newProductId, orderId);
+              }
+          } else {
+              const existingProductId = querySnapshot.docs[0].id;
+              await addOrderIdToProduct(existingProductId, orderId);
+          }
+      }
+    })();
     
     const cleanData = removeUndefined(finalOrderData);
-    await updateDoc(orderRef, cleanData);
+    // Optimistic/Non-blocking activation
+    updateDocumentNonBlocking(orderRef, cleanData);
 
     triggerNotification(firestore, [user.id], {
       type: 'New Order Created',

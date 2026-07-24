@@ -6,7 +6,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { useRouter } from "next/navigation";
 import { Order, OrderAttachment } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
-import { useState, Suspense, useEffect } from "react";
+import { useState, Suspense, useEffect, useTransition } from "react";
 import { formatOrderId } from "@/lib/utils";
 
 function NewOrderPageContent() {
@@ -14,6 +14,7 @@ function NewOrderPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const handleSaveOrder = async (orderData: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => {
     setIsSubmitting(true);
@@ -26,11 +27,12 @@ function NewOrderPageContent() {
                 description: `Order ${formatOrderId(orderId)} has been successfully saved.`,
             });
             
-            // If it's a final save (isNew is false), or if it was created with a non-pending status,
-            // redirect the user to the order details page.
-            if (!isNew || orderData.status !== 'Pending') {
-               router.push(`/orders/${orderId}`);
-            }
+            // Redirect immediately for better UX
+            startTransition(() => {
+                if (!isNew || orderData.status !== 'Pending') {
+                    router.push(`/orders/${orderId}`);
+                }
+            });
         } else {
              throw new Error("Failed to get new order ID.");
         }
