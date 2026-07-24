@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -202,6 +203,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const orderId = newOrderRef.id;
         const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
 
+        // All new orders are created in 'Pending' status (draft)
         const draftOrder: Order = {
             ...orderData,
             id: orderId,
@@ -218,6 +220,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return orderId;
     }
     
+    // Finalizing the order (Step 10)
     const orderId = (orderData as any).id;
     const orderRef = doc(firestore, 'orders', orderId);
     const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
@@ -225,7 +228,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const finalOrderData: Partial<Order> = {
         ...orderData,
         uniqueName,
-        status: 'In Progress',
+        // Promote from 'Pending' to 'In Progress' if finishing
+        status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,

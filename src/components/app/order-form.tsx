@@ -1,5 +1,4 @@
 
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -754,12 +753,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
         const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
         
+        // When finishing the order from Step 10, promote 'Pending' to 'In Progress'
+        // unless the user explicitly selected a different non-pending status.
+        let finalStatus = values.status;
+        if (!isProductCreationMode && finalStatus === 'Pending') {
+            finalStatus = 'In Progress';
+        }
+
         const payload = {
             ...(initialOrder || {}),
             ...values,
             products: updatedProducts,
             incomeAmount: totalIncome,
-            status: isProductCreationMode ? undefined : (values.status || 'In Progress'),
+            status: isProductCreationMode ? undefined : finalStatus,
             customerName: isProductCreationMode ? undefined : customerName,
             deadline: values.deadline,
             creationDate: values.creationDate,

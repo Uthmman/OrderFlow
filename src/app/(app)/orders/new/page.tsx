@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { OrderForm } from "@/components/app/order-form";
@@ -23,12 +22,13 @@ function NewOrderPageContent() {
         const orderId = await addOrder(orderData, isNew);
         if (orderId) {
             toast({
-                title: "Order Created",
-                description: `Order ${formatOrderId(orderId)} has been successfully created.`,
+                title: isNew ? "Draft Created" : "Order Finalized",
+                description: `Order ${formatOrderId(orderId)} has been successfully saved.`,
             });
-            // On successful creation, the form component will handle the redirect
-            // to the edit page, so no need to router.push here unless it's a final save.
-            if(orderData.status !== 'Pending') {
+            
+            // If it's a final save (isNew is false), or if it was created with a non-pending status,
+            // redirect the user to the order details page.
+            if (!isNew || orderData.status !== 'Pending') {
                router.push(`/orders/${orderId}`);
             }
         } else {
@@ -39,8 +39,8 @@ function NewOrderPageContent() {
         console.error("Failed to save order:", error);
         toast({
             variant: "destructive",
-            title: "Creation Failed",
-            description: (error as Error).message || "There was a problem creating the order.",
+            title: "Action Failed",
+            description: (error as Error).message || "There was a problem saving the order.",
         });
         return undefined;
     } finally {
@@ -61,7 +61,7 @@ function NewOrderPageContent() {
       <OrderForm 
           onSave={handleSaveOrder} 
           isSubmitting={isSubmitting} 
-          submitButtonText="Create Order"
+          submitButtonText="Finish Order"
       />
     </div>
   );
