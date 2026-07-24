@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -39,12 +40,12 @@ export function DateRangePicker({
             id="date"
             variant={"outline"}
             className={cn(
-              "w-10 sm:w-[260px] h-10 sm:h-10 justify-center sm:justify-start px-0 sm:px-4 text-left font-normal overflow-hidden",
-              !dateRange && "text-muted-foreground"
+              "h-10 justify-center sm:justify-start text-left font-normal overflow-hidden transition-all",
+              dateRange ? "w-auto px-4" : "w-10 sm:w-[260px] px-0 sm:px-4 text-muted-foreground"
             )}
           >
-            <CalendarIcon className="sm:mr-2 h-4 w-4 shrink-0" />
-            <span className="hidden sm:inline truncate">
+            <CalendarIcon className={cn("h-4 w-4 shrink-0", dateRange ? "mr-2" : "sm:mr-2")} />
+            <span className={cn("truncate", !dateRange && "hidden sm:inline")}>
               {dateRange?.from ? (
                 dateRange.to ? (
                   <>
