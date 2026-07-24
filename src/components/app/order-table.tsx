@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -99,8 +100,8 @@ const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
 
     return (
         <div>
-            <div>{formatTimestamp(deadline)}</div>
-            <div className={cn("text-xs", colorClass)}>{text}</div>
+            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{formatTimestamp(deadline)}</div>
+            <div className={cn("text-[10px] leading-tight", colorClass)}>{text}</div>
         </div>
     )
 }
@@ -227,17 +228,17 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
     const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
-    if (!firstProduct) return <DynamicIcon icon="Box" className="h-12 w-12 text-muted-foreground flex-shrink-0"/>;
+    if (!firstProduct) return <DynamicIcon icon="Box" className="h-14 w-14 text-muted-foreground flex-shrink-0"/>;
 
     const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
     const iconName = category?.icon || 'Box';
     const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
 
     if (isUrl) {
-        return <Image src={iconName} alt={firstProduct.category || "product"} width={48} height={48} className="h-12 w-12 rounded-md object-cover flex-shrink-0" />;
+        return <Image src={iconName} alt={firstProduct.category || "product"} width={56} height={56} className="h-14 w-14 rounded-md object-cover flex-shrink-0" />;
     }
 
-    return <DynamicIcon icon={iconName} className="h-12 w-12 text-muted-foreground flex-shrink-0"/>;
+    return <DynamicIcon icon={iconName} className="h-14 w-14 text-muted-foreground flex-shrink-0"/>;
 }
 
 
@@ -441,44 +442,44 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
     const { role } = useUser();
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             {orders.map(order => (
-                 <Card key={order.id} className="hover:bg-muted/50 transition-colors">
-                    <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
-                        <CardHeader>
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-3">
-                                    <CategoryIcon order={order} />
-                                    <div>
-                                        <CardTitle className="text-base font-bold">
+                 <Card key={order.id} className="hover:bg-muted/50 transition-colors overflow-hidden border-muted-foreground/10">
+                    <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer p-2.5">
+                        <div className="flex gap-3 items-center">
+                            <CategoryIcon order={order} />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="min-w-0">
+                                        <h3 className="text-[13px] font-bold truncate leading-tight mb-0.5">
                                             {order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id)}
-                                        </CardTitle>
-                                        <CardDescription>
+                                        </h3>
+                                        <p className="text-[11px] text-muted-foreground truncate font-medium">
                                             <CustomerLink order={order} />
-                                        </CardDescription>
+                                        </p>
+                                    </div>
+                                    <div onClick={(e) => e.stopPropagation()} className="shrink-0 -mt-1">
+                                        <OrderActions order={order} />
                                     </div>
                                 </div>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                    <OrderActions order={order} />
+                                <div className="flex items-center justify-between mt-1.5">
+                                    <Badge variant={statusVariantMap[order.status] || 'outline'} className="text-[9px] h-4.5 px-1 tracking-tight leading-none">
+                                        {order.status}
+                                    </Badge>
+                                    <div className="text-right">
+                                         <DeadlineDisplay deadline={order.deadline} />
+                                    </div>
                                 </div>
+                                {role === 'Admin' && (
+                                    <div className="mt-1 pt-1 border-t border-muted flex justify-end">
+                                        <span className="text-[12px] font-bold text-primary">
+                                            {formatCurrency(order.incomeAmount)}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex justify-between items-center">
-                                <Badge variant={statusVariantMap[order.status] || 'outline'}>{order.status}</Badge>
-                                 <div className="text-sm text-muted-foreground">
-                                    <DeadlineDisplay deadline={order.deadline} />
-                                </div>
-                            </div>
-                        </CardContent>
+                        </div>
                     </div>
-                    {role === 'Admin' && (
-                        <CardFooter onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer">
-                            <div className="text-base font-medium w-full text-right">
-                                {formatCurrency(order.incomeAmount)}
-                            </div>
-                        </CardFooter>
-                    )}
                  </Card>
             ))}
         </div>
