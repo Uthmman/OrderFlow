@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useUser, useUsers } from "@/hooks/use-user";
-import { Loader2, UploadCloud } from "lucide-react";
+import { Loader2, UploadCloud, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
 import { useRef, useState } from "react";
@@ -17,6 +17,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Role } from "@/lib/types";
 import { useFirebase } from "@/firebase";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 const profileFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -57,6 +66,12 @@ export default function ProfilePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // POV Switcher States
+    const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+    const [pendingRole, setPendingRole] = useState<Role | null>(null);
+    const [passwordInput, setPasswordInput] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
 
     // Primary admin email is used as a master key to ensure they can always switch roles
     const isPrimaryAdmin = authUser?.email === 'zenbabfurniture@gmail.com';
@@ -118,6 +133,41 @@ export default function ProfilePage() {
             setIsSubmitting(false);
         }
     }
+
+    const handleRoleChangeIntent = (role: Role) => {
+        if (role === user?.role) return;
+        setPendingRole(role);
+        setIsPasswordDialogOpen(true);
+    };
+
+    const verifyAndChangeRole = async () => {
+        if (!user || !pendingRole) return;
+        setIsVerifying(true);
+        
+        // This password would ideally be checked against a Firestore value, 
+        // but per requirements, we use the specified string.
+        if (passwordInput === '12345678') {
+            try {
+                await updateUserRole(user.id, pendingRole);
+                setIsPasswordDialogOpen(false);
+                setPasswordInput("");
+                setPendingRole(null);
+            } catch (error) {
+                toast({
+                    variant: "destructive",
+                    title: "Update Failed",
+                    description: "Could not change user role.",
+                });
+            }
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Invalid Password",
+                description: "The security password entered is incorrect.",
+            });
+        }
+        setIsVerifying(false);
+    };
 
     if (loading) {
       return (
@@ -298,38 +348,38 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                     
-                    {/* POV / Role Switcher for Admins */}
-                    {(user.role === 'Admin' || isPrimaryAdmin) && (
-                        <Card className="border-primary/20 bg-primary/5">
-                            <CardHeader>
-                                <CardTitle className="text-primary">Admin POV Selector</CardTitle>
-                                <CardDescription>Change your current role to view the app from a different perspective.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="max-w-xs space-y-2">
-                                    <FormLabel>Active Role</FormLabel>
-                                    <Select
-                                        value={user.role}
-                                        onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a role" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Admin">Admin</SelectItem>
-                                            <SelectItem value="Manager">Manager</SelectItem>
-                                            <SelectItem value="Sales">Sales</SelectItem>
-                                            <SelectItem value="Designer">Designer</SelectItem>
-                                            <SelectItem value="Pending">Pending</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-[10px] text-muted-foreground mt-2">
-                                        Changing your role will update your permissions and navigation across the app immediately.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                    {/* POV / Role Switcher - Now available for everyone with password */}
+                    <Card className="border-amber-200 bg-amber-50/50">
+                        <CardHeader>
+                            <CardTitle className="text-amber-700 flex items-center gap-2">
+                                <ShieldAlert className="h-5 w-5" /> Role Perspective
+                            </CardTitle>
+                            <CardDescription>Change your active role to see the app from a different perspective. Password required.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="max-w-xs space-y-2">
+                                <FormLabel>Active Role</FormLabel>
+                                <Select
+                                    value={user.role}
+                                    onValueChange={handleRoleChangeIntent}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a role" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Admin">Admin</SelectItem>
+                                        <SelectItem value="Manager">Manager</SelectItem>
+                                        <SelectItem value="Sales">Sales</SelectItem>
+                                        <SelectItem value="Designer">Designer</SelectItem>
+                                        <SelectItem value="Pending">Pending</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[10px] text-muted-foreground mt-2 italic">
+                                    Switching roles allows you to test permissions and features restricted to other team members.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
 
                      <div className="flex justify-end sticky bottom-0 bg-background/95 py-4 border-t mt-8">
@@ -340,6 +390,51 @@ export default function ProfilePage() {
                     </div>
                 </form>
             </Form>
+
+            <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Security Authorization</DialogTitle>
+                        <DialogDescription>
+                            Please enter the security password to switch to the <strong>{pendingRole}</strong> role.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex items-center space-x-2 py-4">
+                        <div className="grid flex-1 gap-2">
+                            <Label htmlFor="password">Security Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                placeholder="Enter 8-digit password"
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && verifyAndChangeRole()}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="sm:justify-end">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                                setIsPasswordDialogOpen(false);
+                                setPasswordInput("");
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            type="button" 
+                            onClick={verifyAndChangeRole}
+                            disabled={isVerifying || passwordInput.length < 1}
+                        >
+                            {isVerifying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Verify & Change
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
