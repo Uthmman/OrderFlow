@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
@@ -193,4 +194,13 @@ export type StockItem = {
 
 export type StockSettings = {
   categories: string[];
+};
+
+export type SecondaryItem = {
+  id: string;
+  name: string;
+  unit?: string;
+  category?: string;
+  price?: number;
+  description?: string;
 };

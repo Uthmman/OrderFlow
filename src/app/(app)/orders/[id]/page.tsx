@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
+import { useSecondaryItems } from "@/hooks/use-secondary-items";
+import { Input } from "@/components/ui/input";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -459,9 +461,11 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
 
 function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[]) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
+    const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [bom, setBom] = useState('');
+    const [itemSearch, setItemSearch] = useState('');
     const { toast } = useToast();
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
 
@@ -470,6 +474,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setUploadedFiles([]);
             setBom('');
             setIsUploading(false);
+            setItemSearch('');
         }
     }, [open]);
 
@@ -536,10 +541,25 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setUploadedFiles(prev => prev.filter(file => file.url !== fileToRemove.url));
     }
 
+    const filteredItems = secondaryItems.filter(item => 
+        item.name.toLowerCase().includes(itemSearch.toLowerCase())
+    );
+
+    const handleAddItemToBOM = (item: SecondaryItem) => {
+        setBom(prev => {
+            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: `;
+            return prev ? `${prev}\n${newItemLine}` : newItemLine;
+        });
+        toast({
+            title: "Item Added",
+            description: `${item.name} added to BOM.`
+        });
+    };
+
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>Finish Design & Submit BOM</DialogTitle>
                     <DialogDescription>
@@ -606,16 +626,52 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                         </div>
                     )}
 
-                    <div>
-                        <Label htmlFor="bom">Bill of Materials (BOM)</Label>
-                        <Textarea 
-                            id="bom"
-                            placeholder="Enter the list of materials and quantities..."
-                            value={bom}
-                            onChange={(e) => setBom(e.target.value)}
-                            rows={6}
-                            className="mt-2"
-                        />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Item Catalog (Secondary Source)</Label>
+                            <div className="relative mb-2">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Search materials..." 
+                                    value={itemSearch} 
+                                    onChange={(e) => setItemSearch(e.target.value)}
+                                    className="h-8 pl-7 text-xs"
+                                />
+                            </div>
+                            <ScrollArea className="h-48 border rounded-md p-2 bg-muted/20">
+                                {secondaryLoading ? (
+                                    <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
+                                ) : filteredItems.length === 0 ? (
+                                    <p className="text-center text-[10px] text-muted-foreground py-8">No materials found in catalog.</p>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {filteredItems.map(item => (
+                                            <Button 
+                                                key={item.id} 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                className="w-full justify-start h-8 text-[11px] px-2 hover:bg-primary/10 hover:text-primary transition-colors" 
+                                                onClick={() => handleAddItemToBOM(item)}
+                                            >
+                                                <PlusCircle className="h-3 w-3 mr-2 shrink-0" />
+                                                <span className="truncate flex-1 text-left">{item.name}</span>
+                                                {item.unit && <span className="text-[9px] opacity-50 ml-1">({item.unit})</span>}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="bom">Bill of Materials (BOM)</Label>
+                            <Textarea 
+                                id="bom"
+                                placeholder="List materials and quantities here..."
+                                value={bom}
+                                onChange={(e) => setBom(e.target.value)}
+                                className="h-60 text-sm resize-none"
+                            />
+                        </div>
                     </div>
                 </div>
                 <DialogFooter>
@@ -1328,9 +1384,9 @@ function OrderDetailPageContent() {
 
 
 export default function OrderDetailPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <OrderDetailPageContent />
-        </Suspense>
-    )
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <OrderDetailPageContent />
+    </Suspense>
+  )
 }
