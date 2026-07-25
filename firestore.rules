@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -38,7 +39,11 @@ service cloud.firestore {
 
     // User Profile rules
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      // Any authenticated user can view user profiles (required for chat and assignment displays)
+      allow get: if isAuthenticated();
+      // Only Admins can list all users in the system
+      allow list: if isAuthenticated() && getUserRole() == 'Admin';
+      // Users can only write to their own profile, unless they are an Admin
       allow write: if isAuthenticated() && (request.auth.uid == userId || getUserRole() == 'Admin');
       
       // Notifications subcollection
@@ -64,7 +69,6 @@ service cloud.firestore {
     }
 
     // Catch-all for other collections during development
-    // In production, this should be replaced with explicit rules for every path.
     match /{document=**} {
       allow read, write: if isAuthenticated();
     }

@@ -87,7 +87,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }), [userProfile, loading, role]);
 
   // --- All Users Logic (for admin user management) ---
-  const usersColRef = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+  // Only query the users collection if authenticated and user is an Admin
+  const usersColRef = useMemoFirebase(() => {
+    if (!authUser || role !== 'Admin') return null;
+    return collection(firestore, 'users');
+  }, [firestore, authUser, role]);
+
   const { data: users, isLoading: areUsersLoading } = useCollection<AppUser>(usersColRef);
 
   const createUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => {
