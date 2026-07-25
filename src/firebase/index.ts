@@ -1,10 +1,9 @@
-
 'use client';
 
-import { firebaseConfig, secondaryFirebaseConfig } from '@/firebase/config';
+import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
@@ -32,17 +31,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
   };
 }
 
-let secondaryFirestoreInstance: Firestore | null = null;
-
-export function getSecondaryFirestore(): Firestore {
-  if (secondaryFirestoreInstance) return secondaryFirestoreInstance;
-  
-  const apps = getApps();
-  const secondaryApp = apps.find(app => app.name === 'secondary') || initializeApp(secondaryFirebaseConfig, 'secondary');
-  secondaryFirestoreInstance = getFirestore(secondaryApp);
-  return secondaryFirestoreInstance;
-}
-
+export * from './secondary'; // Export from the new dedicated file
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';

@@ -1,10 +1,13 @@
-
 'use client';
+
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
-import { getSecondaryFirestore } from '@/firebase';
+import { getSecondaryFirestore } from '@/firebase/secondary';
 import type { SecondaryItem } from '@/lib/types';
 
+/**
+ * Hook to fetch material items from the secondary catalog Firestore project.
+ */
 export function useSecondaryItems() {
   const [items, setItems] = useState<SecondaryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,12 +20,12 @@ export function useSecondaryItems() {
         const q = query(itemsRef, orderBy('name', 'asc'));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-        const results = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        })) as SecondaryItem[];
-        setItems(results);
-        setLoading(false);
+          const results = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+          })) as SecondaryItem[];
+          setItems(results);
+          setLoading(false);
         }, (error) => {
             console.error("Error fetching secondary items:", error);
             setLoading(false);
