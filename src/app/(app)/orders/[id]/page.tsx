@@ -462,12 +462,16 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
 function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[]) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
     const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
+    const { role } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [bom, setBom] = useState('');
     const [itemSearch, setItemSearch] = useState('');
+    const [bomEstimatedTotal, setBomEstimatedTotal] = useState(0);
     const { toast } = useToast();
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
+
+    const isAdmin = role === 'Admin';
 
     useEffect(() => {
         if (!open) {
@@ -475,6 +479,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setBom('');
             setIsUploading(false);
             setItemSearch('');
+            setBomEstimatedTotal(0);
         }
     }, [open]);
 
@@ -547,9 +552,14 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
     const handleAddItemToBOM = (item: SecondaryItem) => {
         setBom(prev => {
-            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: `;
+            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: 1`;
             return prev ? `${prev}\n${newItemLine}` : newItemLine;
         });
+        
+        if (isAdmin && item.price) {
+            setBomEstimatedTotal(prev => prev + item.price!);
+        }
+
         toast({
             title: "Item Added",
             description: `${item.name} added to BOM.`
@@ -559,7 +569,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-3xl">
                 <DialogHeader>
                     <DialogTitle>Finish Design & Submit BOM</DialogTitle>
                     <DialogDescription>
@@ -638,7 +648,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                     className="h-8 pl-7 text-xs"
                                 />
                             </div>
-                            <ScrollArea className="h-48 border rounded-md p-2 bg-muted/20">
+                            <ScrollArea className="h-64 border rounded-md p-2 bg-muted/20">
                                 {secondaryLoading ? (
                                     <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
                                 ) : filteredItems.length === 0 ? (
@@ -650,27 +660,40 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                                 key={item.id} 
                                                 variant="ghost" 
                                                 size="sm" 
-                                                className="w-full justify-start h-8 text-[11px] px-2 hover:bg-primary/10 hover:text-primary transition-colors" 
+                                                className="w-full justify-start h-auto min-h-8 text-[11px] px-2 py-1.5 hover:bg-primary/10 hover:text-primary transition-colors flex items-start gap-2" 
                                                 onClick={() => handleAddItemToBOM(item)}
                                             >
-                                                <PlusCircle className="h-3 w-3 mr-2 shrink-0" />
-                                                <span className="truncate flex-1 text-left">{item.name}</span>
-                                                {item.unit && <span className="text-[9px] opacity-50 ml-1">({item.unit})</span>}
+                                                <PlusCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                                                <div className="flex-1 text-left min-w-0">
+                                                    <p className="truncate font-bold">{item.name}</p>
+                                                    <div className="flex items-center gap-2 text-[9px] opacity-60">
+                                                        <span>Unit: {item.unit || 'piece'}</span>
+                                                        {isAdmin && item.price && (
+                                                            <span className="font-semibold text-primary">Price: {formatCurrency(item.price)}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </Button>
                                         ))}
                                     </div>
                                 )}
                             </ScrollArea>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-2 flex flex-col">
                             <Label htmlFor="bom">Bill of Materials (BOM)</Label>
                             <Textarea 
                                 id="bom"
                                 placeholder="List materials and quantities here..."
                                 value={bom}
                                 onChange={(e) => setBom(e.target.value)}
-                                className="h-60 text-sm resize-none"
+                                className="flex-1 text-sm resize-none"
                             />
+                            {isAdmin && (
+                                <div className="p-3 bg-primary/5 border border-primary/10 rounded-md mt-2">
+                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Estimated BOM Total (Auto-calculated)</p>
+                                    <p className="text-xl font-bold text-primary">{formatCurrency(bomEstimatedTotal)}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
