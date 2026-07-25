@@ -320,6 +320,7 @@ export default function ProfilePage() {
                                             <SelectItem value="Manager">Manager</SelectItem>
                                             <SelectItem value="Sales">Sales</SelectItem>
                                             <SelectItem value="Designer">Designer</SelectItem>
+                                            <SelectItem value="Pending">Pending</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-[10px] text-muted-foreground mt-2">

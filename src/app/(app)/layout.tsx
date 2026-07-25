@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, type ReactNode } from "react";
@@ -10,7 +11,7 @@ import { useUser } from "@/hooks/use-user";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/firebase";
+import { useAuth, useFirebase } from "@/firebase";
 import { NotificationProvider } from "@/hooks/use-notifications";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
@@ -19,11 +20,15 @@ import { StockProvider } from "@/hooks/use-stock";
 
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
+const PRIMARY_ADMIN_EMAIL = 'zenbabfurniture@gmail.com';
 
 function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading, role } = useUser();
+  const { user: authUser } = useFirebase();
   const router = useRouter();
   const auth = useAuth();
+
+  const isPrimaryAdmin = authUser?.email === PRIMARY_ADMIN_EMAIL;
 
   useEffect(() => {
     // If loading is finished and there's no authenticated user, redirect to login.
@@ -44,7 +49,8 @@ function AuthGuard({ children }: { children: ReactNode }) {
   // After loading, if a user's profile (which contains the role) exists...
   if (user && role) {
     // ...but their role is 'Pending', show the pending approval screen.
-    if (role === 'Pending') {
+    // PRIMARY ADMIN can always bypass this screen to fix their role.
+    if (role === 'Pending' && !isPrimaryAdmin) {
       return (
           <div className="flex items-center justify-center h-screen">
               <Card className="w-full max-w-md m-4">
@@ -59,14 +65,13 @@ function AuthGuard({ children }: { children: ReactNode }) {
           </div>
       )
     }
-    // If the user has a valid role, show the app.
-    if (ALLOWED_ROLES.includes(role)) {
+    // If the user has a valid role, or is the primary admin, show the app.
+    if (ALLOWED_ROLES.includes(role) || isPrimaryAdmin) {
         return <>{children}</>;
     }
   }
 
   // If loading is done and we still don't have a user or a valid role, the useEffect will redirect.
-  // This return null prevents rendering children that might depend on the user.
   return null;
 }
 
