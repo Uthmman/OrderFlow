@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
@@ -11,7 +10,8 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { onSnapshot } from 'firebase/firestore';
-import type { User as FirebaseAuthUser } from 'firebase/auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // Main user hook return type
 interface UserHookReturnType {
@@ -60,12 +60,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (doc.exists()) {
         setUserProfile(doc.data() as AppUser);
       } else {
-        // This case might happen if the user record wasn't created properly
         setUserProfile(null); 
       }
       setProfileLoading(false);
     }, (error) => {
-        console.error("Error fetching user profile:", error);
+        // Emitting specialized error instead of standard console.error
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+            operation: 'get',
+            path: userDocRef.path
+        }));
         setUserProfile(null);
         setProfileLoading(false);
     });
@@ -93,7 +96,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     let avatarUrl = data.avatarUrl || '';
     if (!avatarUrl) {
-      // Assuming gender is passed in data if available, otherwise defaulting
       const gender = (data as any).gender; 
       if (gender === 'Male') {
         avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${data.name || data.email}`;
@@ -111,7 +113,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       avatarUrl: avatarUrl,
       role: isAdmin ? 'Admin' : 'Pending',
     };
-    // Use non-blocking write
     setDocumentNonBlocking(userRef, newUser, { merge: true });
   }, [firestore]);
 
@@ -124,7 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     })
   }, [firestore, toast]);
   
-  const updateUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role'>>) => {
+  const updateUserProfile = useCallback(async (uid: string, data: Partial<Omit<AppUser, 'id' | 'role' | 'dashboardOrderSortPreference'>>) => {
     const userRef = doc(firestore, 'users', uid);
     updateDocumentNonBlocking(userRef, data);
   }, [firestore]);
@@ -154,7 +155,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook for accessing the current user's profile
 export function useUser() {
   const context = useContext(UserContext);
   if (context === undefined) {
@@ -163,7 +163,6 @@ export function useUser() {
   return context;
 }
 
-// Hook for managing all users (admin)
 export function useUsers() {
   const context = useContext(UsersContext);
   if (context === undefined) {
