@@ -51,13 +51,14 @@ function fileToBase64(file: File): Promise<string> {
 
 export default function ProfilePage() {
     const { user, loading } = useUser();
-    const { authUser } = useFirebase();
+    const { user: authUser } = useFirebase();
     const { updateUserProfile, updateUserRole } = useUsers();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Primary admin email is used as a master key to ensure they can always switch roles
     const isPrimaryAdmin = authUser?.email === 'zenbabfurniture@gmail.com';
 
     const form = useForm<ProfileFormValues>({
@@ -297,37 +298,43 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                     
-                    <Card>
-                         <CardHeader>
-                            <CardTitle>User Role</CardTitle>
-                            <CardDescription>Change your current role to view the app as another user type.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="max-w-xs space-y-2">
-                                 <FormLabel>Current Role</FormLabel>
-                                 <Select
-                                    value={user.role}
-                                    onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
-                                  >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select a role" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Admin">Admin</SelectItem>
-                                        <SelectItem value="Manager">Manager</SelectItem>
-                                        <SelectItem value="Sales">Sales</SelectItem>
-                                        <SelectItem value="Designer">Designer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* POV / Role Switcher for Admins */}
+                    {(user.role === 'Admin' || isPrimaryAdmin) && (
+                        <Card className="border-primary/20 bg-primary/5">
+                            <CardHeader>
+                                <CardTitle className="text-primary">Admin POV Selector</CardTitle>
+                                <CardDescription>Change your current role to view the app from a different perspective.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="max-w-xs space-y-2">
+                                    <FormLabel>Active Role</FormLabel>
+                                    <Select
+                                        value={user.role}
+                                        onValueChange={(newRole: Role) => updateUserRole(user.id, newRole)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select a role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Admin">Admin</SelectItem>
+                                            <SelectItem value="Manager">Manager</SelectItem>
+                                            <SelectItem value="Sales">Sales</SelectItem>
+                                            <SelectItem value="Designer">Designer</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-[10px] text-muted-foreground mt-2">
+                                        Changing your role will update your permissions and navigation across the app immediately.
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
 
-                     <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
+                     <div className="flex justify-end sticky bottom-0 bg-background/95 py-4 border-t mt-8">
                         <Button type="submit" disabled={isSubmitting || !form.formState.isDirty}>
                             {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Save Changes
+                            Save Personal Details
                         </Button>
                     </div>
                 </form>
