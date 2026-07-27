@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Order, OrderStatus, OrderSortPreference } from "@/lib/types"
+import { Order, OrderStatus, OrderSortPreference, AppUser } from "@/lib/types"
 import { formatCurrency, formatOrderId, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
@@ -63,6 +63,8 @@ import { useProductSettings } from "@/hooks/use-product-settings"
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
 import { DynamicIcon } from "../ui/dynamic-icon";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -104,6 +106,45 @@ const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
             <div className={cn("text-[10px] leading-tight", colorClass)}>{text}</div>
         </div>
     )
+}
+
+function DesignerAvatar({ userId, users }: { userId: string, users: AppUser[] }) {
+    const profile = users.find(u => u.id === userId);
+    if (!profile) return null;
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
+                        <AvatarImage src={profile.avatarUrl} />
+                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="text-xs">{profile.name}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+function StatusCell({ order }: { order: Order }) {
+    const { users } = useUsers();
+    const status = order.status;
+
+    return (
+        <div className="flex items-center gap-2">
+            <Badge variant={statusVariantMap[status] || 'outline'}>{status}</Badge>
+            {status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+                <div className="flex -space-x-1.5 ml-1">
+                    {order.assignedTo.map(uid => (
+                        <DesignerAvatar key={uid} userId={uid} users={users} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 function OrderActions({ order }: { order: Order }) {
@@ -312,10 +353,7 @@ export const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => {
-        const status = row.getValue("status") as OrderStatus;
-        return <Badge variant={statusVariantMap[status] || 'outline'}>{status}</Badge>
-    },
+    cell: ({ row }) => <StatusCell order={row.original} />,
   },
   {
     accessorKey: "deadline",
@@ -478,9 +516,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between mt-1.5">
-                                    <Badge variant={statusVariantMap[order.status] || 'outline'} className="text-[9px] h-4.5 px-1 tracking-tight leading-none">
-                                        {order.status}
-                                    </Badge>
+                                    <StatusCell order={order} />
                                     <div className="text-right">
                                          <DeadlineDisplay deadline={order.deadline} />
                                     </div>
