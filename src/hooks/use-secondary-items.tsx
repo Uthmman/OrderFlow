@@ -1,7 +1,8 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Unsubscribe, addDoc } from 'firebase/firestore';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
 import type { SecondaryItem } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -55,5 +56,20 @@ export function useSecondaryItems() {
     };
   }, []);
 
-  return { items, loading };
+  /**
+   * Adds a new item to the secondary material catalog.
+   */
+  const addSecondaryItem = async (item: Omit<SecondaryItem, 'id'>) => {
+    try {
+      await ensureSecondaryAuth();
+      const db = getSecondaryFirestore();
+      await addDoc(collection(db, 'items'), item);
+      return true;
+    } catch (error) {
+      console.error("Failed to add item to secondary catalog:", error);
+      return false;
+    }
+  };
+
+  return { items, loading, addSecondaryItem };
 }

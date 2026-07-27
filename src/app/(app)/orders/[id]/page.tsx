@@ -170,7 +170,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
           <DropdownMenuItem
             key={status}
             disabled={order.status === status}
-            onSelect={() => onStatusChange(status)}
+            onStatusSelect={() => onStatusChange(status)}
           >
             {status}
           </DropdownMenuItem>
@@ -461,7 +461,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
 
 function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
-    const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
+    const { items: secondaryItems, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
     const { role } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -472,6 +472,10 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
     const [mainImageUrl, setMainImageUrl] = useState<string | undefined>(order.mainImageUrl);
     
+    // New catalog item state
+    const [isAddingNewToCatalog, setIsAddingNewToCatalog] = useState(false);
+    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece', price: 0 });
+
     // Track quantity inputs for catalog items
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
@@ -486,6 +490,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setBomEstimatedTotal(0);
             setItemQuantities({});
             setMainImageUrl(order.mainImageUrl);
+            setIsAddingNewToCatalog(false);
         }
     }, [open, order.mainImageUrl]);
 
@@ -567,8 +572,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setItemQuantities(prev => ({ ...prev, [itemId]: num }));
     };
 
-    const handleAddItemToBOM = (item: SecondaryItem) => {
-        const qty = itemQuantities[item.id] !== undefined ? itemQuantities[item.id] : 1;
+    const handleAddItemToBOM = (item: SecondaryItem | { name: string, unit: string, price?: number }) => {
+        const itemId = (item as any).id || 'custom-' + Date.now();
+        const qty = itemQuantities[itemId] !== undefined ? itemQuantities[itemId] : 1;
         
         if (qty <= 0) {
             toast({
@@ -592,6 +598,25 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             title: "Item Added",
             description: `${item.name} (${qty}) added to BOM.`
         });
+    };
+
+    const handleAddNewToCatalog = async () => {
+        if (!newCatalogItem.name.trim()) return;
+        const success = await addSecondaryItem({
+            name: newCatalogItem.name,
+            unit: newCatalogItem.unit,
+            price: newCatalogItem.price,
+            category: 'Miscellaneous'
+        });
+
+        if (success) {
+            toast({ title: "Catalog Updated", description: `${newCatalogItem.name} added to shared catalog.` });
+            handleAddItemToBOM(newCatalogItem);
+            setIsAddingNewToCatalog(false);
+            setNewCatalogItem({ name: '', unit: 'piece', price: 0 });
+        } else {
+            toast({ variant: 'destructive', title: "Error", description: "Failed to add item to catalog." });
+        }
     };
 
 
@@ -686,59 +711,80 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Item Catalog (Secondary Source)</Label>
-                            <div className="relative mb-2">
-                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Search materials..." 
-                                    value={itemSearch} 
-                                    onChange={(e) => setItemSearch(e.target.value)}
-                                    className="h-8 pl-7 text-xs"
-                                />
+                            <div className="flex gap-2 mb-2">
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                    <Input 
+                                        placeholder="Search materials..." 
+                                        value={itemSearch} 
+                                        onChange={(e) => setItemSearch(e.target.value)}
+                                        className="h-8 pl-7 text-xs"
+                                    />
+                                </div>
+                                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIsAddingNewToCatalog(true)}>
+                                    <PlusCircle className="h-3 w-3 mr-1" /> New
+                                </Button>
                             </div>
-                            <ScrollArea className="h-64 border rounded-md p-2 bg-muted/20">
-                                {secondaryLoading ? (
-                                    <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
-                                ) : filteredItems.length === 0 ? (
-                                    <p className="text-center text-[10px] text-muted-foreground py-8">No materials found in catalog.</p>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {filteredItems.map(item => (
-                                            <div 
-                                                key={item.id} 
-                                                className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-primary/5 transition-colors group" 
-                                            >
-                                                <div className="flex-1 text-left min-w-0">
-                                                    <p className="truncate text-[11px] font-bold">{item.name}</p>
-                                                    <div className="flex items-center gap-2 text-[9px] opacity-60">
-                                                        <span>Unit: {item.unit || 'piece'}</span>
-                                                        {isAdmin && item.price && (
-                                                            <span className="font-semibold text-primary">Price: {formatCurrency(item.price)}</span>
-                                                        )}
+
+                            {isAddingNewToCatalog ? (
+                                <div className="p-3 border rounded-md bg-muted/20 space-y-3 animate-in fade-in duration-200">
+                                    <h5 className="text-[10px] font-bold uppercase tracking-wider">New Catalog Item</h5>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Input placeholder="Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs" />
+                                        <Input placeholder="Unit (e.g. kg)" value={newCatalogItem.unit} onChange={e => setNewCatalogItem({...newCatalogItem, unit: e.target.value})} className="h-8 text-xs" />
+                                    </div>
+                                    {isAdmin && <Input type="number" placeholder="Unit Price" onChange={e => setNewCatalogItem({...newCatalogItem, price: Number(e.target.value)})} className="h-8 text-xs" />}
+                                    <div className="flex justify-end gap-2">
+                                        <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => setIsAddingNewToCatalog(false)}>Cancel</Button>
+                                        <Button size="sm" className="h-7 text-[10px]" onClick={handleAddNewToCatalog}>Add & Pick</Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <ScrollArea className="h-64 border rounded-md p-2 bg-muted/20">
+                                    {secondaryLoading ? (
+                                        <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
+                                    ) : filteredItems.length === 0 ? (
+                                        <p className="text-center text-[10px] text-muted-foreground py-8">No materials found. Use "New" to add one.</p>
+                                    ) : (
+                                        <div className="space-y-1">
+                                            {filteredItems.map(item => (
+                                                <div 
+                                                    key={item.id} 
+                                                    className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-primary/5 transition-colors group" 
+                                                >
+                                                    <div className="flex-1 text-left min-w-0">
+                                                        <p className="truncate text-[11px] font-bold">{item.name}</p>
+                                                        <div className="flex items-center gap-2 text-[9px] opacity-60">
+                                                            <span>Unit: {item.unit || 'piece'}</span>
+                                                            {isAdmin && item.price && (
+                                                                <span className="font-semibold text-primary">Price: {formatCurrency(item.price)}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Input 
+                                                            type="number" 
+                                                            className="h-7 w-12 text-[10px] px-1" 
+                                                            defaultValue={1}
+                                                            min={1}
+                                                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                                        />
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            className="h-7 w-7 text-primary hover:bg-primary hover:text-white"
+                                                            onClick={() => handleAddItemToBOM(item)}
+                                                            title="Add to BOM"
+                                                        >
+                                                            <PlusCircle className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Input 
-                                                        type="number" 
-                                                        className="h-7 w-12 text-[10px] px-1" 
-                                                        defaultValue={1}
-                                                        min={1}
-                                                        onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                                    />
-                                                    <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="h-7 w-7 text-primary hover:bg-primary hover:text-white"
-                                                        onClick={() => handleAddItemToBOM(item)}
-                                                        title="Add to BOM"
-                                                    >
-                                                        <PlusCircle className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </ScrollArea>
+                                            ))}
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                            )}
                         </div>
                         <div className="space-y-2 flex flex-col">
                             <Label htmlFor="bom">Bill of Materials (BOM)</Label>

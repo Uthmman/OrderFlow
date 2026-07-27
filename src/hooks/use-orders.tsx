@@ -1,8 +1,9 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
-import type { Order, OrderAttachment, OrderChatMessage } from '@/lib/types';
+import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -177,14 +178,27 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
+
+    // Helper to get initial image from product attachments
+    const getInitialMainImage = (product: Product) => {
+      const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
+      const firstImage = allAtts.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+      return firstImage?.url;
+    };
+
     if (isNew) {
+        // Initial Draft Creation (usually from Step 1)
         const newOrderRef = doc(collection(firestore, "orders"));
         const orderId = newOrderRef.id;
-        const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
+        const products = orderData.products || [];
+        const mainImageUrl = products.length === 1 ? getInitialMainImage(products[0]) : undefined;
+
+        const uniqueName = formatOrderUniqueName(orderData.customerName, products, orderId);
         const draftOrder: Order = {
             ...orderData,
             id: orderId,
             uniqueName,
+            mainImageUrl,
             creationDate: Timestamp.fromDate(orderData.creationDate as Date),
             deadline: Timestamp.fromDate(orderData.deadline as Date),
             testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
@@ -196,33 +210,112 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         addOrderToCustomer(orderData.customerId, orderId);
         return orderId;
     }
+
+    // FINALIZING ORDER
     const orderId = (orderData as any).id;
     if (!orderId) throw new Error("Existing Order ID not found.");
+
+    const products = orderData.products || [];
+    const totalIncome = orderData.incomeAmount || 0;
+    const totalPrepaid = orderData.prepaidAmount || 0;
+
+    // Handle splitting multiple products into separate orders
+    if (products.length > 1) {
+        const batch = writeBatch(firestore);
+        let firstOrderId = orderId;
+
+        for (let i = 0; i < products.length; i++) {
+            const product = products[i];
+            const currentOrderId = i === 0 ? orderId : doc(collection(firestore, "orders")).id;
+            const currentOrderRef = doc(firestore, 'orders', currentOrderId);
+            
+            // Distribute income and prepaid proportionally
+            const productPrice = Number(product.price) || 0;
+            const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
+            const productPrepaid = totalPrepaid * priceProportion;
+
+            const splitOrderData: Partial<Order> = {
+                ...orderData,
+                products: [product],
+                uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
+                mainImageUrl: getInitialMainImage(product),
+                incomeAmount: productPrice,
+                prepaidAmount: productPrepaid,
+                status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
+                creationDate: Timestamp.fromDate(orderData.creationDate as Date),
+                deadline: Timestamp.fromDate(orderData.deadline as Date),
+                testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+            };
+
+            const cleanData = removeUndefined(splitOrderData);
+            if (i === 0) {
+                batch.update(currentOrderRef, cleanData);
+            } else {
+                cleanData.id = currentOrderId;
+                cleanData.ownerId = user.id;
+                batch.set(currentOrderRef, cleanData);
+                addOrderToCustomer(orderData.customerId, currentOrderId);
+            }
+
+            // Sync with global catalog
+            (async () => {
+                if (product.productName) {
+                    const productsRef = collection(firestore, "products");
+                    const q = query(productsRef, where("productName", "==", product.productName));
+                    const querySnapshot = await getDocs(q);
+                    if (querySnapshot.empty) {
+                        const newProductId = await addProduct(product);
+                        if (newProductId) await addOrderIdToProduct(newProductId, currentOrderId);
+                    } else {
+                        const existingProductId = querySnapshot.docs[0].id;
+                        await addOrderIdToProduct(existingProductId, currentOrderId);
+                    }
+                }
+            })();
+        }
+
+        await batch.commit().catch(err => {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                operation: 'update',
+                path: 'orders (split batch)',
+                requestResourceData: { productsCount: products.length }
+            }));
+            throw err;
+        });
+
+        toast({ title: "Orders Split", description: `Successfully created ${products.length} separate orders.` });
+        return firstOrderId;
+    }
+
+    // Single product flow
     const orderRef = doc(firestore, 'orders', orderId);
-    const uniqueName = formatOrderUniqueName(orderData.customerName, orderData.products, orderId);
+    const uniqueName = formatOrderUniqueName(orderData.customerName, products, orderId);
     const finalOrderData: Partial<Order> = {
         ...orderData,
         uniqueName,
+        mainImageUrl: products.length > 0 ? getInitialMainImage(products[0]) : undefined,
         status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
     };
-    (async () => {
-      for (const product of orderData.products) {
-          if (!product.productName) continue;
-          const productsRef = collection(firestore, "products");
-          const q = query(productsRef, where("productName", "==", product.productName));
-          const querySnapshot = await getDocs(q);
-          if (querySnapshot.empty) {
-              const newProductId = await addProduct(product);
-               if (newProductId) await addOrderIdToProduct(newProductId, orderId);
-          } else {
-              const existingProductId = querySnapshot.docs[0].id;
-              await addOrderIdToProduct(existingProductId, orderId);
-          }
-      }
-    })();
+    
+    if (products.length > 0 && products[0].productName) {
+        (async () => {
+            const product = products[0];
+            const productsRef = collection(firestore, "products");
+            const q = query(productsRef, where("productName", "==", product.productName));
+            const querySnapshot = await getDocs(q);
+            if (querySnapshot.empty) {
+                const newProductId = await addProduct(product);
+                if (newProductId) await addOrderIdToProduct(newProductId, orderId);
+            } else {
+                const existingProductId = querySnapshot.docs[0].id;
+                await addOrderIdToProduct(existingProductId, orderId);
+            }
+        })();
+    }
+
     const cleanData = removeUndefined(finalOrderData);
     updateDocumentNonBlocking(orderRef, cleanData);
     triggerNotification(firestore, [user.id], { type: 'New Order Created', message: `You created a new order: ${uniqueName}.`, orderId: orderId });
