@@ -115,6 +115,7 @@ export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid'
 export type Order = {
   id:string;
   uniqueName?: string;
+  mainImageUrl?: string; // URL for the primary order icon
   customerName: string;
   customerId: string;
   products: Product[];

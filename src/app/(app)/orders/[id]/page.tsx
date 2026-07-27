@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -459,7 +459,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
     );
 }
 
-function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[]) => void }) {
+function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
     const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
     const { role } = useUser();
@@ -470,6 +470,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     const [bomEstimatedTotal, setBomEstimatedTotal] = useState(0);
     const { toast } = useToast();
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
+    const [mainImageUrl, setMainImageUrl] = useState<string | undefined>(order.mainImageUrl);
     
     // Track quantity inputs for catalog items
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
@@ -484,8 +485,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setItemSearch('');
             setBomEstimatedTotal(0);
             setItemQuantities({});
+            setMainImageUrl(order.mainImageUrl);
         }
-    }, [open]);
+    }, [open, order.mainImageUrl]);
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -502,6 +504,11 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
             if (newAttachments.length > 0) {
                 setUploadedFiles(prev => [...prev, ...newAttachments]);
+                // Automatically set the first uploaded image as main if none exists
+                if (!mainImageUrl) {
+                    const firstImage = newAttachments.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+                    if (firstImage) setMainImageUrl(firstImage.url);
+                }
                 toast({
                     title: `${newAttachments.length} file(s) uploaded`,
                     description: "The design files have been staged.",
@@ -542,12 +549,13 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             return;
         }
 
-        onFinished(bom, uploadedFiles);
+        onFinished(bom, uploadedFiles, mainImageUrl);
         onOpenChange(false);
     }
     
     const handleRemoveFile = (fileToRemove: OrderAttachment) => {
         setUploadedFiles(prev => prev.filter(file => file.url !== fileToRemove.url));
+        if (mainImageUrl === fileToRemove.url) setMainImageUrl(undefined);
     }
 
     const filteredItems = secondaryItems.filter(item => 
@@ -589,14 +597,14 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Finish Design & Submit BOM</DialogTitle>
                     <DialogDescription>
-                        Upload final design files and provide the Bill of Materials.
+                        Upload final design files, pick a main image for the order icon, and provide the Bill of Materials.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div className="space-y-6">
                     <div 
                         className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
                         onClick={() => fileInputRef.current?.click()}
@@ -639,19 +647,38 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                     
                     {uploadedFiles.length > 0 && (
                         <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Staged Files:</h4>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                                {uploadedFiles.map(file => (
-                                    <div key={file.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
-                                        <div className="flex items-center gap-2 truncate">
-                                            <File className="h-4 w-4 flex-shrink-0" />
-                                            <span className="text-sm truncate">{file.fileName}</span>
+                            <h4 className="font-medium text-sm">Staged Files (Select Star for Main Icon):</h4>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-60 overflow-y-auto pr-2">
+                                {uploadedFiles.map(file => {
+                                    const isImage = file.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                                    const isMain = mainImageUrl === file.url;
+                                    return (
+                                        <div key={file.url} className={cn("relative group border rounded-md p-1 bg-muted/50 overflow-hidden", isMain && "ring-2 ring-primary border-primary")}>
+                                            <div className="aspect-video relative mb-1 flex items-center justify-center bg-background rounded-sm">
+                                                {isImage ? (
+                                                    <Image src={file.url} alt={file.fileName} fill className="object-cover" />
+                                                ) : (
+                                                    <File className="h-8 w-8 text-muted-foreground" />
+                                                )}
+                                                {isImage && (
+                                                    <button 
+                                                        onClick={() => setMainImageUrl(isMain ? undefined : file.url)}
+                                                        className={cn("absolute top-1 right-1 p-1 rounded-full shadow-sm transition-colors", 
+                                                            isMain ? "bg-primary text-white" : "bg-white/80 text-gray-400 hover:text-primary")}
+                                                    >
+                                                        <Star className={cn("h-4 w-4", isMain && "fill-current")} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1 px-1">
+                                                <span className="text-[10px] truncate max-w-[80%] font-medium">{file.fileName}</span>
+                                                <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleRemoveFile(file)}>
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleRemoveFile(file)}>
-                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                        </Button>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         </div>
                     )}
@@ -962,7 +989,7 @@ function OrderDetailPageContent() {
         });
     }
 
-    const handleDesignFinished = (bom: string, attachments: OrderAttachment[]) => {
+    const handleDesignFinished = (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => {
         if (!orderData || !orderData.products || orderData.products.length === 0) return;
         
         const updatedProducts = [...orderData.products];
@@ -970,8 +997,8 @@ function OrderDetailPageContent() {
         productToUpdate.billOfMaterials = bom;
         
         startTransition(async () => {
-            setOptimisticOrder({ status: 'Design Ready' });
-            await updateOrder({ ...orderData, products: updatedProducts, status: 'Design Ready' }, {
+            setOptimisticOrder({ status: 'Design Ready', mainImageUrl });
+            await updateOrder({ ...orderData, products: updatedProducts, status: 'Design Ready', mainImageUrl }, {
                 text: `Bill of Materials Submitted with ${attachments.length} file(s):\n${bom}`,
                 file: undefined
             });
@@ -1027,6 +1054,20 @@ function OrderDetailPageContent() {
         ))}
     </Accordion>
   )
+
+  const bomContent = (order.products && order.products[0]?.billOfMaterials) ? (
+    <Card className="border-primary/20 bg-primary/5">
+        <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle>
+            <CardDescription>Required materials for this order production.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">
+                {order.products[0].billOfMaterials}
+            </div>
+        </CardContent>
+    </Card>
+  ) : null;
 
 
   return (
@@ -1171,6 +1212,7 @@ function OrderDetailPageContent() {
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
                     <div className="space-y-8">
+                       {bomContent}
                        {orderDetailsContent}
                     </div>
                     <div className="space-y-8">
@@ -1279,6 +1321,7 @@ function OrderDetailPageContent() {
         {/* Desktop: Grid */}
         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
+                {bomContent}
                 {orderDetailsContent}
             </div>
             <div className="space-y-8">

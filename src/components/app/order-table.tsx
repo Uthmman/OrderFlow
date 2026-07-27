@@ -227,6 +227,21 @@ function CustomerLink({ order }: { order: Order }) {
 
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
+
+    // Prioritize main image if set
+    if (order.mainImageUrl) {
+        return (
+            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 border bg-muted">
+                <Image 
+                    src={order.mainImageUrl} 
+                    alt={order.uniqueName || "Order"} 
+                    fill 
+                    className="object-cover"
+                />
+            </div>
+        )
+    }
+
     const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
     if (!firstProduct) return <DynamicIcon icon="Box" className="h-14 w-14 text-muted-foreground flex-shrink-0"/>;
 
