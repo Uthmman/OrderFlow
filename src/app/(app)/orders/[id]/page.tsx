@@ -470,6 +470,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     const [bomEstimatedTotal, setBomEstimatedTotal] = useState(0);
     const { toast } = useToast();
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
+    
+    // Track quantity inputs for catalog items
+    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
     const isAdmin = role === 'Admin';
 
@@ -480,6 +483,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setIsUploading(false);
             setItemSearch('');
             setBomEstimatedTotal(0);
+            setItemQuantities({});
         }
     }, [open]);
 
@@ -550,19 +554,35 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         item.name.toLowerCase().includes(itemSearch.toLowerCase())
     );
 
+    const handleQuantityChange = (itemId: string, val: string) => {
+        const num = parseInt(val) || 0;
+        setItemQuantities(prev => ({ ...prev, [itemId]: num }));
+    };
+
     const handleAddItemToBOM = (item: SecondaryItem) => {
+        const qty = itemQuantities[item.id] !== undefined ? itemQuantities[item.id] : 1;
+        
+        if (qty <= 0) {
+            toast({
+                variant: "destructive",
+                title: "Invalid Quantity",
+                description: "Please enter a quantity greater than 0."
+            });
+            return;
+        }
+
         setBom(prev => {
-            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: 1`;
+            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: ${qty}`;
             return prev ? `${prev}\n${newItemLine}` : newItemLine;
         });
         
         if (isAdmin && item.price) {
-            setBomEstimatedTotal(prev => prev + item.price!);
+            setBomEstimatedTotal(prev => prev + (item.price! * qty));
         }
 
         toast({
             title: "Item Added",
-            description: `${item.name} added to BOM.`
+            description: `${item.name} (${qty}) added to BOM.`
         });
     };
 
@@ -656,16 +676,12 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                 ) : (
                                     <div className="space-y-1">
                                         {filteredItems.map(item => (
-                                            <Button 
+                                            <div 
                                                 key={item.id} 
-                                                variant="ghost" 
-                                                size="sm" 
-                                                className="w-full justify-start h-auto min-h-8 text-[11px] px-2 py-1.5 hover:bg-primary/10 hover:text-primary transition-colors flex items-start gap-2" 
-                                                onClick={() => handleAddItemToBOM(item)}
+                                                className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-primary/5 transition-colors group" 
                                             >
-                                                <PlusCircle className="h-3 w-3 mt-0.5 shrink-0" />
                                                 <div className="flex-1 text-left min-w-0">
-                                                    <p className="truncate font-bold">{item.name}</p>
+                                                    <p className="truncate text-[11px] font-bold">{item.name}</p>
                                                     <div className="flex items-center gap-2 text-[9px] opacity-60">
                                                         <span>Unit: {item.unit || 'piece'}</span>
                                                         {isAdmin && item.price && (
@@ -673,7 +689,25 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                                         )}
                                                     </div>
                                                 </div>
-                                            </Button>
+                                                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Input 
+                                                        type="number" 
+                                                        className="h-7 w-12 text-[10px] px-1" 
+                                                        defaultValue={1}
+                                                        min={1}
+                                                        onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                                                    />
+                                                    <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="h-7 w-7 text-primary hover:bg-primary hover:text-white"
+                                                        onClick={() => handleAddItemToBOM(item)}
+                                                        title="Add to BOM"
+                                                    >
+                                                        <PlusCircle className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
