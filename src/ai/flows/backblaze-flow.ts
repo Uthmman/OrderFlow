@@ -45,13 +45,17 @@ export const uploadFileFlow = ai.defineFlow(
       const response = await fetch("https://ensratech.com/api/upload.php", {
         method: "POST",
         body: formData,
+        headers: {
+          // Some cPanel firewalls block requests without a standard browser User-Agent
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
       });
 
-      // Get the raw text first to avoid "Unexpected end of JSON input" errors
+      const statusCode = response.status;
       const responseText = await response.text();
 
       if (!response.ok) {
-        throw new Error(`Upload server responded with status: ${response.status}. Body: ${responseText.substring(0, 100)}`);
+        throw new Error(`Upload server responded with status: ${statusCode}. Body: ${responseText.substring(0, 100) || '[Empty Response]'}`);
       }
 
       let data;
@@ -59,7 +63,7 @@ export const uploadFileFlow = ai.defineFlow(
         data = JSON.parse(responseText);
       } catch (parseError) {
         console.error("Failed to parse cPanel response:", responseText);
-        throw new Error(`The upload server returned an invalid response format. Raw response: ${responseText.substring(0, 200)}`);
+        throw new Error(`Invalid JSON from server (HTTP ${statusCode}). Raw response: ${responseText.substring(0, 200) || '[Empty Response]'}. Please check your PHP script for errors or file size limits.`);
       }
 
       if (data && data.status === "success") {
@@ -68,7 +72,7 @@ export const uploadFileFlow = ai.defineFlow(
           fileName: data.url.split('/').pop() || fileName,
         };
       } else {
-        throw new Error(data?.message || "The cPanel API reported an unsuccessful upload status.");
+        throw new Error(data?.message || `The cPanel API reported an unsuccessful upload status (HTTP ${statusCode}).`);
       }
     } catch (error) {
       console.error("cPanel Upload flow error:", error);
