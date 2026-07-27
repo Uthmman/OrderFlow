@@ -21,7 +21,11 @@ const UploadFileOutputSchema = z.object({
 });
 export type UploadFileOutput = z.infer<typeof UploadFileOutputSchema>;
 
-// The main flow function for uploading a file to cPanel API
+/**
+ * The main flow function for uploading a file to cPanel API.
+ * It uses base64 content from the client, converts it to a Blob on the server,
+ * and sends it via multipart/form-data to the PHP endpoint.
+ */
 export const uploadFileFlow = ai.defineFlow(
   {
     name: 'uploadFileFlow',
@@ -34,7 +38,7 @@ export const uploadFileFlow = ai.defineFlow(
       const blob = new Blob([fileBuffer], { type: input.contentType });
       
       const formData = new FormData();
-      // Use provided filename or generate one
+      // Use provided filename or generate one based on timestamp
       const fileName = input.fileName || `upload-${Date.now()}.${input.contentType.split('/')[1] || 'bin'}`;
       formData.append("file", blob, fileName);
 
@@ -43,29 +47,40 @@ export const uploadFileFlow = ai.defineFlow(
         body: formData,
       });
 
+      // Get the raw text first to avoid "Unexpected end of JSON input" errors
+      const responseText = await response.text();
+
       if (!response.ok) {
-        throw new Error(`Upload server responded with status: ${response.status}`);
+        throw new Error(`Upload server responded with status: ${response.status}. Body: ${responseText.substring(0, 100)}`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse cPanel response:", responseText);
+        throw new Error(`The upload server returned an invalid response format. Raw response: ${responseText.substring(0, 200)}`);
+      }
 
-      if (data.status === "success") {
+      if (data && data.status === "success") {
         return {
           url: data.url,
           fileName: data.url.split('/').pop() || fileName,
         };
       } else {
-        throw new Error(data.message || "cPanel API upload failed");
+        throw new Error(data?.message || "The cPanel API reported an unsuccessful upload status.");
       }
     } catch (error) {
-      console.error("cPanel Upload error:", error);
+      console.error("cPanel Upload flow error:", error);
       throw error;
     }
   }
 );
 
-// Note: If cPanel provides a delete endpoint, it should be implemented here.
-// For now, we'll keep the flow defined to avoid breaking hook imports.
+/**
+ * Placeholder for deleting files. 
+ * Note: If cPanel provides a delete endpoint, it should be implemented here.
+ */
 export const deleteFileFlow = ai.defineFlow(
     {
         name: 'deleteFileFlow',
