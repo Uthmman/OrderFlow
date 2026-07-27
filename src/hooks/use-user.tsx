@@ -86,12 +86,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     role,
   }), [userProfile, loading, role]);
 
-  // --- All Users Logic (for admin user management) ---
-  // Only query the users collection if authenticated and user is an Admin
+  // --- All Users Logic ---
+  // Allow all authenticated users to fetch the users list so they can see team assignments
   const usersColRef = useMemoFirebase(() => {
-    if (!authUser || role !== 'Admin') return null;
+    if (!authUser) return null;
     return collection(firestore, 'users');
-  }, [firestore, authUser, role]);
+  }, [firestore, authUser]);
 
   const { data: users, isLoading: areUsersLoading } = useCollection<AppUser>(usersColRef);
 

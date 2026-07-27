@@ -6,7 +6,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
 import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star } from "lucide-react";
 import Image from "next/image";
@@ -50,7 +50,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { cn } from "@/lib/utils";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { useUser } from "@/hooks/use-user";
+import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -59,6 +59,8 @@ import { Progress } from "@/components/ui/progress";
 import { useSecondaryItems } from "@/hooks/use-secondary-items";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -899,12 +901,34 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
     )
 }
 
+function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
+    const profile = users.find(u => u.id === userId);
+    if (!profile) return null;
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
+                        <AvatarImage src={profile.avatarUrl} />
+                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="text-xs">{profile.name}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
 function OrderDetailPageContent() {
   const params = useParams();
   const id = params.id as string;
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
+  const { users, loading: allUsersLoading } = useUsers();
   const { user, loading: userLoading, role } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -926,7 +950,7 @@ function OrderDetailPageContent() {
 
   const order = optimisticOrder;
 
-  if (ordersLoading || customersLoading || userLoading || colorsLoading || !order) {
+  if (ordersLoading || customersLoading || userLoading || colorsLoading || allUsersLoading || !order) {
     return <div>Loading...</div>;
   }
   
@@ -1053,11 +1077,13 @@ function OrderDetailPageContent() {
 
 
     const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
-        if (!orderData) return;
+        if (!orderData || !user) return;
         startTransition(async () => {
-            setOptimisticOrder({ status: newStatus });
+            // Automatically assign the designer starting the design
+            const updatedAssignedTo = Array.from(new Set([...(orderData.assignedTo || []), user.id]));
+            setOptimisticOrder({ status: newStatus, assignedTo: updatedAssignedTo });
             try {
-                await updateOrder({ ...orderData, status: newStatus });
+                await updateOrder({ ...orderData, status: newStatus, assignedTo: updatedAssignedTo });
                 toast({
                     title: "Status Updated",
                     description: `Order status changed to ${newStatus}.`
@@ -1164,10 +1190,34 @@ function OrderDetailPageContent() {
                         {order.uniqueName}
                     </h1>
                      {canChangeStatus && (
-                        <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                        <div className="flex items-center gap-2">
+                            <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                            {order.status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+                                <div className="flex items-center gap-1.5 ml-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Designing:</span>
+                                    <div className="flex -space-x-2">
+                                        {order.assignedTo.map(uid => (
+                                            <DesignerProfile key={uid} userId={uid} users={users} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                     {isDesigner && (
-                        <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                        <div className="flex items-center gap-2">
+                            <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+                            {order.status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+                                <div className="flex items-center gap-1.5 ml-1">
+                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Designing:</span>
+                                    <div className="flex -space-x-2">
+                                        {order.assignedTo.map(uid => (
+                                            <DesignerProfile key={uid} userId={uid} users={users} />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     )}
                     {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
                 </div>

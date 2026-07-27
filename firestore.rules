@@ -41,8 +41,8 @@ service cloud.firestore {
     match /users/{userId} {
       // Any authenticated user can view user profiles (required for chat and assignment displays)
       allow get: if isAuthenticated();
-      // Only Admins can list all users in the system
-      allow list: if isAuthenticated() && getUserRole() == 'Admin';
+      // Allow any team member to list users to see who is assigned to orders
+      allow list: if isAuthenticated();
       // Users can only write to their own profile, unless they are an Admin
       allow write: if isAuthenticated() && (request.auth.uid == userId || getUserRole() == 'Admin');
       
