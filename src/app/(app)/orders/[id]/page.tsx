@@ -482,7 +482,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     
     // New catalog item state
     const [isAddingNewToCatalog, setIsAddingNewToCatalog] = useState(false);
-    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece(pc)', category: '', price: 0 });
+    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
 
     // Track quantity inputs for catalog items
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
@@ -499,6 +499,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             setItemQuantities({});
             setMainImageUrl(order.mainImageUrl);
             setIsAddingNewToCatalog(false);
+            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
         }
     }, [open, order.mainImageUrl]);
 
@@ -580,9 +581,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setItemQuantities(prev => ({ ...prev, [itemId]: num }));
     };
 
-    const handleAddItemToBOM = (item: SecondaryItem | { name: string, unit: string, price?: number }) => {
+    const handleAddItemToBOM = (item: SecondaryItem | { name: string, unit: string, price?: number }, overrideQty?: number) => {
         const itemId = (item as any).id || 'custom-' + Date.now();
-        const qty = itemQuantities[itemId] !== undefined ? itemQuantities[itemId] : 1;
+        const qty = overrideQty !== undefined ? overrideQty : (itemQuantities[itemId] !== undefined ? itemQuantities[itemId] : 1);
         
         if (qty <= 0) {
             toast({
@@ -622,9 +623,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
         if (success) {
             toast({ title: "Catalog Updated", description: `${newCatalogItem.name} added to shared catalog.` });
-            handleAddItemToBOM(newCatalogItem);
+            handleAddItemToBOM(newCatalogItem, newCatalogItem.quantity);
             setIsAddingNewToCatalog(false);
-            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0 });
+            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
         } else {
             toast({ variant: 'destructive', title: "Error", description: "Failed to add item to catalog." });
         }
@@ -741,7 +742,10 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                 <div className="p-3 border rounded-md bg-muted/20 space-y-3 animate-in fade-in duration-200">
                                     <h5 className="text-[10px] font-bold uppercase tracking-wider">New Catalog Item</h5>
                                     <div className="grid grid-cols-1 gap-2">
-                                        <Input placeholder="Item Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs" />
+                                        <div className="flex gap-2">
+                                            <Input placeholder="Item Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs flex-1" />
+                                            <Input type="number" placeholder="Qty" value={newCatalogItem.quantity} onChange={e => setNewCatalogItem({...newCatalogItem, quantity: Number(e.target.value)})} className="h-8 text-xs w-16" min={1} />
+                                        </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <Select value={newCatalogItem.unit} onValueChange={val => setNewCatalogItem({...newCatalogItem, unit: val})}>
                                                 <SelectTrigger className="h-8 text-xs">
@@ -765,7 +769,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                             </Select>
                                         </div>
                                     </div>
-                                    {isAdmin && <Input type="number" placeholder="Unit Price" onChange={e => setNewCatalogItem({...newCatalogItem, price: Number(e.target.value)})} className="h-8 text-xs" />}
+                                    {isAdmin && <Input type="number" placeholder="Unit Price" value={newCatalogItem.price} onChange={e => setNewCatalogItem({...newCatalogItem, price: Number(e.target.value)})} className="h-8 text-xs" />}
                                     <div className="flex justify-end gap-2">
                                         <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => setIsAddingNewToCatalog(false)}>Cancel</Button>
                                         <Button size="sm" className="h-7 text-[10px]" onClick={handleAddNewToCatalog}>Add & Pick</Button>
