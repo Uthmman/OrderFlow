@@ -1192,9 +1192,9 @@ function OrderDetailPageContent() {
                      {canChangeStatus && (
                         <div className="flex items-center gap-2">
                             <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                            {order.status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+                            {order.assignedTo && order.assignedTo.length > 0 && (
                                 <div className="flex items-center gap-1.5 ml-2">
-                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Designing:</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Team:</span>
                                     <div className="flex -space-x-2">
                                         {order.assignedTo.map(uid => (
                                             <DesignerProfile key={uid} userId={uid} users={users} />
@@ -1207,9 +1207,9 @@ function OrderDetailPageContent() {
                     {isDesigner && (
                         <div className="flex items-center gap-2">
                             <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
-                            {order.status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+                            {order.assignedTo && order.assignedTo.length > 0 && (
                                 <div className="flex items-center gap-1.5 ml-1">
-                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Designing:</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground">Team:</span>
                                     <div className="flex -space-x-2">
                                         {order.assignedTo.map(uid => (
                                             <DesignerProfile key={uid} userId={uid} users={users} />

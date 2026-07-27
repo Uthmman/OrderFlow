@@ -136,7 +136,7 @@ function StatusCell({ order }: { order: Order }) {
     return (
         <div className="flex items-center gap-2">
             <Badge variant={statusVariantMap[status] || 'outline'}>{status}</Badge>
-            {status === 'Designing' && order.assignedTo && order.assignedTo.length > 0 && (
+            {['Designing', 'Design Ready'].includes(status) && order.assignedTo && order.assignedTo.length > 0 && (
                 <div className="flex -space-x-1.5 ml-1">
                     {order.assignedTo.map(uid => (
                         <DesignerAvatar key={uid} userId={uid} users={users} />
