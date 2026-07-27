@@ -4,19 +4,21 @@
 import { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, Unsubscribe, addDoc } from 'firebase/firestore';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
-import type { SecondaryItem } from '@/lib/types';
+import type { SecondaryItem, SecondaryCategory } from '@/lib/types';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
- * Hook to fetch material items from the secondary catalog Firestore project.
+ * Hook to fetch material items and categories from the secondary catalog Firestore project.
  */
 export function useSecondaryItems() {
   const [items, setItems] = useState<SecondaryItem[]>([]);
+  const [categories, setCategories] = useState<SecondaryCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribe: Unsubscribe;
+    let unsubscribeItems: Unsubscribe;
+    let unsubscribeCats: Unsubscribe;
 
     const initialize = async () => {
       try {
@@ -24,11 +26,12 @@ export function useSecondaryItems() {
           await ensureSecondaryAuth();
 
           const db = getSecondaryFirestore();
-          // Assuming the collection name is 'items' in the secondary project
+          
+          // Listen to items
           const itemsRef = collection(db, 'items');
-          const q = query(itemsRef, orderBy('name', 'asc'));
+          const qItems = query(itemsRef, orderBy('name', 'asc'));
 
-          unsubscribe = onSnapshot(q, (snapshot) => {
+          unsubscribeItems = onSnapshot(qItems, (snapshot) => {
             const results = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
@@ -36,13 +39,30 @@ export function useSecondaryItems() {
             setItems(results);
             setLoading(false);
           }, (error) => {
-              // Emitting specialized error instead of standard console.error
               errorEmitter.emit('permission-error', new FirestorePermissionError({
                 operation: 'list',
                 path: 'items',
               }));
               setLoading(false);
           });
+
+          // Listen to categories
+          const catsRef = collection(db, 'categories');
+          const qCats = query(catsRef, orderBy('name', 'asc'));
+
+          unsubscribeCats = onSnapshot(qCats, (snapshot) => {
+              const results = snapshot.docs.map(doc => ({
+                  id: doc.id,
+                  ...doc.data()
+              })) as SecondaryCategory[];
+              setCategories(results);
+          }, (error) => {
+              errorEmitter.emit('permission-error', new FirestorePermissionError({
+                  operation: 'list',
+                  path: 'categories',
+              }));
+          });
+
       } catch (error) {
           console.error("Could not initialize secondary firestore:", error);
           setLoading(false);
@@ -52,7 +72,8 @@ export function useSecondaryItems() {
     initialize();
     
     return () => {
-      if (unsubscribe) unsubscribe();
+      if (unsubscribeItems) unsubscribeItems();
+      if (unsubscribeCats) unsubscribeCats();
     };
   }, []);
 
@@ -71,5 +92,5 @@ export function useSecondaryItems() {
     }
   };
 
-  return { items, loading, addSecondaryItem };
+  return { items, categories, loading, addSecondaryItem };
 }

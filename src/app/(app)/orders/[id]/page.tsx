@@ -58,6 +58,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useSecondaryItems } from "@/hooks/use-secondary-items";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -170,7 +171,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
           <DropdownMenuItem
             key={status}
             disabled={order.status === status}
-            onStatusSelect={() => onStatusChange(status)}
+            onClick={() => onStatusChange(status)}
           >
             {status}
           </DropdownMenuItem>
@@ -459,9 +460,16 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
     );
 }
 
+const UNIT_CHOICES = [
+    { label: "piece(pc)", value: "piece(pc)" },
+    { label: "liter(l)", value: "liter(l)" },
+    { label: "Meter(m)", value: "Meter(m)" },
+    { label: "Box", value: "Box" },
+];
+
 function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => void }) {
     const { addAttachment, uploadProgress } = useOrders();
-    const { items: secondaryItems, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
+    const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
     const { role } = useUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -474,7 +482,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     
     // New catalog item state
     const [isAddingNewToCatalog, setIsAddingNewToCatalog] = useState(false);
-    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece', price: 0 });
+    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece(pc)', category: '', price: 0 });
 
     // Track quantity inputs for catalog items
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
@@ -601,19 +609,22 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     };
 
     const handleAddNewToCatalog = async () => {
-        if (!newCatalogItem.name.trim()) return;
+        if (!newCatalogItem.name.trim() || !newCatalogItem.category) {
+            toast({ variant: 'destructive', title: "Missing Information", description: "Please fill in all required fields." });
+            return;
+        }
         const success = await addSecondaryItem({
             name: newCatalogItem.name,
             unit: newCatalogItem.unit,
             price: newCatalogItem.price,
-            category: 'Miscellaneous'
+            category: newCatalogItem.category
         });
 
         if (success) {
             toast({ title: "Catalog Updated", description: `${newCatalogItem.name} added to shared catalog.` });
             handleAddItemToBOM(newCatalogItem);
             setIsAddingNewToCatalog(false);
-            setNewCatalogItem({ name: '', unit: 'piece', price: 0 });
+            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0 });
         } else {
             toast({ variant: 'destructive', title: "Error", description: "Failed to add item to catalog." });
         }
@@ -729,9 +740,30 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                             {isAddingNewToCatalog ? (
                                 <div className="p-3 border rounded-md bg-muted/20 space-y-3 animate-in fade-in duration-200">
                                     <h5 className="text-[10px] font-bold uppercase tracking-wider">New Catalog Item</h5>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <Input placeholder="Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs" />
-                                        <Input placeholder="Unit (e.g. kg)" value={newCatalogItem.unit} onChange={e => setNewCatalogItem({...newCatalogItem, unit: e.target.value})} className="h-8 text-xs" />
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <Input placeholder="Item Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs" />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Select value={newCatalogItem.unit} onValueChange={val => setNewCatalogItem({...newCatalogItem, unit: val})}>
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Select Unit" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {UNIT_CHOICES.map(u => (
+                                                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <Select value={newCatalogItem.category} onValueChange={val => setNewCatalogItem({...newCatalogItem, category: val})}>
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Category" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {secondaryCategories.map(c => (
+                                                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                     {isAdmin && <Input type="number" placeholder="Unit Price" onChange={e => setNewCatalogItem({...newCatalogItem, price: Number(e.target.value)})} className="h-8 text-xs" />}
                                     <div className="flex justify-end gap-2">
@@ -755,7 +787,8 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                                     <div className="flex-1 text-left min-w-0">
                                                         <p className="truncate text-[11px] font-bold">{item.name}</p>
                                                         <div className="flex items-center gap-2 text-[9px] opacity-60">
-                                                            <span>Unit: {item.unit || 'piece'}</span>
+                                                            <span>Unit: {item.unit || 'piece(pc)'}</span>
+                                                            {item.category && <Badge variant="outline" className="text-[8px] h-3 px-1">{item.category}</Badge>}
                                                             {isAdmin && item.price && (
                                                                 <span className="font-semibold text-primary">Price: {formatCurrency(item.price)}</span>
                                                             )}

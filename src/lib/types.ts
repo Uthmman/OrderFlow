@@ -205,3 +205,8 @@ export type SecondaryItem = {
   price?: number;
   description?: string;
 };
+
+export type SecondaryCategory = {
+  id: string;
+  name: string;
+};
