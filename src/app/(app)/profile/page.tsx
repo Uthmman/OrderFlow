@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,6 +98,7 @@ export default function ProfilePage() {
             const result = await uploadFileFlow({
                 fileContent,
                 contentType: file.type,
+                fileName: file.name
             });
             form.setValue('avatarUrl', result.url, { shouldDirty: true });
         } catch(e) {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -90,7 +89,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             fileContent = await fileToBase64(file);
         }
         setUploadProgress(prev => ({ ...prev, [fileName]: 50 }));
-        const result = await uploadFileFlow({ fileContent, contentType });
+        const result = await uploadFileFlow({ 
+            fileContent, 
+            contentType,
+            fileName: file.name
+        });
         setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
         return { fileName: file.name, url: result.url, storagePath: result.fileName };
     } catch (error) {
@@ -316,7 +319,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
           if (!att.storagePath) return Promise.resolve();
           return deleteFileFlow({ fileName: att.storagePath }).catch(error => console.error(`Failed to delete attachment ${att.storagePath}:`, error));
       });
-      try { await Promise.all(deletePromises); } catch (error) { console.error("One or more files could not be deleted from Backblaze B2.", error); }
+      try { await Promise.all(deletePromises); } catch (error) { console.error("One or more files could not be deleted from cPanel.", error); }
   };
   
   const deleteMultipleOrders = async (ordersToDelete: Order[]) => {

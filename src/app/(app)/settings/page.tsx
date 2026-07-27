@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,6 +91,7 @@ function ColorSettingsForm() {
         const result = await uploadFileFlow({
             fileContent,
             contentType: file.type,
+            fileName: file.name
         });
         form.setValue(`woodFinishes.${index}.imageUrl`, result.url, { shouldDirty: true });
     } catch(e) {

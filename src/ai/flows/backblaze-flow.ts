@@ -1,62 +1,27 @@
 'use server';
 /**
- * @fileOverview A Genkit flow for handling file uploads and deletions with Backblaze B2.
+ * @fileOverview A Genkit flow for handling file uploads to a custom cPanel API.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { v4 as uuidv4 } from 'uuid';
 
 // Define input schema for file uploads
 const UploadFileInputSchema = z.object({
   fileContent: z.string().describe('The base64-encoded content of the file.'),
   contentType: z.string().describe('The MIME type of the file (e.g., image/jpeg).'),
+  fileName: z.string().optional().describe('The original name of the file.'),
 });
 export type UploadFileInput = z.infer<typeof UploadFileInputSchema>;
 
 // Define output schema for file uploads
 const UploadFileOutputSchema = z.object({
   url: z.string().describe('The public URL of the uploaded file.'),
-  fileName: z.string().describe('The name of the file stored in the bucket.'),
+  fileName: z.string().describe('The name of the file stored on the server.'),
 });
 export type UploadFileOutput = z.infer<typeof UploadFileOutputSchema>;
 
-// Define input schema for file deletions
-const DeleteFileInputSchema = z.object({
-    fileName: z.string().describe('The name of the file to delete from the bucket.'),
-});
-
-// Helper function to initialize S3 client for B2
-let s3Client: S3Client | null = null;
-
-function getB2Client() {
-  if (s3Client) {
-    return s3Client;
-  }
-
-  const keyId = process.env.B2_KEY_ID;
-  const applicationKey = process.env.B2_APPLICATION_KEY;
-  const endpoint = process.env.B2_ENDPOINT;
-
-  if (!keyId || !applicationKey || !endpoint) {
-    return null;
-  }
-
-  s3Client = new S3Client({
-    endpoint: `https://${endpoint}`,
-    region: endpoint.split('.')[1], // e.g., us-east-005
-    credentials: {
-      accessKeyId: keyId,
-      secretAccessKey: applicationKey,
-    },
-  });
-
-  return s3Client;
-}
-
-
-// The main flow function for uploading a file
+// The main flow function for uploading a file to cPanel API
 export const uploadFileFlow = ai.defineFlow(
   {
     name: 'uploadFileFlow',
@@ -64,66 +29,50 @@ export const uploadFileFlow = ai.defineFlow(
     outputSchema: UploadFileOutputSchema,
   },
   async (input) => {
-    const client = getB2Client();
-    const bucketName = process.env.B2_BUCKET_NAME;
-    let publicUrlPrefix = process.env.B2_PUBLIC_URL_PREFIX;
+    try {
+      const fileBuffer = Buffer.from(input.fileContent, 'base64');
+      const blob = new Blob([fileBuffer], { type: input.contentType });
+      
+      const formData = new FormData();
+      // Use provided filename or generate one
+      const fileName = input.fileName || `upload-${Date.now()}.${input.contentType.split('/')[1] || 'bin'}`;
+      formData.append("file", blob, fileName);
 
-    if (!client || !bucketName || !publicUrlPrefix) {
-        throw new Error('Backblaze B2 storage is not configured on the server. Please check environment variables.');
+      const response = await fetch("https://ensratech.com/api/upload.php", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload server responded with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.status === "success") {
+        return {
+          url: data.url,
+          fileName: data.url.split('/').pop() || fileName,
+        };
+      } else {
+        throw new Error(data.message || "cPanel API upload failed");
+      }
+    } catch (error) {
+      console.error("cPanel Upload error:", error);
+      throw error;
     }
-
-    const fileBuffer = Buffer.from(input.fileContent, 'base64');
-    const fileExtension = input.contentType.split('/')[1] || 'bin';
-    const fileName = `${uuidv4()}.${fileExtension}`;
-
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: fileName,
-      Body: fileBuffer,
-      ContentType: input.contentType,
-    });
-
-    await client.send(command);
-
-    // Normalize prefix to avoid double slashes
-    if (publicUrlPrefix.endsWith('/')) {
-        publicUrlPrefix = publicUrlPrefix.slice(0, -1);
-    }
-    const url = `${publicUrlPrefix}/${fileName}`;
-
-    return {
-      url: url,
-      fileName: fileName,
-    };
   }
 );
 
-
-// The main flow function for deleting a file
+// Note: If cPanel provides a delete endpoint, it should be implemented here.
+// For now, we'll keep the flow defined to avoid breaking hook imports.
 export const deleteFileFlow = ai.defineFlow(
     {
         name: 'deleteFileFlow',
-        inputSchema: DeleteFileInputSchema,
+        inputSchema: z.object({ fileName: z.string() }),
         outputSchema: z.void(),
     },
     async (input) => {
-        const client = getB2Client();
-        const bucketName = process.env.B2_BUCKET_NAME;
-
-        if (!client || !bucketName) {
-            console.warn('Backblaze B2 client not configured. Skipping file deletion.');
-            return;
-        }
-
-        const command = new DeleteObjectCommand({
-            Bucket: bucketName,
-            Key: input.fileName,
-        });
-
-        try {
-            await client.send(command);
-        } catch (error) {
-            console.error(`Failed to delete file '${input.fileName}' from B2:`, error);
-        }
+        console.warn(`Delete requested for ${input.fileName}, but no cPanel delete API is currently configured.`);
     }
 );

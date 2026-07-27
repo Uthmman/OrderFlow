@@ -86,6 +86,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                 const uploadResult = await uploadFileFlow({
                     fileContent: base64,
                     contentType: fileToUpload.type,
+                    fileName: file.name
                 });
                 updatedAttachments.push({
                     fileName: file.name,
