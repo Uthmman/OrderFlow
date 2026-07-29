@@ -30,7 +30,6 @@ const navItems = [
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/products", icon: Library, label: "Products", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
-    { href: "/stock", icon: Warehouse, label: "Stock", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin'] },
     { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
