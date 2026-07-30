@@ -186,74 +186,46 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
-    if (isNew) {
-        // Initial Draft Creation (usually from Step 1)
-        const newOrderRef = doc(collection(firestore, "orders"));
-        const orderId = newOrderRef.id;
-        const products = orderData.products || [];
-        const mainImageUrl = products.length === 1 ? getInitialMainImage(products[0]) : undefined;
-
-        const uniqueName = formatOrderUniqueName(orderData.customerName, products, orderId);
-        const draftOrder: Order = {
-            ...orderData,
-            id: orderId,
-            uniqueName,
-            mainImageUrl,
-            creationDate: Timestamp.fromDate(orderData.creationDate as Date),
-            deadline: Timestamp.fromDate(orderData.deadline as Date),
-            testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
-            ownerId: user.id,
-            status: 'Pending',
-        };
-        const cleanData = removeUndefined(draftOrder);
-        setDocumentNonBlocking(newOrderRef, cleanData, {});
-        addOrderToCustomer(orderData.customerId, orderId);
-        return orderId;
-    }
-
-    // FINALIZING ORDER
-    const orderId = (orderData as any).id;
-    if (!orderId) throw new Error("Existing Order ID not found.");
-
     const products = orderData.products || [];
     const totalIncome = orderData.incomeAmount || 0;
     const totalPrepaid = orderData.prepaidAmount || 0;
+    const orderId = (orderData as any).id;
 
-    // Handle splitting multiple products into separate orders
-    if (products.length > 1) {
+    // Handle Split Case (Multiple products being finalized or created active)
+    if (products.length > 1 && orderData.status !== 'Pending') {
         const batch = writeBatch(firestore);
-        let firstOrderId = orderId;
+        const firstOrderId = isNew ? doc(collection(firestore, "orders")).id : orderId;
 
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
-            const currentOrderId = i === 0 ? orderId : doc(collection(firestore, "orders")).id;
+            const currentOrderId = (i === 0 && !isNew) ? orderId : doc(collection(firestore, "orders")).id;
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
             
-            // Distribute income and prepaid proportionally
             const productPrice = Number(product.price) || 0;
             const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
 
-            const splitOrderData: Partial<Order> = {
+            const splitOrder: Order = {
                 ...orderData,
+                id: currentOrderId,
                 products: [product],
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productPrice,
                 prepaidAmount: productPrepaid,
-                status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
+                status: orderData.status || 'In Progress',
                 creationDate: Timestamp.fromDate(orderData.creationDate as Date),
                 deadline: Timestamp.fromDate(orderData.deadline as Date),
                 testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
-                chatMessages: [], // Start fresh for split orders
+                chatMessages: [],
+                ownerId: user.id,
+                assignedTo: [],
             };
 
-            const cleanData = removeUndefined(splitOrderData);
-            if (i === 0) {
+            const cleanData = removeUndefined(splitOrder);
+            if (i === 0 && !isNew) {
                 batch.update(currentOrderRef, cleanData);
             } else {
-                cleanData.id = currentOrderId;
-                cleanData.ownerId = user.id;
                 batch.set(currentOrderRef, cleanData);
                 addOrderToCustomer(orderData.customerId, currentOrderId);
             }
@@ -277,33 +249,62 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         await batch.commit().catch(err => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                operation: 'update',
-                path: 'orders (split batch)',
-                requestResourceData: { productsCount: products.length }
+                operation: 'write',
+                path: 'orders (split batch)'
             }));
             throw err;
         });
 
-        toast({ title: "Orders Split", description: `Successfully created ${products.length} separate orders.` });
+        toast({ title: "Orders Split", description: `Created ${products.length} separate orders.` });
         return firstOrderId;
     }
 
-    // Single product flow
+    // Standard Single Product Case
+    if (isNew) {
+        const newOrderRef = doc(collection(firestore, "orders"));
+        const newId = newOrderRef.id;
+        const uniqueName = formatOrderUniqueName(orderData.customerName, products, newId);
+        
+        const draftOrder: Order = {
+            ...orderData,
+            id: newId,
+            uniqueName,
+            mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
+            creationDate: Timestamp.fromDate(orderData.creationDate as Date),
+            deadline: Timestamp.fromDate(orderData.deadline as Date),
+            testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+            ownerId: user.id,
+            status: orderData.status || 'Pending',
+            assignedTo: [],
+        };
+
+        const cleanData = removeUndefined(draftOrder);
+        setDocumentNonBlocking(newOrderRef, cleanData, {});
+        addOrderToCustomer(orderData.customerId, newId);
+        return newId;
+    }
+
+    // Finalizing Single Product from Draft
+    if (!orderId) throw new Error("Existing Order ID not found during finalization.");
+    
     const orderRef = doc(firestore, 'orders', orderId);
     const uniqueName = formatOrderUniqueName(orderData.customerName, products, orderId);
-    const finalOrderData: Partial<Order> = {
+    const finalData: Partial<Order> = {
         ...orderData,
         uniqueName,
-        mainImageUrl: products.length > 0 ? getInitialMainImage(products[0]) : undefined,
+        mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
         status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
         creationDate: Timestamp.fromDate(orderData.creationDate as Date),
         deadline: Timestamp.fromDate(orderData.deadline as Date),
         testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
     };
-    
+
+    const cleanData = removeUndefined(finalData);
+    updateDocumentNonBlocking(orderRef, cleanData);
+
     if (products.length > 0 && products[0].productName) {
+        const product = products[0];
         (async () => {
-            const product = products[0];
             const productsRef = collection(firestore, "products");
             const q = query(productsRef, where("productName", "==", product.productName));
             const querySnapshot = await getDocs(q);
@@ -317,9 +318,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         })();
     }
 
-    const cleanData = removeUndefined(finalOrderData);
-    updateDocumentNonBlocking(orderRef, cleanData);
-    triggerNotification(firestore, [user.id], { type: 'New Order Created', message: `You created a new order: ${uniqueName}.`, orderId: orderId });
     return orderId;
   };
 
@@ -328,9 +326,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // Check for finalization split in updateOrder
+    // Intercept finalization of a multi-product draft
     if (originalOrder && originalOrder.status === 'Pending' && orderData.status !== 'Pending' && orderData.status && orderData.products && orderData.products.length > 1) {
-        // Redirect to addOrder finalization logic to handle the split properly
         const mergedData = { ...originalOrder, ...orderData };
         return addOrder(mergedData as any, false);
     }
@@ -339,7 +336,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const finalProducts = orderData.products || originalOrder?.products;
     const uniqueName = formatOrderUniqueName(finalCustomerName, finalProducts, orderData.id);
     
-    // Pick mainImageUrl from products if not manually set and it's a single product
     let mainImageUrl = orderData.mainImageUrl || originalOrder?.mainImageUrl;
     if (!mainImageUrl && finalProducts && finalProducts.length === 1) {
       mainImageUrl = getInitialMainImage(finalProducts[0]);
@@ -351,64 +347,40 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     if (dataToUpdate.creationDate instanceof Date) dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
     if (dataToUpdate.deadline instanceof Date) dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
-    if (dataToUpdate.testDate) {
-        if (dataToUpdate.testDate instanceof Date) dataToUpdate.testDate = Timestamp.fromDate(dataToUpdate.testDate);
-    } else {
-        dataToUpdate.testDate = undefined;
-    }
+    if (dataToUpdate.testDate instanceof Date) dataToUpdate.testDate = Timestamp.fromDate(dataToUpdate.testDate);
 
-    if (originalOrder && orderData.products && orderData.products.length > originalOrder.products.length) {
-      const newProducts = orderData.products.slice(originalOrder.products.length);
-      for (const product of newProducts) {
-        if (product.productName) {
-            const newProductId = await addProduct(product);
-            if (newProductId) await addOrderIdToProduct(newProductId, orderData.id);
-        }
-      }
-    }
-    const usersToNotify = Array.from(new Set([...(originalOrder?.assignedTo || []), originalOrder?.ownerId])).filter(id => id && id !== user.id) as string[];
     const timestamp = new Date().toISOString();
     const newMessages: OrderChatMessage[] = [];
     if (originalOrder) {
-        const createSystemMessage = (text: string) => ({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `${text} by ${user.name}.`, timestamp, isSystemMessage: true });
+        const createSystemMsg = (text: string) => ({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `${text} by ${user.name}.`, timestamp, isSystemMessage: true });
         if (originalOrder.status !== orderData.status && orderData.status) {
-            newMessages.push(createSystemMessage(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
-            if (usersToNotify.length > 0) triggerNotification(firestore, usersToNotify, { type: `Order ${orderData.status}`, message: `Order ${uniqueName} status was updated to ${orderData.status}.`, orderId: orderData.id });
+            newMessages.push(createSystemMsg(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
         }
         if (originalOrder.isUrgent !== orderData.isUrgent && orderData.isUrgent !== undefined) {
-            const urgencyText = orderData.isUrgent ? 'marked as URGENT' : 'urgency removed';
-            newMessages.push(createSystemMessage(`Order ${urgencyText}`));
-            if (usersToNotify.length > 0) triggerNotification(firestore, usersToNotify, { type: `Order Urgency Changed`, message: `Order ${uniqueName} was ${urgencyText}.`, orderId: orderData.id });
+            newMessages.push(createSystemMsg(`Order ${orderData.isUrgent ? 'marked as URGENT' : 'urgency removed'}`));
         }
     }
     if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
-        const newChatMessage: OrderChatMessage = { id: uuidv4(), user: { id: user.id, name: user.name || 'User', avatarUrl: user.avatarUrl || '' }, text: chatMessage.text, timestamp };
-        if (chatMessage.file) {
-            const uploadedAttachment = await handleFileUpload(chatMessage.file);
-            newChatMessage.attachment = uploadedAttachment;
-        }
-        newMessages.push(newChatMessage);
-        if (usersToNotify.length > 0) triggerNotification(firestore, usersToNotify, { type: 'New Message in Order', message: `${user.name} wrote in ${uniqueName}: "${newChatMessage.text}"`, orderId: orderData.id });
+        const msg: OrderChatMessage = { id: uuidv4(), user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl }, text: chatMessage.text, timestamp };
+        if (chatMessage.file) msg.attachment = await handleFileUpload(chatMessage.file);
+        newMessages.push(msg);
     }
+
     const cleanData = removeUndefined(dataToUpdate);
     const batch = writeBatch(firestore);
     if (Object.keys(cleanData).length > 0) batch.update(orderRef, cleanData);
     if (newMessages.length > 0) batch.update(orderRef, { chatMessages: arrayUnion(...newMessages) });
-    if (Object.keys(cleanData).length > 0 || newMessages.length > 0) {
-        await batch.commit().catch(err => {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                operation: 'update',
-                path: orderRef.path,
-                requestResourceData: cleanData
-            }));
-            throw err;
-        });
-    }
+    
+    await batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ operation: 'update', path: orderRef.path }));
+        throw err;
+    });
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
       const orderRef = doc(firestore, 'orders', orderId);
       const orderToDelete = orders?.find(o => o.id === orderId);
+      
       if (orderToDelete && Array.isArray(orderToDelete.products)) {
           for (const product of orderToDelete.products) {
               if (product.id) {
@@ -416,59 +388,46 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                   try {
                       const productSnap = await getDoc(productRef);
                       if (productSnap.exists()) await updateDoc(productRef, { orderIds: arrayRemove(orderId) });
-                  } catch (e) { console.error(`Failed to update product ${product.id}:`, e); }
+                  } catch (e) {}
               }
           }
       }
+      
       await deleteDoc(orderRef).catch(err => {
           errorEmitter.emit('permission-error', new FirestorePermissionError({ operation: 'delete', path: orderRef.path }));
           throw err;
       });
-      const allAttachments = attachments.concat(orderToDelete?.products?.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []);
-      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
-      const deletePromises = (uniqueAttachments || []).map(att => {
-          if (!att.storagePath) return Promise.resolve();
-          return deleteFileFlow({ fileName: att.storagePath }).catch(error => console.error(`Failed to delete attachment ${att.storagePath}:`, error));
-      });
-      try { await Promise.all(deletePromises); } catch (error) { console.error("One or more files could not be deleted from cPanel.", error); }
+
+      const allAtts = attachments.concat(orderToDelete?.products?.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]) || []);
+      const uniqueAtts = Array.from(new Map(allAtts.map(it => it.storagePath && [it.storagePath, it])).values()).filter(Boolean);
+      await Promise.all(uniqueAtts.map(att => att.storagePath ? deleteFileFlow({ fileName: att.storagePath }).catch(() => {}) : Promise.resolve()));
   };
   
   const deleteMultipleOrders = async (ordersToDelete: Order[]) => {
     if (!ordersToDelete || ordersToDelete.length === 0) return;
     try {
-      const productUpdateMap = new Map<string, string[]>();
-      let allAttachments: OrderAttachment[] = [];
+      const batch = writeBatch(firestore);
+      let allAtts: OrderAttachment[] = [];
+      
       for (const order of ordersToDelete) {
+        batch.delete(doc(firestore, 'orders', order.id));
         if (Array.isArray(order.products)) {
-            for (const product of order.products) {
-                if (product.id) {
-                    if (!productUpdateMap.has(product.id)) productUpdateMap.set(product.id, []);
-                    productUpdateMap.get(product.id)!.push(order.id);
-                }
+            for (const p of order.products) {
+                if (p.id) batch.update(doc(firestore, 'products', p.id), { orderIds: arrayRemove(order.id) });
+                allAtts = allAtts.concat([...(p.attachments || []), ...(p.designAttachments || [])]);
             }
-            allAttachments = allAttachments.concat(order.products.flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]));
         }
       }
-      const allProductIds = Array.from(productUpdateMap.keys());
-      const existingProductIds = new Set<string>();
-      if (allProductIds.length > 0) {
-        const productSnapshots = await Promise.all(allProductIds.map(id => getDoc(doc(firestore, 'products', id))));
-        productSnapshots.forEach(snap => { if (snap.exists()) existingProductIds.add(snap.id); });
-      }
-      const batch = writeBatch(firestore);
-      for (const order of ordersToDelete) batch.delete(doc(firestore, 'orders', order.id));
-      for (const [productId, orderIdsToRemove] of productUpdateMap.entries()) {
-        if (existingProductIds.has(productId)) batch.update(doc(firestore, 'products', productId), { orderIds: arrayRemove(...orderIdsToRemove) });
-      }
+      
       await batch.commit().catch(err => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ operation: 'delete', path: 'orders' }));
         throw err;
       });
-      const uniqueAttachments = Array.from(new Map(allAttachments.map(item => item.storagePath && [item.storagePath, item])).values()).filter(Boolean);
-      await Promise.all(uniqueAttachments.map(att => att.storagePath ? deleteFileFlow({ fileName: att.storagePath }).catch(err => console.error(`Failed to delete ${att.storagePath}:`, err)) : Promise.resolve()));
+
+      const uniqueAtts = Array.from(new Map(allAtts.map(it => it.storagePath && [it.storagePath, it])).values()).filter(Boolean);
+      await Promise.all(uniqueAtts.map(att => att.storagePath ? deleteFileFlow({ fileName: att.storagePath }).catch(() => {}) : Promise.resolve()));
     } catch (error) {
-        console.error("Failed to delete orders in batch:", error);
-        toast({ variant: "destructive", title: "Deletion Failed", description: "An error occurred while deleting the selected orders." });
+        toast({ variant: "destructive", title: "Deletion Failed", description: "Error during batch deletion." });
     }
   };
   
