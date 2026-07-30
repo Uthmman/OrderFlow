@@ -331,8 +331,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     // Check for finalization split in updateOrder
     if (originalOrder && originalOrder.status === 'Pending' && orderData.status !== 'Pending' && orderData.status && orderData.products && orderData.products.length > 1) {
         // Redirect to addOrder finalization logic to handle the split properly
-        const { id, ...rest } = { ...originalOrder, ...orderData };
-        return addOrder(rest as any, false);
+        const mergedData = { ...originalOrder, ...orderData };
+        return addOrder(mergedData as any, false);
     }
 
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;
