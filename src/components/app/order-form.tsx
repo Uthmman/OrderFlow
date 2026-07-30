@@ -160,6 +160,13 @@ const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () 
     );
 };
 
+/** Helper to get initial image from product attachments */
+const getInitialMainImage = (product: Product) => {
+  const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
+  const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  return firstImage?.url;
+};
+
 // Custom hook for debouncing a value
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -718,8 +725,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
 
   const renderFilePreview = (attachment: OrderAttachment) => {
-    const isImage = attachment.fileName.match(/.(jpeg|jpg|gif|png|webp)$/i);
-    const isAudio = attachment.fileName.match(/.(mp3|wav|ogg|webm)$/i);
+    const isImage = attachment.fileName?.match(/.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = attachment.fileName?.match(/.(mp3|wav|ogg|webm)$/i);
 
     return (
         <div key={attachment.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
@@ -965,9 +972,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       {watchedProducts.map((product, index) => {
                           const category = productSettings?.productCategories.find(c => c.name === product.category);
                           const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                          const mainImg = getInitialMainImage(product);
                           return (
                               <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  {mainImg ? (
+                                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
+                                          <Image src={mainImg} alt={product.productName} fill className="object-cover" />
+                                      </div>
+                                  ) : (
+                                      <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  )}
                                   <div className="flex-grow">
                                       <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
                                       <p className="text-sm text-muted-foreground">{product.category}</p>
@@ -1069,9 +1083,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                   {filteredCatalogProducts.length > 0 ? filteredCatalogProducts.map(p => {
                                       const category = productSettings?.productCategories.find(c => c.name === p.category);
                                       const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                                      const mainImg = getInitialMainImage(p);
                                       return (
                                           <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md flex items-center gap-3 cursor-pointer hover:bg-muted/50">
-                                              <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                              {mainImg ? (
+                                                  <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
+                                                      <Image src={mainImg} alt={p.productName} fill className="object-cover" />
+                                                  </div>
+                                              ) : (
+                                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                              )}
                                               <div className="flex-grow">
                                                   <p className="font-medium text-sm">{p.productName}</p>
                                                   <p className="text-xs text-muted-foreground">{p.category}</p>
@@ -1439,9 +1460,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       {watchedProducts.map((product, index) => {
                           const category = productSettings?.productCategories.find(c => c.name === product.category);
                           const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
+                          const mainImg = getInitialMainImage(product);
                           return (
                               <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  {mainImg ? (
+                                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
+                                          <Image src={mainImg} alt={product.productName} fill className="object-cover" />
+                                      </div>
+                                  ) : (
+                                      <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                  )}
                                   <div className="flex-grow">
                                       <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
                                       <p className="text-sm text-muted-foreground">{product.category}</p>
