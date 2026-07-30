@@ -51,6 +51,13 @@ const removeUndefined = (obj: any): any => {
   return newObj;
 };
 
+/** Helper to get initial image from product attachments */
+const getInitialMainImage = (product: Product) => {
+  const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
+  const firstImage = allAtts.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  return firstImage?.url;
+};
+
 export function OrderProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const { addOrderToCustomer } = useCustomers();
@@ -179,13 +186,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in to add an order.");
 
-    // Helper to get initial image from product attachments
-    const getInitialMainImage = (product: Product) => {
-      const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
-      const firstImage = allAtts.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-      return firstImage?.url;
-    };
-
     if (isNew) {
         // Initial Draft Creation (usually from Step 1)
         const newOrderRef = doc(collection(firestore, "orders"));
@@ -245,6 +245,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 creationDate: Timestamp.fromDate(orderData.creationDate as Date),
                 deadline: Timestamp.fromDate(orderData.deadline as Date),
                 testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+                chatMessages: [], // Start fresh for split orders
             };
 
             const cleanData = removeUndefined(splitOrderData);
@@ -258,8 +259,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             }
 
             // Sync with global catalog
-            (async () => {
-                if (product.productName) {
+            if (product.productName) {
+                (async () => {
                     const productsRef = collection(firestore, "products");
                     const q = query(productsRef, where("productName", "==", product.productName));
                     const querySnapshot = await getDocs(q);
@@ -270,8 +271,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                         const existingProductId = querySnapshot.docs[0].id;
                         await addOrderIdToProduct(existingProductId, currentOrderId);
                     }
-                }
-            })();
+                })();
+            }
         }
 
         await batch.commit().catch(err => {
@@ -326,12 +327,28 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in to update an order.");
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
+    
+    // Check for finalization split in updateOrder
+    if (originalOrder && originalOrder.status === 'Pending' && orderData.status !== 'Pending' && orderData.status && orderData.products && orderData.products.length > 1) {
+        // Redirect to addOrder finalization logic to handle the split properly
+        const { id, ...rest } = { ...originalOrder, ...orderData };
+        return addOrder(rest as any, false);
+    }
+
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;
     const finalProducts = orderData.products || originalOrder?.products;
     const uniqueName = formatOrderUniqueName(finalCustomerName, finalProducts, orderData.id);
-    const dataToUpdate: any = { ...orderData, uniqueName };
+    
+    // Pick mainImageUrl from products if not manually set and it's a single product
+    let mainImageUrl = orderData.mainImageUrl || originalOrder?.mainImageUrl;
+    if (!mainImageUrl && finalProducts && finalProducts.length === 1) {
+      mainImageUrl = getInitialMainImage(finalProducts[0]);
+    }
+
+    const dataToUpdate: any = { ...orderData, uniqueName, mainImageUrl };
     delete dataToUpdate.id; 
     delete dataToUpdate.chatMessages;
+    
     if (dataToUpdate.creationDate instanceof Date) dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
     if (dataToUpdate.deadline instanceof Date) dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
     if (dataToUpdate.testDate) {
@@ -339,6 +356,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     } else {
         dataToUpdate.testDate = undefined;
     }
+
     if (originalOrder && orderData.products && orderData.products.length > originalOrder.products.length) {
       const newProducts = orderData.products.slice(originalOrder.products.length);
       for (const product of newProducts) {
