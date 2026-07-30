@@ -189,18 +189,21 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const products = orderData.products || [];
     const totalIncome = orderData.incomeAmount || 0;
     const totalPrepaid = orderData.prepaidAmount || 0;
-    const orderId = (orderData as any).id;
+    const existingOrderId = (orderData as any).id;
 
     // Handle Split Case (Multiple products being finalized or created active)
+    // We only split if status is NOT Pending (i.e. finalizing a draft or creating a real order)
     if (products.length > 1 && orderData.status !== 'Pending') {
         const batch = writeBatch(firestore);
-        const firstOrderId = isNew ? doc(collection(firestore, "orders")).id : orderId;
+        let firstOrderId = existingOrderId;
 
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
-            const currentOrderId = (i === 0 && !isNew) ? orderId : doc(collection(firestore, "orders")).id;
+            const currentOrderId = (i === 0 && existingOrderId) ? existingOrderId : doc(collection(firestore, "orders")).id;
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
             
+            if (i === 0) firstOrderId = currentOrderId;
+
             const productPrice = Number(product.price) || 0;
             const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
@@ -214,16 +217,16 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 incomeAmount: productPrice,
                 prepaidAmount: productPrepaid,
                 status: orderData.status || 'In Progress',
-                creationDate: Timestamp.fromDate(orderData.creationDate as Date),
-                deadline: Timestamp.fromDate(orderData.deadline as Date),
-                testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+                creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
+                deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
+                testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate as any) : undefined,
                 chatMessages: [],
                 ownerId: user.id,
-                assignedTo: [],
+                assignedTo: orderData.assignedTo || [],
             };
 
             const cleanData = removeUndefined(splitOrder);
-            if (i === 0 && !isNew) {
+            if (i === 0 && existingOrderId) {
                 batch.update(currentOrderRef, cleanData);
             } else {
                 batch.set(currentOrderRef, cleanData);
@@ -259,50 +262,49 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return firstOrderId;
     }
 
-    // Standard Single Product Case
+    // Standard Case (One product or staying as multi-product draft)
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const newId = newOrderRef.id;
         const uniqueName = formatOrderUniqueName(orderData.customerName, products, newId);
         
-        const draftOrder: Order = {
+        const newOrder: Order = {
             ...orderData,
             id: newId,
             uniqueName,
             mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
-            creationDate: Timestamp.fromDate(orderData.creationDate as Date),
-            deadline: Timestamp.fromDate(orderData.deadline as Date),
-            testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+            creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
+            deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
+            testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate as any) : undefined,
             ownerId: user.id,
             status: orderData.status || 'Pending',
-            assignedTo: [],
+            assignedTo: orderData.assignedTo || [],
         };
 
-        const cleanData = removeUndefined(draftOrder);
+        const cleanData = removeUndefined(newOrder);
         setDocumentNonBlocking(newOrderRef, cleanData, {});
         addOrderToCustomer(orderData.customerId, newId);
         return newId;
     }
 
-    // Finalizing Single Product from Draft
-    if (!orderId) throw new Error("Existing Order ID not found during finalization.");
+    // Updating existing
+    if (!existingOrderId) throw new Error("Existing Order ID not found during save.");
     
-    const orderRef = doc(firestore, 'orders', orderId);
-    const uniqueName = formatOrderUniqueName(orderData.customerName, products, orderId);
+    const orderRef = doc(firestore, 'orders', existingOrderId);
+    const uniqueName = formatOrderUniqueName(orderData.customerName, products, existingOrderId);
     const finalData: Partial<Order> = {
         ...orderData,
         uniqueName,
         mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
-        status: orderData.status === 'Pending' ? 'In Progress' : (orderData.status || 'In Progress'),
-        creationDate: Timestamp.fromDate(orderData.creationDate as Date),
-        deadline: Timestamp.fromDate(orderData.deadline as Date),
-        testDate: orderData.testDate ? Timestamp.fromDate(orderData.testDate as Date) : undefined,
+        creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
+        deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
+        testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate as any) : undefined,
     };
 
     const cleanData = removeUndefined(finalData);
     updateDocumentNonBlocking(orderRef, cleanData);
 
-    if (products.length > 0 && products[0].productName) {
+    if (products.length === 1 && products[0].productName) {
         const product = products[0];
         (async () => {
             const productsRef = collection(firestore, "products");
@@ -310,15 +312,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
                 const newProductId = await addProduct(product);
-                if (newProductId) await addOrderIdToProduct(newProductId, orderId);
+                if (newProductId) await addOrderIdToProduct(newProductId, existingOrderId);
             } else {
                 const existingProductId = querySnapshot.docs[0].id;
-                await addOrderIdToProduct(existingProductId, orderId);
+                await addOrderIdToProduct(existingProductId, existingOrderId);
             }
         })();
     }
 
-    return orderId;
+    return existingOrderId;
   };
 
   const updateOrder = async (orderData: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => {
@@ -326,10 +328,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // Intercept finalization of a multi-product draft
-    if (originalOrder && originalOrder.status === 'Pending' && orderData.status !== 'Pending' && orderData.status && orderData.products && orderData.products.length > 1) {
+    // CRITICAL FIX: Detect if we are transitioning a multi-product draft to finalized status.
+    // If so, hand off to addOrder splitting logic and STOP this execution.
+    if (originalOrder && originalOrder.status === 'Pending' && orderData.status && orderData.status !== 'Pending' && orderData.products && orderData.products.length > 1) {
         const mergedData = { ...originalOrder, ...orderData };
-        return addOrder(mergedData as any, false);
+        await addOrder(mergedData as any, false);
+        return; // Prevent subsequent updateDoc which would overwrite the split
     }
 
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;
@@ -353,10 +357,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const newMessages: OrderChatMessage[] = [];
     if (originalOrder) {
         const createSystemMsg = (text: string) => ({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `${text} by ${user.name}.`, timestamp, isSystemMessage: true });
-        if (originalOrder.status !== orderData.status && orderData.status) {
+        if (orderData.status && originalOrder.status !== orderData.status) {
             newMessages.push(createSystemMsg(`Status changed from '${originalOrder.status}' to '${orderData.status}'`));
         }
-        if (originalOrder.isUrgent !== orderData.isUrgent && orderData.isUrgent !== undefined) {
+        if (orderData.isUrgent !== undefined && originalOrder.isUrgent !== orderData.isUrgent) {
             newMessages.push(createSystemMsg(`Order ${orderData.isUrgent ? 'marked as URGENT' : 'urgency removed'}`));
         }
     }
