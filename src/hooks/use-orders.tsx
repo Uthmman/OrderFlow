@@ -54,7 +54,7 @@ const removeUndefined = (obj: any): any => {
 /** Helper to get initial image from product attachments */
 const getInitialMainImage = (product: Product) => {
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
-  const firstImage = allAtts.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   return firstImage?.url;
 };
 
@@ -190,16 +190,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const totalIncome = orderData.incomeAmount || 0;
     const totalPrepaid = orderData.prepaidAmount || 0;
     const existingOrderId = (orderData as any).id;
+    const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
     // Handle Split Case (Multiple products being finalized or created active)
-    // We only split if status is NOT Pending (i.e. finalizing a draft or creating a real order)
     if (products.length > 1 && orderData.status !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
 
+        // Extract shared data once to avoid spread overwrite confusion in the loop
+        const { products: _, status: __, id: ___, chatMessages: ____, ...sharedBase } = orderData as any;
+
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
-            const currentOrderId = (i === 0 && existingOrderId) ? existingOrderId : doc(collection(firestore, "orders")).id;
+            const isFirst = i === 0 && !!existingOrderId;
+            const currentOrderId = isFirst ? existingOrderId : doc(collection(firestore, "orders")).id;
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
             
             if (i === 0) firstOrderId = currentOrderId;
@@ -208,25 +212,25 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
 
-            const splitOrder: Order = {
-                ...orderData,
+            const splitOrder: any = {
+                ...sharedBase,
                 id: currentOrderId,
-                products: [product],
+                products: [product], // SINGLE PRODUCT PER ORDER
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productPrice,
                 prepaidAmount: productPrepaid,
-                status: orderData.status || 'In Progress',
-                creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
-                deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
-                testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate as any) : undefined,
-                chatMessages: [],
+                status: finalStatus,
+                chatMessages: isFirst ? (orderData.chatMessages || []) : [],
                 ownerId: user.id,
                 assignedTo: orderData.assignedTo || [],
+                creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate,
+                deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline,
+                testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate) : undefined,
             };
 
             const cleanData = removeUndefined(splitOrder);
-            if (i === 0 && existingOrderId) {
+            if (isFirst) {
                 batch.update(currentOrderRef, cleanData);
             } else {
                 batch.set(currentOrderRef, cleanData);
@@ -253,7 +257,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         await batch.commit().catch(err => {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
                 operation: 'write',
-                path: 'orders (split batch)'
+                path: 'orders (split batch commit)'
             }));
             throw err;
         });
@@ -287,7 +291,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return newId;
     }
 
-    // Updating existing
+    // Updating existing single-product finalized order
     if (!existingOrderId) throw new Error("Existing Order ID not found during save.");
     
     const orderRef = doc(firestore, 'orders', existingOrderId);
@@ -296,6 +300,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         ...orderData,
         uniqueName,
         mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
+        status: finalStatus,
         creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
         deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
         testDate: orderData.testDate ? (orderData.testDate instanceof Date ? Timestamp.fromDate(orderData.testDate) : orderData.testDate as any) : undefined,
@@ -328,12 +333,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // CRITICAL FIX: Detect if we are transitioning a multi-product draft to finalized status.
-    // If so, hand off to addOrder splitting logic and STOP this execution.
+    // Detect transition from Pending -> Finalized with multiple products
     if (originalOrder && originalOrder.status === 'Pending' && orderData.status && orderData.status !== 'Pending' && orderData.products && orderData.products.length > 1) {
         const mergedData = { ...originalOrder, ...orderData };
         await addOrder(mergedData as any, false);
-        return; // Prevent subsequent updateDoc which would overwrite the split
+        return; 
     }
 
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;

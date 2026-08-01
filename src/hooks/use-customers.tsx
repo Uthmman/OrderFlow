@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, updateDoc, addDoc, serverTimestamp, getFirestore } from 'firebase/firestore';
+import { collection, doc, updateDoc, addDoc, serverTimestamp, getFirestore, arrayUnion } from 'firebase/firestore';
 import type { Customer } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -59,14 +59,13 @@ export function CustomerProvider({ children }: { children: ReactNode }) {
     return newCustomerId;
   };
 
-  const addOrderToCustomer = async(customerId: string, orderId: string) => {
-    const customer = getCustomerById(customerId);
-    if (customer) {
-        const customerRef = doc(firestore, 'customers', customerId);
-        const updatedOrderIds = [...customer.orderIds, orderId];
-        updateDocumentNonBlocking(customerRef, { orderIds: updatedOrderIds });
-    }
-  };
+  const addOrderToCustomer = useCallback(async(customerId: string, orderId: string) => {
+    const customerRef = doc(firestore, 'customers', customerId);
+    // Use arrayUnion for atomicity, preventing race conditions during splits
+    updateDocumentNonBlocking(customerRef, { 
+        orderIds: arrayUnion(orderId) 
+    });
+  }, [firestore]);
   
   const updateCustomer = async (customerData: Customer): Promise<void> => {
       const customerRef = doc(firestore, 'customers', customerData.id);
