@@ -954,7 +954,7 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
 }
 
 function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order }) {
-    const orderUrl = typeof window !== 'undefined' ? `${window.location.origin}/orders/${order.id}` : '';
+    const qrValue = `ORDERFLOW-ORDER:${order.id}`;
     
     const downloadQR = () => {
         const svg = document.getElementById("order-qr-code");
@@ -982,13 +982,13 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
                 <DialogHeader>
                     <DialogTitle>Order QR Code</DialogTitle>
                     <DialogDescription>
-                        Scan this code to quickly access this order on any device.
+                        Scan this code using the internal OrderFlow scanner to quickly access this order.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
                     <QRCodeSVG 
                         id="order-qr-code"
-                        value={orderUrl} 
+                        value={qrValue} 
                         size={200} 
                         level="H"
                         includeMargin={true}

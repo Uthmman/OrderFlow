@@ -34,26 +34,25 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
 
         scanner.render(
           (decodedText) => {
-            // Handle valid URL
-            try {
-              const url = new URL(decodedText);
-              if (url.pathname.includes("/orders/")) {
-                scanner.clear();
-                onOpenChange(false);
-                router.push(url.pathname);
-              } else {
+            const trimmedText = decodedText.trim();
+            // Handle proprietary app format
+            if (trimmedText.startsWith("ORDERFLOW-ORDER:")) {
+                const orderId = trimmedText.split(":")[1];
+                if (orderId) {
+                  scanner.clear().then(() => {
+                    onOpenChange(false);
+                    router.push(`/orders/${orderId}`);
+                  }).catch(() => {
+                    onOpenChange(false);
+                    router.push(`/orders/${orderId}`);
+                  });
+                }
+            } else {
                  toast({
                   variant: "destructive",
-                  title: "Invalid QR Code",
-                  description: "This QR code does not appear to be an OrderFlow order link.",
+                  title: "Unsupported Code",
+                  description: "This QR code is not recognized by OrderFlow. Please scan an internal order code.",
                 });
-              }
-            } catch (e) {
-              toast({
-                variant: "destructive",
-                title: "Invalid QR Code",
-                description: "The scanned code is not a valid URL.",
-              });
             }
           },
           (errorMessage) => {
@@ -82,7 +81,7 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
             <Scan className="h-5 w-5" /> Scan Order QR Code
           </DialogTitle>
           <DialogDescription>
-            Point your camera at an Order QR code to open it instantly.
+            Point your camera at an internal OrderFlow QR code to open it instantly.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-4">
