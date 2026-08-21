@@ -17,6 +17,7 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { StockProvider } from "@/hooks/use-stock";
+import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
@@ -88,11 +89,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                         <StockProvider>
                           <div className="flex h-screen w-full flex-col">
                           <AppHeader />
-                          <div className="flex flex-1 overflow-hidden">
+                          <div className="flex flex-1 overflow-hidden relative">
                               <AppSidebar />
-                              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
                                   {children}
                               </main>
+                              <FloatingBottomNav />
                           </div>
                           </div>
                         </StockProvider>
