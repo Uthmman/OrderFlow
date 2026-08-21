@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useMemo, useState } from 'react';
-import { useParams, useRouter } from "next/navigation";
+import React, { useMemo, useState, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useProducts } from '@/hooks/use-products';
 import { useProductSettings } from '@/hooks/use-product-settings';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,22 +16,34 @@ import { cn } from '@/lib/utils';
 
 function CategoryProductCatalog() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const categoryName = decodeURIComponent(params.categoryName as string);
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // 'standard' or 'orders'
+  const type = searchParams.get('type') || 'standard';
   
   const { products, loading: productsLoading } = useProducts();
   const { productSettings, loading: settingsLoading } = useProductSettings();
 
   const filteredProducts = useMemo(() => {
     let baseProducts = [];
+    
+    // First, filter by Standard vs Order source
+    const typeFiltered = (products || []).filter(p => 
+        type === 'standard' ? p.isStandard === true : p.isStandard !== true
+    );
+
+    // Then filter by category
     if (categoryName === 'Custom') {
         const allCategories = new Set(productSettings?.productCategories.map(c => c.name));
-        baseProducts = (products || []).filter(product => !product.category || !allCategories.has(product.category));
+        baseProducts = typeFiltered.filter(product => !product.category || !allCategories.has(product.category));
     } else {
-        baseProducts = (products || []).filter(product => product.category === categoryName);
+        baseProducts = typeFiltered.filter(product => product.category === categoryName);
     }
     
+    // Finally filter by search term
     if (!searchTerm) {
         return baseProducts;
     }
@@ -40,7 +52,7 @@ function CategoryProductCatalog() {
         product.productName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-  }, [products, categoryName, productSettings, searchTerm]);
+  }, [products, categoryName, productSettings, searchTerm, type]);
 
   const category = productSettings?.productCategories.find(c => c.name === categoryName);
   const iconName = categoryName === 'Custom' ? 'Wrench' : category?.icon || 'Box';
@@ -50,6 +62,8 @@ function CategoryProductCatalog() {
     return <div className="text-center p-8">Loading products...</div>;
   }
 
+  const typeLabel = type === 'standard' ? 'Standard Catalog' : 'Order Designs';
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -57,7 +71,7 @@ function CategoryProductCatalog() {
             <IconComponent className="h-10 w-10 text-muted-foreground" />
             <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">{categoryName}</h1>
-                <p className="text-muted-foreground">Browse all products in this category.</p>
+                <p className="text-muted-foreground">Browsing {typeLabel}</p>
             </div>
         </div>
         <Button variant="outline" onClick={() => router.push('/products')}>
@@ -68,7 +82,7 @@ function CategoryProductCatalog() {
         <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-                placeholder="Search in this category..."
+                placeholder={`Search in ${categoryName}...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8 w-full"
@@ -79,7 +93,7 @@ function CategoryProductCatalog() {
         <CardContent className="pt-6">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <p>No products found {searchTerm ? `matching "${searchTerm}"` : ''} in the "{categoryName}" category.</p>
+              <p>No {typeLabel.toLowerCase()} items found {searchTerm ? `matching "${searchTerm}"` : ''} in the "{categoryName}" category.</p>
             </div>
           ) : (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -132,6 +146,8 @@ function CategoryProductCatalog() {
 
 export default function CategoryPage() {
     return (
-        <CategoryProductCatalog />
+        <Suspense fallback={<div className="text-center p-8">Loading category view...</div>}>
+            <CategoryProductCatalog />
+        </Suspense>
     )
 }

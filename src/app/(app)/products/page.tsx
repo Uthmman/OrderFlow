@@ -144,7 +144,9 @@ function ProductCatalog() {
           {categoryList.map(cat => {
             const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
             const count = categoryCounts[cat.name] || 0;
-            const link = cat.name === 'All Products' ? '/products' : `/products/category/${encodeURIComponent(cat.name)}`;
+            
+            // Pass the current activeTab as a query param to maintain context
+            const link = cat.name === 'All Products' ? '/products' : `/products/category/${encodeURIComponent(cat.name)}?type=${activeTab}`;
             
             const CardComponent = cat.name === 'All Products' ? 'div' : Link;
             const cardProps = cat.name === 'All Products' ? {} : { href: link };
