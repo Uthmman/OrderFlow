@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2 } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -78,12 +78,31 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
+    const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
     const { toast } = useToast();
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(att.url);
         toast({ title: "Link Copied", description: "Attachment URL copied to clipboard." });
     }
+
+    const handleShare = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: att.fileName, url: att.url });
+            } catch (err) {}
+        } else {
+            copyToClipboard();
+        }
+    };
+
+    const handlePrint = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(att.url, '_blank');
+    };
 
     const handleDownload = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -112,11 +131,23 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                     </div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 p-4">
-                        <File className="h-10 w-10 text-muted-foreground" />
+                        {isPdf ? <FileText className="h-10 w-10 text-red-600" /> : <File className="h-10 w-10 text-muted-foreground" />}
                         <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
-                         <Button size="sm" variant="outline" onClick={handleDownload} className="mt-2">
-                            <Download className="mr-2 h-4 w-4" /> Download
-                        </Button>
+                        <div className="flex gap-2">
+                             <Button size="sm" variant="outline" onClick={handleDownload} className="mt-2">
+                                <Download className="h-4 w-4 mr-2" /> Download
+                            </Button>
+                            {isPdf && (
+                                <>
+                                    <Button size="sm" variant="outline" onClick={handlePrint} className="mt-2">
+                                        <Printer className="h-4 w-4 mr-2" /> Print
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={handleShare} className="mt-2">
+                                        <Share2 className="h-4 w-4 mr-2" /> Share
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
             </CardContent>

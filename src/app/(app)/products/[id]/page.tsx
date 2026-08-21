@@ -8,35 +8,94 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft } from "lucide-react";
+import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText } from "lucide-react";
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
 import { useOrders } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
 import { downloadFile } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isPdf = attachment.fileName.toLowerCase().endsWith('.pdf');
+    const { toast } = useToast();
+
+    const handleShare = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: attachment.fileName,
+                    url: attachment.url
+                });
+            } catch (err) {
+                // Ignore cancel
+            }
+        } else {
+            try {
+                await navigator.clipboard.writeText(attachment.url);
+                toast({ title: "Link Copied", description: "Attachment URL copied to clipboard." });
+            } catch (err) {
+                toast({ variant: 'destructive', title: "Error", description: "Could not copy link." });
+            }
+        }
+    };
+
+    const handlePrint = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(attachment.url, '_blank');
+    };
+
     return (
-        <button 
-          onClick={() => downloadFile(attachment.url, attachment.fileName)}
-          className="text-left w-full"
-        >
+        <div className="w-full">
             <Card className="hover:bg-muted/50 transition-colors group">
                 <CardContent className="p-3 flex items-center gap-3">
                     <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
-                        {isImage ? <ImageIcon /> : <File />}
+                        {isImage ? <ImageIcon className="h-5 w-5" /> : isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <File className="h-5 w-5" />}
                     </div>
                     <div className="flex-grow truncate">
                         <p className="text-sm font-medium truncate">{attachment.fileName}</p>
                     </div>
-                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100">
-                        <Download className="h-5 w-5"/>
-                    </Button>
+                    <div className="flex items-center gap-0.5">
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadFile(attachment.url, attachment.fileName); }}
+                            title="Download"
+                        >
+                            <Download className="h-4 w-4"/>
+                        </Button>
+                        {isPdf && (
+                            <>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
+                                    onClick={handlePrint}
+                                    title="Print"
+                                >
+                                    <Printer className="h-4 w-4"/>
+                                </Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
+                                    onClick={handleShare}
+                                    title="Share"
+                                >
+                                    <Share2 className="h-4 w-4"/>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
-        </button>
+        </div>
     )
 }
 
