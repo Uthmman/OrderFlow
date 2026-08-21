@@ -1,4 +1,3 @@
-
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -8,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2 } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2, QrCode } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -61,6 +60,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { QRCodeSVG } from "qrcode.react";
 
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -953,6 +953,59 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
     );
 }
 
+function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order }) {
+    const orderUrl = typeof window !== 'undefined' ? `${window.location.origin}/orders/${order.id}` : '';
+    
+    const downloadQR = () => {
+        const svg = document.getElementById("order-qr-code");
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new (window as any).Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            const pngFile = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.download = `QR-${order.uniqueName}.png`;
+            downloadLink.href = `${pngFile}`;
+            downloadLink.click();
+        };
+        img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Order QR Code</DialogTitle>
+                    <DialogDescription>
+                        Scan this code to quickly access this order on any device.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
+                    <QRCodeSVG 
+                        id="order-qr-code"
+                        value={orderUrl} 
+                        size={200} 
+                        level="H"
+                        includeMargin={true}
+                    />
+                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
+                </div>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Close</Button>
+                    <Button onClick={downloadQR} className="flex-1">
+                        <Download className="mr-2 h-4 w-4" /> Download QR
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 function OrderDetailPageContent() {
   const params = useParams();
   const id = params.id as string;
@@ -970,6 +1023,7 @@ function OrderDetailPageContent() {
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [finishDesignDialogOpen, setFinishDesignDialogOpen] = useState(false);
   const [paintUsageDialogOpen, setPaintUsageDialogOpen] = useState(false);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
   
   const orderData = getOrderById(id);
 
@@ -1257,6 +1311,9 @@ function OrderDetailPageContent() {
                 </h2>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
+                <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} title="Order QR Code">
+                    <QrCode className="h-4 w-4" />
+                </Button>
                 {isDesigner && order.status === 'In Progress' && (
                     <Button onClick={() => handleDesignerStatusChange('Designing')} disabled={isPending}>
                         {isPending ? <Loader2 className="mr-2 animate-spin" /> : null}
@@ -1641,6 +1698,11 @@ function OrderDetailPageContent() {
         open={paintUsageDialogOpen}
         onOpenChange={setPaintUsageDialogOpen}
         onSubmit={handlePaintUsageSubmit}
+    />
+    <OrderQRDialog 
+        open={qrDialogOpen} 
+        onOpenChange={setQrDialogOpen} 
+        order={order} 
     />
     </>
   );

@@ -1,15 +1,18 @@
-
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, QrCode } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { UserNav } from "@/components/app/user-nav";
 import { Notifications } from "@/components/app/notifications";
 import { useUser } from "@/hooks/use-user";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { QRScannerDialog } from "./qr-scanner-dialog";
 
 export function AppHeader() {
   const { user } = useUser();
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   if (!user) return null;
 
@@ -26,8 +29,19 @@ export function AppHeader() {
           className="w-full rounded-lg bg-background pl-8 md:w-[300px] lg:w-[400px]"
         />
       </div>
-      <Notifications />
-      <UserNav />
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => setScannerOpen(true)}
+          title="Scan QR Code"
+        >
+          <QrCode className="h-5 w-5" />
+        </Button>
+        <Notifications />
+        <UserNav />
+      </div>
+      <QRScannerDialog open={scannerOpen} onOpenChange={setScannerOpen} />
     </header>
   );
 }
