@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -112,6 +113,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         material: productData.material || [],
         dimensions: productData.dimensions,
         orderIds: productData.orderIds || [],
+        isStandard: productData.isStandard ?? false,
       };
       await setDoc(newProductRef, newProduct);
       return newProductRef.id;
@@ -171,6 +173,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             ...orderProduct,
             id: newProductRef.id,
             orderIds: [order.id],
+            isStandard: false, // Explicitly false for synced items
           };
           
           const cleanProduct = removeUndefined(newProduct);

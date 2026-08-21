@@ -18,6 +18,7 @@ export type AppUser = {
   telegram?: string;
   orderSortPreference?: OrderSortPreference;
   dashboardOrderSortPreference?: OrderSortPreference;
+  workerType?: 'Monthly' | 'Daily';
 };
 
 export type FirebaseUser = {
@@ -108,6 +109,7 @@ export type Product = {
   price: number;
   orderIds?: string[];
   billOfMaterials?: string;
+  isStandard?: boolean; // True if added from the products page, false/undefined if synced from orders
 }
 
 export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid';

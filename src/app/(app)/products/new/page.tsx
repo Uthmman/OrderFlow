@@ -19,7 +19,10 @@ function NewProductPageContent() {
   const handleSaveProduct = async (productData: Omit<Order, 'id' | 'creationDate'>) => {
       setIsSubmitting(true);
       try {
-        const productToCreate = productData.products[0];
+        const productToCreate = {
+            ...productData.products[0],
+            isStandard: true // Items created via this page are standard catalog items
+        };
         const newProductId = await addProduct(productToCreate);
         if (newProductId) {
             toast({
