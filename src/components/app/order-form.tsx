@@ -210,7 +210,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
- useEffect(() => {
+  useEffect(() => {
     if (!isInitialLoadRef.current) return;
     const stepFromUrl = searchParams.get('step');
     if (stepFromUrl) setCurrentStep(parseInt(stepFromUrl, 10));
@@ -220,6 +220,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     } else if (!isProductCreationMode) setCurrentStep(1);
     isInitialLoadRef.current = false;
   }, [initialOrder, searchParams, isProductCreationMode]);
+
+  const getStepTitle = () => STEPS.find(s => s.id === currentStep)?.title || '';
+  const getProgress = () => (currentStep / STEPS.length) * 100;
 
   const filteredCatalogProducts = useMemo(() => {
     if (!catalogProducts) return [];
@@ -283,7 +286,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 2000); 
 
- useEffect(() => {
+  useEffect(() => {
     const fromProductId = searchParams.get('fromProduct');
     if (fromProductId && catalogProducts.length > 0) {
         const product = catalogProducts.find(p => p.id === fromProductId);
@@ -316,8 +319,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   useEffect(() => {
     if (isDirty && initialOrder && form.formState.isValid && Object.keys(dirtyFields).length > 0) performSave(debouncedValues);
-  }, [debouncedValues]);
+  }, [debouncedValues, isDirty, initialOrder, form.formState.isValid, dirtyFields, performSave]);
 
+  const requestMicPermission = async () => {
+    try { return await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (err) { toast({ variant: "destructive", title: "Microphone Access Denied", description: "Allow microphone access to record audio." }); return null; }
+  };
 
   const startRecording = async () => {
     let stream = await requestMicPermission();
@@ -410,7 +417,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (selectedCustomer && selectedCustomer.location.town && !getValues('location.town')) setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
   }, [selectedCustomer, setValue, getValues]);
   
-  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
+  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), [watchedProducts]), [watchedProducts]);
   useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
 
   const renderFilePreview = (attachment: OrderAttachment) => {
@@ -531,10 +538,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                   <CardContent className="space-y-6">
                       <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={() => (
                           <FormItem><div className={cn("space-y-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                              <div className="grid grid-cols-4 gap-4">{customColorOptions.map(o => <FormField key={option.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                              <div className="grid grid-cols-4 gap-4">{customColorOptions.map(o => <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
                                   <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`c-${o.name}`} /></FormControl><Label htmlFor={`c-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer"><div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-xs">{o.name}</span></Label></FormItem>
                               )} />)}</div>
-                              <div className="grid grid-cols-2 gap-4">{woodFinishOptions.map(o => <FormField key={option.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                              <div className="grid grid-cols-2 gap-4">{woodFinishOptions.map(o => <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
                                   <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`w-${o.name}`} /></FormControl><Label htmlFor={`w-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer"><Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(o.name) && "ring-2 ring-primary")} /><span>{o.name}</span></Label></FormItem>
                               )} />)}</div>
                           </div>
