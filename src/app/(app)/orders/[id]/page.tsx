@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2, QrCode } from "lucide-react";
+import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2, QrCode, X } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -975,7 +975,7 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <Dialog open={open} onOpenChange={setQrDialogOpen}>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
                     <DialogTitle>Order QR Code</DialogTitle>
@@ -1660,7 +1660,7 @@ function OrderDetailPageContent() {
               <CarouselContent className="h-full">
                 {allImageAttachments.map((att, index) => (
                   <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
+                    <div className="flex-1 relative w-full h-[60vh] md:h-full flex items-center justify-center p-2">
                       <Image
                         src={att.url}
                         alt={att.fileName}

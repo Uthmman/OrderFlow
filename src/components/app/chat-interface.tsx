@@ -376,7 +376,7 @@ export function ChatInterface({ order }: { order: Order }) {
               <CarouselContent className="h-full">
                 {imageMessages.map((att, index) => (
                   <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
+                    <div className="flex-1 relative w-full h-[60vh] md:h-full flex items-center justify-center p-2">
                       <Image
                         src={att.url}
                         alt={att.fileName}
