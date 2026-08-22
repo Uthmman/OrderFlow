@@ -34,16 +34,12 @@ function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachm
                     title: attachment.fileName,
                     url: attachment.url
                 });
-            } catch (err) {
-                // Ignore cancel
-            }
+            } catch (err) {}
         } else {
             try {
                 await navigator.clipboard.writeText(attachment.url);
                 toast({ title: "Link Copied", description: "Attachment URL copied to clipboard." });
-            } catch (err) {
-                toast({ variant: 'destructive', title: "Error", description: "Could not copy link." });
-            }
+            } catch (err) {}
         }
     };
 
@@ -86,24 +82,8 @@ function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachm
                         </Button>
                         {isPdf && (
                             <>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
-                                    onClick={handlePrint}
-                                    title="Print"
-                                >
-                                    <Printer className="h-4 w-4"/>
-                                </Button>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
-                                    onClick={handleShare}
-                                    title="Share"
-                                >
-                                    <Share2 className="h-4 w-4"/>
-                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" onClick={handlePrint} title="Print"><Printer className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" onClick={handleShare} title="Share"><Share2 className="h-4 w-4"/></Button>
                             </>
                         )}
                     </div>
@@ -177,9 +157,7 @@ function ProductDetailContent() {
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader>
-                    <CardTitle>Specifications</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Specifications</CardTitle></CardHeader>
                  <CardContent className="space-y-4">
                     {product.material && product.material.length > 0 && (
                         <div className="flex items-center gap-3">
@@ -270,8 +248,7 @@ function ProductDetailContent() {
                     <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
                       <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
                       <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
+                        <Download className="mr-2 h-4 w-4" /> Download
                       </Button>
                     </div>
                   </CarouselItem>

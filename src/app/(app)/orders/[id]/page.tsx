@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer, Product, PaymentStatus, SecondaryItem, AppUser } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, type Customer, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, DollarSign, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Mic, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, CreditCard, RefreshCw, PlusCircle, Search, Star, Share2, QrCode, X } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,6 @@ import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useSecondaryItems } from "@/hooks/use-secondary-items";
 import { Input } from "@/components/ui/input";
@@ -113,7 +112,7 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
 
     return (
         <Card className="group relative overflow-hidden">
-            <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted">
+            <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted/50">
                 {isImage ? (
                     <div onClick={() => onImageClick(att)} className="relative w-full h-full cursor-pointer">
                         <Image 
@@ -243,7 +242,6 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                 `);
                 printWindow.document.close();
                 printWindow.focus();
-                // Delay print to ensure styles are applied
                 setTimeout(() => {
                     printWindow.print();
                     printWindow.close();
@@ -511,11 +509,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
     const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
     const [mainImageUrl, setMainImageUrl] = useState<string | undefined>(order.mainImageUrl);
     
-    // New catalog item state
     const [isAddingNewToCatalog, setIsAddingNewToCatalog] = useState(false);
     const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
 
-    // Track quantity inputs for catalog items
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
     const isAdmin = role === 'Admin';
@@ -549,7 +545,6 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
 
             if (newAttachments.length > 0) {
                 setUploadedFiles(prev => [...prev, ...newAttachments]);
-                // Automatically set the first uploaded image as main if none exists
                 if (!mainImageUrl) {
                     const firstImage = newAttachments.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
                     if (firstImage) setMainImageUrl(firstImage.url);
@@ -558,9 +553,6 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                     title: `${newAttachments.length} file(s) uploaded`,
                     description: "The design files have been staged.",
                 });
-            }
-            if (newAttachments.length < files.length) {
-                 throw new Error("One or more file uploads failed.");
             }
         } catch (error) {
              toast({
@@ -612,8 +604,8 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
         setItemQuantities(prev => ({ ...prev, [itemId]: num }));
     };
 
-    const handleAddItemToBOM = (item: SecondaryItem | { name: string, unit: string, price?: number }, overrideQty?: number) => {
-        const itemId = (item as any).id || 'custom-' + Date.now();
+    const handleAddItemToBOM = (item: any, overrideQty?: number) => {
+        const itemId = item.id || 'custom-' + Date.now();
         const qty = overrideQty !== undefined ? overrideQty : (itemQuantities[itemId] !== undefined ? itemQuantities[itemId] : 1);
         
         if (qty <= 0) {
@@ -657,8 +649,6 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
             handleAddItemToBOM(newCatalogItem, newCatalogItem.quantity);
             setIsAddingNewToCatalog(false);
             setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
-        } else {
-            toast({ variant: 'destructive', title: "Error", description: "Failed to add item to catalog." });
         }
     };
 
@@ -669,7 +659,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                 <DialogHeader>
                     <DialogTitle>Finish Design & Submit BOM</DialogTitle>
                     <DialogDescription>
-                        Upload final design files, pick a main image for the order icon, and provide the Bill of Materials.
+                        Upload final design files and provide the Bill of Materials.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-6">
@@ -770,7 +760,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                             </div>
 
                             {isAddingNewToCatalog ? (
-                                <div className="p-3 border rounded-md bg-muted/20 space-y-3 animate-in fade-in duration-200">
+                                <div className="p-3 border rounded-md bg-muted/20 space-y-3">
                                     <h5 className="text-[10px] font-bold uppercase tracking-wider">New Catalog Item</h5>
                                     <div className="grid grid-cols-1 gap-2">
                                         <div className="flex gap-2">
@@ -811,7 +801,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                     {secondaryLoading ? (
                                         <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
                                     ) : filteredItems.length === 0 ? (
-                                        <p className="text-center text-[10px] text-muted-foreground py-8">No materials found. Use "New" to add one.</p>
+                                        <p className="text-center text-[10px] text-muted-foreground py-8">No materials found.</p>
                                     ) : (
                                         <div className="space-y-1">
                                             {filteredItems.map(item => (
@@ -822,10 +812,9 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                                     <div className="flex-1 text-left min-w-0">
                                                         <p className="truncate text-[11px] font-bold">{item.name}</p>
                                                         <div className="flex items-center gap-2 text-[9px] opacity-60">
-                                                            <span>Unit: {item.unit || 'piece(pc)'}</span>
-                                                            {item.category && <Badge variant="outline" className="text-[8px] h-3 px-1">{item.category}</Badge>}
+                                                            <span>Unit: {item.unit || 'pc'}</span>
                                                             {isAdmin && item.price && (
-                                                                <span className="font-semibold text-primary">Price: {formatCurrency(item.price)}</span>
+                                                                <span className="font-semibold text-primary">{formatCurrency(item.price)}</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -842,7 +831,6 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                                                             size="icon" 
                                                             className="h-7 w-7 text-primary hover:bg-primary hover:text-white"
                                                             onClick={() => handleAddItemToBOM(item)}
-                                                            title="Add to BOM"
                                                         >
                                                             <PlusCircle className="h-4 w-4" />
                                                         </Button>
@@ -865,7 +853,7 @@ function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinishe
                             />
                             {isAdmin && (
                                 <div className="p-3 bg-primary/5 border border-primary/10 rounded-md mt-2">
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Estimated BOM Total (Auto-calculated)</p>
+                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Estimated BOM Total</p>
                                     <p className="text-xl font-bold text-primary">{formatCurrency(bomEstimatedTotal)}</p>
                                 </div>
                             )}
@@ -905,7 +893,7 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
                 <DialogHeader>
                     <DialogTitle>Record Paint Usage</DialogTitle>
                     <DialogDescription>
-                        Enter the paint usage details for this completed order. This will be added to the Bill of Materials.
+                        Enter the paint usage details for this completed order.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
@@ -913,7 +901,7 @@ function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onO
                         <Label htmlFor="paint-usage">Paint Usage Details</Label>
                         <Textarea 
                             id="paint-usage"
-                            placeholder="e.g., 2L of White Gloss, 0.5L of Primer..."
+                            placeholder="e.g., 2L of White Gloss..."
                             value={paintUsage}
                             onChange={(e) => setPaintUsage(e.target.value)}
                             rows={6}
@@ -980,7 +968,7 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
                 <DialogHeader>
                     <DialogTitle>Order QR Code</DialogTitle>
                     <DialogDescription>
-                        Scan this code using the internal OrderFlow scanner to quickly access this order.
+                        Scan this code using the internal OrderFlow scanner.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
@@ -1007,7 +995,7 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
 function OrderDetailPageContent() {
   const params = useParams();
   const id = params.id as string;
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, uploadProgress, loading: ordersLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
   const { users, loading: allUsersLoading } = useUsers();
@@ -1025,7 +1013,6 @@ function OrderDetailPageContent() {
   
   const orderData = getOrderById(id);
 
-  // Optimistic UI for Order Status and Urgency
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(
     orderData,
     (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null
@@ -1047,7 +1034,7 @@ function OrderDetailPageContent() {
   
   const prepaid = order.prepaidAmount || 0;
   const balance = (order.incomeAmount || 0) - prepaid;
-  const isPaid = balance <= 0 && order.incomeAmount > 0;
+  const isPaid = (balance <= 0 && order.incomeAmount > 0) || order.paymentStatus === 'Paid';
 
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
 
@@ -1056,10 +1043,7 @@ function OrderDetailPageContent() {
         startTransition(async () => {
             setOptimisticOrder({ status: "Cancelled" });
             await updateOrder({ ...orderData, status: "Cancelled" });
-            toast({
-                title: "Order Cancelled",
-                description: `Order ${order.uniqueName} has been cancelled.`,
-            });
+            toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} has been cancelled.` });
         });
     }
 
@@ -1067,10 +1051,7 @@ function OrderDetailPageContent() {
         if (!orderData) return;
         const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
         deleteOrder(orderData.id, allAttachments);
-        toast({
-            title: "Order Deleted",
-            description: `${order.uniqueName} has been deleted.`,
-        });
+        toast({ title: "Order Deleted", description: `${order.uniqueName} has been deleted.` });
         router.push("/orders");
     };
 
@@ -1079,125 +1060,66 @@ function OrderDetailPageContent() {
         startTransition(async () => {
             setOptimisticOrder({ isUrgent: !orderData.isUrgent });
             await updateOrder({ ...orderData, isUrgent: !orderData.isUrgent });
-            toast({
-                title: `Urgency ${orderData.isUrgent ? "Removed" : "Added"}`,
-                description: `${order.uniqueName} has been updated.`,
-            });
         });
     };
 
     const handleStatusChange = (newStatus: OrderStatus) => {
         if (!orderData) return;
-
         if (newStatus === 'Completed' && orderData.status === 'Painting') {
             setPaintUsageDialogOpen(true);
         } else {
             startTransition(async () => {
                 setOptimisticOrder({ status: newStatus });
                 await updateOrder({ ...orderData, status: newStatus });
-                toast({
-                    title: "Status Updated",
-                    description: `Order ${order.uniqueName} status changed to ${newStatus}.`
-                });
             });
         }
     };
     
     const handlePaintUsageSubmit = (paintUsage: string) => {
         if (!orderData) return;
-
         const updatedProducts = [...(orderData.products || [])];
         if (updatedProducts.length > 0) {
             const currentBOM = updatedProducts[0].billOfMaterials || '';
-            const bomUpdate = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
-            updatedProducts[0].billOfMaterials = bomUpdate;
+            updatedProducts[0].billOfMaterials = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
         }
-
         startTransition(async () => {
             setOptimisticOrder({ status: 'Completed' });
             await updateOrder({ ...orderData, products: updatedProducts, status: 'Completed' }, {
                 text: `Paint Usage Submitted:\n${paintUsage}`,
-                file: undefined
-            });
-            toast({
-                title: "Order Completed",
-                description: "Paint usage recorded and status updated."
             });
         });
     };
 
      const handleTogglePaidStatus = () => {
         if (!orderData) return;
-
         startTransition(async () => {
             if (isPaid) {
                 setOptimisticOrder({ paymentStatus: 'Balance Due', prepaidAmount: 0 });
-                await updateOrder({
-                    ...orderData,
-                    paymentStatus: 'Balance Due',
-                    prepaidAmount: 0, 
-                    paidDate: undefined,
-                });
-                toast({
-                    title: "Order Marked as Unpaid",
-                    description: "The order now has a balance due.",
-                });
+                await updateOrder({ ...orderData, paymentStatus: 'Balance Due', prepaidAmount: 0 });
             } else {
                 setOptimisticOrder({ paymentStatus: 'Paid', prepaidAmount: orderData.incomeAmount });
-                await updateOrder({
-                    ...orderData,
-                    paymentStatus: 'Paid',
-                    prepaidAmount: orderData.incomeAmount,
-                    paidDate: new Date(),
-                });
-                toast({
-                    title: "Order Marked as Paid",
-                    description: "The order is now fully paid.",
-                });
+                await updateOrder({ ...orderData, paymentStatus: 'Paid', prepaidAmount: orderData.incomeAmount });
             }
         });
     }
 
-
     const handleDesignerStatusChange = async (newStatus: OrderStatus) => {
         if (!orderData || !user) return;
         startTransition(async () => {
-            // Automatically assign the designer starting the design
             const updatedAssignedTo = Array.from(new Set([...(orderData.assignedTo || []), user.id]));
             setOptimisticOrder({ status: newStatus, assignedTo: updatedAssignedTo });
-            try {
-                await updateOrder({ ...orderData, status: newStatus, assignedTo: updatedAssignedTo });
-                toast({
-                    title: "Status Updated",
-                    description: `Order status changed to ${newStatus}.`
-                });
-            } catch (error) {
-                toast({
-                    variant: 'destructive',
-                    title: "Update Failed",
-                    description: (error as Error).message,
-                });
-            }
+            await updateOrder({ ...orderData, status: newStatus, assignedTo: updatedAssignedTo });
         });
     }
 
     const handleDesignFinished = (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => {
         if (!orderData || !orderData.products || orderData.products.length === 0) return;
-        
         const updatedProducts = [...orderData.products];
-        const productToUpdate = updatedProducts[0];
-        productToUpdate.billOfMaterials = bom;
-        
+        updatedProducts[0].billOfMaterials = bom;
         startTransition(async () => {
             setOptimisticOrder({ status: 'Design Ready', mainImageUrl });
             await updateOrder({ ...orderData, products: updatedProducts, status: 'Design Ready', mainImageUrl }, {
-                text: `Bill of Materials Submitted with ${attachments.length} file(s):\n${bom}`,
-                file: undefined
-            });
-
-            toast({
-                title: "Design Finished",
-                description: "Status updated to Design Ready and BOM submitted to chat."
+                text: `Bill of Materials Submitted:\n${bom}`,
             });
         });
     };
@@ -1335,23 +1257,17 @@ function OrderDetailPageContent() {
                             <OrderReceiptDialog order={order} customer={customer} />
                          ) : (
                              <DialogContent>
-                               <DialogHeader>
-                                 <DialogTitle>Access Denied</DialogTitle>
-                               </DialogHeader>
+                               <DialogHeader><DialogTitle>Access Denied</DialogTitle></DialogHeader>
                                <p>You do not have permission to view receipt details.</p>
                              </DialogContent>
                          )}
                     </Dialog>
                     <Link href={`/orders/${order.id}/edit`}>
-                        <Button variant="outline" size="icon">
-                          <Edit />
-                        </Button>
+                        <Button variant="outline" size="icon"><Edit /></Button>
                     </Link>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="icon">
-                                <MoreVertical className="h-4 w-4" />
-                            </Button>
+                            <Button variant="outline" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
@@ -1360,9 +1276,7 @@ function OrderDetailPageContent() {
                                 <AlertTriangle className="mr-2 h-4 w-4" /> 
                                 <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
                             </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDuplicate}>
-                                Duplicate Order
-                            </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleDuplicate}>Duplicate Order</DropdownMenuItem>
                              {canViewSensitiveData && (
                                 <DropdownMenuItem onClick={handleTogglePaidStatus}>
                                     {isPaid ? <RefreshCw className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
@@ -1372,17 +1286,12 @@ function OrderDetailPageContent() {
                             <DropdownMenuSeparator />
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                    Cancel Order
-                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This will cancel the order. This can be undone by changing the order status.
-                                            To delete the order permanently, use the 'Delete Order' option.
-                                        </AlertDialogDescription>
+                                        <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Back</AlertDialogCancel>
@@ -1392,17 +1301,12 @@ function OrderDetailPageContent() {
                             </AlertDialog>
                             <AlertDialog>
                                 <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
-                                        Delete Order
-                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                     <AlertDialogHeader>
                                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                            This action cannot be undone. This will permanently delete the order
-                                            and remove its data from our servers.
-                                        </AlertDialogDescription>
+                                        <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -1418,15 +1322,10 @@ function OrderDetailPageContent() {
         </div>
       </div>
 
-        {/* Mobile: Tabs */}
        <Tabs defaultValue={defaultTab} className="w-full lg:hidden">
             <TabsList>
-                <TabsTrigger value="details">
-                    <Info className="mr-2" /> Details
-                </TabsTrigger>
-                <TabsTrigger value="chat">
-                    <MessageSquare className="mr-2" /> Chat
-                </TabsTrigger>
+                <TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger>
+                <TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger>
             </TabsList>
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
@@ -1436,108 +1335,52 @@ function OrderDetailPageContent() {
                     </div>
                     <div className="space-y-8">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Details</CardTitle>
-                            </CardHeader>
+                            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <Hash className="h-4 w-4 text-muted-foreground"/>
-                                    <span className="text-sm">ID: {formatOrderId(order.id)}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Calendar className="h-4 w-4 text-muted-foreground"/>
-                                    <span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Clock className="h-4 w-4 text-muted-foreground"/>
-                                    <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
-                                </div>
-                                {order.testDate && (
-                                <div className="flex items-center gap-3">
-                                    <Clock className="h-4 w-4 text-muted-foreground"/>
-                                    <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
-                                </div>
-                                )}
-                                {order.paidDate && (
-                                <div className="flex items-center gap-3">
-                                    <CheckCircle className="h-4 w-4 text-muted-foreground"/>
-                                    <span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span>
-                                </div>
-                                )}
-                                {order.location && (
-                                     <div className="flex items-center gap-3">
-                                        <MapPin className="h-4 w-4 text-muted-foreground"/>
-                                        <span className="text-sm">Location: {order.location.town}</span>
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                                {order.testDate && <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span></div>}
+                                {order.paidDate && <div className="flex items-center gap-3"><CheckCircle className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span></div>}
+                                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                                 
                                 {canViewSensitiveData && (
                                     <>
                                     <Separator />
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm text-muted-foreground">Total Price</span>
-                                        <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm text-muted-foreground">Pre-paid</span>
-                                        <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3 font-bold">
-                                        <span className="text-sm">Balance Due</span>
-                                        <span className="text-sm">{formatCurrency(balance)}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <span className="text-sm text-muted-foreground">Payment Status</span>
-                                        <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
-                                    </div>
-                                      {!isPaid && (
-                                        <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}>
-                                            <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
-                                        </Button>
-                                    )}
+                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div>
+                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div>
+                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                                      {!isPaid && <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}><CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid</Button>}
                                     <Separator />
                                     <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                                     </>
                                 )}
                             </CardContent>
                         </Card>
-
                         {canViewSensitiveData ? (
-                            <>
-                                {customer ? (
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Customer</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-3">
-                                            <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
-                                            <p className="text-sm text-muted-foreground">{customer.email}</p>
-                                            <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
-                                        </CardContent>
-                                    </Card>
-                                ) : (
-                                    <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
-                                )}
-                            </>
+                            customer ? (
+                                <Card>
+                                    <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                        <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                                    </CardContent>
+                                </Card>
+                            ) : <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                         ) : (
                             <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">You do not have permission to view customer and pricing information for this order.</p>
-                                </CardContent>
+                                <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader>
+                                <CardContent><p className="text-sm text-muted-foreground">Permissions required.</p></CardContent>
                             </Card>
                         )}
                     </div>
                 </div>
             </TabsContent>
-            <TabsContent value="chat" className="mt-6">
-                <ChatInterface order={order} />
-            </TabsContent>
+            <TabsContent value="chat" className="mt-6"><ChatInterface order={order} /></TabsContent>
         </Tabs>
 
-        {/* Desktop: Grid */}
         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
                 {bomContent}
@@ -1545,97 +1388,44 @@ function OrderDetailPageContent() {
             </div>
             <div className="space-y-8">
                  <Card>
-                    <CardHeader>
-                        <CardTitle>Details</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Hash className="h-4 w-4 text-muted-foreground"/>
-                            <span className="text-sm">ID: {formatOrderId(order.id)}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Calendar className="h-4 w-4 text-muted-foreground"/>
-                            <span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Clock className="h-4 w-4 text-muted-foreground"/>
-                            <span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span>
-                        </div>
-                         {order.testDate && (
-                            <div className="flex items-center gap-3">
-                                <Clock className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span>
-                            </div>
-                        )}
-                        {order.paidDate && (
-                        <div className="flex items-center gap-3">
-                            <CheckCircle className="h-4 w-4 text-muted-foreground"/>
-                            <span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span>
-                        </div>
-                        )}
-                        {order.location && (
-                             <div className="flex items-center gap-3">
-                                <MapPin className="h-4 w-4 text-muted-foreground"/>
-                                <span className="text-sm">Location: {order.location.town}</span>
-                            </div>
-                        )}
+                        <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                        <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                        <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                         {order.testDate && <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Test Date: {formatTimestamp(order.testDate)}</span></div>}
+                        {order.paidDate && <div className="flex items-center gap-3"><CheckCircle className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Paid on: {formatTimestamp(order.paidDate)}</span></div>}
+                        {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                         
                         {canViewSensitiveData && (
                             <>
                             <Separator />
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-muted-foreground">Total Price</span>
-                                <span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-muted-foreground">Pre-paid</span>
-                                <span className="text-sm font-semibold">{formatCurrency(prepaid)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 font-bold">
-                                <span className="text-sm">Balance Due</span>
-                                <span className="text-sm">{formatCurrency(balance)}</span>
-                            </div>
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-sm text-muted-foreground">Payment Status</span>
-                                <Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge>
-                            </div>
-                             {!isPaid && (
-                                <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}>
-                                    <CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid
-                                </Button>
-                            )}
+                            <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div>
+                            <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                            <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div>
+                            <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                             {!isPaid && <Button size="sm" className="w-full" onClick={handleTogglePaidStatus}><CheckCircle className="mr-2 h-4 w-4" /> Mark as Fully Paid</Button>}
                             <Separator />
                             <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                             </>
                         )}
                     </CardContent>
                 </Card>
-
                 {canViewSensitiveData ? (
-                    <>
-                        {customer ? (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Customer</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
-                                    <p className="text-sm text-muted-foreground">{customer.email}</p>
-                                    <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card><CardContent className="p-6">Customer not found or loading...</CardContent></Card>
-                        )}
-                    </>
+                    customer ? (
+                        <Card>
+                            <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div>
+                                <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                            </CardContent>
+                        </Card>
+                    ) : <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                 ) : (
                     <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-sm text-muted-foreground">You do not have permission to view customer and pricing information for this order.</p>
-                        </CardContent>
+                        <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader>
+                        <CardContent><p className="text-sm text-muted-foreground">Permissions required.</p></CardContent>
                     </Card>
                 )}
                  <ChatInterface order={order} />
@@ -1673,8 +1463,7 @@ function OrderDetailPageContent() {
                     <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
                       <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
                       <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
+                        <Download className="mr-2 h-4 w-4" /> Download
                       </Button>
                     </div>
                   </CarouselItem>
@@ -1691,7 +1480,7 @@ function OrderDetailPageContent() {
         open={finishDesignDialogOpen}
         onOpenChange={setFinishDesignDialogOpen}
         order={orderData!}
-        productIndex={0} /* Assuming one product per order for now for simplicity */
+        productIndex={0}
         onFinished={handleDesignFinished}
     />
      <PaintUsageDialog
@@ -1707,7 +1496,6 @@ function OrderDetailPageContent() {
     </>
   );
 }
-
 
 export default function OrderDetailPage() {
   return (

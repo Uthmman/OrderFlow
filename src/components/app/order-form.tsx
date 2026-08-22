@@ -32,10 +32,10 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit, QrCode, Hash } from "lucide-react"
-import { cn, formatToYyyyMmDd, formatTimestamp } from "@/lib/utils"
+import { cn, compressImage } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material, Product } from "@/lib/types"
+import { Order, OrderAttachment, Customer, OrderStatus, Product } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
@@ -66,11 +66,10 @@ import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
-import { QRCodeSVG } from "qrcode.react";
 
 const productSchema = z.object({
   id: z.string(),
-  productName: z.string().min(3, "Product name must be at least 3 characters.").optional().or(z.literal('')),
+  productName: z.string().min(3, "Product name required.").optional().or(z.literal('')),
   category: z.string().min(1, "Category is required."),
   description: z.string().optional(),
   attachments: z.array(z.any()).optional(),
@@ -81,19 +80,19 @@ const productSchema = z.object({
   height: z.coerce.number().optional(),
   depth: z.coerce.number().optional(),
   colorAsAttachment: z.boolean().default(false),
-  price: z.coerce.number().min(0, "Price must be a positive number.").default(0),
+  price: z.coerce.number().min(0).default(0),
 })
 
 const formSchema = z.object({
-  customerId: z.string().min(1, "Customer is required.").optional(),
-  location: z.object({ town: z.string().min(2, "Order location is required.") }).optional(),
-  products: z.array(productSchema).min(1, "At least one product is required."),
+  customerId: z.string().min(1, "Customer required.").optional(),
+  location: z.object({ town: z.string().min(2, "Location required.") }).optional(),
+  products: z.array(productSchema).min(1, "At least one product required."),
   status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]).optional(),
-  incomeAmount: z.coerce.number().min(0, "Price cannot be negative.").optional(),
+  incomeAmount: z.coerce.number().min(0).optional(),
   prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
-  creationDate: z.date({ required_error: "An order date is required." }).optional(),
-  deadline: z.date({ required_error: "A deadline is required." }).optional(),
+  creationDate: z.date().optional(),
+  deadline: z.date().optional(),
   testDate: z.date().optional(),
   isUrgent: z.boolean().default(false),
 })
@@ -110,81 +109,57 @@ interface OrderFormProps {
 
 const toDate = (timestamp: any): Date | undefined => {
     if (!timestamp) return undefined;
-    if (timestamp instanceof Date) {
-        return timestamp;
-    }
-    // Handles both Firestore Timestamp and the plain object after serialization
-    if (timestamp && typeof timestamp.seconds === 'number') { 
-        return new Date(timestamp.seconds * 1000);
-    }
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp && typeof timestamp.seconds === 'number') return new Date(timestamp.seconds * 1000);
     if (typeof timestamp === 'string') {
         const date = new Date(timestamp);
-        // If the date string is just yyyy-mm-dd, it's parsed as UTC. 
-        // We need to adjust it to the local timezone to prevent off-by-one errors.
-        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) {
-             return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
         return isNaN(date.getTime()) ? undefined : date;
     }
     return undefined;
 }
 
-
 const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () => void, onDiscard: () => void }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-
     const togglePlay = () => {
         if (audioRef.current) {
-            if (isPlaying) {
-                audioRef.current.pause();
-            } else {
-                audioRef.current.play();
-            }
+            isPlaying ? audioRef.current.pause() : audioRef.current.play();
             setIsPlaying(!isPlaying);
         }
     };
-
     return (
         <div className="p-2 border rounded-lg space-y-2">
             <div className="flex items-center gap-2">
                 <audio ref={audioRef} src={src} onEnded={() => setIsPlaying(false)} hidden />
-                <Button type="button" variant="ghost" size="icon" onClick={togglePlay}>
-                    {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                </Button>
+                <Button type="button" variant="ghost" size="icon" onClick={togglePlay}>{isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}</Button>
                 <div className="text-sm text-muted-foreground">Voice Memo Preview</div>
                 <div className="flex-grow" />
                 <Button type="button" size="sm" variant="ghost" onClick={onDiscard}>Discard</Button>
-                <Button type="button" size="sm" onClick={onSave}>Add Audio to Order</Button>
+                <Button type="button" size="sm" onClick={onSave}>Add to Order</Button>
             </div>
         </div>
     );
 };
 
-/** Helper to get initial image from product attachments */
 const getInitialMainImage = (product: Product) => {
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
   const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   return firstImage?.url;
 };
 
-// Custom hook for debouncing a value
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
 }
 
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
-  { id: 2, title: 'Product Setup', fields: [] }, // Hub for editing existing products
+  { id: 2, title: 'Product Setup', fields: [] },
   { id: 3, title: 'Product Category', fields: ['products.0.category'] },
   { id: 4, title: 'Product Source', fields: [] },
   { id: 5, title: 'Product Details & Attachments', fields: ['products.0.productName', 'products.0.description', 'products.0.width', 'products.0.height', 'products.0.depth'] },
@@ -195,14 +170,13 @@ const STEPS = [
   { id: 10, title: 'Scheduling & Status', fields: ['status', 'creationDate', 'deadline', 'isUrgent'] }
 ];
 
-
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, loading: customersLoading, addCustomer } = useCustomers();
-  const { products: catalogProducts, loading: productsLoading, addProduct } = useProducts();
+  const { products: catalogProducts, addProduct } = useProducts();
   const { settings: colorSettings, loading: colorsLoading } = useColorSettings();
-  const { productSettings, loading: productSettingsLoading } = useProductSettings();
+  const { productSettings } = useProductSettings();
   const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
@@ -217,7 +191,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isInitialLoadRef = useRef(true);
-
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -225,227 +198,86 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
-    const defaultProduct: Product = {
-      id: uuidv4(),
-      productName: '',
-      category: '',
-      description: '',
-      attachments: [],
-      designAttachments: [],
-      colors: [],
-      material: [],
-      price: 0,
-    };
-    
-    const defaultValues = {
-        products: [defaultProduct],
-        isUrgent: false,
-        status: "Pending" as OrderStatus, // Default to Pending for new drafts
-        incomeAmount: 0,
-        prepaidAmount: 0,
-        customerId: '',
-        creationDate: new Date(),
-        deadline: new Date(),
-        testDate: undefined,
-        location: { town: '' },
-        paymentDetails: '',
-    };
-
-    if (!orderToMap) {
-        return defaultValues as OrderFormValues;
-    }
-    
-    const products = orderToMap.products && orderToMap.products.length > 0
-        ? orderToMap.products.map(p => ({
-            ...p,
-            colorAsAttachment: p.colors?.includes("As Attached Picture")
-        }))
-        : [defaultProduct];
-
-    return {
-        ...defaultValues,
-        ...orderToMap,
-        creationDate: toDate(orderToMap.creationDate) || new Date(),
-        deadline: toDate(orderToMap.deadline) || new Date(),
-        testDate: toDate(orderToMap.testDate),
-        location: orderToMap.location || { town: '' },
-        products,
-    } as OrderFormValues;
+    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 };
+    const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, prepaidAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' } };
+    if (!orderToMap) return defaultValues as OrderFormValues;
+    const products = orderToMap.products && orderToMap.products.length > 0 ? orderToMap.products.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture") })) : [defaultProduct];
+    return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), testDate: toDate(orderToMap.testDate), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
   }, []);
 
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: mapOrderToFormValues(initialOrder)
-  });
-  
+  const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
   const { formState: { isDirty, dirtyFields }, getValues, watch, trigger, setValue, control } = form;
-
   const watchedProducts = watch("products");
   const watchedCategory = watch(`products.${currentProductIndex}.category`);
 
  useEffect(() => {
     if (!isInitialLoadRef.current) return;
-  
     const stepFromUrl = searchParams.get('step');
-    if (stepFromUrl) {
-      setCurrentStep(parseInt(stepFromUrl, 10));
-    } else if (initialOrder) {
-      if (initialOrder.status === 'Pending' && (!initialOrder.products || initialOrder.products.length === 0 || !initialOrder.products[0].category)) {
-        setCurrentStep(3); // Start at category selection for a new draft
-        if (getValues('products').length === 0) {
-          setValue('products', [{
-            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
-          }], { shouldDirty: true });
-        }
-      } else {
-        setCurrentStep(2); // Existing order/product starts at the product hub
-      }
-    } else if (!isProductCreationMode) {
-      setCurrentStep(1); // Brand new order
-    } else {
-       if (getValues('products').length === 0) {
-          setValue('products', [{
-            id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0,
-          }], { shouldDirty: true });
-        }
-    }
-  
+    if (stepFromUrl) setCurrentStep(parseInt(stepFromUrl, 10));
+    else if (initialOrder) {
+      if (initialOrder.status === 'Pending' && (!initialOrder.products || initialOrder.products.length === 0 || !initialOrder.products[0].category)) setCurrentStep(3);
+      else setCurrentStep(2);
+    } else if (!isProductCreationMode) setCurrentStep(1);
     isInitialLoadRef.current = false;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrder, searchParams, isProductCreationMode]);
-
 
   const filteredCatalogProducts = useMemo(() => {
     if (!catalogProducts) return [];
-    return catalogProducts.filter(p => 
-      p.category === watchedCategory && 
-      (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()) ?? true)
-    );
+    return catalogProducts.filter(p => p.category === watchedCategory && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()) ?? true));
   }, [catalogProducts, watchedCategory, catalogSearchTerm]);
-
-  const productStepFields = (index: number, fields: string[]) => fields.map(f => `products.${index}.${f.split('.').pop()}`);
 
   const nextStep = async () => {
     let fieldsToValidate: any = [];
     const stepConfig = STEPS.find(s => s.id === currentStep);
-
     if (stepConfig) {
-      if(currentStep === 1) {
-          fieldsToValidate = stepConfig.fields || [];
-      } else if (currentStep === 3) {
-          fieldsToValidate = [`products.${currentProductIndex}.category`];
-      } else if (currentStep === 9) {
-          fieldsToValidate = ['incomeAmount'];
-      }
+      if(currentStep === 1) fieldsToValidate = stepConfig.fields || [];
+      else if (currentStep === 3) fieldsToValidate = [`products.${currentProductIndex}.category`];
+      else if (currentStep === 9) fieldsToValidate = ['incomeAmount'];
     }
-    
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) return;
 
     if (!initialOrder && currentStep === 1) {
         if (!onSave) return;
         setIsManualSaving(true);
-        try {
-            const values = getValues();
-            const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-            const draftOrderPayload = {
-                ...values,
-                customerName,
-                status: 'Pending' as const,
-                creationDate: values.creationDate || new Date(),
-                deadline: values.deadline || new Date(),
-            };
-            
-            // Optimistic navigation: Kick off save and route immediately
-            onSave(draftOrderPayload, true).then(newOrderId => {
-              if (newOrderId) {
-                startTransition(() => {
-                  router.replace(`/orders/${newOrderId}/edit?step=3`, { scroll: false });
-                });
-              } else {
-                 setIsManualSaving(false);
-                 toast({ variant: 'destructive', title: 'Error', description: 'Could not create a draft for the order.' });
-              }
-            }).catch(error => {
-              setIsManualSaving(false);
-              toast({ variant: 'destructive', title: 'Error', description: (error as Error).message || 'Could not create a draft for the order.' });
-            });
-            return;
-        } catch (error) {
-            setIsManualSaving(false);
-            toast({ variant: 'destructive', title: 'Error', description: (error as Error).message || 'Could not create a draft for the order.' });
-            return;
-        }
+        const values = getValues();
+        const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown";
+        onSave({ ...values, customerName, status: 'Pending', creationDate: values.creationDate || new Date(), deadline: values.deadline || new Date() } as any, true).then(id => {
+            if (id) router.replace(`/orders/${id}/edit?step=3`);
+            else setIsManualSaving(false);
+        }).catch(() => setIsManualSaving(false));
+        return;
     }
     
-    // Main navigation logic
     let nextStepNumber = currentStep + 1;
-
-    // After category for a new product, go to product source
-    if (currentStep === 3) {
-        nextStepNumber = 4;
-    }
-    
-    startTransition(() => {
-      setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
-    });
+    if (currentStep === 3) nextStepNumber = 4;
+    startTransition(() => setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length)));
   };
 
   const prevStep = () => {
      let nextStepVal = currentStep - 1;
-     if (initialOrder && [5, 6, 7].includes(currentStep)) {
-        nextStepVal = 4; // From product config back to source selection
-    } else if (currentStep === 8) {
-        nextStepVal = isProductCreationMode ? 7 : 4; // Back from review to color selection in product mode
-    } else if (currentStep === 4) {
-        nextStepVal = 3; // Back from product source to category
-    } else if (currentStep === 3 && !isProductCreationMode) {
-        nextStepVal = 1;
-    }
-
-    startTransition(() => {
-        setCurrentStep(Math.max(nextStepVal, 1));
-    });
+     if (initialOrder && [5, 6, 7].includes(currentStep)) nextStepVal = 4;
+     else if (currentStep === 8) nextStepVal = isProductCreationMode ? 7 : 4;
+     else if (currentStep === 4) nextStepVal = 3;
+     else if (currentStep === 3 && !isProductCreationMode) nextStepVal = 1;
+     startTransition(() => setCurrentStep(Math.max(nextStepVal, 1)));
   };
 
   const handleExistingProductSelect = (product: Product) => {
-    const currentProducts = getValues('products');
-    const updatedProducts = [...currentProducts];
-    const newProduct = { ...product, price: Number(product.price) || 0, id: uuidv4() };
-    updatedProducts[currentProductIndex] = newProduct;
-
+    const updatedProducts = [...getValues('products')];
+    updatedProducts[currentProductIndex] = { ...product, price: Number(product.price) || 0, id: uuidv4() };
     setValue('products', updatedProducts, { shouldDirty: true, shouldValidate: true });
-    startTransition(() => {
-        setCurrentStep(8); 
-    });
+    startTransition(() => setCurrentStep(8));
   };
   
   const handleAddAnotherProduct = () => {
-    const newProduct: Product = {
-        id: uuidv4(),
-        productName: '',
-        category: '',
-        description: '',
-        attachments: [],
-        designAttachments: [],
-        colors: [],
-        material: [],
-        price: 0,
-    };
     const currentProducts = getValues('products');
-    setValue('products', [...currentProducts, newProduct], { shouldDirty: true });
-    
-    startTransition(() => {
-        setCurrentProductIndex(currentProducts.length);
-        setCurrentStep(3);
-    });
+    setValue('products', [...currentProducts, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true });
+    startTransition(() => { setCurrentProductIndex(currentProducts.length); setCurrentStep(3); });
   };
 
   const handleEditProduct = (index: number) => {
-      startTransition(() => {
-          setCurrentProductIndex(index);
-          setCurrentStep(5);
-      });
+      startTransition(() => { setCurrentProductIndex(index); setCurrentStep(5); });
   }
 
   const watchedValues = watch();
@@ -453,25 +285,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
  useEffect(() => {
     const fromProductId = searchParams.get('fromProduct');
-    const isNewProduct = searchParams.get('newProduct');
-
     if (fromProductId && catalogProducts.length > 0) {
         const product = catalogProducts.find(p => p.id === fromProductId);
-        if (product) {
-            setValue('products', [{...product, price: Number(product.price) || 0, id: uuidv4()}], { shouldDirty: true });
-        }
-    } else if (isNewProduct) {
-        setValue('products', [{
-            id: uuidv4(),
-            productName: '',
-            category: '',
-            description: '',
-            attachments: [],
-            designAttachments: [],
-            colors: [],
-            material: [],
-            price: 0,
-        }], { shouldDirty: true });
+        if (product) setValue('products', [{...product, price: Number(product.price) || 0, id: uuidv4()}], { shouldDirty: true });
     }
   }, [searchParams, catalogProducts, setValue]);
   
@@ -479,12 +295,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const duplicateOrderId = searchParams.get('duplicate');
     if (duplicateOrderId && !initialOrder) {
         const sourceOrder = getOrderById(duplicateOrderId);
-        if (sourceOrder) {
-            const duplicatedOrderData = {
-                ...sourceOrder, status: 'In Progress' as const, isUrgent: false, id: '', chatMessages: [],
-            }
-            form.reset(mapOrderToFormValues(duplicatedOrderData));
-        }
+        if (sourceOrder) form.reset(mapOrderToFormValues({ ...sourceOrder, status: 'In Progress', id: '', chatMessages: [] } as any));
     } 
   }, [searchParams, getOrderById, initialOrder, form, mapOrderToFormValues]);
   
@@ -492,100 +303,36 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const performSave = useCallback(async (values: OrderFormValues) => {
     if (!initialOrder || !onSave) return;
-    
     setIsAutoSaving(true);
-    const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-
-    const updatedProducts = values.products.map(p => {
-        let finalColors = p.colors;
-        if ((p as any).colorAsAttachment) {
-            finalColors = ["As Attached Picture"];
-        }
-        return {
-            ...p,
-            colors: finalColors,
-            dimensions: p.width && p.height && p.depth ? {
-                width: p.width,
-                height: p.height,
-                depth: p.depth,
-            } : undefined,
-        }
-    });
-    
+    const updatedProducts = values.products.map(p => ({
+        ...p,
+        colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors,
+        dimensions: p.width && p.height && p.depth ? { width: p.width, height: p.height, depth: p.depth } : undefined,
+    }));
     const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-
-    const orderPayload = {
-      ...initialOrder,
-      ...values,
-      products: updatedProducts,
-      incomeAmount: totalIncome,
-      customerName,
-      deadline: values.deadline,
-    } as Order;
-
-    try {
-        await updateOrder(orderPayload);
-    } catch (e) {
-        console.error("Auto-save failed:", e);
-    } finally {
-        setIsAutoSaving(false);
-    }
-  }, [initialOrder, customers, updateOrder, onSave]);
+    try { await updateOrder({ ...initialOrder, ...values, products: updatedProducts as any, incomeAmount: totalIncome }); } 
+    catch (e) {} finally { setIsAutoSaving(false); }
+  }, [initialOrder, updateOrder, onSave]);
 
   useEffect(() => {
-    const isFormValid = form.formState.isValid;
-    if (isDirty && initialOrder && isFormValid && Object.keys(dirtyFields).length > 0) {
-      performSave(debouncedValues);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (isDirty && initialOrder && form.formState.isValid && Object.keys(dirtyFields).length > 0) performSave(debouncedValues);
   }, [debouncedValues]);
 
 
- const requestMicPermission = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        return stream;
-    } catch (err) {
-        console.error("Microphone access denied:", err);
-        toast({
-            variant: "destructive",
-            title: "Microphone Access Denied",
-            description: "To record audio, you must allow microphone access in your browser settings."
-        });
-        return null;
-    }
-  };
-
   const startRecording = async () => {
-    let stream: MediaStream | null;
-    stream = await requestMicPermission();
-    
+    let stream = await requestMicPermission();
     if (!stream) return;
-    
-    const mimeType = 'audio/webm';
-     if (!MediaRecorder.isTypeSupported(mimeType)) {
-        console.error(`${mimeType} is not supported on this browser.`);
-        toast({
-            variant: "destructive",
-            title: "Unsupported Format",
-            description: "Your browser does not support WebM recording. Please try a different browser.",
-        });
-        return;
-    }
-
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     const chunks: BlobPart[] = [];
     mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
     mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(chunks, { type: mimeType });
-        setAudioBlob(blob);
+        setAudioBlob(new Blob(chunks, { type: 'audio/webm' }));
         stream.getTracks().forEach(track => track.stop());
     };
     mediaRecorderRef.current.start();
     setIsRecording(true);
     setAudioBlob(null);
   };
-
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
@@ -596,103 +343,57 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const addRecordedAudioToOrder = () => {
     if (audioBlob && initialOrder) {
-      const audioFile = new File([audioBlob], `voice-memo-${new Date().toISOString()}.webm`, { type: 'audio/webm' });
-      startTransition(() => {
-        addAttachment(initialOrder.id, currentProductIndex, audioFile).then(newAttachment => {
-            if (newAttachment) {
-                const currentProducts = getValues('products');
-                const updatedProducts = [...currentProducts];
-                const productToUpdate = updatedProducts[currentProductIndex];
-                productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
-                setValue('products', updatedProducts, { shouldDirty: true });
-            }
-        });
+      const file = new File([audioBlob], `voice-memo-${Date.now()}.webm`, { type: 'audio/webm' });
+      addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
+          if (att) {
+              const updated = [...getValues('products')];
+              updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+              setValue('products', updated, { shouldDirty: true });
+          }
       });
       setAudioBlob(null);
     }
   };
 
-  const discardAudio = () => {
-    setAudioBlob(null);
-  };
-
-  async function handleAddNewCustomer(customerData: Omit<Customer, "id" | "ownerId" | "orderIds" | "reviews">) {
+  async function handleAddNewCustomer(customerData: any) {
     setNewCustomerSubmitting(true);
     try {
-      const newCustomerId = await addCustomer(customerData);
-      form.setValue("customerId", newCustomerId, { shouldValidate: true, shouldDirty: true });
-      toast({
-        title: "Customer Created",
-        description: `${customerData.name} has been successfully added.`,
-      });
+      const id = await addCustomer(customerData);
+      form.setValue("customerId", id, { shouldValidate: true, shouldDirty: true });
       setIsCreatingNewCustomer(false);
-    } catch (error) {
-      console.error("Failed to add new customer", error)
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: "There was a problem creating the customer.",
-      });
-    } finally {
-        setNewCustomerSubmitting(false);
-    }
+    } catch (error) {} finally { setNewCustomerSubmitting(false); }
   }
   
-  const handleCancelClick = () => {
-    if (isDirty) {
-      setShowCancelDialog(true);
-    } else {
-      router.back();
-    }
-  };
-
-  const handleDiscard = () => {
-    router.back();
-  }
+  const handleCancelClick = () => isDirty ? setShowCancelDialog(true) : router.back();
+  const handleDiscard = () => router.back();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && (initialOrder || isProductCreationMode)) {
-      const files = Array.from(event.target.files);
-      files.forEach(file => {
-          startTransition(() => {
-            if (isProductCreationMode) {
-              // Handle attachment logic for product creation mode without an order
-              const newAttachment: OrderAttachment = {
-                  fileName: file.name,
-                  url: URL.createObjectURL(file), // Temporary URL
-                  storagePath: '', // Will be filled on save
-                  file: file, // Store the file object itself
-              } as any;
-              const currentProducts = getValues('products');
-              const updatedProducts = [...currentProducts];
-              const productToUpdate = updatedProducts[currentProductIndex];
-              productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
-              setValue('products', updatedProducts, { shouldDirty: true });
-            } else if (initialOrder) {
-              addAttachment(initialOrder.id, currentProductIndex, file).then(newAttachment => {
-                  if (newAttachment) {
-                      const currentProducts = getValues('products');
-                      const updatedProducts = [...currentProducts];
-                      const productToUpdate = updatedProducts[currentProductIndex];
-                      productToUpdate.attachments = [...(productToUpdate.attachments || []), newAttachment];
-                      setValue('products', updatedProducts, { shouldDirty: true });
+      Array.from(event.target.files).forEach(file => {
+          if (isProductCreationMode) {
+              const att = { fileName: file.name, url: URL.createObjectURL(file), storagePath: '', file: file } as any;
+              const updated = [...getValues('products')];
+              updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+              setValue('products', updated, { shouldDirty: true });
+          } else if (initialOrder) {
+              addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
+                  if (att) {
+                      const updated = [...getValues('products')];
+                      updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+                      setValue('products', updated, { shouldDirty: true });
                   }
               });
-            }
-        });
-      })
+          }
+      });
     }
   };
 
   const handleRemoveAttachment = (attachment: OrderAttachment) => {
-    if (initialOrder && !isProductCreationMode) {
-        removeAttachment(initialOrder.id, currentProductIndex, attachment);
-    } else {
-        const currentProducts = getValues('products');
-        const updatedProducts = [...currentProducts];
-        const productToUpdate = updatedProducts[currentProductIndex];
-        productToUpdate.attachments = (productToUpdate.attachments || []).filter(att => att.url !== attachment.url);
-        setValue('products', updatedProducts, { shouldDirty: true });
+    if (initialOrder && !isProductCreationMode) removeAttachment(initialOrder.id, currentProductIndex, attachment);
+    else {
+        const updated = [...getValues('products')];
+        updated[currentProductIndex].attachments = (updated[currentProductIndex].attachments || []).filter(att => att.url !== attachment.url);
+        setValue('products', updated, { shouldDirty: true });
     }
   };
   
@@ -706,52 +407,23 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   
   useEffect(() => {
-    if (selectedCustomer && selectedCustomer.location.town) {
-        const currentLocation = getValues('location.town');
-        if (!currentLocation || isDirty) {
-             setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
-        }
-    }
-  }, [selectedCustomer, setValue, getValues, isDirty]);
+    if (selectedCustomer && selectedCustomer.location.town && !getValues('location.town')) setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
+  }, [selectedCustomer, setValue, getValues]);
   
-  const totalIncome = useMemo(() => {
-    return watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-  }, [watchedProducts]);
-
-  useEffect(() => {
-      if (form.getValues('incomeAmount') !== totalIncome) {
-        setValue('incomeAmount', totalIncome, { shouldDirty: true });
-      }
-  }, [totalIncome, setValue, form]);
-
+  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
+  useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
 
   const renderFilePreview = (attachment: OrderAttachment) => {
     const isImage = attachment.fileName?.match(/.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = attachment.fileName?.match(/.(mp3|wav|ogg|webm)$/i);
-
     return (
         <div key={attachment.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">
-                {isImage ? (
-                    <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" />
-                ) : isAudio ? (
-                     <div className="w-full"><audio controls src={attachment.url} className="w-full h-8" /></div>
-                ) : (
-                    <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                )}
+                {isImage ? <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" /> : isAudio ? <div className="w-full"><audio controls src={attachment.url} className="w-full h-8" /></div> : <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                 {!isAudio && <span className="text-sm truncate">{attachment.fileName}</span>}
             </div>
             <div className="flex items-center flex-shrink-0">
-                 {!isAudio && (
-                    <a href={attachment.url} download={attachment.fileName} target="_blank" rel="noopener noreferrer">
-                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7">
-                            <Download className="h-4 w-4" />
-                        </Button>
-                    </a>
-                )}
-                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAttachment(attachment)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAttachment(attachment)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
         </div>
     )
@@ -760,1041 +432,162 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
     setIsManualSaving(true);
-    try {
-        const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown Customer";
-        
-        const updatedProducts = values.products.map(p => {
-            let finalColors = p.colors;
-            if ((p as any).colorAsAttachment) {
-                finalColors = ["As Attached Picture"];
-            }
-            return {
-                ...p,
-                colors: finalColors,
-                dimensions: p.width && p.height && p.depth ? {
-                    width: p.width,
-                    height: p.height,
-                    depth: p.depth,
-                } : undefined,
-            }
-        });
-
-        const totalIncome = updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-        
-        let finalStatus = values.status;
-        if (!isProductCreationMode && finalStatus === 'Pending') {
-            finalStatus = 'In Progress';
-        }
-
-        const payload = {
-            ...(initialOrder || {}),
-            ...values,
-            products: updatedProducts,
-            incomeAmount: totalIncome,
-            status: isProductCreationMode ? undefined : finalStatus,
-            customerName: isProductCreationMode ? undefined : customerName,
-            deadline: values.deadline,
-            creationDate: values.deadline, // Fallback creation date if missing
-            testDate: values.testDate,
-        };
-
-        // Optimistic final save: redirect as soon as the save process starts
-        onSave(payload as any, !initialOrder).catch(error => {
-            setIsManualSaving(false);
-        });
-
-    } catch (error) {
-        setIsManualSaving(false);
-    }
+    const updatedProducts = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, dimensions: p.width && p.height && p.depth ? { width: p.width, height: p.height, depth: p.depth } : undefined }));
+    const payload = { ...values, products: updatedProducts, incomeAmount: updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown" };
+    onSave(payload as any, !initialOrder).catch(() => setIsManualSaving(false));
   };
   
   const isUploading = Object.keys(uploadProgress).length > 0;
-
   const allStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
-  const createOrderStatuses = allStatuses.filter(s => s !== "Pending");
-  
-  const productStepTitle = (title: string) => {
-    return watchedProducts.length > 1 && !isProductCreationMode ? `${title} (Product ${currentProductIndex + 1})` : title;
-  }
-  
-  const getStepTitle = () => {
-    const stepConfig = STEPS.find(s => s.id === currentStep);
-    if (!stepConfig) return "Unknown Step";
-
-    if (initialOrder && currentStep === 2) {
-      return "Product Setup";
-    }
-
-    const isProductStep = stepConfig.id >= 3 && stepConfig.id <= 7;
-    return isProductStep ? productStepTitle(stepConfig.title) : stepConfig.title;
-  };
-  
-  const getProgress = () => {
-    const totalStepsForNew = 10;
-    const totalStepsForExisting = 5; 
-
-    let currentProgressStep = currentStep;
-
-    if (isProductCreationMode) {
-        const productCreationSteps = [3, 4, 5, 6, 7, 8];
-        const currentIdx = productCreationSteps.indexOf(currentStep);
-        return ((currentIdx + 1) / productCreationSteps.length) * 100;
-    }
-
-    if (initialOrder) { 
-        if (currentStep === 2) currentProgressStep = 1; 
-        else if (currentStep >= 5 && currentStep <= 7) currentProgressStep = 2; 
-        else if (currentStep === 8) currentProgressStep = 3; 
-        else if (currentStep === 9) currentProgressStep = 4; 
-        else if (currentStep === 10) currentProgressStep = 5; 
-        return (currentProgressStep / totalStepsForExisting) * 100;
-    } else { 
-        return (currentProgressStep / totalStepsForNew) * 100;
-    }
-  }
-  
-  const finalTitle = getStepTitle();
   const finalSteps = isProductCreationMode ? [3, 4, 5, 6, 7, 8] : STEPS.map(s => s.id);
-  const finalStepNumber = finalSteps[finalSteps.length - 1];
 
   return (
     <>
       <div className="mb-8 space-y-4">
         <Progress value={getProgress()} className="w-full" />
         <div className="flex justify-between items-center">
-            <p className="text-sm font-medium">{finalTitle}</p>
-            <div className="text-sm text-muted-foreground">
-                {isAutoSaving ? (
-                    <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Auto-saving...</span>
-                    </div>
-                ) : !isDirty && initialOrder ? (
-                    <span>All changes saved.</span>
-                ): null}
-            </div>
+            <p className="text-sm font-medium">{getStepTitle()}</p>
+            <div className="text-sm text-muted-foreground">{isAutoSaving ? <div className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span>Auto-saving...</span></div> : !isDirty && initialOrder ? <span>All changes saved.</span> : null}</div>
         </div>
       </div>
       <Form {...form}>
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
-          
           {currentStep === 1 && !isProductCreationMode && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>Customer & Location</CardTitle>
-                      <CardDescription>
-                          Select a customer and specify the location for this order.
-                      </CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
-                      {isCreatingNewCustomer ? (
-                          <div>
-                              <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-medium">Create New Customer</h3>
-                                <Button type="button" variant="ghost" size="icon" onClick={()=>{ setIsCreatingNewCustomer(false)}}><X className="h-4 w-4" /></Button>
-                            </div>
-                            <CustomerForm 
-                                onSubmit={handleAddNewCustomer} 
-                                isSubmitting={newCustomerSubmitting}
-                                submitButtonText="Create and Select"
-                                onCancel={() => setIsCreatingNewCustomer(false)}
-                            />
-                        </div>
-                      ) : (
+                      {isCreatingNewCustomer ? <CustomerForm onSubmit={handleAddNewCustomer} isSubmitting={newCustomerSubmitting} submitButtonText="Create and Select" onCancel={() => setIsCreatingNewCustomer(false)} /> : (
                           <>
-                              <FormField
-                                  control={form.control}
-                                  name="customerId"
-                                  render={({ field }) => (
-                                      <FormItem>
-                                      <FormLabel>Customer</FormLabel>
-                                      <div className="flex items-center gap-2">
-                                          <Select onValueChange={field.onChange} value={field.value} disabled={customersLoading}>
-                                          <FormControl>
-                                              <SelectTrigger>
-                                              <SelectValue placeholder="Select a customer" />
-                                              </SelectTrigger>
-                                          </FormControl>
-                                          <SelectContent>
-                                              {customers.map(customer => (
-                                              <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                              ))}
-                                          </SelectContent>
-                                          </Select>
-                                          <Button type="button" variant="outline" size="sm" onClick={()=>{ setIsCreatingNewCustomer(true)}}>
-                                          <UserPlus className="mr-2 h-4 w-4" />
-                                          New
-                                          </Button>
-                                      </div>
-                                      <FormMessage />
-                                      </FormItem>
-                                  )}
-                              />
-
-                              {selectedCustomer && (
-                                  <Card className="bg-muted/50">
-                                      <CardHeader>
-                                          <CardTitle className="text-base">{selectedCustomer.name}</CardTitle>
-                                      </CardHeader>
-                                      <CardContent className="text-sm text-muted-foreground space-y-2">
-                                          <div className="flex items-center gap-2"><Phone className="h-4 w-4"/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
-                                          <div className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {selectedCustomer.location.town}</div>
-                                      </CardContent>
-                                  </Card>
-                              )}
-
-                              <FormField
-                                  control={form.control}
-                                  name="location.town"
-                                  render={({ field }) => (
-                                      <FormItem>
-                                      <FormLabel>Order Location</FormLabel>
-                                      <FormControl>
-                                          <Input placeholder="Enter a town or city for this order" {...field} />
-                                      </FormControl>
-                                      <FormDescription>Where the final product will be delivered or installed.</FormDescription>
-                                      <FormMessage />
-                                      </FormItem>
-                                  )}
-                              />
+                              <FormField control={form.control} name="customerId" render={({ field }) => (
+                                  <FormItem><FormLabel>Customer</FormLabel><div className="flex items-center gap-2"><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl><SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" size="sm" onClick={()=>setIsCreatingNewCustomer(true)}><UserPlus className="mr-2 h-4 w-4" />New</Button></div><FormMessage /></FormItem>
+                              )} />
+                              {selectedCustomer && <Card className="bg-muted/50"><CardHeader><CardTitle className="text-base">{selectedCustomer.name}</CardTitle></CardHeader><CardContent className="text-sm text-muted-foreground space-y-2"><div>{selectedCustomer.phoneNumbers[0]?.number}</div><div>{selectedCustomer.location.town}</div></CardContent></Card>}
+                              <FormField control={form.control} name="location.town" render={({ field }) => (
+                                  <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} /></FormControl><FormMessage /></FormItem>
+                              )} />
                           </>
                       )}
                   </CardContent>
               </Card>
           )}
-          
           {initialOrder && currentStep === 2 && !isProductCreationMode && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>Product Setup</CardTitle>
-                      <CardDescription>Review the products in this order. You can edit an existing product or add a new one.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Product Setup</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                      {watchedProducts.map((product, index) => {
-                          const category = productSettings?.productCategories.find(c => c.name === product.category);
-                          const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                          const mainImg = getInitialMainImage(product);
-                          return (
-                              <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  {mainImg ? (
-                                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
-                                          <Image src={mainImg} alt={product.productName} fill className="object-cover" />
-                                      </div>
-                                  ) : (
-                                      <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                  )}
-                                  <div className="flex-grow">
-                                      <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
-                                      <p className="text-sm text-muted-foreground">{product.category}</p>
-                                  </div>
-                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
-                                      <Edit className="mr-2" /> Edit
-                                  </Button>
-                              </div>
-                          )
-                      })}
-                      <Separator />
-                      <div className="flex flex-col sm:flex-row gap-2">
-                          <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
-                              <PlusCircleIcon className="mr-2"/> Add New Product
-                          </Button>
-                      </div>
+                      {watchedProducts.map((p, i) => <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50"><div className="flex-grow"><p className="font-semibold">{p.productName || `Product ${i + 1}`}</p><p className="text-sm text-muted-foreground">{p.category}</p></div><Button variant="outline" size="sm" onClick={() => handleEditProduct(i)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></div>)}
+                      <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto"><PlusCircleIcon className="mr-2"/> Add Product</Button>
                   </CardContent>
               </Card>
           )}
-
           {currentStep === 3 && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>{productStepTitle("Product Category")}</CardTitle>
-                      <CardDescription>
-                          Choose the type of product for this order.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <FormField
-                          control={form.control}
-                          name={`products.${currentProductIndex}.category`}
-                          render={({ field }) => (
-                              <FormItem>
-                                  <FormControl>
-                                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                          {productCategories.map((cat) => {
-                                              const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
-                                              const isSelected = field.value === cat.name;
-                                              return (
-                                                  <button
-                                                      key={cat.name}
-                                                      type="button"
-                                                      onClick={() => {
-                                                          field.onChange(cat.name);
-                                                      }}
-                                                      className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
-                                                          isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                                                      )}
-                                                  >
-                                                      <IconComponent className="h-8 w-8" />
-                                                      <span className="font-medium text-sm text-center">{cat.name}</span>
-                                                  </button>
-                                              )
-                                          })}
-                                      </div>
-                                  </FormControl>
-                                  <FormMessage className="pt-4" />
-                              </FormItem>
-                          )}
-                          />
-                  </CardContent>
+                  <CardHeader><CardTitle>Product Category</CardTitle></CardHeader>
+                  <CardContent><FormField control={form.control} name={`products.${currentProductIndex}.category`} render={({ field }) => (
+                      <FormItem><FormControl><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productCategories.map(c => { const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; return <button key={c.name} type="button" onClick={() => field.onChange(c.name)} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent", field.value === c.name && "bg-primary text-primary-foreground")}><Icon className="h-8 w-8" /><span className="text-sm">{c.name}</span></button> })}</div></FormControl><FormMessage /></FormItem>
+                  )} /></CardContent>
               </Card>
           )}
-
           {currentStep === 4 && (
               <Card>
-                  <CardHeader>
-                  <CardTitle>{productStepTitle("Product Source")}</CardTitle>
-                  <CardDescription>
-                      Will this be a brand new product or are you ordering from the existing catalog?
-                  </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <button
-                              type="button"
-                              onClick={() => startTransition(() => setCurrentStep(5))}
-                              className="p-6 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors text-left"
-                          >
-                              <PlusCircleIcon className="h-10 w-10 text-primary" />
-                              <h3 className="font-semibold">Create New Product</h3>
-                              <p className="text-sm text-muted-foreground">Define a custom product for this order from scratch.</p>
-                          </button>
-
-                          <div className="p-6 border rounded-lg">
-                            <div className="flex flex-col items-start gap-2">
-                                  <Search className="h-10 w-10 text-primary" />
-                                  <h3 className="font-semibold">Select Existing Product</h3>
-                                  <p className="text-sm text-muted-foreground mb-4">Choose from products already in your catalog that match the '{watchedCategory}' category.</p>
-                                  <Input 
-                                      placeholder="Search catalog..."
-                                      value={catalogSearchTerm}
-                                      onChange={(e) => setCatalogSearchTerm(e.target.value)}
-                                  />
-                            </div>
-                            <ScrollArea className="h-64 mt-4">
-                                <div className="space-y-2 pr-4">
-                                  {filteredCatalogProducts.length > 0 ? filteredCatalogProducts.map(p => {
-                                      const category = productSettings?.productCategories.find(c => c.name === p.category);
-                                      const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                                      const mainImg = getInitialMainImage(p);
-                                      return (
-                                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md flex items-center gap-3 cursor-pointer hover:bg-muted/50">
-                                              {mainImg ? (
-                                                  <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
-                                                      <Image src={mainImg} alt={p.productName} fill className="object-cover" />
-                                                  </div>
-                                              ) : (
-                                                  <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                              )}
-                                              <div className="flex-grow">
-                                                  <p className="font-medium text-sm">{p.productName}</p>
-                                                  <p className="text-xs text-muted-foreground">{p.category}</p>
-                                              </div>
-                                          </div>
-                                      )
-                                  }) : (
-                                      <p className="text-sm text-muted-foreground text-center py-8">No existing products in this category.</p>
-                                  )}
-                                </div>
-                            </ScrollArea>
-                          </div>
-                      </div>
-                  </CardContent>
+                  <CardHeader><CardTitle>Product Source</CardTitle></CardHeader>
+                  <CardContent><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><button type="button" onClick={() => setCurrentStep(5)} className="p-6 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent"><PlusCircleIcon className="h-10 w-10" /><h3>Create New</h3></button><div className="p-6 border rounded-lg"><Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={(e) => setCatalogSearchTerm(e.target.value)} /><ScrollArea className="h-64 mt-4">{filteredCatalogProducts.map(p => <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-muted">{p.productName}</div>)}</ScrollArea></div></div></CardContent>
               </Card>
           )}
-          
           {currentStep === 5 && (
               <Card>
-                  <CardHeader>
-                  <CardTitle>{productStepTitle("Product Details & Attachments")}</CardTitle>
-                  <CardDescription>
-                      Fill in the main details, specifications, and attachments for the product.
-                  </CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Details & Attachments</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
-                    <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.productName`}
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Product Name</FormLabel>
-                            <FormControl>
-                                <Input placeholder="e.g. Custom Oak Dining Table" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    
-                    <FormField
-                        control={form.control}
-                        name={`products.${currentProductIndex}.description`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Detailed Description</FormLabel>
-                            <FormControl>
-                            <Textarea
-                                placeholder="Provide a detailed description of the order requirements..."
-                                rows={4}
-                                {...field}
-                            />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-
-                    <div className="space-y-2">
-                        <Label>Dimensions (cm)</Label>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <FormField
-                            control={form.control}
-                            name={`products.${currentProductIndex}.width`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Width</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="W" {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                            <FormField
-                            control={form.control}
-                            name={`products.${currentProductIndex}.height`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Height</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="H" {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                            <FormField
-                            control={form.control}
-                            name={`products.${currentProductIndex}.depth`}
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel className="text-xs text-muted-foreground">Depth</FormLabel>
-                                <FormControl>
-                                    <Input type="number" placeholder="D" {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                </FormItem>
-                            )}
-                            />
-                        </div>
+                    <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => (
+                        <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => (
+                        <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} /></FormControl><FormMessage /></FormItem>
+                    )} />
+                    <div className="grid grid-cols-3 gap-4">
+                        {['width', 'height', 'depth'].map(f => <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
+                            <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
+                        )} />)}
                     </div>
-                    
                     <Separator />
-                    
                     <div className="space-y-4">
-                      <h3 className="text-sm font-medium">Attachments</h3>
-                       {!(initialOrder || isProductCreationMode) ? (
-                          <Alert variant="default">
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              <AlertTitle>Action Required</AlertTitle>
-                              <AlertDescription>Please complete the customer step to enable attachments.</AlertDescription>
-                          </Alert>
-                      ) : (
-                          <>
-                          <div className="space-y-4">
-                              <FormItem>
-                                  <FormControl>
-                                      <div 
-                                          className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                                          onClick={() => fileInputRef.current?.click()}
-                                      >
-                                          <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                          <p className="text-muted-foreground">Click to upload or drag & drop files</p>
-                                          <p className="text-xs text-muted-foreground">PNG, JPG, PDF, etc.</p>
-                                          <input
-                                              ref={fileInputRef}
-                                              type="file"
-                                              multiple
-                                              onChange={handleFileChange}
-                                              className="hidden"
-                                              disabled={!(initialOrder || isProductCreationMode)}
-                                          />
-                                      </div>
-                                  </FormControl>
-                              </FormItem>
-                              <div className="relative">
-                                  <Separator />
-                                  <span className="absolute left-1/2 -translate-x-1/2 -top-2 bg-card px-2 text-xs text-muted-foreground">OR</span>
-                              </div>
-                              {audioBlob && audioUrl ? (
-                                  <SleekAudioPlayer src={audioUrl} onSave={addRecordedAudioToOrder} onDiscard={discardAudio} />
-                              ) : (
-                                  <Button 
-                                      type="button" 
-                                      variant={isRecording ? "destructive" : "outline"} 
-                                      className="w-full"
-                                      onClick={isRecording ? stopRecording : startRecording}
-                                      disabled={!initialOrder}
-                                  >
-                                      {isRecording ? <Square className="mr-2 h-4 w-4"/> : <Mic className="mr-2 h-4 w-4" />}
-                                      {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
-                                  </Button>
-                              )}
-                          </div>
-                          
-                          {(currentProduct?.attachments && currentProduct.attachments.length > 0) && (
-                              <div className="space-y-2 pt-4">
-                                  <h4 className="text-sm font-medium">Current Attachments:</h4>
-                                  <div className="space-y-2">
-                                      {currentProduct.attachments.map((file) => renderFilePreview(file))}
-                                  </div>
-                              </div>
-                          )}
-                          
-                          {(isUploading || isPending) && (
-                          <div className="space-y-2 pt-4">
-                              <h4 className="text-sm font-medium">Uploading...</h4>
-                              {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                  <div key={fileName} className="space-y-1">
-                                      <div className="flex justify-between items-center text-sm">
-                                          <span className="truncate">{fileName}</span>
-                                          <span>{Math.round(progress)}%</span>
-                                      </div>
-                                      <Progress value={progress} className="h-2" />
-                                  </div>
-                              ))}
-                          </div>
-                          )}
-                          </>
-                      )}
+                        <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary" onClick={() => fileInputRef.current?.click()}><UploadCloud className="h-10 w-10 mx-auto mb-2" /><p>Click to upload</p><input ref={fileInputRef} type="file" multiple onChange={handleFileChange} className="hidden" /></div>
+                        {audioBlob ? <SleekAudioPlayer src={audioUrl!} onSave={addRecordedAudioToOrder} onDiscard={() => setAudioBlob(null)} /> : <Button type="button" variant="outline" className="w-full" onClick={isRecording ? stopRecording : startRecording}>{isRecording ? <Square className="mr-2 h-4 w-4"/> : <Mic className="mr-2 h-4 w-4" />} {isRecording ? 'Stop' : 'Record Audio'}</Button>}
+                        <div className="space-y-2">{currentProduct?.attachments?.map(renderFilePreview)}</div>
                     </div>
                   </CardContent>
               </Card>
           )}
-
           {currentStep === 6 && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>{productStepTitle("Material")}</CardTitle>
-                      <CardDescription>
-                          Choose one or more materials for this product.
-                      </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      <FormField
-                          control={form.control}
-                          name={`products.${currentProductIndex}.material`}
-                          render={({ field }) => (
-                              <FormItem>
-                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                  {availableMaterials.map((mat) => {
-                                  const IconComponent = (LucideIcons as any)[mat.icon] || LucideIcons.Box;
-                                  const isSelected = field.value?.includes(mat.name);
-                                  return (
-                                      <button
-                                      key={mat.name}
-                                      type="button"
-                                      onClick={() => {
-                                          const newValue = isSelected
-                                              ? field.value?.filter(name => name !== mat.name)
-                                              : [...(field.value || []), mat.name];
-                                          field.onChange(newValue);
-                                      }}
-                                      className={cn("p-4 border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-accent hover:text-accent-foreground transition-colors",
-                                          isSelected && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                                      )}
-                                      >
-                                      <IconComponent className="h-8 w-8" />
-                                      <span className="font-medium text-sm text-center">{mat.name}</span>
-                                      </button>
-                                  )
-                                  })}
-                              </div>
-                              <FormMessage className="pt-4" />
-                              </FormItem>
-                          )}
-                      />
-                  </CardContent>
+                  <CardHeader><CardTitle>Material</CardTitle></CardHeader>
+                  <CardContent><FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
+                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{availableMaterials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; const sel = field.value?.includes(m.name); return <button key={m.name} type="button" onClick={() => field.onChange(sel ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2", sel && "bg-primary text-primary-foreground")}><Icon className="h-8 w-8" />{m.name}</button> })}</div><FormMessage /></FormItem>
+                  )} /></CardContent>
               </Card>
           )}
-
           {currentStep === 7 && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>{productStepTitle("Color Selection")}</CardTitle>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Color</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
-                      <FormField
-                      control={form.control}
-                      name={`products.${currentProductIndex}.colors`}
-                      render={() => (
-                          <FormItem>
-                          <div className={cn("space-y-4 pt-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
-                              <div>
-                                  <h4 className="font-medium text-sm">Custom Colors</h4>
-                                  <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-4 mt-2">
-                                      {customColorOptions.map((option) => (
-                                          <FormField
-                                              key={option.name}
-                                              control={form.control}
-                                              name={`products.${currentProductIndex}.colors`}
-                                              render={({ field }) => (
-                                                  <FormItem>
-                                                  <FormControl>
-                                                      <Checkbox
-                                                      checked={field.value?.includes(option.name)}
-                                                      onCheckedChange={(checked) => {
-                                                          return checked
-                                                          ? field.onChange([...(field.value || []), option.name])
-                                                          : field.onChange(
-                                                              field.value?.filter(
-                                                                  (value) => value !== option.name
-                                                              )
-                                                              )
-                                                      }}
-                                                      className="sr-only"
-                                                      id={`color-${option.name}`}
-                                                      />
-                                                  </FormControl>
-                                                  <Label htmlFor={`color-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
-                                                      <div style={{ backgroundColor: option.colorValue }} className={cn("rounded-full h-16 w-16 border group-hover:ring-2 group-hover:ring-primary group-hover:ring-offset-2", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2")} />
-                                                      <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
-                                                  </Label>
-                                                  </FormItem>
-                                              )}
-                                              />
-                                      ))}
-                                  </div>
-                              </div>
-
-                              <Separator className="my-6" />
-
-                              <div>
-                                  <h4 className="font-medium text-sm pt-2">Custom Finishes</h4>
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mt-2">
-                                      {woodFinishOptions.map((option) => (
-                                          <FormField
-                                              key={option.name}
-                                              control={form.control}
-                                              name={`products.${currentProductIndex}.colors`}
-                                              render={({ field }) => (
-                                                  <FormItem>
-                                                  <FormControl>
-                                                      <Checkbox
-                                                      checked={field.value?.includes(option.name)}
-                                                      onCheckedChange={(checked) => {
-                                                          return checked
-                                                          ? field.onChange([...(field.value || []), option.name])
-                                                          : field.onChange(
-                                                              field.value?.filter(
-                                                                  (value) => value !== option.name
-                                                              )
-                                                              )
-                                                      }}
-                                                      className="sr-only"
-                                                      id={`wood-${option.name}`}
-                                                      />
-                                                  </FormControl>
-                                                  <Label htmlFor={`wood-${option.name}`} className="flex flex-col items-center gap-2 cursor-pointer w-full group">
-                                                      <Image 
-                                                          src={option.imageUrl} 
-                                                          alt={option.name} 
-                                                          width={120} 
-                                                          height={120}
-                                                          className={cn("rounded-md h-28 w-full object-cover border-2 border-transparent group-hover:border-primary", field.value?.includes(option.name) && "ring-2 ring-primary ring-offset-2 border-primary")}
-                                                      />
-                                                      <span className="text-xs text-center truncate w-full font-medium">{option.name}</span>
-                                                  </Label>
-                                                  </FormItem>
-                                              )}
-                                              />
-                                      ))}
-                                  </div>
-                              </div>
+                      <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={() => (
+                          <FormItem><div className={cn("space-y-4", isColorAsAttachment && "opacity-50 pointer-events-none")}>
+                              <div className="grid grid-cols-4 gap-4">{customColorOptions.map(o => <FormField key={option.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                                  <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`c-${o.name}`} /></FormControl><Label htmlFor={`c-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer"><div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-xs">{o.name}</span></Label></FormItem>
+                              )} />)}</div>
+                              <div className="grid grid-cols-2 gap-4">{woodFinishOptions.map(o => <FormField key={option.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                                  <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={checked => field.onChange(checked ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`w-${o.name}`} /></FormControl><Label htmlFor={`w-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer"><Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-md h-20 w-full object-cover", field.value?.includes(o.name) && "ring-2 ring-primary")} /><span>{o.name}</span></Label></FormItem>
+                              )} />)}</div>
                           </div>
-
-                          <FormField
-                              control={form.control}
-                              name={`products.${currentProductIndex}.colorAsAttachment`}
-                              render={({ field }) => (
-                                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
-                                  <FormControl>
-                                      <Checkbox
-                                      checked={field.value}
-                                      onCheckedChange={(checked) => {
-                                          field.onChange(checked);
-                                          if (checked) {
-                                              form.setValue(`products.${currentProductIndex}.colors`, []);
-                                          }
-                                      }}
-                                      />
-                                  </FormControl>
-                                  <div className="space-y-1 leading-none">
-                                      <FormLabel>
-                                      Color as Attached Picture
-                                      </FormLabel>
-                                  </div>
-                                  </FormItem>
-                              )}
-                              />
-
-                          <FormMessage />
+                          <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
+                              <FormItem className="flex items-center space-x-2 mt-4"><FormControl><Checkbox checked={field.value} onCheckedChange={v => { field.onChange(v); if(v) form.setValue(`products.${currentProductIndex}.colors`, []); }} /></FormControl><FormLabel>Color as attached picture</FormLabel></FormItem>
+                          )} />
                           </FormItem>
-                      )}
-                      />
+                      )} />
                   </CardContent>
               </Card>
           )}
-          
           {currentStep === 8 && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>Review Products</CardTitle>
-                      <CardDescription>Review the products you've added. You can add another product or proceed to the next step.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Review</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                      {watchedProducts.map((product, index) => {
-                          const category = productSettings?.productCategories.find(c => c.name === product.category);
-                          const IconComponent = (LucideIcons as any)[category?.icon || 'Box'] || LucideIcons.Box;
-                          const mainImg = getInitialMainImage(product);
-                          return (
-                              <div key={product.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  {mainImg ? (
-                                      <div className="relative h-10 w-10 rounded-md overflow-hidden flex-shrink-0 border">
-                                          <Image src={mainImg} alt={product.productName} fill className="object-cover" />
-                                      </div>
-                                  ) : (
-                                      <IconComponent className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                  )}
-                                  <div className="flex-grow">
-                                      <p className="font-semibold">{product.productName || `Product ${index + 1}`}</p>
-                                      <p className="text-sm text-muted-foreground">{product.category}</p>
-                                  </div>
-                                  <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
-                                      <Edit className="mr-2 h-4 w-4" /> Edit
-                                  </Button>
-                              </div>
-                          )
-                      })}
-                      {!isProductCreationMode && (
-                        <>
-                          <Separator />
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
-                              <PlusCircleIcon className="mr-2 h-4 w-4"/> Add Another Product
-                            </Button>
-                          </div>
-                        </>
-                      )}
+                      {watchedProducts.map((p, i) => <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50"><div className="flex-grow"><p className="font-semibold">{p.productName || `Product ${i + 1}`}</p></div><Button variant="outline" size="sm" onClick={() => handleEditProduct(i)}><Edit className="h-4 w-4" /></Button></div>)}
+                      {!isProductCreationMode && <Button type="button" variant="outline" onClick={handleAddAnotherProduct}>Add Another</Button>}
                   </CardContent>
               </Card>
           )}
-          
           {currentStep === 9 && !isProductCreationMode && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>Pricing & Payment</CardTitle>
-                      <CardDescription>Set the price for each product and record any pre-payment.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
-                      <FormField
-                          control={form.control}
-                          name="incomeAmount"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel>Total Order Price</FormLabel>
-                              <div className="relative">
-                                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <FormControl>
-                                      <Input type="number" placeholder="0.00" className="pl-8" {...field} readOnly />
-                                  </FormControl>
-                              </div>
-                              <FormDescription>This is the sum of all product prices.</FormDescription>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                      />
-                      
-                      <div className="space-y-4 rounded-md border p-4">
-                          <h4 className="font-medium">Product Prices</h4>
-                          {watchedProducts.map((product, index) => (
-                              <FormField
-                                  key={product.id}
-                                  control={control}
-                                  name={`products.${index}.price`}
-                                  render={({ field }) => (
-                                      <FormItem>
-                                          <FormLabel className="text-sm font-normal">{product.productName || `Product ${index + 1}`}</FormLabel>
-                                          <div className="relative">
-                                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                              <FormControl>
-                                                  <Input type="number" placeholder="0.00" className="pl-8" {...field} />
-                                              </FormControl>
-                                          </div>
-                                          <FormMessage />
-                                      </FormItem>
-                                  )}
-                              />
-                          ))}
-                      </div>
-
-                      <FormField
-                          control={form.control}
-                          name="prepaidAmount"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel>Pre-paid Amount</FormLabel>
-                              <div className="relative">
-                                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                  <FormControl>
-                                      <Input type="number" placeholder="0.00" className="pl-8" {...field} value={field.value ?? ''} />
-                                  </FormControl>
-                              </div>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                      />
-                      <FormField
-                          control={form.control}
-                          name="paymentDetails"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel>Payment Details</FormLabel>
-                              <FormControl>
-                                  <Textarea
-                                  placeholder="e.g., 50% upfront, Paid via Stripe #..."
-                                  {...field}
-                                  value={field.value ?? ''}
-                                  />
-                              </FormControl>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                      />
+                      <FormField control={form.control} name="incomeAmount" render={({ field }) => <FormItem><FormLabel>Total Price</FormLabel><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" /><FormControl><Input type="number" className="pl-8" {...field} readOnly /></FormControl></div></FormItem>} />
+                      <div className="space-y-4 border p-4 rounded-md">{watchedProducts.map((p, i) => <FormField key={p.id} control={control} name={`products.${i}.price`} render={({ field }) => <FormItem><FormLabel className="text-xs">{p.productName || `P${i+1}`}</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />)}</div>
+                      <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />
+                      <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Details</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
                   </CardContent>
               </Card>
           )}
-
           {currentStep === 10 && !isProductCreationMode && (
               <Card>
-                  <CardHeader>
-                      <CardTitle>Scheduling & Status</CardTitle>
-                      <CardDescription>Finalize the order status and deadline.</CardDescription>
-                  </CardHeader>
+                  <CardHeader><CardTitle>Finalize</CardTitle></CardHeader>
                   <CardContent className="space-y-6">
-                      <FormField
-                          control={form.control}
-                          name="status"
-                          render={({ field }) => (
-                              <FormItem>
-                              <FormLabel>Order Status</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                  <FormControl>
-                                  <SelectTrigger>
-                                      <SelectValue placeholder="Select a status" />
-                                  </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                      {(initialOrder ? allStatuses : createOrderStatuses).map(status => (
-                                          <SelectItem key={status} value={status}>{status}</SelectItem>
-                                      ))}
-                                  </SelectContent>
-                              </Select>
-                              <FormMessage />
-                              </FormItem>
-                          )}
-                          />
-                        <FormField
-                            control={form.control}
-                            name="creationDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Order Date</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                        )}
-                                        >
-                                        {field.value ? (
-                                            format(field.value, "PPP")
-                                        ) : (
-                                            <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                            />
-                        <FormField
-                            control={form.control}
-                            name="deadline"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Deadline</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                        )}
-                                        >
-                                        {field.value ? (
-                                            format(field.value, "PPP")
-                                        ) : (
-                                            <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="testDate"
-                            render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                <FormLabel>Test Date</FormLabel>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                        )}
-                                        >
-                                        {field.value ? (
-                                            format(field.value, "PPP")
-                                        ) : (
-                                            <span>Pick a date</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                      <FormField
-                      control={form.control}
-                      name="isUrgent"
-                      render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <div className="space-y-0.5">
-                              <FormLabel>Urgent Order</FormLabel>
-                              <FormDescription>
-                              Prioritize this order in the queue.
-                              </FormDescription>
-                          </div>
-                          <FormControl>
-                              <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              />
-                          </FormControl>
-                          </FormItem>
-                      )}
-                      />
+                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{allStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>} />
+                      <FormField control={form.control} name="deadline" render={({ field }) => <FormItem className="flex flex-col"><FormLabel>Deadline</FormLabel><Popover><PopoverTrigger asChild><Button variant="outline">{field.value ? format(field.value, "PPP") : "Pick date"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>} />
+                      <FormField control={form.control} name="isUrgent" render={({ field }) => <FormItem className="flex items-center justify-between border p-3 rounded-lg"><FormLabel>Urgent</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>} />
                   </CardContent>
               </Card>
           )}
-
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4 z-10">
-              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && (
-                      <Button variant="outline" type="button" onClick={prevStep}>
-                          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                      </Button>
-                  )}
-                  
-                  {currentStep < finalStepNumber && currentStep !== 2 && currentStep !== 4 && (
-                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
-                          {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                          Next <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                  )}
-
-                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
-                      <Button type="button" onClick={() => startTransition(() => setCurrentStep(9))}>
-                          Continue to Final Steps <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                  )}
-
-                  {currentStep === finalStepNumber && (
-                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isAutoSaving}>
-                          {(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
-                      </Button>
-                  )}
+                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
+                  {currentStep < finalSteps[finalSteps.length-1] && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}
+                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && <Button type="button" onClick={() => setCurrentStep(9)}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>}
+                  {currentStep === finalSteps[finalSteps.length-1] && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading}>{(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
               </div>
           </div>
         </form>
       </Form>
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      Any unsaved changes will be lost.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel>Stay on page</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDiscard}>
-                      Discard changes
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>Unsaved changes will be lost.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Stay</AlertDialogCancel><AlertDialogAction onClick={handleDiscard}>Discard</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </>
   )
 }

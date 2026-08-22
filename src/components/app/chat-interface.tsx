@@ -12,18 +12,15 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download, Clock, X } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, File as FileIcon, Download, Clock, X } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useState, useRef, useEffect, useOptimistic, useTransition } from "react"
+import { useState, useRef, useOptimistic, useTransition } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
-import Link from "next/link"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { compressImage, downloadFile } from "@/lib/utils"
-import { Dialog, DialogContent, DialogClose, DialogFooter, DialogTitle, DialogHeader } from "../ui/dialog"
-import { ScrollArea } from "../ui/scroll-area"
+import { Dialog, DialogContent, DialogClose, DialogTitle, DialogHeader } from "../ui/dialog"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 import { v4 as uuidv4 } from "uuid"
 
@@ -65,7 +62,6 @@ const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachm
             </div>
         )
     }
-    // Fallback for other file types
     return (
         <button 
           onClick={() => downloadFile(attachment.url, attachment.fileName)}
@@ -119,7 +115,6 @@ export function ChatInterface({ order }: { order: Order }) {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : null;
   const fileUrl = fileToUpload ? URL.createObjectURL(fileToUpload) : null;
   
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -127,7 +122,6 @@ export function ChatInterface({ order }: { order: Order }) {
 
   const baseMessages = Array.isArray(order.chatMessages) ? order.chatMessages : [];
   
-  // Optimistic UI for chat messages
   const [optimisticMessages, addOptimisticMessage] = useOptimistic(
     baseMessages,
     (state, newMessage: OrderChatMessage) => [...state, newMessage]
@@ -164,19 +158,12 @@ export function ChatInterface({ order }: { order: Order }) {
   const startRecording = async () => {
     let stream: MediaStream | null;
     stream = await requestMicPermission();
-    
     if (!stream) return;
     
     setFileToUpload(null);
-    
     const mimeType = 'audio/webm';
     if (!MediaRecorder.isTypeSupported(mimeType)) {
-        console.error(`${mimeType} is not supported on this browser.`);
-        toast({
-            variant: "destructive",
-            title: "Unsupported Format",
-            description: "Your browser does not support WebM recording. Please try a different browser.",
-        });
+        toast({ variant: "destructive", title: "Unsupported Format", description: "Your browser does not support WebM recording." });
         return;
     }
 
@@ -210,12 +197,6 @@ export function ChatInterface({ order }: { order: Order }) {
             const compressedFile = await compressImage(file);
             setFileToUpload(compressedFile);
         } catch (error) {
-            console.error("Image compression failed:", error);
-            toast({
-                variant: "destructive",
-                title: "Compression Failed",
-                description: "Could not compress the image.",
-            });
             setFileToUpload(file);
         }
       } else {
@@ -232,20 +213,18 @@ export function ChatInterface({ order }: { order: Order }) {
     const currentAudioBlob = audioBlob;
     const currentFile = fileToUpload;
 
-    // Reset local state immediately for snappy feel
     setInputValue("");
     setAudioBlob(null);
     setFileToUpload(null);
     if(fileInputRef.current) fileInputRef.current.value = "";
 
     startTransition(async () => {
-        // Add optimistic message
         addOptimisticMessage({
             id: uuidv4(),
             user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl },
             text: textToSend,
             timestamp: new Date().toISOString(),
-            sending: true, // Custom flag for UI
+            sending: true,
             attachment: currentFile ? { fileName: currentFile.name, url: URL.createObjectURL(currentFile), storagePath: '' } : undefined
         } as any);
 
@@ -256,16 +235,8 @@ export function ChatInterface({ order }: { order: Order }) {
             } else if (currentFile) {
                 newFile = currentFile;
             }
-            
             await updateOrder(order, { text: textToSend, file: newFile });
         } catch (error) {
-            console.error("Error sending message:", error);
-            toast({
-                variant: "destructive",
-                title: "Send Error",
-                description: (error as Error).message || "Could not send message.",
-            });
-            // Reset input value on error so user can retry
             setInputValue(textToSend);
         }
     });
@@ -281,50 +252,29 @@ export function ChatInterface({ order }: { order: Order }) {
     <Card className="flex flex-col h-[500px]">
       <CardHeader className="py-3">
         <CardTitle className="font-headline text-lg">Team Chat</CardTitle>
-        <CardDescription className="text-xs">Collaborate and track changes for this order.</CardDescription>
+        <CardDescription className="text-xs">Collaborate on this order.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto space-y-4 p-4 border-t border-b scroll-smooth">
          {optimisticMessages.map((message, index) => (
             <div key={`${message.id}-${message.timestamp}-${index}`}>
-                {message.isSystemMessage ? (
-                    <SystemMessage message={message} />
-                ) : (
-                    <UserMessage message={message} onImageClick={handleImageClick} />
-                )}
+                {message.isSystemMessage ? <SystemMessage message={message} /> : <UserMessage message={message} onImageClick={handleImageClick} />}
             </div>
         ))}
       </CardContent>
       <CardFooter className="p-4 flex flex-col items-start gap-2">
-         {audioUrl && !isRecording && (
-            <div className="w-full p-2 border rounded-md flex items-center justify-between bg-muted/30">
-               <audio controls src={audioUrl} className="flex-1 h-10" />
-               <Button variant="ghost" size="icon" onClick={() => setAudioBlob(null)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-            </div>
-        )}
          {fileToUpload && fileUrl && (
             <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2 bg-muted/30">
                 <div className="flex items-center gap-2 truncate">
                     {fileToUpload.type.startsWith('image/') ? (
                         <Image src={fileUrl} alt={fileToUpload.name} width={40} height={40} className="h-10 w-10 rounded-sm object-cover" />
-                    ) : (
-                        <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                    )}
+                    ) : <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />}
                     <span className="text-sm truncate">{fileToUpload.name}</span>
                 </div>
-               <Button variant="ghost" size="icon" onClick={() => { setFileToUpload(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+               <Button variant="ghost" size="icon" onClick={() => { setFileToUpload(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
         )}
         <form onSubmit={handleSendMessage} className="relative w-full">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
           <Input 
             placeholder={isRecording ? "Recording..." : "Message or attach..."}
             className="pr-28 h-11"
@@ -333,22 +283,8 @@ export function ChatInterface({ order }: { order: Order }) {
             disabled={isPending || isRecording}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-            <Button 
-                variant="ghost" 
-                size="icon" 
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isPending || isRecording}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
-             <Button 
-                variant={isRecording ? "destructive" : "ghost"} 
-                size="icon" 
-                type="button" 
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isPending || !!fileToUpload}
-              >
+            <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isPending || isRecording}><Paperclip className="h-4 w-4" /></Button>
+             <Button variant={isRecording ? "destructive" : "ghost"} size="icon" type="button" onClick={isRecording ? stopRecording : startRecording} disabled={isPending || !!fileToUpload}>
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
             <Button variant="ghost" size="icon" type="submit" disabled={isPending || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
@@ -362,36 +298,19 @@ export function ChatInterface({ order }: { order: Order }) {
         <DialogContent className="max-w-screen h-screen md:max-w-6xl md:w-[95vw] md:h-[90vh] p-0 flex flex-col overflow-hidden bg-black/95 text-white border-none md:rounded-lg">
           <DialogHeader className="p-4 md:p-6 shrink-0 border-b border-white/10 flex flex-row items-center justify-between">
             <DialogTitle className="text-white">Chat Gallery</DialogTitle>
-             <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                    <X className="h-5 w-5" />
-                </Button>
-            </DialogClose>
+             <DialogClose asChild><Button variant="ghost" size="icon" className="text-white hover:bg-white/10"><X className="h-5 w-5" /></Button></DialogClose>
           </DialogHeader>
           <div className="flex-1 relative w-full h-full">
-            <Carousel
-              opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
-              className="w-full h-full flex flex-col"
-            >
+            <Carousel opts={{ align: "start", loop: true, startIndex: galleryStartIndex }} className="w-full h-full flex flex-col">
               <CarouselContent className="h-full">
                 {imageMessages.map((att, index) => (
                   <CarouselItem key={index} className="h-full flex flex-col p-0">
                     <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
-                      <Image
-                        src={att.url}
-                        alt={att.fileName}
-                        fill
-                        className="object-contain"
-                        sizes="100vw"
-                        priority
-                      />
+                      <Image src={att.url} alt={att.fileName} fill className="object-contain" sizes="100vw" priority />
                     </div>
                     <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
                       <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
-                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </Button>
+                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}><Download className="mr-2 h-4 w-4" /> Download</Button>
                     </div>
                   </CarouselItem>
                 ))}
