@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download, Clock } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, User as UserIcon, File as FileIcon, Download, Clock, X } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useState, useRef, useEffect, useOptimistic, useTransition } from "react"
 import Image from "next/image"
@@ -22,7 +22,7 @@ import { useUser } from "@/hooks/use-user"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { compressImage, downloadFile } from "@/lib/utils"
-import { Dialog, DialogContent, DialogClose, DialogFooter } from "../ui/dialog"
+import { Dialog, DialogContent, DialogClose, DialogFooter, DialogTitle, DialogHeader } from "../ui/dialog"
 import { ScrollArea } from "../ui/scroll-area"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 import { v4 as uuidv4 } from "uuid"
@@ -359,26 +359,36 @@ export function ChatInterface({ order }: { order: Order }) {
       </CardFooter>
     </Card>
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-6xl p-0">
-          <ScrollArea className="h-[80vh] w-full">
+        <DialogContent className="max-w-screen h-screen md:max-w-6xl md:w-[95vw] md:h-[90vh] p-0 flex flex-col overflow-hidden bg-black/95 text-white border-none md:rounded-lg">
+          <DialogHeader className="p-4 md:p-6 shrink-0 border-b border-white/10 flex flex-row items-center justify-between">
+            <DialogTitle className="text-white">Chat Gallery</DialogTitle>
+             <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+                    <X className="h-5 w-5" />
+                </Button>
+            </DialogClose>
+          </DialogHeader>
+          <div className="flex-1 relative w-full h-full">
             <Carousel
               opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
-              className="w-full"
+              className="w-full h-full flex flex-col"
             >
-              <CarouselContent>
+              <CarouselContent className="h-full">
                 {imageMessages.map((att, index) => (
-                  <CarouselItem key={index}>
-                    <div className="relative h-[calc(80vh-4rem)]">
+                  <CarouselItem key={index} className="h-full flex flex-col p-0">
+                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
                       <Image
                         src={att.url}
                         alt={att.fileName}
                         fill
                         className="object-contain"
+                        sizes="100vw"
+                        priority
                       />
                     </div>
-                    <div className="flex justify-between items-center bg-background p-2 border-t">
-                      <p className="text-sm text-muted-foreground">{att.fileName}</p>
-                      <Button variant="outline" size="sm" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}>
+                    <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
+                      <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
+                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}>
                         <Download className="mr-2 h-4 w-4" />
                         Download
                       </Button>
@@ -386,15 +396,10 @@ export function ChatInterface({ order }: { order: Order }) {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              <CarouselPrevious className="left-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
+              <CarouselNext className="right-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
             </Carousel>
-          </ScrollArea>
-           <DialogFooter className="p-4 border-t bg-muted">
-                <DialogClose asChild>
-                    <Button variant="outline">Close</Button>
-                </DialogClose>
-            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

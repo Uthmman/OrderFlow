@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText, Eye } from "lucide-react";
+import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText, Eye, X } from "lucide-react";
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
@@ -236,34 +236,40 @@ function ProductDetailContent() {
             <OrderTable orders={productOrders} preferenceKey="orderSortPreference" />
           </CustomerProvider>
         </CardContent>
-      </Card>
+      </div>
     </div>
 
     <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden">
-          <DialogHeader className="p-6 pb-2 shrink-0 border-b">
-            <DialogTitle>Product Image Gallery</DialogTitle>
+        <DialogContent className="max-w-screen h-screen md:max-w-6xl md:w-[95vw] md:h-[90vh] p-0 flex flex-col overflow-hidden bg-black/95 text-white border-none md:rounded-lg">
+          <DialogHeader className="p-4 md:p-6 shrink-0 border-b border-white/10 flex flex-row items-center justify-between">
+            <DialogTitle className="text-white">Product Gallery</DialogTitle>
+             <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+                    <X className="h-5 w-5" />
+                </Button>
+            </DialogClose>
           </DialogHeader>
-          <div className="flex-1 relative min-h-0 w-full bg-black/5">
+          <div className="flex-1 relative w-full h-full">
             <Carousel
               opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
-              className="w-full h-full"
+              className="w-full h-full flex flex-col"
             >
               <CarouselContent className="h-full">
                 {allImageAttachments.map((att, index) => (
                   <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full p-2 md:p-6 flex items-center justify-center">
+                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
                       <Image
                         src={att.url}
                         alt={att.fileName}
                         fill
                         className="object-contain"
-                        sizes="(max-width: 768px) 100vw, 80vw"
+                        sizes="100vw"
+                        priority
                       />
                     </div>
-                    <div className="flex justify-between items-center bg-background p-4 border-t shrink-0">
+                    <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
                       <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
-                      <Button variant="outline" size="sm" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
+                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
                         <Download className="mr-2 h-4 w-4" />
                         Download
                       </Button>
@@ -271,15 +277,10 @@ function ProductDetailContent() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-4 opacity-70 hover:opacity-100" />
-              <CarouselNext className="right-4 opacity-70 hover:opacity-100" />
+              <CarouselPrevious className="left-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
+              <CarouselNext className="right-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
             </Carousel>
           </div>
-           <DialogFooter className="p-4 border-t bg-muted shrink-0">
-                <DialogClose asChild>
-                    <Button variant="outline">Close</Button>
-                </DialogClose>
-            </DialogFooter>
         </DialogContent>
     </Dialog>
     </>
