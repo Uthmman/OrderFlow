@@ -417,12 +417,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (selectedCustomer && selectedCustomer.location.town && !getValues('location.town')) setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
   }, [selectedCustomer, setValue, getValues]);
   
-  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), [watchedProducts]), [watchedProducts]);
+  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
   useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
 
   const renderFilePreview = (attachment: OrderAttachment) => {
-    const isImage = attachment.fileName?.match(/.(jpeg|jpg|gif|png|webp)$/i);
-    const isAudio = attachment.fileName?.match(/.(mp3|wav|ogg|webm)$/i);
+    const isImage = attachment.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+    const isAudio = attachment.fileName?.match(/\.(mp3|wav|ogg|webm)$/i);
     return (
         <div key={attachment.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">

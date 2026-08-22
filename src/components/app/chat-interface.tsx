@@ -12,16 +12,15 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, File as FileIcon, Download, Clock, X } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, File as FileIcon, Download, Clock, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
-import { useState, useRef, useOptimistic, useTransition } from "react"
+import { useState, useRef, useOptimistic, useTransition, useEffect } from "react"
 import Image from "next/image"
 import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import { compressImage, downloadFile } from "@/lib/utils"
 import { Dialog, DialogContent, DialogClose, DialogTitle, DialogHeader } from "../ui/dialog"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "../ui/carousel"
 import { v4 as uuidv4 } from "uuid"
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
@@ -101,6 +100,97 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
     </div>
 );
 
+/**
+ * A modern, responsive fullscreen image gallery component.
+ */
+function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
+  
+  useEffect(() => {
+    if (open) setCurrentIndex(startIndex);
+  }, [open, startIndex]);
+
+  if (!images || images.length === 0) return null;
+
+  const currentImage = images[currentIndex];
+
+  const goNext = () => setCurrentIndex((prev) => (prev + 1) % images.length);
+  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/98 text-white overflow-hidden flex flex-col">
+        <DialogHeader className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+          <div className="flex flex-col text-left">
+            <DialogTitle className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
+              {currentImage.fileName}
+            </DialogTitle>
+            <p className="text-[10px] text-white/60">{currentIndex + 1} of {images.length}</p>
+          </div>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
+              <X className="h-6 w-6" />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+
+        <div className="flex-1 relative w-full h-full flex items-center justify-center">
+          {images.length > 1 && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={goPrev}
+                className="absolute left-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={goNext}
+                className="absolute right-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+            </>
+          )}
+
+          <div className="relative w-full h-full p-4 md:p-12">
+            <Image
+              src={currentImage.url}
+              alt={currentImage.fileName}
+              fill
+              className="object-contain"
+              priority
+              sizes="100vw"
+            />
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent gap-4">
+           <div className="flex-1 md:hidden flex justify-center gap-8">
+              <Button variant="ghost" size="icon" onClick={goPrev} disabled={images.length <= 1} className="text-white">
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={goNext} disabled={images.length <= 1} className="text-white">
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+           </div>
+           <div className="hidden md:block flex-1" />
+           <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            onClick={() => downloadFile(currentImage.url, currentImage.fileName)}
+           >
+             <Download className="mr-2 h-4 w-4" /> Download
+           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function ChatInterface({ order }: { order: Order }) {
   const { updateOrder } = useOrders();
@@ -235,17 +325,12 @@ export function ChatInterface({ order }: { order: Order }) {
             } else if (currentFile) {
                 newFile = currentFile;
             }
-            await updateOrder(order, { text: textToSend, file: newFile });
+            await updateOrder({ id: order.id }, { text: textToSend, file: newFile });
         } catch (error) {
             setInputValue(textToSend);
         }
     });
   };
-
-  const handleDownloadInGallery = (e: React.MouseEvent, url: string, fileName: string) => {
-      e.preventDefault();
-      downloadFile(url, fileName);
-  }
 
   return (
     <>
@@ -294,33 +379,13 @@ export function ChatInterface({ order }: { order: Order }) {
         </form>
       </CardFooter>
     </Card>
-      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-screen h-screen md:max-w-6xl md:w-[95vw] md:h-[90vh] p-0 flex flex-col overflow-hidden bg-black/95 text-white border-none md:rounded-lg">
-          <DialogHeader className="p-4 md:p-6 shrink-0 border-b border-white/10 flex flex-row items-center justify-between">
-            <DialogTitle className="text-white">Chat Gallery</DialogTitle>
-             <DialogClose asChild><Button variant="ghost" size="icon" className="text-white hover:bg-white/10"><X className="h-5 w-5" /></Button></DialogClose>
-          </DialogHeader>
-          <div className="flex-1 relative w-full h-full">
-            <Carousel opts={{ align: "start", loop: true, startIndex: galleryStartIndex }} className="w-full h-full flex flex-col">
-              <CarouselContent className="h-full">
-                {imageMessages.map((att, index) => (
-                  <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
-                      <Image src={att.url} alt={att.fileName} fill className="object-contain" sizes="100vw" priority />
-                    </div>
-                    <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
-                      <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
-                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownloadInGallery(e, att.url, att.fileName)}><Download className="mr-2 h-4 w-4" /> Download</Button>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
-              <CarouselNext className="right-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
-            </Carousel>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
+      <ImageGallery 
+        open={galleryOpen} 
+        onOpenChange={setGalleryOpen} 
+        images={imageMessages} 
+        startIndex={galleryStartIndex} 
+      />
     </>
   )
 }

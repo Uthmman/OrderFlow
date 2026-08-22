@@ -1,14 +1,14 @@
 
 "use client";
 
-import { use, useState, useRef, useEffect, Suspense, useOptimistic, useTransition } from "react";
+import { useState, useRef, useEffect, Suspense, useOptimistic, useTransition } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { cn } from "@/lib/utils";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -400,43 +399,35 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                                 <Palette className="h-4 w-4 text-muted-foreground mt-1"/>
                                 <div className="w-full">
                                     <span className="text-sm">Colors:</span>
-                                    <Carousel opts={{ align: "start", dragFree: true }} className="w-full mt-2">
-                                        <CarouselContent className="-ml-2">
+                                    <ScrollArea className="w-full mt-2 whitespace-nowrap">
+                                        <div className="flex gap-4 pb-4">
                                             {product.colors.map(colorName => {
                                                 const colorOption = allColorOptions.find(c => c.name === colorName);
                                                 if (!colorOption) return (
-                                                    <CarouselItem key={colorName}  className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                        <Badge variant="secondary">{colorName}</Badge>
-                                                    </CarouselItem>
+                                                    <Badge key={colorName} variant="secondary">{colorName}</Badge>
                                                 );
 
                                                 if ('imageUrl' in colorOption) {
                                                     return (
-                                                        <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                            <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                                <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
-                                                                <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                            </div>
-                                                        </CarouselItem>
+                                                        <div key={colorName} className="flex flex-col items-center gap-2 min-w-[100px]" title={colorName}>
+                                                            <Image src={colorOption.imageUrl} alt={colorName} width={100} height={100} className="rounded-md object-cover h-24 w-full"/>
+                                                            <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                        </div>
                                                     )
                                                 }
 
                                                 if ('colorValue' in colorOption) {
                                                     return (
-                                                        <CarouselItem key={colorName} className="basis-1/3 md:basis-1/4 lg:basis-1/5 pl-2">
-                                                            <div className="flex flex-col items-center gap-2" title={colorName}>
-                                                                <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
-                                                                <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
-                                                            </div>
-                                                        </CarouselItem>
+                                                        <div key={colorName} className="flex flex-col items-center gap-2 min-w-[100px]" title={colorName}>
+                                                            <div style={{ backgroundColor: colorOption.colorValue }} className="h-24 w-full rounded-md border" />
+                                                            <span className="text-xs font-medium text-center truncate w-full">{colorName}</span>
+                                                        </div>
                                                     )
                                                 }
                                                 return null;
                                             })}
-                                        </CarouselContent>
-                                        <CarouselPrevious className="ml-12" />
-                                        <CarouselNext className="mr-12" />
-                                    </Carousel>
+                                        </div>
+                                    </ScrollArea>
                                 </div>
                             </div>
                         )}
@@ -992,6 +983,98 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
     );
 }
 
+/**
+ * A modern, responsive fullscreen image gallery component.
+ */
+function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
+  
+  useEffect(() => {
+    if (open) setCurrentIndex(startIndex);
+  }, [open, startIndex]);
+
+  if (!images || images.length === 0) return null;
+
+  const currentImage = images[currentIndex];
+
+  const goNext = () => setCurrentIndex((prev) => (prev + 1) % images.length);
+  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/98 text-white overflow-hidden flex flex-col">
+        <DialogHeader className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+          <div className="flex flex-col">
+            <DialogTitle className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
+              {currentImage.fileName}
+            </DialogTitle>
+            <p className="text-[10px] text-white/60">{currentIndex + 1} of {images.length}</p>
+          </div>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
+              <X className="h-6 w-6" />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+
+        <div className="flex-1 relative w-full h-full flex items-center justify-center">
+          {images.length > 1 && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={goPrev}
+                className="absolute left-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={goNext}
+                className="absolute right-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+            </>
+          )}
+
+          <div className="relative w-full h-full p-4 md:p-12">
+            <Image
+              src={currentImage.url}
+              alt={currentImage.fileName}
+              fill
+              className="object-contain"
+              priority
+              sizes="100vw"
+            />
+          </div>
+        </div>
+
+        <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent gap-4">
+           <div className="flex-1 md:hidden flex justify-center gap-8">
+              <Button variant="ghost" size="icon" onClick={goPrev} disabled={images.length <= 1} className="text-white">
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={goNext} disabled={images.length <= 1} className="text-white">
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+           </div>
+           <div className="hidden md:block flex-1" />
+           <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
+            onClick={() => downloadFile(currentImage.url, currentImage.fileName)}
+           >
+             <Download className="mr-2 h-4 w-4" /> Download
+           </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function OrderDetailPageContent() {
   const params = useParams();
   const id = params.id as string;
@@ -1146,12 +1229,6 @@ function OrderDetailPageContent() {
             setGalleryOpen(true);
         }
     }
-
-    const handleDownload = (e: React.MouseEvent, url: string, fileName: string) => {
-        e.preventDefault();
-        e.stopPropagation();
-        downloadFile(url, fileName);
-    };
 
 
   const orderDetailsContent = (
@@ -1432,49 +1509,12 @@ function OrderDetailPageContent() {
             </div>
         </div>
       
-      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-screen h-screen md:max-w-6xl md:w-[95vw] md:h-[90vh] p-0 flex flex-col overflow-hidden bg-black/95 text-white border-none md:rounded-lg">
-          <DialogHeader className="p-4 md:p-6 shrink-0 border-b border-white/10 flex flex-row items-center justify-between">
-            <DialogTitle className="text-white">Image Gallery</DialogTitle>
-             <DialogClose asChild>
-                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
-                    <X className="h-5 w-5" />
-                </Button>
-            </DialogClose>
-          </DialogHeader>
-          <div className="flex-1 relative w-full h-full">
-            <Carousel
-              opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
-              className="w-full h-full flex flex-col"
-            >
-              <CarouselContent className="h-full">
-                {allImageAttachments.map((att, index) => (
-                  <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full flex items-center justify-center p-2">
-                      <Image
-                        src={att.url}
-                        alt={att.fileName}
-                        fill
-                        className="object-contain"
-                        sizes="100vw"
-                        priority
-                      />
-                    </div>
-                    <div className="flex justify-between items-center bg-black/50 backdrop-blur p-4 border-t border-white/10 shrink-0">
-                      <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
-                      <Button variant="outline" size="sm" className="bg-transparent border-white/20 text-white hover:bg-white/10" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
-                        <Download className="mr-2 h-4 w-4" /> Download
-                      </Button>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
-              <CarouselNext className="right-4 bg-black/20 border-white/20 text-white hover:bg-black/40" />
-            </Carousel>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ImageGallery 
+        open={galleryOpen} 
+        onOpenChange={setGalleryOpen} 
+        images={allImageAttachments} 
+        startIndex={galleryStartIndex} 
+      />
     </div>
     <FinishDesignDialog 
         open={finishDesignDialogOpen}
