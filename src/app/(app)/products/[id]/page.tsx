@@ -1,14 +1,13 @@
-
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, notFound, useParams } from "next/navigation";
 import { useProducts } from "@/hooks/use-products";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText } from "lucide-react";
+import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText, Eye } from "lucide-react";
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
@@ -16,8 +15,11 @@ import { useOrders } from "@/hooks/use-orders";
 import { CustomerProvider } from "@/hooks/use-customers";
 import { downloadFile } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
+function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isPdf = attachment.fileName.toLowerCase().endsWith('.pdf');
     const { toast } = useToast();
@@ -52,15 +54,26 @@ function AttachmentCard({ attachment }: { attachment: OrderAttachment }) {
 
     return (
         <div className="w-full">
-            <Card className="hover:bg-muted/50 transition-colors group">
+            <Card className="hover:bg-muted/50 transition-colors group cursor-pointer" onClick={() => isImage && onImageClick(attachment)}>
                 <CardContent className="p-3 flex items-center gap-3">
-                    <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0">
-                        {isImage ? <ImageIcon className="h-5 w-5" /> : isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <File className="h-5 w-5" />}
+                    <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative overflow-hidden">
+                        {isImage ? (
+                            <Image src={attachment.url} alt={attachment.fileName} fill className="object-cover" />
+                        ) : isPdf ? (
+                            <FileText className="h-5 w-5 text-red-600" />
+                        ) : (
+                            <File className="h-5 w-5" />
+                        )}
+                        {isImage && (
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <Eye className="h-4 w-4 text-white" />
+                            </div>
+                        )}
                     </div>
                     <div className="flex-grow truncate">
                         <p className="text-sm font-medium truncate">{attachment.fileName}</p>
                     </div>
-                    <div className="flex items-center gap-0.5">
+                    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                         <Button 
                             variant="ghost" 
                             size="icon" 
@@ -106,6 +119,9 @@ function ProductDetailContent() {
   const { getProductById, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
 
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+
   if (productsLoading || ordersLoading) {
     return <div className="text-center py-16">Loading product details...</div>;
   }
@@ -118,13 +134,29 @@ function ProductDetailContent() {
 
   const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
+  const allImageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   
   const productOrders = orders.filter(order => 
     order.products && Array.isArray(order.products) && order.products.some(p => p.productName === product.productName)
   );
 
+  const handleImageClick = (clickedAttachment: OrderAttachment) => {
+    const index = allImageAttachments.findIndex(img => img.url === clickedAttachment.url);
+    if (index !== -1) {
+        setGalleryStartIndex(index);
+        setGalleryOpen(true);
+    }
+  };
+
+  const handleDownload = (e: React.MouseEvent, url: string, fileName: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    downloadFile(url, fileName);
+  };
+
 
   return (
+    <>
     <div className="flex flex-col gap-8">
        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
             <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto"><ArrowLeft className="mr-2"/> Back to Catalog</Button>
@@ -169,7 +201,10 @@ function ProductDetailContent() {
         <div className="md:col-span-2 space-y-8">
           <Card>
             <CardHeader className="p-0">
-                <div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative">
+                <div 
+                    className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer"
+                    onClick={() => primaryAttachment && handleImageClick(primaryAttachment)}
+                >
                     {primaryAttachment?.url ? (
                         <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" />
                     ) : (
@@ -181,7 +216,7 @@ function ProductDetailContent() {
                 <h3 className="font-semibold mb-4">All Attachments</h3>
                 {allAttachments.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att}/>)}
+                        {allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att} onImageClick={handleImageClick}/>)}
                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground text-center py-8">No attachments for this product.</p>
@@ -202,6 +237,51 @@ function ProductDetailContent() {
         </CardContent>
       </Card>
     </div>
+
+    <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col">
+          <DialogHeader className="p-6 pb-2 shrink-0 border-b">
+            <DialogTitle>Product Image Gallery</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 relative min-h-0 w-full bg-black/5">
+            <Carousel
+              opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
+              className="w-full h-full"
+            >
+              <CarouselContent className="h-full">
+                {allImageAttachments.map((att, index) => (
+                  <CarouselItem key={index} className="h-full flex flex-col p-0">
+                    <div className="flex-1 relative w-full h-full p-2 md:p-6">
+                      <Image
+                        src={att.url}
+                        alt={att.fileName}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 80vw"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center bg-background p-4 border-t shrink-0">
+                      <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
+                      <Button variant="outline" size="sm" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-4" />
+              <CarouselNext className="right-4" />
+            </Carousel>
+          </div>
+           <DialogFooter className="p-4 border-t bg-muted shrink-0">
+                <DialogClose asChild>
+                    <Button variant="outline">Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

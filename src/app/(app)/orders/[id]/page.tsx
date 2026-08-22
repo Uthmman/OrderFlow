@@ -229,6 +229,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                             <style>
                                 @media print {
                                     body { -webkit-print-color-adjust: exact; }
+                                    .no-print { display: none; }
                                 }
                             </style>
                         </head>
@@ -252,6 +253,7 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
     
     const prepaid = order.prepaidAmount || 0;
     const balance = (order.incomeAmount || 0) - prepaid;
+    const qrValue = `ORDERFLOW-ORDER:${order.id}`;
 
     return (
         <DialogContent className="max-w-4xl p-0">
@@ -351,9 +353,21 @@ function OrderReceiptDialog({ order, customer }: { order: Order, customer: Custo
                         Thank you for your business!
                         </p>
                     </div>
-                    <footer className="text-center mt-12 text-xs text-slate-400 border-t pt-4">
-                        <p>OrderFlow Inc. | 123 Business Rd, Commerce City, USA</p>
-                        <p>This is a computer-generated receipt and does not require a signature.</p>
+                    <footer className="mt-12 border-t pt-6">
+                        <div className="flex justify-between items-end">
+                            <div className="space-y-1">
+                                <h4 className="font-bold text-sm uppercase tracking-wider text-slate-500">Order Identification</h4>
+                                <p className="text-lg font-bold">{order.uniqueName}</p>
+                                <p className="text-sm text-slate-500">Created: {formatTimestamp(order.creationDate)}</p>
+                                <p className="text-[10px] text-slate-400 mt-4 italic">© OrderFlow Manufacturing Management System | verified doc</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                                <div className="p-1 bg-white border rounded">
+                                    <QRCodeSVG value={qrValue} size={80} level="M" />
+                                </div>
+                                <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest">{order.id.slice(-8)}</span>
+                            </div>
+                        </div>
                     </footer>
                 </div>
             </ScrollArea>
@@ -1645,28 +1659,29 @@ function OrderDetailPageContent() {
         </div>
       
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-6xl p-0">
-          <DialogHeader className="p-6 pb-2">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col">
+          <DialogHeader className="p-6 pb-2 shrink-0 border-b">
             <DialogTitle>Image Gallery</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-[80vh] w-full">
+          <div className="flex-1 relative min-h-0 w-full bg-black/5">
             <Carousel
               opts={{ align: "start", loop: true, startIndex: galleryStartIndex }}
-              className="w-full"
+              className="w-full h-full"
             >
-              <CarouselContent>
+              <CarouselContent className="h-full">
                 {allImageAttachments.map((att, index) => (
-                  <CarouselItem key={index}>
-                    <div className="relative h-[calc(80vh-4rem)]">
+                  <CarouselItem key={index} className="h-full flex flex-col p-0">
+                    <div className="flex-1 relative w-full h-full p-2 md:p-6">
                       <Image
                         src={att.url}
                         alt={att.fileName}
                         fill
                         className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 80vw"
                       />
                     </div>
-                    <div className="flex justify-between items-center bg-background p-2 border-t">
-                      <p className="text-sm text-muted-foreground">{att.fileName}</p>
+                    <div className="flex justify-between items-center bg-background p-4 border-t shrink-0">
+                      <p className="text-sm font-medium truncate max-w-[200px] md:max-w-md">{att.fileName}</p>
                       <Button variant="outline" size="sm" onClick={(e) => handleDownload(e, att.url, att.fileName)}>
                         <Download className="mr-2 h-4 w-4" />
                         Download
@@ -1675,11 +1690,11 @@ function OrderDetailPageContent() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
+              <CarouselPrevious className="left-4" />
+              <CarouselNext className="right-4" />
             </Carousel>
-          </ScrollArea>
-           <DialogFooter className="p-4 border-t bg-muted">
+          </div>
+           <DialogFooter className="p-4 border-t bg-muted shrink-0">
                 <DialogClose asChild>
                     <Button variant="outline">Close</Button>
                 </DialogClose>

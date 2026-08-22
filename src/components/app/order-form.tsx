@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -31,8 +30,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit } from "lucide-react"
-import { cn, formatToYyyyMmDd } from "@/lib/utils"
+import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit, QrCode } from "lucide-react"
+import { cn, formatToYyyyMmDd, formatTimestamp } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderAttachment, Customer, OrderStatus, ProductCategory, Material, Product } from "@/lib/types"
@@ -66,6 +65,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
+import { QRCodeSVG } from "qrcode.react";
 
 const productSchema = z.object({
   id: z.string(),
@@ -855,6 +855,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const finalTitle = getStepTitle();
   const finalSteps = isProductCreationMode ? [3, 4, 5, 6, 7, 8] : STEPS.map(s => s.id);
   const finalStepNumber = finalSteps[finalSteps.length - 1];
+  const qrValue = initialOrder ? `ORDERFLOW-ORDER:${initialOrder.id}` : "";
 
   return (
     <>
@@ -1746,7 +1747,31 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4">
+          {initialOrder && (
+              <div className="mt-12 p-6 rounded-xl border border-dashed bg-muted/40 flex flex-col sm:flex-row justify-between items-center gap-6 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                  <div className="text-center sm:text-left space-y-1">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 flex items-center justify-center sm:justify-start gap-1">
+                          <Hash className="h-3 w-3" /> Order Identity
+                      </p>
+                      <h4 className="text-xl font-bold font-headline">{initialOrder.uniqueName || "Draft Order"}</h4>
+                      <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2">
+                          <CalendarIcon className="h-3.5 w-3.5" />
+                          Created: {formatTimestamp(initialOrder.creationDate)}
+                      </p>
+                  </div>
+                  <div className="flex items-center gap-4 bg-white p-3 rounded-lg border shadow-sm ring-4 ring-muted/20">
+                      <div className="space-y-1 text-right hidden sm:block">
+                          <p className="text-[9px] font-mono font-black text-slate-300 uppercase tracking-tighter">System Serial</p>
+                          <p className="text-sm font-mono font-bold text-slate-700">{initialOrder.id.slice(-12).toUpperCase()}</p>
+                      </div>
+                      <div className="p-1 bg-white">
+                          <QRCodeSVG value={qrValue} size={72} level="M" />
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4 z-10">
               <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
                   {currentStep > 1 && (
