@@ -462,7 +462,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                                     key={att.storagePath} 
                                     att={att} 
                                     onDelete={() => onAttachmentDelete(att)}
-                                    onImageClick={onImageClick}
+                                    onImageClick={handleImageClick}
                                 />
                             ))}
                         </CardContent>
@@ -480,7 +480,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                                     key={att.storagePath} 
                                     att={att} 
                                     onDelete={() => onDesignAttachmentDelete(att)}
-                                    onImageClick={onImageClick}
+                                    onImageClick={handleImageClick}
                                 />
                             ))}
                         </CardContent>
@@ -975,7 +975,7 @@ function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenCha
     };
 
     return (
-        <Dialog open={open} onOpenChange={setQrDialogOpen}>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
                     <DialogTitle>Order QR Code</DialogTitle>
