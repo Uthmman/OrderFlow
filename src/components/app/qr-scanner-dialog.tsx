@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { Scan, Camera, XCircle, Loader2 } from "lucide-react";
+import { Scan, XCircle, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 
 interface QRScannerDialogProps {
@@ -23,6 +23,7 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
   const router = useRouter();
   const { toast } = useToast();
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -31,21 +32,28 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
     if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
       try {
         await html5QrCodeRef.current.stop();
+        // After stopping, we clear the internal state of the library
+        await html5QrCodeRef.current.clear();
       } catch (err) {
-        console.error("Failed to stop scanner", err);
+        console.warn("Clean stop failed (likely already unmounted or stopping):", err);
       }
     }
     setIsScanning(false);
   };
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     if (open) {
       setCameraError(null);
       
       const startScanner = async () => {
+        // Ensure the ref is available
+        if (!readerRef.current) return;
+
         try {
-          // Initialize the core library instance
-          const html5QrCode = new Html5Qrcode("qr-reader");
+          // Initialize the core library instance using the DOM element ref
+          const html5QrCode = new Html5Qrcode(readerRef.current.id);
           html5QrCodeRef.current = html5QrCode;
 
           const config = { 
@@ -60,11 +68,9 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
             (decodedText) => {
               const trimmedText = decodedText.trim();
               
-              // Validate proprietary format
               if (trimmedText.startsWith("ORDERFLOW-ORDER:")) {
                 const orderId = trimmedText.split(":")[1];
                 if (orderId) {
-                  // Vibrate if supported for feedback
                   if (navigator.vibrate) navigator.vibrate(100);
                   
                   stopScanner().then(() => {
@@ -80,8 +86,8 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
                 });
               }
             },
-            (errorMessage) => {
-              // Parse errors are expected frequently while searching for a code, we ignore them
+            () => {
+              // Parse errors are expected while searching
             }
           );
           setIsScanning(true);
@@ -89,7 +95,7 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
           console.error("Camera start error:", err);
           let message = "Could not access camera.";
           if (err?.name === "NotAllowedError") {
-            message = "Camera access denied. Please enable permissions in your browser settings.";
+            message = "Camera access denied. Please enable permissions.";
           } else if (err?.name === "NotFoundError") {
             message = "No camera found on this device.";
           }
@@ -98,16 +104,14 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
         }
       };
 
-      // Slight delay to ensure the Dialog is fully rendered in the DOM
-      const timer = setTimeout(startScanner, 400);
-      
-      return () => {
-        clearTimeout(timer);
-        stopScanner();
-      };
-    } else {
-      stopScanner();
+      // Delay to ensure Dialog transition is done and DOM is stable
+      timeoutId = setTimeout(startScanner, 450);
     }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      stopScanner();
+    };
   }, [open, router, onOpenChange, toast]);
 
   return (
@@ -122,8 +126,10 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center justify-center p-4">
+          {/* We use a fixed ID for the library but rely on readerRef for lifecycle */}
           <div 
-            id="qr-reader" 
+            ref={readerRef}
+            id="orderflow-qr-reader" 
             className="w-full aspect-square overflow-hidden rounded-xl border-2 border-dashed bg-black relative flex items-center justify-center"
           >
              {!isScanning && !cameraError && (
