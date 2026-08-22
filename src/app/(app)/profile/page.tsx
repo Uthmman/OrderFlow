@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { useUser, useUsers } from "@/hooks/use-user";
-import { Loader2, UploadCloud, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Loader2, UploadCloud, ShieldAlert, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
 import { useRef, useState } from "react";
@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 const profileFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -72,9 +73,6 @@ export default function ProfilePage() {
     const [passwordInput, setPasswordInput] = useState("");
     const [isVerifying, setIsVerifying] = useState(false);
 
-    // Primary admin email is used as a master key to ensure they can always switch roles
-    const isPrimaryAdmin = authUser?.email === 'zenbabfurniture@gmail.com';
-
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileFormSchema),
         values: {
@@ -117,7 +115,7 @@ export default function ProfilePage() {
         setIsSubmitting(true);
         try {
             await updateUserProfile(user.id, data);
-            form.reset(data); // Resets the dirty state
+            form.reset(data); 
              toast({
                 title: "Profile Updated",
                 description: "Your changes have been saved.",
@@ -144,8 +142,6 @@ export default function ProfilePage() {
         if (!user || !pendingRole) return;
         setIsVerifying(true);
         
-        // This password would ideally be checked against a Firestore value, 
-        // but per requirements, we use the specified string.
         if (passwordInput === '12345678') {
             try {
                 await updateUserRole(user.id, pendingRole);
@@ -183,11 +179,20 @@ export default function ProfilePage() {
 
     return (
         <div className="flex flex-col gap-8">
-            <div>
-                <h1 className="text-3xl font-bold font-headline tracking-tight">My Profile</h1>
-                <p className="text-muted-foreground">
-                    Update your personal information and preferences.
-                </p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold font-headline tracking-tight">My Profile</h1>
+                    <p className="text-muted-foreground">
+                        Update your personal information and preferences.
+                    </p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <Badge variant="outline" className="h-8 px-3 flex gap-2">
+                        <Briefcase className="h-4 w-4" />
+                        {user.workerType || 'Daily'} Worker
+                    </Badge>
+                    <p className="text-[10px] text-muted-foreground italic">Classification set by Admin</p>
+                </div>
             </div>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-2xl">
@@ -348,7 +353,6 @@ export default function ProfilePage() {
                         </CardContent>
                     </Card>
                     
-                    {/* POV / Role Switcher - Now available for everyone with password */}
                     <Card className="border-amber-200 bg-amber-50/50">
                         <CardHeader>
                             <CardTitle className="text-amber-700 flex items-center gap-2">
@@ -374,9 +378,6 @@ export default function ProfilePage() {
                                         <SelectItem value="Pending">Pending</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <p className="text-[10px] text-muted-foreground mt-2 italic">
-                                    Switching roles allows you to test permissions and features restricted to other team members.
-                                </p>
                             </div>
                         </CardContent>
                     </Card>
@@ -396,7 +397,7 @@ export default function ProfilePage() {
                     <DialogHeader>
                         <DialogTitle>Security Authorization</DialogTitle>
                         <DialogDescription>
-                            Please enter the security password to switch to the <strong>{pendingRole}</strong> role.
+                            Enter the security password to switch to the <strong>{pendingRole}</strong> role.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex items-center space-x-2 py-4">

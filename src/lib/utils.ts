@@ -40,7 +40,6 @@ export function formatTimestamp(timestamp: any): string {
     return 'Invalid Date';
   }
 
-  // Handles Firestore Timestamp, plain objects { seconds, nanoseconds }, and JS Date
   let date: Date;
   if (timestamp instanceof Date) {
     date = timestamp;
@@ -62,26 +61,23 @@ export function formatTimestamp(timestamp: any): string {
 }
 
 
-// Helper to format a Date object to "yyyy-MM-dd" for input[type=date]
 export function formatToYyyyMmDd(date: Date | any): string {
   if (!date) return '';
   let d: Date;
 
   if (date instanceof Date) {
     d = date;
-  } else if (date && typeof date.seconds === 'number') { // Handles Firestore Timestamp & plain object
+  } else if (date && typeof date.seconds === 'number') { 
     d = new Date(date.seconds * 1000);
   } else if (typeof date === 'string') {
-    // For ISO strings, new Date() is fine. For 'yyyy-mm-dd', we need to adjust for timezone.
     const parsedDate = new Date(date);
     if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        // This creates the date in UTC, preventing timezone shifts from the local browser time
         d = new Date(parsedDate.getUTCFullYear(), parsedDate.getUTCMonth(), parsedDate.getUTCDate());
     } else {
         d = parsedDate;
     }
   } else {
-    return ''; // Invalid format
+    return ''; 
   }
   
   if (isNaN(d.getTime())) return '';
@@ -94,7 +90,6 @@ export function formatToYyyyMmDd(date: Date | any): string {
 }
 
 
-// Helper function to compress an image file on the client
 export const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
         const MAX_WIDTH = 1920;
@@ -173,11 +168,9 @@ export function formatProductDisplay(products: Product[] | undefined): string {
 
 /**
  * Robustly downloads a file by fetching it as a blob and creating an object URL.
- * Falls back to opening in a new tab if CORS prevents programmatic download.
  */
 export async function downloadFile(url: string, fileName: string) {
   try {
-    // Attempt fetch. This works if CORS is configured on the bucket.
     const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
     
@@ -187,15 +180,19 @@ export async function downloadFile(url: string, fileName: string) {
     const link = document.createElement('a');
     link.href = objectUrl;
     link.download = fileName;
+    
+    // Add to DOM temporarily to ensure child relationship is valid for programmatic clicks
     document.body.appendChild(link);
     link.click();
     
-    // Clean up
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 100);
+    // Safety check before removal
+    if (document.body.contains(link)) {
+        document.body.removeChild(link);
+    }
+    
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 200);
   } catch (error) {
-    // Fallback: Open in a new tab if blob download fails (likely due to CORS)
-    // We omit logging console.error here to prevent triggering Next.js dev overlays for a handled case
+    // Fallback for CORS restricted or failed fetches
     window.open(url, '_blank');
   }
 }

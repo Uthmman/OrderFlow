@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -10,7 +9,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, UserPlus } from "lucide-react"
+import { MoreHorizontal, UserPlus, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -39,7 +38,7 @@ import {
 import { AppUser, Role } from "@/lib/types"
 
 function UserActions({ user: targetUser }: { user: AppUser }) {
-    const { user, updateUserRole } = useUsers();
+    const { user, updateUserRole, updateUserProfile } = useUsers();
 
     if (user?.role !== 'Admin' || targetUser.email === 'zenbabfurniture@gmail.com') {
         return null;
@@ -47,6 +46,10 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
 
     const handleRoleChange = (role: Role) => {
         updateUserRole(targetUser.id, role);
+    }
+
+    const handleWorkerTypeChange = (type: 'Monthly' | 'Daily') => {
+        updateUserProfile(targetUser.id, { workerType: type });
     }
     
     return (
@@ -58,9 +61,9 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Change Role</DropdownMenuLabel>
+            <DropdownMenuLabel>Role</DropdownMenuLabel>
              <Select onValueChange={handleRoleChange} defaultValue={targetUser.role}>
-                <SelectTrigger className="w-[180px] mx-2">
+                <SelectTrigger className="w-[180px] mx-2 h-8">
                     <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -69,6 +72,17 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
                     <SelectItem value="Sales">Sales</SelectItem>
                     <SelectItem value="Designer">Designer</SelectItem>
                     <SelectItem value="Pending">Pending</SelectItem>
+                </SelectContent>
+            </Select>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Worker Type</DropdownMenuLabel>
+            <Select onValueChange={handleWorkerTypeChange} defaultValue={targetUser.workerType || 'Daily'}>
+                <SelectTrigger className="w-[180px] mx-2 h-8">
+                    <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Daily">Daily Worker</SelectItem>
+                    <SelectItem value="Monthly">Monthly Worker</SelectItem>
                 </SelectContent>
             </Select>
           </DropdownMenuContent>
@@ -113,6 +127,19 @@ export const columns: ColumnDef<AppUser>[] = [
     cell: ({ row }) => {
         const role = row.getValue("role") as Role;
         return <Badge variant={roleVariantMap[role]}>{role}</Badge>
+    },
+  },
+  {
+    accessorKey: "workerType",
+    header: "Worker Type",
+    cell: ({ row }) => {
+        const type = row.getValue("workerType") as string || 'Daily';
+        return (
+            <Badge variant="outline" className="flex w-fit items-center gap-1">
+                <Briefcase className="h-3 w-3" />
+                {type}
+            </Badge>
+        )
     },
   },
   {
@@ -165,7 +192,7 @@ function MobileUserList({ users }: { users: AppUser[] }) {
                                 </Avatar>
                                 <div>
                                     <CardTitle className="text-base font-bold">{user.name}</CardTitle>
-                                    <CardDescription>{user.email}</CardDescription>
+                                    <CardDescription className="truncate max-w-[180px]">{user.email}</CardDescription>
                                 </div>
                             </div>
                            <div onClick={(e) => e.preventDefault()}>
@@ -173,8 +200,9 @@ function MobileUserList({ users }: { users: AppUser[] }) {
                            </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="text-sm space-y-2">
+                    <CardContent className="text-sm space-y-2 flex items-center justify-between">
                         <Badge variant={roleVariantMap[user.role]}>{user.role}</Badge>
+                        <Badge variant="outline">{user.workerType || 'Daily'}</Badge>
                     </CardContent>
                  </Card>
             ))}
@@ -185,7 +213,6 @@ function MobileUserList({ users }: { users: AppUser[] }) {
 
 export default function UsersPage() {
     const { users, loading, user: currentUser } = useUsers();
-    const router = useRouter();
 
     const table = useReactTable({
         data: users,
@@ -197,7 +224,11 @@ export default function UsersPage() {
     })
 
     if (loading) {
-        return <div>Loading...</div>
+        return (
+            <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
     }
 
     if (currentUser?.role !== 'Admin') {
@@ -217,9 +248,9 @@ export default function UsersPage() {
     return (
         <div className="flex flex-col gap-8">
              <div>
-                <h1 className="text-3xl font-bold font-headline tracking-tight">Users</h1>
+                <h1 className="text-3xl font-bold font-headline tracking-tight">Team Management</h1>
                 <p className="text-muted-foreground">
-                    Manage all users in the system.
+                    Manage team roles and worker classifications.
                 </p>
             </div>
             <div className="md:hidden">
