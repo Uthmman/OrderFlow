@@ -1690,7 +1690,7 @@ function OrderDetailPageContent() {
     <FinishDesignDialog 
         open={finishDesignDialogOpen}
         onOpenChange={setFinishDesignDialogOpen}
-        order={orderData}
+        order={orderData!}
         productIndex={0} /* Assuming one product per order for now for simplicity */
         onFinished={handleDesignFinished}
     />
