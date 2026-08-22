@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit, QrCode } from "lucide-react"
+import { Calendar as CalendarIcon, DollarSign, UserPlus, X, Loader2, Paperclip, UploadCloud, File as FileIcon, Trash2, Mic, Square, Download, Play, Pause, ArrowLeft, ArrowRight, User, Phone, MapPin, Ruler, Search, PlusCircle as PlusCircleIcon, Edit, QrCode, Hash } from "lucide-react"
 import { cn, formatToYyyyMmDd, formatTimestamp } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -793,7 +794,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             status: isProductCreationMode ? undefined : finalStatus,
             customerName: isProductCreationMode ? undefined : customerName,
             deadline: values.deadline,
-            creationDate: values.creationDate,
+            creationDate: values.deadline, // Fallback creation date if missing
             testDate: values.testDate,
         };
 
@@ -937,8 +938,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                           <CardTitle className="text-base">{selectedCustomer.name}</CardTitle>
                                       </CardHeader>
                                       <CardContent className="text-sm text-muted-foreground space-y-2">
-                                          <div className="flex items-center gap-2"><Phone/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
-                                          <div className="flex items-center gap-2"><MapPin/> {selectedCustomer.location.town}</div>
+                                          <div className="flex items-center gap-2"><Phone className="h-4 w-4"/> {selectedCustomer.phoneNumbers.find(p => p.type === 'Mobile')?.number}</div>
+                                          <div className="flex items-center gap-2"><MapPin className="h-4 w-4"/> {selectedCustomer.location.town}</div>
                                       </CardContent>
                                   </Card>
                               )}
@@ -1241,7 +1242,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                       onClick={isRecording ? stopRecording : startRecording}
                                       disabled={!initialOrder}
                                   >
-                                      {isRecording ? <Square className="mr-2"/> : <Mic className="mr-2" />}
+                                      {isRecording ? <Square className="mr-2 h-4 w-4"/> : <Mic className="mr-2 h-4 w-4" />}
                                       {isRecording ? 'Stop Recording' : 'Record Audio Memo'}
                                   </Button>
                               )}
@@ -1476,7 +1477,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                       <p className="text-sm text-muted-foreground">{product.category}</p>
                                   </div>
                                   <Button variant="outline" size="sm" onClick={() => handleEditProduct(index)}>
-                                      <Edit className="mr-2" /> Edit
+                                      <Edit className="mr-2 h-4 w-4" /> Edit
                                   </Button>
                               </div>
                           )
@@ -1486,7 +1487,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           <Separator />
                           <div className="flex flex-col sm:flex-row gap-2">
                             <Button type="button" variant="outline" onClick={handleAddAnotherProduct} className="w-full sm:w-auto">
-                              <PlusCircleIcon className="mr-2"/> Add Another Product
+                              <PlusCircleIcon className="mr-2 h-4 w-4"/> Add Another Product
                             </Button>
                           </div>
                         </>
@@ -1776,20 +1777,20 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <div className="flex items-center gap-2">
                   {currentStep > 1 && (
                       <Button variant="outline" type="button" onClick={prevStep}>
-                          <ArrowLeft className="mr-2" /> Back
+                          <ArrowLeft className="mr-2 h-4 w-4" /> Back
                       </Button>
                   )}
                   
                   {currentStep < finalStepNumber && currentStep !== 2 && currentStep !== 4 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmitting}>
                           {isSubmitting && currentStep === 1 ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
-                          Next <ArrowRight className="ml-2" />
+                          Next <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
 
                   {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
                       <Button type="button" onClick={() => startTransition(() => setCurrentStep(9))}>
-                          Continue to Final Steps <ArrowRight className="ml-2" />
+                          Continue to Final Steps <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
 

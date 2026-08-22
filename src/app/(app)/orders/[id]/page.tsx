@@ -1,3 +1,4 @@
+
 "use client";
 
 import { use, useState, useRef, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -478,7 +479,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                                     key={att.storagePath} 
                                     att={att} 
                                     onDelete={() => onAttachmentDelete(att)}
-                                    onImageClick={onImageClick}
+                                    onImageClick={handleImageClick}
                                 />
                             ))}
                         </CardContent>
@@ -496,7 +497,7 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                                     key={att.storagePath} 
                                     att={att} 
                                     onDelete={() => onDesignAttachmentDelete(att)}
-                                    onImageClick={onImageClick}
+                                    onImageClick={handleImageClick}
                                 />
                             ))}
                         </CardContent>
@@ -1659,7 +1660,7 @@ function OrderDetailPageContent() {
         </div>
       
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col">
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden">
           <DialogHeader className="p-6 pb-2 shrink-0 border-b">
             <DialogTitle>Image Gallery</DialogTitle>
           </DialogHeader>
@@ -1671,7 +1672,7 @@ function OrderDetailPageContent() {
               <CarouselContent className="h-full">
                 {allImageAttachments.map((att, index) => (
                   <CarouselItem key={index} className="h-full flex flex-col p-0">
-                    <div className="flex-1 relative w-full h-full p-2 md:p-6">
+                    <div className="flex-1 relative w-full h-full p-2 md:p-6 flex items-center justify-center">
                       <Image
                         src={att.url}
                         alt={att.fileName}
@@ -1690,8 +1691,8 @@ function OrderDetailPageContent() {
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-4" />
-              <CarouselNext className="right-4" />
+              <CarouselPrevious className="left-4 opacity-70 hover:opacity-100" />
+              <CarouselNext className="right-4 opacity-70 hover:opacity-100" />
             </Carousel>
           </div>
            <DialogFooter className="p-4 border-t bg-muted shrink-0">
