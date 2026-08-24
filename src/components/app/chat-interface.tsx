@@ -57,8 +57,11 @@ const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachm
 
     if (isImage) {
         return (
-             <div onClick={() => onImageClick(attachment)} className="mt-2 block max-w-xs cursor-pointer">
+             <div onClick={() => onImageClick(attachment)} className="mt-2 block max-w-xs cursor-pointer group relative">
                 <Image src={attachment.url} alt="User Upload" width={300} height={200} className="rounded-md object-cover"/>
+                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-md">
+                    <Eye className="text-white h-8 w-8" />
+                </div>
             </div>
         )
     }

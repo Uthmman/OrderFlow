@@ -159,23 +159,23 @@ function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachm
                             </div>
                         )}
                     </div>
-                    <div className="flex-grow truncate">
-                        <p className="text-sm font-medium truncate">{attachment.fileName}</p>
+                    <div className="flex-grow truncate min-w-0">
+                        <p className="text-[11px] font-medium truncate">{attachment.fileName}</p>
                     </div>
-                    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap items-center gap-0.5 justify-end" onClick={(e) => e.stopPropagation()}>
                         <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" 
+                            className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity" 
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadFile(attachment.url, attachment.fileName); }}
                             title="Download"
                         >
-                            <Download className="h-4 w-4"/>
+                            <Download className="h-3.5 w-3.5"/>
                         </Button>
                         {isPdf && (
                             <>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" onClick={handlePrint} title="Print"><Printer className="h-4 w-4"/></Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity" onClick={handleShare} title="Share"><Share2 className="h-4 w-4"/></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity" onClick={handlePrint} title="Print"><Printer className="h-3.5 w-3.5"/></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 opacity-60 group-hover:opacity-100 transition-opacity" onClick={handleShare} title="Share"><Share2 className="h-3.5 w-3.5"/></Button>
                             </>
                         )}
                     </div>
@@ -277,7 +277,7 @@ function ProductDetailContent() {
                 </div>
             </CardHeader>
              <CardContent className="p-4">
-                <h3 className="font-semibold mb-4">All Attachments</h3>
+                <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Attachments</h3>
                 {allAttachments.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att} onImageClick={handleImageClick}/>)}

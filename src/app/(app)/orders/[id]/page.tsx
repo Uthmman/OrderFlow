@@ -137,20 +137,20 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                        <audio src={att.url} controls className="w-full h-10" />
                     </div>
                 ) : (
-                    <div className="flex flex-col items-center gap-2 p-4">
+                    <div className="flex flex-col items-center gap-2 p-4 w-full">
                         {isPdf ? <FileText className="h-10 w-10 text-red-600" /> : <File className="h-10 w-10 text-muted-foreground" />}
-                        <p className="text-sm text-center text-muted-foreground truncate w-full">{att.fileName}</p>
-                        <div className="flex gap-2">
-                             <Button size="sm" variant="outline" onClick={handleDownload} className="mt-2">
-                                <Download className="h-4 w-4 mr-2" /> Download
+                        <p className="text-xs text-center text-muted-foreground truncate w-full px-2">{att.fileName}</p>
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 w-full mt-2">
+                             <Button size="sm" variant="outline" onClick={handleDownload} className="h-7 text-[10px] px-2 flex-1">
+                                <Download className="h-3 w-3 mr-1" /> Download
                             </Button>
                             {isPdf && (
                                 <>
-                                    <Button size="sm" variant="outline" onClick={handlePrint} className="mt-2">
-                                        <Printer className="h-4 w-4 mr-2" /> Print
+                                    <Button size="sm" variant="outline" onClick={handlePrint} className="h-7 text-[10px] px-2 flex-1">
+                                        <Printer className="h-3 w-3 mr-1" /> Print
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={handleShare} className="mt-2">
-                                        <Share2 className="h-4 w-4 mr-2" /> Share
+                                    <Button size="sm" variant="outline" onClick={handleShare} className="h-7 text-[10px] px-2 flex-1">
+                                        <Share2 className="h-3 w-3 mr-1" /> Share
                                     </Button>
                                 </>
                             )}
@@ -159,19 +159,17 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                 )}
             </CardContent>
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
-                 <p className="text-xs text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
+                 <p className="text-[10px] text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
                  <div className="flex items-center">
                     {!isAudio && !isImage && (
-                         <>
                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={copyToClipboard}>
-                            <LinkIcon className="h-4 w-4" />
+                            <LinkIcon className="h-3.5 w-3.5" />
                         </Button>
-                        </>
                     )}
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive/80 hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
