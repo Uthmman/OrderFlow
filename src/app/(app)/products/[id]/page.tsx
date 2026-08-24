@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText, Eye, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Box, Ruler, Download, File, Image as ImageIcon, PlusCircle, ArrowLeft, Printer, Share2, FileText, Eye, X } from "lucide-react";
 import Image from "next/image";
 import { OrderAttachment } from "@/lib/types";
 import { OrderTable } from "@/components/app/order-table";
@@ -36,19 +36,12 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
 
   useEffect(() => {
     if (!api) return;
-
     setCurrent(api.selectedScrollSnap() + 1);
-
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap() + 1);
-    });
+    api.on("select", () => setCurrent(api.selectedScrollSnap() + 1));
   }, [api]);
 
-  // Handle start index when gallery opens
   useEffect(() => {
-    if (open && api) {
-      api.scrollTo(startIndex, true);
-    }
+    if (open && api) api.scrollTo(startIndex, true);
   }, [open, api, startIndex]);
 
   if (!images || images.length === 0) return null;

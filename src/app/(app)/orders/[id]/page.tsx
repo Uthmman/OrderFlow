@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, type Customer, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,6 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
-
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -486,531 +485,18 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
     );
 }
 
-const UNIT_CHOICES = [
-    { label: "piece(pc)", value: "piece(pc)" },
-    { label: "liter(l)", value: "liter(l)" },
-    { label: "Meter(m)", value: "Meter(m)" },
-    { label: "Box", value: "Box" },
-];
-
-function FinishDesignDialog({ open, onOpenChange, order, productIndex, onFinished }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order, productIndex: number, onFinished: (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => void }) {
-    const { addAttachment, uploadProgress } = useOrders();
-    const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
-    const { role } = useUser();
-    const fileInputRef = useRef<HTMLInputElement>(null);
-    const [isUploading, setIsUploading] = useState(false);
-    const [bom, setBom] = useState('');
-    const [itemSearch, setItemSearch] = useState('');
-    const [bomEstimatedTotal, setBomEstimatedTotal] = useState(0);
-    const { toast } = useToast();
-    const [uploadedFiles, setUploadedFiles] = useState<OrderAttachment[]>([]);
-    const [mainImageUrl, setMainImageUrl] = useState<string | undefined>(order.mainImageUrl);
-    
-    const [isAddingNewToCatalog, setIsAddingNewToCatalog] = useState(false);
-    const [newCatalogItem, setNewCatalogItem] = useState({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
-
-    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
-
-    const isAdmin = role === 'Admin';
-
-    useEffect(() => {
-        if (!open) {
-            setUploadedFiles([]);
-            setBom('');
-            setIsUploading(false);
-            setItemSearch('');
-            setBomEstimatedTotal(0);
-            setItemQuantities({});
-            setMainImageUrl(order.mainImageUrl);
-            setIsAddingNewToCatalog(false);
-            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
-        }
-    }, [open, order.mainImageUrl]);
-
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const files = event.target.files;
-        if (!files || files.length === 0) return;
-
-        setIsUploading(true);
-        try {
-            const uploadPromises = Array.from(files).map(file => 
-                addAttachment(order.id, productIndex, file, true)
-            );
-            
-            const results = await Promise.all(uploadPromises);
-            const newAttachments = results.filter((res): res is OrderAttachment => res !== undefined);
-
-            if (newAttachments.length > 0) {
-                setUploadedFiles(prev => [...prev, ...newAttachments]);
-                if (!mainImageUrl) {
-                    const firstImage = newAttachments.find(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-                    if (firstImage) setMainImageUrl(firstImage.url);
-                }
-                toast({
-                    title: `${newAttachments.length} file(s) uploaded`,
-                    description: "The design files have been staged.",
-                });
-            }
-        } catch (error) {
-             toast({
-                variant: "destructive",
-                title: "Upload Failed",
-                description: (error as Error).message || "Could not upload design files.",
-            });
-        } finally {
-            setIsUploading(false);
-            if (event.target) {
-                event.target.value = '';
-            }
-        }
-    };
-    
-    const handleSubmit = () => {
-        if (uploadedFiles.length === 0) {
-            toast({
-                variant: "destructive",
-                title: "No Files Uploaded",
-                description: "Please upload at least one design file."
-            });
-            return;
-        }
-        if (!bom.trim()) {
-            toast({
-                variant: "destructive",
-                title: "BOM Required",
-                description: "Please provide the Bill of Materials."
-            });
-            return;
-        }
-
-        onFinished(bom, uploadedFiles, mainImageUrl);
-        onOpenChange(false);
-    }
-    
-    const handleRemoveFile = (fileToRemove: OrderAttachment) => {
-        setUploadedFiles(prev => prev.filter(file => file.url !== fileToRemove.url));
-        if (mainImageUrl === fileToRemove.url) setMainImageUrl(undefined);
-    }
-
-    const filteredItems = secondaryItems.filter(item => 
-        item.name.toLowerCase().includes(itemSearch.toLowerCase())
-    );
-
-    const handleQuantityChange = (itemId: string, val: string) => {
-        const num = parseInt(val) || 0;
-        setItemQuantities(prev => ({ ...prev, [itemId]: num }));
-    };
-
-    const handleAddItemToBOM = (item: any, overrideQty?: number) => {
-        const itemId = item.id || 'custom-' + Date.now();
-        const qty = overrideQty !== undefined ? overrideQty : (itemQuantities[itemId] !== undefined ? itemQuantities[itemId] : 1);
-        
-        if (qty <= 0) {
-            toast({
-                variant: "destructive",
-                title: "Invalid Quantity",
-                description: "Please enter a quantity greater than 0."
-            });
-            return;
-        }
-
-        setBom(prev => {
-            const newItemLine = `- ${item.name}${item.unit ? ` (${item.unit})` : ''}: ${qty}`;
-            return prev ? `${prev}\n${newItemLine}` : newItemLine;
-        });
-        
-        if (isAdmin && item.price) {
-            setBomEstimatedTotal(prev => prev + (item.price! * qty));
-        }
-
-        toast({
-            title: "Item Added",
-            description: `${item.name} (${qty}) added to BOM.`
-        });
-    };
-
-    const handleAddNewToCatalog = async () => {
-        if (!newCatalogItem.name.trim() || !newCatalogItem.category) {
-            toast({ variant: 'destructive', title: "Missing Information", description: "Please fill in all required fields." });
-            return;
-        }
-        const success = await addSecondaryItem({
-            name: newCatalogItem.name,
-            unit: newCatalogItem.unit,
-            price: newCatalogItem.price,
-            category: newCatalogItem.category
-        });
-
-        if (success) {
-            toast({ title: "Catalog Updated", description: `${newCatalogItem.name} added to shared catalog.` });
-            handleAddItemToBOM(newCatalogItem, newCatalogItem.quantity);
-            setIsAddingNewToCatalog(false);
-            setNewCatalogItem({ name: '', unit: 'piece(pc)', category: '', price: 0, quantity: 1 });
-        }
-    };
-
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Finish Design & Submit BOM</DialogTitle>
-                    <DialogDescription>
-                        Upload final design files and provide the Bill of Materials.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-6">
-                    <div 
-                        className="border-2 border-dashed border-muted rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        {isUploading ? (
-                            <>
-                                <Loader2 className="h-10 w-10 text-muted-foreground animate-spin mb-4" />
-                                <p className="text-muted-foreground">Uploading files...</p>
-                            </>
-                        ) : (
-                            <>
-                                <UploadCloud className="h-10 w-10 text-muted-foreground mb-4" />
-                                <p className="font-semibold">Click to upload or drag & drop</p>
-                                <p className="text-xs text-muted-foreground">PDF, AI, PSD, PNG, etc.</p>
-                            </>
-                        )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            onChange={handleFileChange}
-                            className="hidden"
-                            disabled={isUploading}
-                        />
-                    </div>
-                     {Object.keys(uploadProgress).length > 0 && (
-                        <div className="space-y-2 pt-4">
-                            <h4 className="text-sm font-medium">Uploading...</h4>
-                            {Object.entries(uploadProgress).map(([fileName, progress]) => (
-                                <div key={fileName} className="space-y-1">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="truncate">{fileName}</span>
-                                        <span>{Math.round(progress)}%</span>
-                                    </div>
-                                    <Progress value={progress} className="h-2" />
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    
-                    {uploadedFiles.length > 0 && (
-                        <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Staged Files (Select Star for Main Icon):</h4>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-60 overflow-y-auto pr-2">
-                                {uploadedFiles.map(file => {
-                                    const isImage = file.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-                                    const isMain = mainImageUrl === file.url;
-                                    return (
-                                        <div key={file.url} className={cn("relative group border rounded-md p-1 bg-muted/50 overflow-hidden", isMain && "ring-2 ring-primary border-primary")}>
-                                            <div className="aspect-video relative mb-1 flex items-center justify-center bg-background rounded-sm">
-                                                {isImage ? (
-                                                    <Image src={file.url} alt={file.fileName} fill className="object-cover" />
-                                                ) : (
-                                                    <File className="h-8 w-8 text-muted-foreground" />
-                                                )}
-                                                {isImage && (
-                                                    <button 
-                                                        onClick={() => setMainImageUrl(isMain ? undefined : file.url)}
-                                                        className={cn("absolute top-1 right-1 p-1 rounded-full shadow-sm transition-colors", 
-                                                            isMain ? "bg-primary text-white" : "bg-white/80 text-gray-400 hover:text-primary")}
-                                                    >
-                                                        <Star className={cn("h-4 w-4", isMain && "fill-current")} />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center justify-between gap-1 px-1">
-                                                <span className="text-[10px] truncate max-w-[80%] font-medium">{file.fileName}</span>
-                                                <Button type="button" variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => handleRemoveFile(file)}>
-                                                    <Trash2 className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label>Item Catalog (Secondary Source)</Label>
-                            <div className="flex gap-2 mb-2">
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                                    <Input 
-                                        placeholder="Search materials..." 
-                                        value={itemSearch} 
-                                        onChange={(e) => setItemSearch(e.target.value)}
-                                        className="h-8 pl-7 text-xs"
-                                    />
-                                </div>
-                                <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIsAddingNewToCatalog(true)}>
-                                    <PlusCircle className="h-3 w-3 mr-1" /> New
-                                </Button>
-                            </div>
-
-                            {isAddingNewToCatalog ? (
-                                <div className="p-3 border rounded-md bg-muted/20 space-y-3">
-                                    <h5 className="text-[10px] font-bold uppercase tracking-wider">New Catalog Item</h5>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        <div className="flex gap-2">
-                                            <Input placeholder="Item Name" value={newCatalogItem.name} onChange={e => setNewCatalogItem({...newCatalogItem, name: e.target.value})} className="h-8 text-xs flex-1" />
-                                            <Input type="number" placeholder="Qty" value={newCatalogItem.quantity} onChange={e => setNewCatalogItem({...newCatalogItem, quantity: Number(e.target.value)})} className="h-8 text-xs w-16" min={1} />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <Select value={newCatalogItem.unit} onValueChange={val => setNewCatalogItem({...newCatalogItem, unit: val})}>
-                                                <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Select Unit" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {UNIT_CHOICES.map(u => (
-                                                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Select value={newCatalogItem.category} onValueChange={val => setNewCatalogItem({...newCatalogItem, category: val})}>
-                                                <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Category" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {secondaryCategories.map(c => (
-                                                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-                                    {isAdmin && <Input type="number" placeholder="Unit Price" value={newCatalogItem.price} onChange={e => setNewCatalogItem({...newCatalogItem, price: Number(e.target.value)})} className="h-8 text-xs" />}
-                                    <div className="flex justify-end gap-2">
-                                        <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => setIsAddingNewToCatalog(false)}>Cancel</Button>
-                                        <Button size="sm" className="h-7 text-[10px]" onClick={handleAddNewToCatalog}>Add & Pick</Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <ScrollArea className="h-64 border rounded-md p-2 bg-muted/20">
-                                    {secondaryLoading ? (
-                                        <div className="flex justify-center p-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
-                                    ) : filteredItems.length === 0 ? (
-                                        <p className="text-center text-[10px] text-muted-foreground py-8">No materials found.</p>
-                                    ) : (
-                                        <div className="space-y-1">
-                                            {filteredItems.map(item => (
-                                                <div 
-                                                    key={item.id} 
-                                                    className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-primary/5 transition-colors group" 
-                                                >
-                                                    <div className="flex-1 text-left min-w-0">
-                                                        <p className="truncate text-[11px] font-bold">{item.name}</p>
-                                                        <div className="flex items-center gap-2 text-[9px] opacity-60">
-                                                            <span>Unit: {item.unit || 'pc'}</span>
-                                                            {isAdmin && item.price && (
-                                                                <span className="font-semibold text-primary">{formatCurrency(item.price)}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <Input 
-                                                            type="number" 
-                                                            className="h-7 w-12 text-[10px] px-1" 
-                                                            defaultValue={1}
-                                                            min={1}
-                                                            onChange={(e) => handleQuantityChange(item.id, e.target.value)}
-                                                        />
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            size="icon" 
-                                                            className="h-7 w-7 text-primary hover:bg-primary hover:text-white"
-                                                            onClick={() => handleAddItemToBOM(item)}
-                                                        >
-                                                            <PlusCircle className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </ScrollArea>
-                            )}
-                        </div>
-                        <div className="space-y-2 flex flex-col">
-                            <Label htmlFor="bom">Bill of Materials (BOM)</Label>
-                            <Textarea 
-                                id="bom"
-                                placeholder="List materials and quantities here..."
-                                value={bom}
-                                onChange={(e) => setBom(e.target.value)}
-                                className="flex-1 text-sm resize-none"
-                            />
-                            {isAdmin && (
-                                <div className="p-3 bg-primary/5 border border-primary/10 rounded-md mt-2">
-                                    <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Estimated BOM Total</p>
-                                    <p className="text-xl font-bold text-primary">{formatCurrency(bomEstimatedTotal)}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isUploading}>Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={isUploading}>Submit Design & BOM</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function PaintUsageDialog({ open, onOpenChange, onSubmit }: { open: boolean, onOpenChange: (open: boolean) => void, onSubmit: (paintUsage: string) => void }) {
-    const [paintUsage, setPaintUsage] = useState('');
-    const { toast } = useToast();
-
-    const handleSubmit = () => {
-        if (!paintUsage.trim()) {
-            toast({
-                variant: "destructive",
-                title: "Paint Usage Required",
-                description: "Please provide the paint usage details."
-            });
-            return;
-        }
-        onSubmit(paintUsage);
-        onOpenChange(false);
-        setPaintUsage('');
-    }
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Record Paint Usage</DialogTitle>
-                    <DialogDescription>
-                        Enter the paint usage details for this completed order.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                    <div>
-                        <Label htmlFor="paint-usage">Paint Usage Details</Label>
-                        <Textarea 
-                            id="paint-usage"
-                            placeholder="e.g., 2L of White Gloss..."
-                            value={paintUsage}
-                            onChange={(e) => setPaintUsage(e.target.value)}
-                            rows={6}
-                            className="mt-2"
-                        />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSubmit}>Submit Paint Usage</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
-    const profile = users.find(u => u.id === userId);
-    if (!profile) return null;
-
-    return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
-                        <AvatarImage src={profile.avatarUrl} />
-                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
-                    </Avatar>
-                </TooltipTrigger>
-                <TooltipContent>
-                    <p className="text-xs">{profile.name}</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
-    );
-}
-
-function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order }) {
-    const qrValue = `ORDERFLOW-ORDER:${order.id}`;
-    
-    const downloadQR = () => {
-        const svg = document.getElementById("order-qr-code");
-        if (!svg) return;
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        const img = new (window as any).Image();
-        img.onload = () => {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx?.drawImage(img, 0, 0);
-            const pngFile = canvas.toDataURL("image/png");
-            const downloadLink = document.createElement("a");
-            downloadLink.download = `QR-${order.uniqueName}.png`;
-            downloadLink.href = `${pngFile}`;
-            downloadLink.click();
-        };
-        img.src = "data:image/svg+xml;base64," + btoa(svgData);
-    };
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-sm">
-                <DialogHeader>
-                    <DialogTitle>Order QR Code</DialogTitle>
-                    <DialogDescription>
-                        Scan this code using the internal OrderFlow scanner.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
-                    <QRCodeSVG 
-                        id="order-qr-code"
-                        value={qrValue} 
-                        size={200} 
-                        level="H"
-                        includeMargin={true}
-                    />
-                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
-                </div>
-                <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Close</Button>
-                    <Button onClick={downloadQR} className="flex-1">
-                        <Download className="mr-2 h-4 w-4" /> Download QR
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-
-/**
- * A modern, swipe-enabled fullscreen image gallery component.
- */
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     if (!api) return;
-
     setCurrent(api.selectedScrollSnap() + 1);
-
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap() + 1);
-    });
+    api.on("select", () => setCurrent(api.selectedScrollSnap() + 1));
   }, [api]);
 
-  // Handle start index when gallery opens
   useEffect(() => {
-    if (open && api) {
-      api.scrollTo(startIndex, true);
-    }
+    if (open && api) api.scrollTo(startIndex, true);
   }, [open, api, startIndex]);
 
   if (!images || images.length === 0) return null;
@@ -1072,6 +558,59 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
       </DialogContent>
     </Dialog>
   );
+}
+
+function OrderQRDialog({ open, onOpenChange, order }: { open: boolean, onOpenChange: (open: boolean) => void, order: Order }) {
+    const qrValue = `ORDERFLOW-ORDER:${order.id}`;
+    
+    const downloadQR = () => {
+        const svg = document.getElementById("order-qr-code");
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new (window as any).Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx?.drawImage(img, 0, 0);
+            const pngFile = canvas.toDataURL("image/png");
+            const downloadLink = document.createElement("a");
+            downloadLink.download = `QR-${order.uniqueName}.png`;
+            downloadLink.href = `${pngFile}`;
+            downloadLink.click();
+        };
+        img.src = "data:image/svg+xml;base64," + btoa(svgData);
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Order QR Code</DialogTitle>
+                    <DialogDescription>
+                        Scan this code using the internal OrderFlow scanner.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
+                    <QRCodeSVG 
+                        id="order-qr-code"
+                        value={qrValue} 
+                        size={200} 
+                        level="H"
+                        includeMargin={true}
+                    />
+                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
+                </div>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">Close</Button>
+                    <Button onClick={downloadQR} className="flex-1">
+                        <Download className="mr-2 h-4 w-4" /> Download QR
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function OrderDetailPageContent() {
@@ -1156,21 +695,6 @@ function OrderDetailPageContent() {
             });
         }
     };
-    
-    const handlePaintUsageSubmit = (paintUsage: string) => {
-        if (!orderData) return;
-        const updatedProducts = [...(orderData.products || [])];
-        if (updatedProducts.length > 0) {
-            const currentBOM = updatedProducts[0].billOfMaterials || '';
-            updatedProducts[0].billOfMaterials = `${currentBOM}\n\n--- Paint Usage ---\n${paintUsage}`;
-        }
-        startTransition(async () => {
-            setOptimisticOrder({ status: 'Completed' });
-            await updateOrder({ ...orderData, products: updatedProducts, status: 'Completed' }, {
-                text: `Paint Usage Submitted:\n${paintUsage}`,
-            });
-        });
-    };
 
      const handleTogglePaidStatus = () => {
         if (!orderData) return;
@@ -1194,21 +718,12 @@ function OrderDetailPageContent() {
         });
     }
 
-    const handleDesignFinished = (bom: string, attachments: OrderAttachment[], mainImageUrl?: string) => {
-        if (!orderData || !orderData.products || orderData.products.length === 0) return;
-        const updatedProducts = [...orderData.products];
-        updatedProducts[0].billOfMaterials = bom;
-        startTransition(async () => {
-            setOptimisticOrder({ status: 'Design Ready', mainImageUrl });
-            await updateOrder({ ...orderData, products: updatedProducts, status: 'Design Ready', mainImageUrl }, {
-                text: `Bill of Materials Submitted:\n${bom}`,
-            });
-        });
-    };
-    
-    const handleDuplicate = () => {
-        if (!order) return;
-        router.push(`/orders/new?duplicate=${order.id}`);
+    const handleImageClick = (clickedAttachment: OrderAttachment) => {
+        const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url);
+        if (imageIndex !== -1) {
+            setGalleryStartIndex(imageIndex);
+            setGalleryOpen(true);
+        }
     }
 
     const handleDeleteAttachment = (productIndex: number, attachmentToDelete: OrderAttachment) => {
@@ -1220,15 +735,6 @@ function OrderDetailPageContent() {
         if (!orderData) return;
         removeAttachment(orderData.id, productIndex, attachmentToDelete, true);
     }
-
-    const handleImageClick = (clickedAttachment: OrderAttachment) => {
-        const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url);
-        if (imageIndex !== -1) {
-            setGalleryStartIndex(imageIndex);
-            setGalleryOpen(true);
-        }
-    }
-
 
   const orderDetailsContent = (
      <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
@@ -1310,17 +816,6 @@ function OrderDetailPageContent() {
                 <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} title="Order QR Code">
                     <QrCode className="h-4 w-4" />
                 </Button>
-                {isDesigner && order.status === 'In Progress' && (
-                    <Button onClick={() => handleDesignerStatusChange('Designing')} disabled={isPending}>
-                        {isPending ? <Loader2 className="mr-2 animate-spin" /> : null}
-                        Start Design
-                    </Button>
-                )}
-                 {isDesigner && order.status === 'Designing' && (
-                    <Button onClick={() => setFinishDesignDialogOpen(true)}>
-                        Design Finished
-                    </Button>
-                )}
                 {canEdit && (
                     <>
                     <Dialog>
@@ -1352,7 +847,6 @@ function OrderDetailPageContent() {
                                 <AlertTriangle className="mr-2 h-4 w-4" /> 
                                 <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
                             </DropdownMenuItem>
-                                <DropdownMenuItem onClick={handleDuplicate}>Duplicate Order</DropdownMenuItem>
                              {canViewSensitiveData && (
                                 <DropdownMenuItem onClick={handleTogglePaidStatus}>
                                     {isPaid ? <RefreshCw className="mr-2 h-4 w-4" /> : <CheckCircle className="mr-2 h-4 w-4" />}
@@ -1515,18 +1009,6 @@ function OrderDetailPageContent() {
         startIndex={galleryStartIndex} 
       />
     </div>
-    <FinishDesignDialog 
-        open={finishDesignDialogOpen}
-        onOpenChange={setFinishDesignDialogOpen}
-        order={orderData!}
-        productIndex={0}
-        onFinished={handleDesignFinished}
-    />
-     <PaintUsageDialog
-        open={paintUsageDialogOpen}
-        onOpenChange={setPaintUsageDialogOpen}
-        onSubmit={handlePaintUsageSubmit}
-    />
     <OrderQRDialog 
         open={qrDialogOpen} 
         onOpenChange={setQrDialogOpen} 
@@ -1534,6 +1016,27 @@ function OrderDetailPageContent() {
     />
     </>
   );
+}
+
+function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
+    const profile = users.find(u => u.id === userId);
+    if (!profile) return null;
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
+                        <AvatarImage src={profile.avatarUrl} />
+                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                    <p className="text-xs">{profile.name}</p>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
 }
 
 export default function OrderDetailPage() {

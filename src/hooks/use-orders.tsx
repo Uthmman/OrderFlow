@@ -193,7 +193,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
     // Handle Split Case (Multiple products being finalized or created active)
-    if (products.length > 1 && orderData.status !== 'Pending') {
+    if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
 
@@ -231,7 +231,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
             const cleanData = removeUndefined(splitOrder);
             if (isFirst) {
-                batch.update(currentOrderRef, cleanData);
+                // Completely replace the draft document to ensure only one product exists
+                batch.set(currentOrderRef, cleanData);
             } else {
                 batch.set(currentOrderRef, cleanData);
                 addOrderToCustomer(orderData.customerId, currentOrderId);
@@ -333,15 +334,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // Detect transition from Pending -> Finalized with multiple products
-    if (originalOrder && originalOrder.status === 'Pending' && orderData.status && orderData.status !== 'Pending' && orderData.products && orderData.products.length > 1) {
+    const targetStatus = orderData.status || originalOrder?.status || 'Pending';
+    const targetProducts = orderData.products || originalOrder?.products || [];
+
+    // Detect transition from Pending -> Finalized with multiple products OR any multiple product case that isn't Pending
+    if (targetStatus !== 'Pending' && targetProducts.length > 1) {
         const mergedData = { ...originalOrder, ...orderData };
         await addOrder(mergedData as any, false);
         return; 
     }
 
     const finalCustomerName = orderData.customerName || originalOrder?.customerName;
-    const finalProducts = orderData.products || originalOrder?.products;
+    const finalProducts = targetProducts;
     const uniqueName = formatOrderUniqueName(finalCustomerName, finalProducts, orderData.id);
     
     let mainImageUrl = orderData.mainImageUrl || originalOrder?.mainImageUrl;

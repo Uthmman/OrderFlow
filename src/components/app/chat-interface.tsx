@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, File as FileIcon, Download, Clock, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, Paperclip, Send, Info, Mic, Square, Trash2, File as FileIcon, Download, Clock, X, Eye } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useState, useRef, useOptimistic, useTransition, useEffect } from "react"
 import Image from "next/image"
@@ -120,19 +120,12 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
 
   useEffect(() => {
     if (!api) return;
-
     setCurrent(api.selectedScrollSnap() + 1);
-
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap() + 1);
-    });
+    api.on("select", () => setCurrent(api.selectedScrollSnap() + 1));
   }, [api]);
 
-  // Handle start index when gallery opens
   useEffect(() => {
-    if (open && api) {
-      api.scrollTo(startIndex, true);
-    }
+    if (open && api) api.scrollTo(startIndex, true);
   }, [open, api, startIndex]);
 
   if (!images || images.length === 0) return null;

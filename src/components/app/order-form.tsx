@@ -201,7 +201,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 };
     const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, prepaidAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' } };
     if (!orderToMap) return defaultValues as OrderFormValues;
-    const products = orderToMap.products && orderToMap.products.length > 0 ? orderToMap.products.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture") })) : [defaultProduct];
+    const products = orderToMap.products && orderToMap.products.length > 0 ? orderToMap.products.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth })) : [defaultProduct];
     return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), testDate: toDate(orderToMap.testDate), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
   }, []);
 
@@ -439,7 +439,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
     setIsManualSaving(true);
-    const updatedProducts = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, dimensions: p.width && p.height && p.depth ? { width: p.width, height: p.height, depth: p.depth } : undefined }));
+    const updatedProducts = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined }));
     const payload = { ...values, products: updatedProducts, incomeAmount: updatedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown" };
     onSave(payload as any, !initialOrder).catch(() => setIsManualSaving(false));
   };
