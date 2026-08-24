@@ -142,12 +142,6 @@ const SleekAudioPlayer = ({ src, onSave, onDiscard }: { src: string, onSave: () 
     );
 };
 
-const getInitialMainImage = (product: Product) => {
-  const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
-  const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-  return firstImage?.url;
-};
-
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
@@ -245,16 +239,26 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         setIsManualSaving(true);
         const values = getValues();
         const customerName = customers.find(c => c.id === values.customerId)?.name || "Unknown";
-        onSave({ ...values, customerName, status: 'Pending', creationDate: values.creationDate || new Date(), deadline: values.deadline || new Date() } as any, true).then(id => {
-            if (id) router.replace(`/orders/${id}/edit?step=3`);
-            else setIsManualSaving(false);
-        }).catch(() => setIsManualSaving(false));
+        
+        startTransition(async () => {
+            try {
+                const id = await onSave({ ...values, customerName, status: 'Pending', creationDate: values.creationDate || new Date(), deadline: values.deadline || new Date() } as any, true);
+                if (id) router.replace(`/orders/${id}/edit?step=3`);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setIsManualSaving(false);
+            }
+        });
         return;
     }
     
     let nextStepNumber = currentStep + 1;
     if (currentStep === 3) nextStepNumber = 4;
-    startTransition(() => setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length)));
+    
+    startTransition(() => {
+        setCurrentStep(prev => Math.min(nextStepNumber, STEPS.length));
+    });
   };
 
   const prevStep = () => {
@@ -321,24 +325,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (isDirty && initialOrder && form.formState.isValid && Object.keys(dirtyFields).length > 0) performSave(debouncedValues);
   }, [debouncedValues, isDirty, initialOrder, form.formState.isValid, dirtyFields, performSave]);
 
-  const requestMicPermission = async () => {
-    try { return await navigator.mediaDevices.getUserMedia({ audio: true }); }
-    catch (err) { toast({ variant: "destructive", title: "Microphone Access Denied", description: "Allow microphone access to record audio." }); return null; }
-  };
-
   const startRecording = async () => {
-    let stream = await requestMicPermission();
-    if (!stream) return;
-    mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-    const chunks: BlobPart[] = [];
-    mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
-    mediaRecorderRef.current.onstop = () => {
-        setAudioBlob(new Blob(chunks, { type: 'audio/webm' }));
-        stream.getTracks().forEach(track => track.stop());
-    };
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
-    setAudioBlob(null);
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        const chunks: BlobPart[] = [];
+        mediaRecorderRef.current.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorderRef.current.onstop = () => {
+            setAudioBlob(new Blob(chunks, { type: 'audio/webm' }));
+            stream.getTracks().forEach(track => track.stop());
+        };
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        setAudioBlob(null);
+    } catch (err) {
+        toast({ variant: "destructive", title: "Microphone Access Denied", description: "Allow microphone access to record audio." });
+    }
   };
 
   const stopRecording = () => {
@@ -426,7 +428,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     return (
         <div key={attachment.url} className="flex items-center justify-between p-2 bg-muted/50 rounded-md gap-2">
             <div className="flex items-center gap-2 truncate">
-                {isImage ? <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" /> : isAudio ? <div className="w-full"><audio controls src={attachment.url} className="w-full h-8" /></div> : <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+                {isImage ? <Image src={attachment.url} alt={attachment.fileName} width={24} height={24} className="h-6 w-6 rounded-sm object-cover" /> : isAudio ? <div className="w-full"><audio controls src={attachment.url} className="h-8" /></div> : <FileIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
                 {!isAudio && <span className="text-sm truncate">{attachment.fileName}</span>}
             </div>
             <div className="flex items-center flex-shrink-0">
@@ -584,12 +586,26 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 py-4 z-10">
-              <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isPending || isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
-                  {currentStep < finalSteps[finalSteps.length-1] && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && <Button type="button" onClick={() => setCurrentStep(9)}>Continue <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {currentStep === finalSteps[finalSteps.length-1] && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading}>{(isSubmitting || isAutoSaving) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
+                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isPending || isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
+                  {currentStep < finalSteps[finalSteps.length-1] && ![2, 4, 8].includes(currentStep) && (
+                      <Button type="button" onClick={nextStep} disabled={isPending || isSubmitting}>
+                        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Next <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                  )}
+                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
+                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isPending || isSubmitting}>
+                        Continue <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                  )}
+                  {currentStep === finalSteps[finalSteps.length-1] && (
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || isUploading || isPending}>
+                        {(isSubmitting || isAutoSaving || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
+                      </Button>
+                  )}
               </div>
           </div>
         </form>

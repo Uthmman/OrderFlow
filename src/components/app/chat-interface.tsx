@@ -111,9 +111,6 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
     </div>
 );
 
-/**
- * A modern, swipe-enabled fullscreen image gallery component.
- */
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -132,27 +129,25 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/98 text-white overflow-hidden flex flex-col">
-        <DialogHeader className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
+      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black text-white overflow-hidden flex flex-col [&>button]:hidden">
+        <header className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
           <div className="flex flex-col text-left">
-            <DialogTitle className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
+            <h2 className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
               {images[current - 1]?.fileName}
-            </DialogTitle>
+            </h2>
             <p className="text-[10px] text-white/60">{current} of {images.length}</p>
           </div>
-          <DialogClose asChild>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
-              <X className="h-6 w-6" />
-            </Button>
-          </DialogClose>
-        </DialogHeader>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10" onClick={() => onOpenChange(false)}>
+            <X className="h-6 w-6" />
+          </Button>
+        </header>
 
-        <div className="flex-1 w-full h-full">
-          <Carousel setApi={setApi} className="w-full h-full" opts={{ startIndex }}>
+        <div className="flex-1 w-full h-full relative">
+          <Carousel setApi={setApi} className="w-full h-full" opts={{ startIndex, loop: true }}>
             <CarouselContent className="h-screen m-0">
               {images.map((image, index) => (
-                <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center relative">
-                    <div className="relative w-full h-full p-4 md:p-12">
+                <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center">
+                    <div className="relative w-full h-full">
                         <Image
                         src={image.url}
                         alt={image.fileName}
@@ -165,25 +160,19 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
                 </CarouselItem>
               ))}
             </CarouselContent>
-            {images.length > 1 && (
-                <>
-                <CarouselPrevious className="left-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
-                <CarouselNext className="right-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
-                </>
-            )}
           </Carousel>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/60 to-transparent gap-4 pointer-events-none">
+        <footer className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/80 to-transparent gap-4 pointer-events-none">
            <Button 
             variant="outline" 
             size="sm" 
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto"
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto rounded-full px-6"
             onClick={() => downloadFile(images[current - 1].url, images[current - 1].fileName)}
            >
              <Download className="mr-2 h-4 w-4" /> Download
            </Button>
-        </div>
+        </footer>
       </DialogContent>
     </Dialog>
   );
