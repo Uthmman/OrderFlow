@@ -565,7 +565,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                   <CardHeader><CardTitle>Material</CardTitle></CardHeader>
                   <CardContent><FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
-                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{availableMaterials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; const sel = field.value?.includes(m.name); return <button key={m.name} type="button" onClick={() => field.onChange(sel ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2", sel && "bg-primary text-primary-foreground")}><Icon className="h-8 w-8" />{m.name}</button> })}</div><FormMessage /></FormItem>
+                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{availableMaterials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; return <button key={m.name} type="button" onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2", field.value?.includes(m.name) && "bg-primary text-primary-foreground")}><Icon className="h-8 w-8" />{m.name}</button> })}</div><FormMessage /></FormItem>
                   )} /></CardContent>
               </Card>
           )}

@@ -76,6 +76,12 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
                 </CarouselItem>
               ))}
             </CarouselContent>
+            {images.length > 1 && (
+                <>
+                <CarouselPrevious className="left-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                <CarouselNext className="right-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                </>
+            )}
           </Carousel>
         </div>
 
