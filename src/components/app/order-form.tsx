@@ -66,6 +66,7 @@ import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
+import { DynamicIcon } from "../ui/dynamic-icon"
 
 const productSchema = z.object({
   id: z.string(),
@@ -287,6 +288,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       startTransition(() => { setCurrentProductIndex(index); setCurrentStep(5); });
   }
 
+  const handleRemoveProduct = (index: number) => {
+    const currentProducts = getValues('products');
+    if (currentProducts.length <= 1) return;
+    const updated = currentProducts.filter((_, i) => i !== index);
+    setValue('products', updated, { shouldDirty: true });
+    if (currentProductIndex >= updated.length) {
+        setCurrentProductIndex(Math.max(0, updated.length - 1));
+    }
+  };
+
   const watchedValues = watch();
   const debouncedValues = useDebounce(watchedValues, 2000); 
 
@@ -483,7 +494,31 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                   <CardHeader><CardTitle>Product Setup</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
-                      {watchedProducts.map((p, i) => <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50"><div className="flex-grow"><p className="font-semibold">{p.productName || `Product ${i + 1}`}</p><p className="text-sm text-muted-foreground">{p.category}</p></div><Button variant="outline" size="sm" onClick={() => handleEditProduct(i)}><Edit className="mr-2 h-4 w-4" /> Edit</Button></div>)}
+                      {watchedProducts.map((p, i) => {
+                          const category = productSettings?.productCategories.find(c => c.name === p.category);
+                          const iconName = category?.icon || 'Box';
+                          return (
+                              <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
+                                  <div className="h-10 w-10 bg-background rounded-md flex items-center justify-center border shrink-0">
+                                      <DynamicIcon icon={iconName} className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                  <div className="flex-grow">
+                                      <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
+                                      <p className="text-sm text-muted-foreground">{p.category || 'No Category'}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                      <Button variant="outline" size="sm" onClick={() => handleEditProduct(i)}>
+                                          <Edit className="mr-2 h-4 w-4" /> Edit
+                                      </Button>
+                                      {watchedProducts.length > 1 && (
+                                          <Button variant="ghost" size="icon" onClick={() => handleRemoveProduct(i)} className="text-destructive">
+                                              <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                      )}
+                                  </div>
+                              </div>
+                          )
+                      })}
                       <Button type="button" onClick={handleAddAnotherProduct} className="w-full sm:w-auto"><PlusCircleIcon className="mr-2"/> Add Product</Button>
                   </CardContent>
               </Card>
@@ -596,7 +631,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       </Button>
                   )}
                   {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
-                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isPending || isSubmitting}>
+                      <Button type="button" onClick={() => { startTransition(() => setCurrentStep(9)); }} disabled={isPending || isSubmitting}>
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
