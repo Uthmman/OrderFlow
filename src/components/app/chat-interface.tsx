@@ -22,6 +22,14 @@ import { useUser } from "@/hooks/use-user"
 import { compressImage, downloadFile } from "@/lib/utils"
 import { Dialog, DialogContent, DialogClose, DialogTitle, DialogHeader } from "../ui/dialog"
 import { v4 as uuidv4 } from "uuid"
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+  type CarouselApi,
+} from "@/components/ui/carousel";
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -101,21 +109,30 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
 );
 
 /**
- * A modern, responsive fullscreen image gallery component.
+ * A modern, swipe-enabled fullscreen image gallery component.
  */
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
-  const [currentIndex, setCurrentIndex] = useState(startIndex);
-  
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
   useEffect(() => {
-    if (open) setCurrentIndex(startIndex);
-  }, [open, startIndex]);
+    if (!api) return;
+
+    setCurrent(api.selectedScrollSnap() + 1);
+
+    api.on("select", () => {
+      setCurrent(api.selectedScrollSnap() + 1);
+    });
+  }, [api]);
+
+  // Handle start index when gallery opens
+  useEffect(() => {
+    if (open && api) {
+      api.scrollTo(startIndex, true);
+    }
+  }, [open, api, startIndex]);
 
   if (!images || images.length === 0) return null;
-
-  const currentImage = images[currentIndex];
-
-  const goNext = () => setCurrentIndex((prev) => (prev + 1) % images.length);
-  const goPrev = () => setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -123,9 +140,9 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
         <DialogHeader className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/60 to-transparent">
           <div className="flex flex-col text-left">
             <DialogTitle className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
-              {currentImage.fileName}
+              {images[current - 1]?.fileName}
             </DialogTitle>
-            <p className="text-[10px] text-white/60">{currentIndex + 1} of {images.length}</p>
+            <p className="text-[10px] text-white/60">{current} of {images.length}</p>
           </div>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10">
@@ -134,55 +151,39 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
           </DialogClose>
         </DialogHeader>
 
-        <div className="flex-1 relative w-full h-full flex items-center justify-center">
-          {images.length > 1 && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={goPrev}
-                className="absolute left-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
-              >
-                <ChevronLeft className="h-8 w-8" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={goNext}
-                className="absolute right-4 z-50 h-12 w-12 rounded-full bg-black/20 text-white hover:bg-black/40 hidden md:flex"
-              >
-                <ChevronRight className="h-8 w-8" />
-              </Button>
-            </>
-          )}
-
-          <div className="relative w-full h-full p-4 md:p-12">
-            <Image
-              src={currentImage.url}
-              alt={currentImage.fileName}
-              fill
-              className="object-contain"
-              priority
-              sizes="100vw"
-            />
-          </div>
+        <div className="flex-1 w-full h-full">
+          <Carousel setApi={setApi} className="w-full h-full" opts={{ startIndex }}>
+            <CarouselContent className="h-screen m-0">
+              {images.map((image, index) => (
+                <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center relative">
+                    <div className="relative w-full h-full p-4 md:p-12">
+                        <Image
+                        src={image.url}
+                        alt={image.fileName}
+                        fill
+                        className="object-contain"
+                        priority={index === startIndex}
+                        sizes="100vw"
+                        />
+                    </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            {images.length > 1 && (
+                <>
+                <CarouselPrevious className="left-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                <CarouselNext className="right-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                </>
+            )}
+          </Carousel>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent gap-4">
-           <div className="flex-1 md:hidden flex justify-center gap-8">
-              <Button variant="ghost" size="icon" onClick={goPrev} disabled={images.length <= 1} className="text-white">
-                <ChevronLeft className="h-8 w-8" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={goNext} disabled={images.length <= 1} className="text-white">
-                <ChevronRight className="h-8 w-8" />
-              </Button>
-           </div>
-           <div className="hidden md:block flex-1" />
+        <div className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/60 to-transparent gap-4 pointer-events-none">
            <Button 
             variant="outline" 
             size="sm" 
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-            onClick={() => downloadFile(currentImage.url, currentImage.fileName)}
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto"
+            onClick={() => downloadFile(images[current - 1].url, images[current - 1].fileName)}
            >
              <Download className="mr-2 h-4 w-4" /> Download
            </Button>
