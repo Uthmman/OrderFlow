@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
 import { collection, doc, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
-import type { Order, OrderAttachment, OrderChatMessage, Product } from '@/lib/types';
+import type { Order, OrderAttachment, OrderChatMessage, Product, OrderStatus } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
 import { useCollection } from '@/firebase/firestore/use-collection';
@@ -23,6 +23,7 @@ interface OrderContextType {
   loading: boolean;
   addOrder: (order: Omit<Order, 'id'>, isNew: boolean) => Promise<string | undefined>;
   updateOrder: (order: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => Promise<void>;
+  updateMultipleOrdersStatus: (orders: Order[], newStatus: OrderStatus) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   deleteMultipleOrders: (ordersToDelete: Order[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
@@ -197,7 +198,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
 
-        // Extract shared data once to avoid spread overwrite confusion in the loop
         const { products: _, status: __, id: ___, chatMessages: ____, ...sharedBase } = orderData as any;
 
         for (let i = 0; i < products.length; i++) {
@@ -215,7 +215,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const splitOrder: any = {
                 ...sharedBase,
                 id: currentOrderId,
-                products: [product], // SINGLE PRODUCT PER ORDER
+                products: [product],
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productPrice,
@@ -231,14 +231,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
             const cleanData = removeUndefined(splitOrder);
             if (isFirst) {
-                // Completely replace the draft document to ensure only one product exists
                 batch.set(currentOrderRef, cleanData);
             } else {
                 batch.set(currentOrderRef, cleanData);
                 addOrderToCustomer(orderData.customerId, currentOrderId);
             }
 
-            // Sync with global catalog
             if (product.productName) {
                 (async () => {
                     const productsRef = collection(firestore, "products");
@@ -267,7 +265,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return firstOrderId;
     }
 
-    // Standard Case (One product or staying as multi-product draft)
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const newId = newOrderRef.id;
@@ -292,7 +289,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         return newId;
     }
 
-    // Updating existing single-product finalized order
     if (!existingOrderId) throw new Error("Existing Order ID not found during save.");
     
     const orderRef = doc(firestore, 'orders', existingOrderId);
@@ -337,7 +333,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const targetStatus = orderData.status || originalOrder?.status || 'Pending';
     const targetProducts = orderData.products || originalOrder?.products || [];
 
-    // Detect transition from Pending -> Finalized with multiple products OR any multiple product case that isn't Pending
     if (targetStatus !== 'Pending' && targetProducts.length > 1) {
         const mergedData = { ...originalOrder, ...orderData };
         await addOrder(mergedData as any, false);
@@ -387,6 +382,34 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ operation: 'update', path: orderRef.path }));
         throw err;
     });
+  };
+
+  const updateMultipleOrdersStatus = async (ordersToUpdate: Order[], newStatus: OrderStatus) => {
+    if (!user) throw new Error("User must be logged in.");
+    const batch = writeBatch(firestore);
+    const timestamp = new Date().toISOString();
+
+    ordersToUpdate.forEach(order => {
+        const orderRef = doc(firestore, 'orders', order.id);
+        const systemMsg = { 
+            id: uuidv4(), 
+            user: { id: 'system', name: 'System', avatarUrl: '' }, 
+            text: `Status changed from '${order.status}' to '${newStatus}' via bulk action by ${user.name}.`, 
+            timestamp, 
+            isSystemMessage: true 
+        };
+        batch.update(orderRef, { 
+            status: newStatus,
+            chatMessages: arrayUnion(systemMsg)
+        });
+    });
+
+    await batch.commit().catch(err => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ operation: 'update', path: 'orders' }));
+        throw err;
+    });
+
+    toast({ title: "Bulk Update Successful", description: `${ordersToUpdate.length} orders updated to ${newStatus}.` });
   };
 
   const deleteOrder = async (orderId: string, attachments: OrderAttachment[] = []) => {
@@ -465,6 +488,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       loading,
       addOrder,
       updateOrder,
+      updateMultipleOrdersStatus,
       deleteOrder,
       deleteMultipleOrders,
       getOrderById,
@@ -472,7 +496,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       addAttachment,
       removeAttachment,
       syncOrderUniqueNames,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, deleteOrder, deleteMultipleOrders, syncOrderUniqueNames]);
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, syncOrderUniqueNames]);
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 }

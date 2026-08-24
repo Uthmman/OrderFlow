@@ -13,7 +13,7 @@ import {
   SortingState,
   Table,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown } from "lucide-react"
 import { differenceInDays } from 'date-fns';
 
 import { Button } from "@/components/ui/button"
@@ -269,7 +269,6 @@ function CustomerLink({ order }: { order: Order }) {
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
 
-    // Prioritize main image if set
     if (order.mainImageUrl) {
         return (
             <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 border bg-muted">
@@ -402,7 +401,7 @@ function OrderTableToolbar({
 }) {
   const { user } = useUser();
   const { updateUserPreferences } = useUsers();
-  const { deleteMultipleOrders } = useOrders();
+  const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
   const { toast } = useToast();
 
   const handleSortChange = (newSorting: SortingState) => {
@@ -428,6 +427,14 @@ function OrderTableToolbar({
     });
   }
 
+  const handleBulkStatusUpdate = (status: OrderStatus) => {
+    const selectedRows = table.getFilteredSelectedRowModel().rows;
+    const ordersToUpdate = selectedRows.map(row => row.original);
+    updateMultipleOrdersStatus(ordersToUpdate, status).then(() => {
+        table.resetRowSelection();
+    });
+  };
+
   const currentSort = table.getState().sorting[0];
   const sortField = currentSort?.id as SortField || 'deadline';
   const sortDirection = currentSort?.desc ? 'desc' : 'asc';
@@ -440,6 +447,8 @@ function OrderTableToolbar({
           </div>
       );
   }
+
+  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -464,25 +473,44 @@ function OrderTableToolbar({
             </Select>
         <DataTableViewOptions table={table} />
         {numSelected > 0 && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="h-9">
-                <Trash2 className="mr-2 h-4 w-4" /> Delete ({numSelected})
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete {numSelected} order(s) and all associated data.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9">
+                        Change Status ({numSelected}) <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Change Status to...</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {statuses.map(s => (
+                        <DropdownMenuItem key={s} onClick={() => handleBulkStatusUpdate(s)}>
+                             {s}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="h-9">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete {numSelected} order(s) and all associated data.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+          </div>
         )}
       </div>
     </div>

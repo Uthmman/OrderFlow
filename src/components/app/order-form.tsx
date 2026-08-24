@@ -430,7 +430,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (selectedCustomer && selectedCustomer.location.town && !getValues('location.town')) setValue('location.town', selectedCustomer.location.town, { shouldDirty: true, shouldValidate: true });
   }, [selectedCustomer, setValue, getValues]);
   
-  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
+  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), [watchedProducts]));
   useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
 
   const renderFilePreview = (attachment: OrderAttachment) => {
