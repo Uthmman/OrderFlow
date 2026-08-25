@@ -20,7 +20,7 @@ import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
 import { compressImage, downloadFile } from "@/lib/utils"
-import { Dialog, DialogContent, DialogClose, DialogTitle, DialogHeader } from "../ui/dialog"
+import { Dialog, DialogContent } from "../ui/dialog"
 import { v4 as uuidv4 } from "uuid"
 import {
   Carousel,
@@ -30,6 +30,79 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel";
+
+function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
+  const [api, setApi] = useState<CarouselApi>();
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (!api) return;
+    setCurrent(api.selectedScrollSnap() + 1);
+    api.on("select", () => setCurrent(api.selectedScrollSnap() + 1));
+  }, [api]);
+
+  useEffect(() => {
+    if (open && api) api.scrollTo(startIndex, true);
+  }, [open, api, startIndex]);
+
+  if (!images || images.length === 0) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black/95 text-white overflow-hidden flex flex-col [&>button]:hidden z-[100]">
+        <header className="absolute top-0 left-0 right-0 z-[110] p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
+          <div className="flex flex-col text-left">
+            <h2 className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
+              {images[current - 1]?.fileName}
+            </h2>
+            <p className="text-[10px] text-white/60">{current} of {images.length}</p>
+          </div>
+          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10" onClick={() => onOpenChange(false)}>
+            <X className="h-6 w-6" />
+          </Button>
+        </header>
+
+        <div className="flex-1 w-full h-full relative">
+          <Carousel setApi={setApi} className="w-full h-full" opts={{ startIndex, loop: true }}>
+            <CarouselContent className="h-screen m-0">
+              {images.map((image, index) => (
+                <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center">
+                    <div className="relative w-full h-full">
+                        <Image
+                        src={image.url}
+                        alt={image.fileName}
+                        fill
+                        className="object-contain"
+                        priority={index === startIndex}
+                        sizes="100vw"
+                        />
+                    </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            {images.length > 1 && (
+                <>
+                    <CarouselPrevious className="left-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                    <CarouselNext className="right-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
+                </>
+            )}
+          </Carousel>
+        </div>
+
+        <footer className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/80 to-transparent gap-4 pointer-events-none z-[110]">
+           <Button 
+            variant="outline" 
+            size="sm" 
+            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto rounded-full px-6"
+            onClick={() => downloadFile(images[current - 1].url, images[current - 1].fileName)}
+           >
+             <Download className="mr-2 h-4 w-4" /> Download
+           </Button>
+        </footer>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
@@ -110,73 +183,6 @@ const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
         <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
     </div>
 );
-
-function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
-  const [api, setApi] = useState<CarouselApi>();
-  const [current, setCurrent] = useState(0);
-
-  useEffect(() => {
-    if (!api) return;
-    setCurrent(api.selectedScrollSnap() + 1);
-    api.on("select", () => setCurrent(api.selectedScrollSnap() + 1));
-  }, [api]);
-
-  useEffect(() => {
-    if (open && api) api.scrollTo(startIndex, true);
-  }, [open, api, startIndex]);
-
-  if (!images || images.length === 0) return null;
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-none w-screen h-screen p-0 border-none bg-black text-white overflow-hidden flex flex-col [&>button]:hidden">
-        <header className="absolute top-0 left-0 right-0 z-50 p-4 flex flex-row items-center justify-between bg-gradient-to-b from-black/80 to-transparent">
-          <div className="flex flex-col text-left">
-            <h2 className="text-white text-sm font-bold truncate max-w-[200px] md:max-w-md">
-              {images[current - 1]?.fileName}
-            </h2>
-            <p className="text-[10px] text-white/60">{current} of {images.length}</p>
-          </div>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10" onClick={() => onOpenChange(false)}>
-            <X className="h-6 w-6" />
-          </Button>
-        </header>
-
-        <div className="flex-1 w-full h-full relative">
-          <Carousel setApi={setApi} className="w-full h-full" opts={{ startIndex, loop: true }}>
-            <CarouselContent className="h-screen m-0">
-              {images.map((image, index) => (
-                <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center">
-                    <div className="relative w-full h-full">
-                        <Image
-                        src={image.url}
-                        alt={image.fileName}
-                        fill
-                        className="object-contain"
-                        priority={index === startIndex}
-                        sizes="100vw"
-                        />
-                    </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-          </Carousel>
-        </div>
-
-        <footer className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/80 to-transparent gap-4 pointer-events-none">
-           <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto rounded-full px-6"
-            onClick={() => downloadFile(images[current - 1].url, images[current - 1].fileName)}
-           >
-             <Download className="mr-2 h-4 w-4" /> Download
-           </Button>
-        </footer>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export function ChatInterface({ order }: { order: Order }) {
   const { updateOrder } = useOrders();

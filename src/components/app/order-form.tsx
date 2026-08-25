@@ -120,23 +120,23 @@ const toDate = (timestamp: any): Date | undefined => {
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Product Setup', fields: [] },
-  { id: 3, title: 'Category', fields: ['products.0.category'] },
+  { id: 3, title: 'Category', fields: [`products.0.category`] },
   { id: 4, title: 'Source', fields: [] },
-  { id: 5, title: 'Details', fields: ['products.0.productName'] },
-  { id: 6, title: 'Material', fields: ['products.0.material'] },
-  { id: 7, title: 'Color', fields: ['products.0.colors'] },
+  { id: 5, title: 'Details', fields: [`products.0.productName`] },
+  { id: 6, title: 'Material', fields: [`products.0.material`] },
+  { id: 7, title: 'Color', fields: [`products.0.colors`] },
   { id: 8, title: 'Review', fields: [] },
   { id: 9, title: 'Payment', fields: ['incomeAmount'] },
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
 ];
 
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
-  const router = useRouter(); const searchParams = useSearchParams();
+  const router = useRouter();
   const { customers, addCustomer } = useCustomers();
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
-  const { getOrderById, updateOrder, addAttachment, uploadProgress, removeAttachment } = useOrders();
+  const { addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState(isProductCreationMode ? 3 : 1);
@@ -155,10 +155,32 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
     const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 };
-    const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' } };
+    const defaultValues = { 
+        products: [defaultProduct], 
+        isUrgent: false, 
+        status: "Pending" as OrderStatus, 
+        incomeAmount: 0, 
+        customerId: '', 
+        creationDate: new Date(), 
+        deadline: new Date(), 
+        location: { town: '' } 
+    };
     if (!orderToMap) return defaultValues as OrderFormValues;
-    const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth })) || [defaultProduct];
-    return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
+    const products = orderToMap.products?.map(p => ({ 
+        ...p, 
+        colorAsAttachment: p.colors?.includes("As Attached Picture"), 
+        width: p.dimensions?.width, 
+        height: p.dimensions?.height, 
+        depth: p.dimensions?.depth 
+    })) || [defaultProduct];
+    return { 
+        ...defaultValues, 
+        ...orderToMap, 
+        creationDate: toDate(orderToMap.creationDate) || new Date(), 
+        deadline: toDate(orderToMap.deadline) || new Date(), 
+        location: orderToMap.location || { town: '' }, 
+        products 
+    } as OrderFormValues;
   }, []);
 
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
@@ -180,7 +202,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             setIsManualSaving(true);
             const vals = getValues();
             const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
-            if (id) { router.replace(`/orders/${id}/edit?step=3`); setIsManualSaving(false); return; }
+            if (id) { 
+                router.replace(`/orders/${id}/edit?step=3`); 
+                setIsManualSaving(false); 
+                return; 
+            }
             setIsManualSaving(false);
         }
         let next = currentStep + 1;
@@ -213,71 +239,40 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (currentProductIndex >= updated.length) setCurrentProductIndex(Math.max(0, updated.length - 1));
   };
 
-  const startRecording = async () => {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
-        const chunks: BlobPart[] = [];
-        mediaRecorderRef.current.ondataavailable = e => chunks.push(e.data);
-        mediaRecorderRef.current.onstop = () => setAudioBlob(new Blob(chunks, { type: 'audio/webm' }));
-        mediaRecorderRef.current.start(); setIsRecording(true);
-    } catch (err) { toast({ variant: "destructive", title: "Mic Access Denied" }); }
-  };
-
-  const addRecordedAudioToOrder = () => {
-    if (audioBlob && initialOrder) {
-      const file = new File([audioBlob], `memo-${Date.now()}.webm`, { type: 'audio/webm' });
-      addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
-          if (att) {
-              const updated = [...getValues('products')];
-              updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
-              setValue('products', updated, { shouldDirty: true });
-          }
-      });
-      setAudioBlob(null);
-    }
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && (initialOrder || isProductCreationMode)) {
-      Array.from(event.target.files).forEach(file => {
-          if (isProductCreationMode) {
-              const updated = [...getValues('products')];
-              updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), { fileName: file.name, url: URL.createObjectURL(file), storagePath: '', file: file } as any];
-              setValue('products', updated, { shouldDirty: true });
-          } else if (initialOrder) {
-              addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
-                  if (att) {
-                      const updated = [...getValues('products')];
-                      updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
-                      setValue('products', updated, { shouldDirty: true });
-                  }
-              });
-          }
-      });
-    }
-  };
-
   const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
     setIsManualSaving(true);
     startTransition(async () => {
-        const updated = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined }));
-        const payload = { ...values, products: updated, status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown" };
+        const updated = values.products.map(p => ({ 
+            ...p, 
+            colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, 
+            dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
+        }));
+        const payload = { 
+            ...values, 
+            products: updated, 
+            status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), 
+            customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown" 
+        };
         try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
     });
   };
   
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
-  const currentProduct = watchedProducts[currentProductIndex];
   const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
 
   useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
 
   return (
     <>
-      <div className="mb-8 space-y-4"><Progress value={(currentStep/STEPS.length)*100} className="w-full" /><div className="flex justify-between items-center"><p className="text-sm font-medium">{STEPS.find(s => s.id === currentStep)?.title}</p></div></div>
+      <div className="mb-8 space-y-4">
+        <Progress value={(currentStep/STEPS.length)*100} className="w-full" />
+        <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            <span>Step {currentStep} of {STEPS.length}</span>
+            <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
+        </div>
+      </div>
       <Form {...form}><form onSubmit={e => e.preventDefault()} className="space-y-8">
           {currentStep === 1 && !isProductCreationMode && (
               <Card><CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader><CardContent className="space-y-6">
@@ -313,7 +308,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           )}
           {currentStep === 3 && (
               <Card><CardHeader><CardTitle>Category</CardTitle></CardHeader><CardContent><FormField control={form.control} name={`products.${currentProductIndex}.category`} render={({ field }) => (
-                      <FormItem><FormControl><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productCategories.map(c => { const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; return <button key={c.name} type="button" onClick={() => field.onChange(c.name)} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent", field.value === c.name && "bg-primary text-primary-foreground shadow-lg")}><Icon className="h-8 w-8" /><span className="text-xs font-bold uppercase">{c.name}</span></button> })}</div></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormControl><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productCategories.map(c => { const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; return <button key={c.name} type="button" onClick={() => field.onChange(c.name)} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}><Icon className="h-8 w-8" /><span className="text-xs font-bold uppercase">{c.name}</span></button> })}</div></FormControl><FormMessage /></FormItem>
                   )} /></CardContent></Card>
           )}
           {currentStep === 4 && (
@@ -324,18 +319,42 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} /></FormControl></FormItem>} />
                     <div className="grid grid-cols-3 gap-4">{['width', 'height', 'depth'].map(f => <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)}</div>
-                    <Separator /><div className="space-y-4">
-                        <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => fileInputRef.current?.click()}><UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" /><p className="text-sm">Click to upload files or photos</p><input ref={fileInputRef} type="file" multiple onChange={handleFileChange} className="hidden" /></div>
-                        {audioBlob ? <div className="p-2 border rounded-lg flex items-center justify-between"><span className="text-sm">Voice Memo Ready</span><div className="flex gap-2"><Button type="button" variant="ghost" size="sm" onClick={() => setAudioBlob(null)}>Discard</Button><Button type="button" size="sm" onClick={addRecordedAudioToOrder}>Add</Button></div></div> : <Button type="button" variant="outline" className="w-full" onClick={isRecording ? () => { mediaRecorderRef.current?.stop(); setIsRecording(false); } : startRecording}>{isRecording ? <Square className="mr-2 h-4 w-4 animate-pulse text-destructive"/> : <Mic className="mr-2 h-4 w-4" />} {isRecording ? 'Stop Recording' : 'Record Voice Memo'}</Button>}
+                    <Separator />
+                    <div className="space-y-4">
+                        <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => fileInputRef.current?.click()}>
+                            <UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Click to upload files or photos</p>
+                            <input ref={fileInputRef} type="file" multiple onChange={(e) => {
+                                if (e.target.files) {
+                                    Array.from(e.target.files).forEach(file => {
+                                        if (initialOrder) {
+                                            addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
+                                                if (att) {
+                                                    const updated = [...getValues('products')];
+                                                    updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+                                                    setValue('products', updated, { shouldDirty: true });
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            }} className="hidden" />
+                        </div>
                         <div className="space-y-2">{watchedProducts[currentProductIndex].attachments?.map(att => (
-                            <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md"><div className="flex items-center gap-2 truncate">{att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}<span className="text-xs truncate">{att.fileName}</span></div><Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAttachment(initialOrder?.id || '', currentProductIndex, att)}><Trash2 className="h-4 w-4" /></Button></div>
+                            <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                                <div className="flex items-center gap-2 truncate">
+                                    {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
+                                    <span className="text-xs truncate">{att.fileName}</span>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAttachment(initialOrder?.id || '', currentProductIndex, att)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
                         ))}</div>
                     </div>
                   </CardContent></Card>
           )}
           {currentStep === 6 && (
               <Card><CardHeader><CardTitle>Material</CardTitle></CardHeader><CardContent><FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
-                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productSettings?.materials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; return <button key={m.name} type="button" onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg")}><Icon className="h-8 w-8" />{m.name}</button> })}</div></FormItem>
+                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productSettings?.materials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; return <button key={m.name} type="button" onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}><Icon className="h-8 w-8" />{m.name}</button> })}</div></FormItem>
                   )} /></CardContent></Card>
           )}
           {currentStep === 7 && (

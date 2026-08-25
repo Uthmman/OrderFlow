@@ -12,6 +12,7 @@ import {
   ColumnFiltersState,
   SortingState,
   Table,
+  VisibilityState,
 } from "@tanstack/react-table"
 import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
 import { differenceInDays } from 'date-fns';
@@ -28,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Order, OrderStatus, OrderSortPreference, AppUser } from "@/lib/types"
+import { Order, OrderStatus, AppUser } from "@/lib/types"
 import { formatCurrency, formatOrderId, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
@@ -48,17 +49,9 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useUser, useUsers } from "@/hooks/use-user"
 import { cn } from "@/lib/utils";
-import { SortDirection, SortField } from "@/app/(app)/orders/page"
 import { useProductSettings } from "@/hooks/use-product-settings"
 import Image from "next/image";
 import { DataTablePagination } from "./data-table/data-table-pagination"
@@ -162,7 +155,7 @@ function OrderActions({ order }: { order: Order }) {
         e.stopPropagation();
         const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         if (dialogAction === 'cancel') {
-            updateOrder({ ...order, status: "Cancelled" });
+            updateOrder({ id: order.id, status: "Cancelled" });
             toast({ title: "Order Cancelled", description: `${orderName} has been cancelled.` });
         } else if (dialogAction === 'delete') {
             const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
@@ -174,7 +167,7 @@ function OrderActions({ order }: { order: Order }) {
     const handleToggleUrgent = (e: React.MouseEvent) => {
         e.stopPropagation();
         const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
-        updateOrder({ ...order, isUrgent: !order.isUrgent });
+        updateOrder({ id: order.id, isUrgent: !order.isUrgent });
         toast({ title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`, description: `${orderName} updated.` });
     };
 
@@ -321,6 +314,11 @@ export const columns: ColumnDef<Order>[] = [
     cell: ({ row }) => <DeadlineDisplay deadline={row.getValue("deadline")} />,
   },
   {
+    accessorKey: "creationDate",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Ordered" />,
+    cell: ({ row }) => <span className="text-xs text-muted-foreground">{formatTimestamp(row.getValue("creationDate"))}</span>,
+  },
+  {
     accessorKey: "incomeAmount",
     header: ({ column }) => <div className="text-right"><DataTableColumnHeader column={column} title="Price" /></div>,
     cell: ({ row }) => <div className="text-right font-bold text-sm">{formatCurrency(parseFloat(row.getValue("incomeAmount")))}</div>,
@@ -336,16 +334,7 @@ function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, pref
   const { user } = useUser();
   const { updateUserPreferences } = useUsers();
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
-  const { toast } = useToast();
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
-
-  const handleSortChange = (newSorting: SortingState) => {
-    table.setSorting(newSorting);
-    if (user && newSorting.length > 0) {
-      const { id, desc } = newSorting[0];
-      updateUserPreferences(user.id, { [preferenceKey]: { field: id as any, direction: desc ? 'desc' : 'asc' } });
-    }
-  };
 
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
@@ -429,6 +418,9 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const { orders: contextOrders, loading } = useOrders();
   const { user: userProfile, loading: isUserLoading } = useUser();
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
+    creationDate: false,
+  });
 
   const initialSorting = React.useMemo((): SortingState => {
     if (userProfile?.[preferenceKey as any]) {
@@ -448,9 +440,10 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const table = useReactTable({
     data: orders,
     columns,
-    state: { sorting, columnFilters },
+    state: { sorting, columnFilters, columnVisibility },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

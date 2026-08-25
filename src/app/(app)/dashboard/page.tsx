@@ -63,7 +63,7 @@ export default function Dashboard() {
 
   const revenueData = [
     { name: 'Prepaid', value: stats.prepaid, color: 'hsl(var(--primary))' },
-    { name: 'Balance', value: stats.revenue - stats.prepaid, color: 'hsl(var(--accent))' },
+    { name: 'Balance', value: Math.max(0, stats.revenue - stats.prepaid), color: 'hsl(var(--accent))' },
   ];
 
   if (ordersLoading || customersLoading || userLoading) {
@@ -74,13 +74,11 @@ export default function Dashboard() {
     );
   }
 
-  const isAdmin = role === 'Admin';
-
   return (
     <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Overview</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-slate-900">Overview</h1>
             <p className="text-muted-foreground">Detailed business operations analytics.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -92,7 +90,6 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Order Overview Card */}
         <Card className="lg:col-span-2 border-none shadow-sm bg-white/50 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -107,7 +104,7 @@ export default function Dashboard() {
                 <div className="flex items-center text-xs font-bold text-green-500 mb-1">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     +10.5%
-                    <span className="text-muted-foreground font-normal ml-1">Compared to last month</span>
+                    <span className="text-muted-foreground font-normal ml-1">vs last month</span>
                 </div>
             </div>
 
@@ -127,7 +124,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Revenue Card */}
         <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
           <CardHeader className="flex flex-row items-center justify-between">
              <div>
@@ -178,7 +174,7 @@ export default function Dashboard() {
                     <div className="h-2 w-2 rounded-full bg-accent" />
                     <div className="text-xs">
                         <span className="text-muted-foreground">Balance: </span>
-                        <span className="font-bold">{formatCurrency(stats.revenue - stats.prepaid)}</span>
+                        <span className="font-bold">{formatCurrency(Math.max(0, stats.revenue - stats.prepaid))}</span>
                     </div>
                 </div>
             </div>
