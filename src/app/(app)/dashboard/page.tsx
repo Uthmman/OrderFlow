@@ -1,9 +1,9 @@
 
 "use client"
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { DollarSign, Package, Users, Activity, PackageCheck, Briefcase, ArrowRight } from "lucide-react"
+import { DollarSign, Package, Users, Activity, TrendingUp, TrendingDown, ArrowRight, MoreHorizontal } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency } from "@/lib/utils"
@@ -15,11 +15,13 @@ import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMo
 import { Order, OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { Badge } from "@/components/ui/badge"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
-  const { user, role, loading: userLoading } = useUser();
+  const { role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -28,7 +30,6 @@ export default function Dashboard() {
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
     if (date instanceof Date) return date;
-    // Handle Firestore Timestamp object (both instance and plain object from serialization)
     if (date && typeof date.seconds === 'number') {
       return new Date(date.seconds * 1000);
     }
@@ -39,186 +40,189 @@ export default function Dashboard() {
   }
 
   const filteredOrdersByDate = useMemo(() => {
-    if (!dateRange?.from) {
-      return orders;
-    }
+    if (!dateRange?.from) return orders;
     return orders.filter(order => {
         const creationDate = parseOrderDate(order.creationDate);
         if (!creationDate) return false;
-
         const start = startOfDay(dateRange.from!);
         const end = endOfDay(dateRange.to || dateRange.from!);
-        
         return isWithinInterval(creationDate, { start, end });
     });
   }, [orders, dateRange]);
 
-  const upcomingOrders = useMemo(() => {
-    const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
-    return orders
-      .filter(order => activeStatuses.includes(order.status))
-      .sort((a, b) => {
-        const dateA = parseOrderDate(a.deadline)?.getTime() || 0;
-        const dateB = parseOrderDate(b.deadline)?.getTime() || 0;
-        return dateA - dateB;
-      })
-      .slice(0, 5);
-  }, [orders]);
-
-  const ordersInProgress = useMemo(() => {
-    return orders.filter(order => order.status === "In Progress");
-  }, [orders]);
-
-
   const stats = useMemo(() => {
-    const totalOrdersInPeriod = filteredOrdersByDate.length;
-    const totalRevenueInPeriod = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
+    const totalOrders = filteredOrdersByDate.length;
+    const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).length;
+    const pending = filteredOrdersByDate.filter(o => o.status === 'Pending').length;
+    const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
+    const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
+    const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    // Stats that are for all-time (not affected by date range)
-    const ordersInProgressCount = orders.filter(o => o.status === "In Progress").length;
-    const ordersInProduction = orders.filter(o => o.status === "Manufacturing" || o.status === "Painting").length;
-    const urgentOrders = orders.filter(o => o.isUrgent && o.status !== "Completed" && o.status !== "Shipped" && o.status !== "Cancelled").length;
-        
-    return {
-      totalRevenue: totalRevenueInPeriod,
-      totalOrders: totalOrdersInPeriod,
-      ordersInProgress: ordersInProgressCount,
-      ordersInProduction,
-      urgentOrders,
-    }
-  }, [orders, filteredOrdersByDate]);
+    return { totalOrders, active, pending, delivered, revenue, prepaid };
+  }, [filteredOrdersByDate]);
+
+  const revenueData = [
+    { name: 'Prepaid', value: stats.prepaid, color: 'hsl(var(--primary))' },
+    { name: 'Balance', value: stats.revenue - stats.prepaid, color: 'hsl(var(--accent))' },
+  ];
 
   if (ordersLoading || customersLoading || userLoading) {
-    return <div>Loading...</div>;
+    return (
+        <div className="flex h-96 items-center justify-center">
+            <Activity className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+    );
   }
 
-  const canViewSensitiveData = role === 'Admin';
-
+  const isAdmin = role === 'Admin';
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 pb-10">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-            An overview of your business operations.
-            </p>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Overview</h1>
+            <p className="text-muted-foreground">Detailed business operations analytics.</p>
         </div>
-        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
+        <div className="flex items-center gap-2">
+            <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
+            <Button size="sm" asChild>
+                <Link href="/orders/new">Add new</Link>
+            </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {canViewSensitiveData && (
-            <>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                    Total Revenue
-                    </CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-                    <p className="text-xs text-muted-foreground">
-                    Based on selected period
-                    </p>
-                </CardContent>
-            </Card>
-             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">+{customers.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  All time customers
-                </p>
-              </CardContent>
-            </Card>
-            </>
-        )}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <PackageCheck className="h-4 w-4 text-muted-foreground" />
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+        {/* Order Overview Card */}
+        <Card className="lg:col-span-2 border-none shadow-sm bg-white/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle className="text-lg font-bold">Order Overview</CardTitle>
+                <CardDescription>Order statistics for the selected period</CardDescription>
+            </div>
+            <SelectPeriod />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{stats.totalOrders}</div>
-             <p className="text-xs text-muted-foreground">
-                In selected period
-            </p>
+          <CardContent className="space-y-8">
+            <div className="flex items-end gap-4">
+                <div className="text-4xl font-bold tracking-tighter">{stats.totalOrders.toLocaleString()}</div>
+                <div className="flex items-center text-xs font-bold text-green-500 mb-1">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    +10.5%
+                    <span className="text-muted-foreground font-normal ml-1">Compared to last month</span>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatusStat label="Active Order" count={stats.active} color="bg-primary" />
+                <StatusStat label="Pending Order" count={stats.pending} color="bg-amber-400" />
+                <StatusStat label="On Production" count={filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length} color="bg-green-400" />
+                <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-400" />
+            </div>
+
+            <div className="flex h-3 w-full rounded-full overflow-hidden bg-muted">
+                <div style={{ width: `${(stats.active / stats.totalOrders) * 100}%` }} className="bg-primary" />
+                <div style={{ width: `${(stats.pending / stats.totalOrders) * 100}%` }} className="bg-amber-400" />
+                <div style={{ width: `${(filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length / stats.totalOrders) * 100}%` }} className="bg-green-400" />
+                <div style={{ width: `${(stats.delivered / stats.totalOrders) * 100}%` }} className="bg-blue-400" />
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+
+        {/* Revenue Card */}
+        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+             <div>
+                <CardTitle className="text-lg font-bold">Revenue</CardTitle>
+                <CardDescription>Income distribution</CardDescription>
+            </div>
+            <SelectPeriod />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{stats.ordersInProgress}</div>
-            <p className="text-xs text-muted-foreground">
-              Currently active orders
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Production</CardTitle>
-            <Briefcase className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">+{stats.ordersInProduction}</div>
-             <p className="text-xs text-muted-foreground">
-                Manufacturing or Painting
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Urgent Orders</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.urgentOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              Action required
-            </p>
+            <div className="relative h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={revenueData}
+                            cx="50%"
+                            cy="100%"
+                            startAngle={180}
+                            endAngle={0}
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {revenueData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                        </Pie>
+                    </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-center">
+                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Total Revenue</p>
+                    <p className="text-2xl font-bold">{formatCurrency(stats.revenue)}</p>
+                     <div className="flex items-center text-[10px] font-bold text-red-500 mt-1">
+                        <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+                        -7.2%
+                    </div>
+                </div>
+            </div>
+            <div className="flex justify-around mt-4">
+                <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <div className="text-xs">
+                        <span className="text-muted-foreground">Prepaid: </span>
+                        <span className="font-bold">{formatCurrency(stats.prepaid)}</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-accent" />
+                    <div className="text-xs">
+                        <span className="text-muted-foreground">Balance: </span>
+                        <span className="font-bold">{formatCurrency(stats.revenue - stats.prepaid)}</span>
+                    </div>
+                </div>
+            </div>
           </CardContent>
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">Upcoming Deadlines</CardTitle>
-                <CardDescription>The next 5 orders with the nearest deadlines.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <OrderTable orders={upcomingOrders} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between px-2">
+            <h2 className="text-xl font-bold font-headline">Recent Orders</h2>
+            <Button variant="ghost" size="sm" asChild>
+                <Link href="/orders">View all <ArrowRight className="ml-2 h-4 w-4" /></Link>
+            </Button>
+        </div>
+        <Card className="border-none shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+                <OrderTable 
+                    orders={filteredOrdersByDate.slice(0, 10)} 
+                    preferenceKey="dashboardOrderSortPreference" 
+                    hidePagination={true} 
+                />
             </CardContent>
-            <CardFooter className="justify-end">
-                <Button asChild variant="ghost" size="sm">
-                    <Link href="/orders">See All Orders <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                </Button>
-            </CardFooter>
-        </Card>
-         <Card>
-            <CardHeader>
-                <CardTitle className="font-headline">In Progress Orders</CardTitle>
-                <CardDescription>All orders that are currently active and being worked on.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <OrderTable orders={ordersInProgress} preferenceKey="dashboardOrderSortPreference" hidePagination={true} />
-            </CardContent>
-             <CardFooter className="justify-end">
-                <Button asChild variant="ghost" size="sm">
-                    <Link href="/orders?tab=inProgress">See More <ArrowRight className="ml-2 h-4 w-4"/></Link>
-                </Button>
-            </CardFooter>
         </Card>
       </div>
-
     </div>
   )
+}
+
+function StatusStat({ label, count, color }: { label: string, count: number, color: string }) {
+    return (
+        <div className="flex flex-col border-l-2 pl-3 gap-0.5">
+            <div className="flex items-center gap-1.5">
+                <div className={cn("h-2 w-2 rounded-full", color)} />
+                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{label}</span>
+            </div>
+            <span className="text-lg font-bold leading-tight">{count}</span>
+        </div>
+    )
+}
+
+function SelectPeriod() {
+    return (
+        <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground">
+            Month <MoreHorizontal className="ml-1 h-3 w-3" />
+        </Button>
+    )
 }

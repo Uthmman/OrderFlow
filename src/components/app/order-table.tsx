@@ -13,7 +13,7 @@ import {
   SortingState,
   Table,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown } from "lucide-react"
+import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon } from "lucide-react"
 import { differenceInDays } from 'date-fns';
 
 import { Button } from "@/components/ui/button"
@@ -35,7 +35,7 @@ import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { useOrders } from "@/hooks/use-orders"
 import {
     AlertDialog,
@@ -80,6 +80,7 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
 }
 
 const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
+    if (!deadline) return <span className="text-muted-foreground">-</span>;
     const deadlineDate = deadline?.seconds ? new Date(deadline.seconds * 1000) : new Date(deadline);
     const today = new Date();
     const daysLeft = differenceInDays(deadlineDate, today);
@@ -101,9 +102,9 @@ const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
     }
 
     return (
-        <div>
-            <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{formatTimestamp(deadline)}</div>
-            <div className={cn("text-[10px] leading-tight", colorClass)}>{text}</div>
+        <div className="flex flex-col">
+            <span className="text-xs font-semibold">{formatTimestamp(deadline)}</span>
+            <span className={cn("text-[10px] uppercase font-bold tracking-tight", colorClass)}>{text}</span>
         </div>
     )
 }
@@ -116,9 +117,9 @@ function DesignerAvatar({ userId, users }: { userId: string, users: AppUser[] })
         <TooltipProvider>
             <Tooltip>
                 <TooltipTrigger asChild>
-                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
+                    <Avatar className="h-7 w-7 ring-2 ring-background shrink-0 hover:z-10 transition-all">
                         <AvatarImage src={profile.avatarUrl} />
-                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                        <AvatarFallback className="text-[9px] font-bold">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
                     </Avatar>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -135,9 +136,11 @@ function StatusCell({ order }: { order: Order }) {
 
     return (
         <div className="flex items-center gap-2">
-            <Badge variant={statusVariantMap[status] || 'outline'}>{status}</Badge>
-            {['Designing', 'Design Ready'].includes(status) && order.assignedTo && order.assignedTo.length > 0 && (
-                <div className="flex -space-x-1.5 ml-1">
+            <Badge variant={statusVariantMap[status] || 'outline'} className="rounded-sm px-2 py-0.5 text-[10px] uppercase font-bold">
+                {status}
+            </Badge>
+            {order.assignedTo && order.assignedTo.length > 0 && (
+                <div className="flex -space-x-2 ml-1">
                     {order.assignedTo.map(uid => (
                         <DesignerAvatar key={uid} userId={uid} users={users} />
                     ))}
@@ -160,17 +163,11 @@ function OrderActions({ order }: { order: Order }) {
         const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         if (dialogAction === 'cancel') {
             updateOrder({ ...order, status: "Cancelled" });
-            toast({
-                title: "Order Cancelled",
-                description: `${orderName} has been cancelled.`,
-            });
+            toast({ title: "Order Cancelled", description: `${orderName} has been cancelled.` });
         } else if (dialogAction === 'delete') {
             const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
             deleteOrder(order.id, allAttachments);
-            toast({
-                title: "Order Deleted",
-                description: `${orderName} has been permanently deleted.`,
-            });
+            toast({ title: "Order Deleted", description: `${orderName} has been permanently deleted.` });
         }
     };
 
@@ -178,57 +175,34 @@ function OrderActions({ order }: { order: Order }) {
         e.stopPropagation();
         const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         updateOrder({ ...order, isUrgent: !order.isUrgent });
-        toast({
-            title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`,
-            description: `${orderName} has been updated.`,
-        });
+        toast({ title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`, description: `${orderName} updated.` });
     };
-
-    const handleDialogTrigger = (e: React.MouseEvent, action: 'cancel' | 'delete') => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDialogAction(action);
-    }
 
     return (
         <AlertDialog>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                  <span className="sr-only">Open menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
+                  <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>
-                  View Details
-                </DropdownMenuItem>
-                 {canEdit && (
-                    <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>
-                        Edit Order
-                    </DropdownMenuItem>
-                 )}
+                <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>View Details</DropdownMenuItem>
+                {canEdit && <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>Edit Order</DropdownMenuItem>}
                 <DropdownMenuItem onClick={handleToggleUrgent}>
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigator.clipboard.writeText(order.id)}>
-                  Copy Order ID
                 </DropdownMenuItem>
                 {canEdit && (
                     <>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
-                             <DropdownMenuItem className="text-destructive" onSelect={(e) => handleDialogTrigger(e, 'cancel')}>
-                                Cancel Order
-                            </DropdownMenuItem>
+                             <DropdownMenuItem className="text-destructive" onSelect={() => setDialogAction('cancel')}>Cancel Order</DropdownMenuItem>
                         </AlertDialogTrigger>
                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => handleDialogTrigger(e, 'delete')}>
-                                Delete Order
-                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onSelect={() => setDialogAction('delete')}>Delete Order</DropdownMenuItem>
                         </AlertDialogTrigger>
                     </>
                 )}
@@ -238,15 +212,12 @@ function OrderActions({ order }: { order: Order }) {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      {dialogAction === 'cancel' 
-                        ? "This will cancel the order. This can be undone by changing the order status."
-                        : "This action cannot be undone. This will permanently delete the order and remove its data from our servers."
-                      }
+                      {dialogAction === 'cancel' ? "This will cancel the order." : "This will permanently delete the order."}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleAction}>
+                    <AlertDialogAction onClick={handleAction} className={cn(dialogAction === 'delete' && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
                         {dialogAction === 'cancel' ? 'Cancel Order' : 'Delete Order'}
                     </AlertDialogAction>
                 </AlertDialogFooter>
@@ -255,57 +226,31 @@ function OrderActions({ order }: { order: Order }) {
     )
 }
 
-function CustomerLink({ order }: { order: Order }) {
-    const { user, role } = useUser();
-    const canViewCustomer = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
-
-    if (canViewCustomer) {
-        return <Link className="hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>{order.customerName}</Link>
-    }
-
-    return <span>{order.customerName}</span>;
-}
-
 const CategoryIcon = ({ order }: { order: Order }) => {
     const { productSettings } = useProductSettings();
-
     if (order.mainImageUrl) {
         return (
-            <div className="relative h-14 w-14 rounded-md overflow-hidden flex-shrink-0 border bg-muted">
-                <Image 
-                    src={order.mainImageUrl} 
-                    alt={order.uniqueName || "Order"} 
-                    fill 
-                    className="object-cover"
-                />
+            <div className="relative h-10 w-10 rounded-lg overflow-hidden flex-shrink-0 border bg-muted shadow-sm">
+                <Image src={order.mainImageUrl} alt="Order" fill className="object-cover" />
             </div>
         )
     }
-
     const firstProduct = (order.products && order.products.length > 0) ? order.products[0] : null;
-    if (!firstProduct) return <DynamicIcon icon="Box" className="h-14 w-14 text-muted-foreground flex-shrink-0"/>;
-
-    const category = productSettings?.productCategories.find(c => c.name === firstProduct.category);
+    const category = productSettings?.productCategories.find(c => c.name === firstProduct?.category);
     const iconName = category?.icon || 'Box';
-    const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
-
-    if (isUrl) {
-        return <Image src={iconName} alt={firstProduct.category || "product"} width={56} height={56} className="h-14 w-14 rounded-md object-cover flex-shrink-0" />;
-    }
-
-    return <DynamicIcon icon={iconName} className="h-14 w-14 text-muted-foreground flex-shrink-0"/>;
+    return (
+        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 border shadow-sm">
+            <DynamicIcon icon={iconName} className="h-5 w-5 text-muted-foreground" />
+        </div>
+    );
 }
-
 
 export const columns: ColumnDef<Order>[] = [
   {
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
@@ -323,19 +268,18 @@ export const columns: ColumnDef<Order>[] = [
   },
   {
     accessorKey: "id",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order Name" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Order ID" />,
     cell: ({ row }) => {
         const order = row.original;
         const displayName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
         return (
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
-                 <div>
-                    <div className="font-medium text-primary hover:underline">
-                        <Link href={`/orders/${order.id}`}>{displayName}</Link>
-                    </div>
+                 <div className="flex flex-col min-w-0">
+                    <Link href={`/orders/${order.id}`} className="font-bold text-sm text-primary hover:underline truncate">
+                        {displayName}
+                    </Link>
+                    <span className="text-[10px] text-muted-foreground font-mono">#{order.id.slice(-6).toUpperCase()}</span>
                  </div>
             </div>
         );
@@ -346,7 +290,24 @@ export const columns: ColumnDef<Order>[] = [
     header: "Customer",
     cell: ({ row }) => {
         const order = row.original;
-        return <CustomerLink order={order} />
+        const { role } = useUser();
+        const canViewCustomer = role === 'Admin' || role === 'Sales';
+        return (
+            <div className="flex items-center gap-2">
+                <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-[8px] font-bold">
+                        {order.customerName.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                </Avatar>
+                {canViewCustomer ? (
+                    <Link className="text-sm font-medium hover:underline" href={`/customers/${order.customerId}`} onClick={(e) => e.stopPropagation()}>
+                        {order.customerName}
+                    </Link>
+                ) : (
+                    <span className="text-sm font-medium">{order.customerName}</span>
+                )}
+            </div>
+        )
     },
   },
   {
@@ -356,34 +317,13 @@ export const columns: ColumnDef<Order>[] = [
   },
   {
     accessorKey: "deadline",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Deadline" />
-    ),
-    cell: ({ row }) => {
-      return <DeadlineDisplay deadline={row.getValue("deadline")} />
-    },
-    enableHiding: true,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Deadline" />,
+    cell: ({ row }) => <DeadlineDisplay deadline={row.getValue("deadline")} />,
   },
   {
     accessorKey: "incomeAmount",
-    header: ({ column }) => (
-      <div className="text-right">
-        <DataTableColumnHeader column={column} title="Income" />
-      </div>
-    ),
-    cell: ({ row }) => {
-      const amount = parseFloat(row.getValue("incomeAmount"))
-      return <div className="text-right font-medium">{formatCurrency(amount)}</div>
-    },
-    enableHiding: true,
-  },
-    {
-    accessorKey: "creationDate",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Order Date" />
-    ),
-    cell: ({ row }) => formatTimestamp(row.getValue("creationDate")),
-    enableHiding: true,
+    header: ({ column }) => <div className="text-right"><DataTableColumnHeader column={column} title="Price" /></div>,
+    cell: ({ row }) => <div className="text-right font-bold text-sm">{formatCurrency(parseFloat(row.getValue("incomeAmount")))}</div>,
   },
   {
     id: "actions",
@@ -392,127 +332,67 @@ export const columns: ColumnDef<Order>[] = [
   },
 ]
 
-function OrderTableToolbar({ 
-  table, 
-  preferenceKey 
-}: { 
-  table: Table<Order>, 
-  preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference'
-}) {
+function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, preferenceKey: string }) {
   const { user } = useUser();
   const { updateUserPreferences } = useUsers();
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
   const { toast } = useToast();
+  const numSelected = table.getFilteredSelectedRowModel().rows.length;
 
   const handleSortChange = (newSorting: SortingState) => {
     table.setSorting(newSorting);
     if (user && newSorting.length > 0) {
       const { id, desc } = newSorting[0];
-      const preference: OrderSortPreference = {
-        field: id as SortField,
-        direction: desc ? 'desc' : 'asc',
-      };
-      updateUserPreferences(user.id, { [preferenceKey]: preference });
+      updateUserPreferences(user.id, { [preferenceKey]: { field: id as any, direction: desc ? 'desc' : 'asc' } });
     }
   };
-
-  const handleDeleteSelected = () => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const ordersToDelete = selectedRows.map(row => row.original);
-    deleteMultipleOrders(ordersToDelete);
-    table.resetRowSelection();
-    toast({
-      title: `${ordersToDelete.length} Order(s) Deleted`,
-      description: "The selected orders have been permanently deleted.",
-    });
-  }
-
-  const handleBulkStatusUpdate = (status: OrderStatus) => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-    const ordersToUpdate = selectedRows.map(row => row.original);
-    updateMultipleOrdersStatus(ordersToUpdate, status).then(() => {
-        table.resetRowSelection();
-    });
-  };
-
-  const currentSort = table.getState().sorting[0];
-  const sortField = currentSort?.id as SortField || 'deadline';
-  const sortDirection = currentSort?.desc ? 'desc' : 'asc';
-  const numSelected = table.getFilteredSelectedRowModel().rows.length;
-
-  if (preferenceKey === 'dashboardOrderSortPreference') {
-      return (
-          <div className="flex items-center justify-end gap-2 flex-wrap">
-              <DataTableViewOptions table={table} />
-          </div>
-      );
-  }
 
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
   return (
-    <div className="flex items-center justify-between gap-2 flex-wrap">
-       <div className="flex items-center gap-2">
-           <Select value={sortField} onValueChange={(v) => handleSortChange([{ id: v, desc: sortDirection === 'desc' }])}>
-                <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                    <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="creationDate">Order Date</SelectItem>
-                    <SelectItem value="deadline">Deadline</SelectItem>
-                </SelectContent>
-            </Select>
-             <Select value={sortDirection} onValueChange={(v) => handleSortChange([{ id: sortField, desc: v === 'desc' }])}>
-                <SelectTrigger className="h-9 w-full sm:w-[130px]">
-                    <SelectValue placeholder="Order" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="desc">Descending</SelectItem>
-                    <SelectItem value="asc">Ascending</SelectItem>
-                </SelectContent>
-            </Select>
-        <DataTableViewOptions table={table} />
-        {numSelected > 0 && (
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9">
-                        Change Status ({numSelected}) <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Change Status to...</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {statuses.map(s => (
-                        <DropdownMenuItem key={s} onClick={() => handleBulkStatusUpdate(s)}>
-                             {s}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" className="h-9">
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+    <div className="flex items-center justify-between p-4 bg-muted/20 border-b">
+       <div className="flex items-center gap-2 flex-wrap">
+          {numSelected > 0 ? (
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 shadow-sm">
+                            Status ({numSelected}) <ChevronDown className="ml-1 h-3 w-3" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        {statuses.map(s => (
+                            <DropdownMenuItem key={s} onClick={() => {
+                                updateMultipleOrdersStatus(table.getFilteredSelectedRowModel().rows.map(r => r.original), s);
+                                table.resetRowSelection();
+                            }}>
+                                {s}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                <Button variant="destructive" size="sm" className="h-8 shadow-sm" onClick={() => {
+                    deleteMultipleOrders(table.getFilteredSelectedRowModel().rows.map(r => r.original));
+                    table.resetRowSelection();
+                }}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                 </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete {numSelected} order(s) and all associated data.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteSelected}>Delete Selected Orders</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
-      </div>
+              </div>
+          ) : (
+             <div className="flex items-center gap-2">
+                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                     <ListFilter className="h-3.5 w-3.5 mr-1.5" /> Filters
+                 </Button>
+                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                     <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Manage
+                 </Button>
+                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                     <DownloadIcon className="h-3.5 w-3.5 mr-1.5" /> Export
+                 </Button>
+             </div>
+          )}
+       </div>
+       <DataTableViewOptions table={table} />
     </div>
   );
 }
@@ -521,42 +401,22 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
     const { role } = useUser();
-
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 p-2">
             {orders.map(order => (
-                 <Card key={order.id} className="hover:bg-muted/50 transition-colors overflow-hidden border-muted-foreground/10">
-                    <div onClick={() => router.push(`/orders/${order.id}`)} className="cursor-pointer p-2.5">
-                        <div className="flex gap-3 items-center">
-                            <CategoryIcon order={order} />
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="min-w-0">
-                                        <h3 className="text-[13px] font-bold truncate leading-tight mb-0.5">
-                                            {order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id)}
-                                        </h3>
-                                        <p className="text-[11px] text-muted-foreground truncate font-medium">
-                                            <CustomerLink order={order} />
-                                        </p>
-                                    </div>
-                                    <div onClick={(e) => e.stopPropagation()} className="shrink-0 -mt-1">
-                                        <OrderActions order={order} />
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between mt-1.5">
-                                    <StatusCell order={order} />
-                                    <div className="text-right">
-                                         <DeadlineDisplay deadline={order.deadline} />
-                                    </div>
-                                </div>
-                                {role === 'Admin' && (
-                                    <div className="mt-1 pt-1 border-t border-muted flex justify-end">
-                                        <span className="text-[12px] font-bold text-primary">
-                                            {formatCurrency(order.incomeAmount)}
-                                        </span>
-                                    </div>
-                                )}
+                 <Card key={order.id} className="hover:bg-muted/50 transition-colors border-muted-foreground/10 shadow-sm overflow-hidden" onClick={() => router.push(`/orders/${order.id}`)}>
+                    <div className="p-3 flex gap-3">
+                        <CategoryIcon order={order} />
+                        <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex justify-between items-start">
+                                <h3 className="text-sm font-bold truncate pr-6">{order.uniqueName}</h3>
+                                <div onClick={e => e.stopPropagation()} className="shrink-0 -mt-1"><OrderActions order={order} /></div>
                             </div>
+                            <div className="flex items-center justify-between">
+                                <StatusCell order={order} />
+                                <DeadlineDisplay deadline={order.deadline} />
+                            </div>
+                             {role === 'Admin' && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
                         </div>
                     </div>
                  </Card>
@@ -565,45 +425,30 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
     );
 }
 
-interface OrderTableProps {
-    orders?: Order[];
-    preferenceKey: 'orderSortPreference' | 'dashboardOrderSortPreference';
-    hidePagination?: boolean;
-}
-
-function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination = false }: OrderTableProps) {
+export function OrderTable({ orders: propOrders, preferenceKey, hidePagination = false }: { orders?: Order[], preferenceKey: string, hidePagination?: boolean }) {
   const { orders: contextOrders, loading } = useOrders();
-  const router = useRouter();
   const { user: userProfile, loading: isUserLoading } = useUser();
-
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
 
-  const getInitialSorting = React.useCallback((): SortingState => {
-    if (userProfile && userProfile[preferenceKey]) {
-      const { field, direction } = userProfile[preferenceKey]!;
+  const initialSorting = React.useMemo((): SortingState => {
+    if (userProfile?.[preferenceKey as any]) {
+      const { field, direction } = userProfile[preferenceKey as any] as any;
       return [{ id: field, desc: direction === 'desc' }];
     }
     return [{ id: 'deadline', desc: false }];
   }, [userProfile, preferenceKey]);
 
-  const [sorting, setSorting] = React.useState<SortingState>(() => getInitialSorting());
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   
   React.useEffect(() => {
-    if (!isUserLoading && userProfile) {
-        setSorting(getInitialSorting());
-    }
-  }, [isUserLoading, userProfile, getInitialSorting]);
-
+    if (!isUserLoading && userProfile) setSorting(initialSorting);
+  }, [isUserLoading, userProfile, initialSorting]);
 
   const orders = propOrders ?? contextOrders;
-  
   const table = useReactTable({
     data: orders,
     columns,
-    state: {
-        sorting,
-        columnFilters,
-    },
+    state: { sorting, columnFilters },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -612,47 +457,19 @@ function OrderTableInternal({ orders: propOrders, preferenceKey, hidePagination 
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  if ((loading && !propOrders) || isUserLoading) {
-      return <div className="text-center p-8">Loading orders...</div>;
-  }
-  
-  if (orders.length === 0) {
-    return (
-        <div className="text-center p-8 text-muted-foreground">
-            <p className="mb-4">No orders to display in this category.</p>
-            <Link href="/orders/new">
-                <Button size="sm">
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Create New Order
-                </Button>
-            </Link>
-        </div>
-    );
-  }
+  if ((loading && !propOrders) || isUserLoading) return <div className="text-center p-8"><Activity className="animate-spin h-6 w-6 mx-auto opacity-50" /></div>;
+  if (orders.length === 0) return <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg m-4"><p>No results found matching your criteria.</p></div>;
 
   return (
     <>
         <div className="hidden md:block">
-            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => router.push(`/orders/${row.original.id}`)} hidePagination={hidePagination}>
-                <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
-            </DataTable>
+            <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
+            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => useRouter().push(`/orders/${row.original.id}`)} hidePagination={hidePagination} />
         </div>
-         <div className="block md:hidden">
-             <div className="mt-4">
-                 <MobileOrderList table={table} />
-            </div>
-             {!hidePagination && (
-                <div className="mt-4">
-                    <DataTablePagination table={table} />
-                </div>
-             )}
+        <div className="block md:hidden">
+             <MobileOrderList table={table} />
+             {!hidePagination && <div className="p-4"><DataTablePagination table={table} /></div>}
         </div>
     </>
   );
-}
-
-export function OrderTable(props: OrderTableProps) {
-    return (
-        <OrderTableInternal {...props} />
-    );
 }
