@@ -119,14 +119,27 @@ function ProductDetailContent() {
                 </CardContent></Card>
         </div>
         <div className="md:col-span-2 space-y-8">
-          <Card><CardHeader className="p-0"><div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer overflow-hidden" onClick={() => {
-              if (primaryAttachment && allImageAttachments.some(i => i.url === primaryAttachment.url)) {
-                  const idx = allImageAttachments.findIndex(i => i.url === primaryAttachment.url);
-                  setGalleryStartIndex(idx);
-                  setGalleryOpen(true);
-              }
-          }}>{primaryAttachment?.url ? <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" /> : <p className="text-muted-foreground">No image</p>}</div></CardHeader>
-             <CardContent className="p-4"><h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Attachments</h3>{allAttachments.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att} onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setGalleryStartIndex(idx); setGalleryOpen(true); } }}/>)}</div> : <p className="text-sm text-muted-foreground text-center py-8">No attachments.</p>}</CardContent></Card>
+          <Card>
+            <CardHeader className="p-0">
+              <div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer overflow-hidden" onClick={() => {
+                  if (primaryAttachment && allImageAttachments.some(i => i.url === primaryAttachment.url)) {
+                      const idx = allImageAttachments.findIndex(i => i.url === primaryAttachment.url);
+                      setGalleryStartIndex(idx);
+                      setGalleryOpen(true);
+                  }
+              }}>
+                {primaryAttachment?.url ? <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" /> : <p className="text-muted-foreground">No image</p>}
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Attachments</h3>
+              {allAttachments.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att} onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setGalleryStartIndex(idx); setGalleryOpen(true); } }}/>)}
+                </div>
+              ) : <p className="text-sm text-muted-foreground text-center py-8">No attachments.</p>}
+            </CardContent>
+          </Card>
         </div>
       </div>
       <Card><CardHeader><CardTitle>Order History</CardTitle></CardHeader><CardContent><CustomerProvider><OrderTable orders={productOrders} preferenceKey="orderSortPreference" /></CustomerProvider></CardContent></Card>

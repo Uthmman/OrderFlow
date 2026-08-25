@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -24,12 +25,11 @@ export default function OrdersPage() {
   const { role, loading: userLoading } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState("active");
+  const [activeTab, setActiveTab] = useState("inProgress");
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
     if (date instanceof Date) return date;
-    // Handle Firestore Timestamp object (both instance and plain object from serialization)
     if (date && typeof date.seconds === 'number') {
       return new Date(date.seconds * 1000);
     }
@@ -66,54 +66,25 @@ export default function OrdersPage() {
     });
   };
 
-  // Define status groups
   const inProgressStatuses: OrderStatus[] = ["In Progress"];
   const designingStatuses: OrderStatus[] = ["Designing"];
   const designReadyStatuses: OrderStatus[] = ["Design Ready"];
-  const manufacturingStatuses: OrderStatus[] = ["Manufacturing"];
-  const paintingStatuses: OrderStatus[] = ["Painting"];
   const inProductionStatuses: OrderStatus[] = ["Manufacturing", "Painting"];
-  const shippedStatuses: OrderStatus[] = ["Shipped"];
-  const completedStatuses: OrderStatus[] = ["Completed"];
-  const cancelledStatuses: OrderStatus[] = ["Cancelled"];
   const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
 
-  // Define tabs based on role
-  const designerTabs = useMemo(() => [
-    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
-    { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
-    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
-    { value: "inProduction", label: "In Production", orders: getOrdersByStatus(inProductionStatuses) },
-    { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
-    { value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...cancelledStatuses, "Pending"]) },
-  ], [orders, searchTerm, dateRange]);
-
-  const defaultTabs = useMemo(() => {
-    const tabs = [
+  const tabs = useMemo(() => {
+    const baseTabs = [
         { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
         { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
         { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
         { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
-        { value: "manufacturing", label: "Manufacturing", orders: getOrdersByStatus(manufacturingStatuses) },
-        { value: "painting", label: "Painting", orders: getOrdersByStatus(paintingStatuses) },
-        { value: "completed", label: "Completed", orders: getOrdersByStatus(completedStatuses) },
+        { value: "inProduction", label: "In Production", orders: getOrdersByStatus(inProductionStatuses) },
+        { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
+        { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
+        { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
     ];
-    if (role === 'Admin') {
-        tabs.push({ value: "shipped", label: "Shipped", orders: getOrdersByStatus(shippedStatuses) });
-    }
-    tabs.push({ value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(cancelledStatuses) });
-    tabs.push({ value: "all", label: "All", orders: getOrdersByStatus([...activeStatuses, ...completedStatuses, ...shippedStatuses, ...cancelledStatuses, "Pending"]) });
-    return tabs;
-  }, [orders, searchTerm, role, dateRange]);
-
-  const tabs = role === 'Designer' ? designerTabs : defaultTabs;
-
-  // Set initial active tab based on role, once the user is loaded.
-  useEffect(() => {
-    if (!userLoading) {
-        setActiveTab('inProgress');
-    }
-  }, [userLoading, role]);
+    return baseTabs;
+  }, [orders, searchTerm, dateRange]);
 
 
   if (loading || userLoading) {
@@ -162,9 +133,11 @@ export default function OrdersPage() {
             <Card className="mt-4">
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
-                        <TabsContent key={tab.value} value={tab.value} forceMount={activeTab === tab.value}>
-                           <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
-                        </TabsContent>
+                        activeTab === tab.value && (
+                            <TabsContent key={tab.value} value={tab.value} forceMount={true}>
+                               <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                            </TabsContent>
+                        )
                     ))}
                 </CardContent>
             </Card>

@@ -138,6 +138,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const existingOrderId = (orderData as any).id;
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
+    // Splitting logic: if multiple products and not a draft, create individual orders
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
@@ -212,6 +213,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
+    // If updating a multi-product order to a non-pending status, trigger the split
     if (orderData.status && orderData.status !== 'Pending' && (orderData.products?.length || originalOrder?.products?.length || 0) > 1) {
         const mergedData = { ...originalOrder, ...orderData };
         await addOrder(mergedData as any, false);
