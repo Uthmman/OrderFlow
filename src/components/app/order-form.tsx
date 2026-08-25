@@ -7,7 +7,6 @@ import * as z from "zod"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,12 +29,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, Mic, Square, Play, Pause, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Edit, Hash, X } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Hash } from "lucide-react"
 import { cn, compressImage } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderAttachment, OrderStatus, Product } from "@/lib/types"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Order, OrderStatus, Product } from "@/lib/types"
+import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
 import Image from "next/image"
@@ -59,7 +58,7 @@ import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "../ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
-import * as LucideIcons from 'lucide-react';
+import * as LucideIcons from 'lucide-react'
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "../ui/scroll-area"
@@ -126,7 +125,7 @@ const STEPS = [
   { id: 6, title: 'Material', fields: [`products.0.material`] },
   { id: 7, title: 'Color', fields: [`products.0.colors`] },
   { id: 8, title: 'Review', fields: [] },
-  { id: 9, title: 'Payment', fields: ['incomeAmount'] },
+  { id: 9, title: 'Pricing', fields: ['incomeAmount'] },
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
 ];
 
@@ -149,9 +148,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
     const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 };
@@ -187,13 +183,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { formState: { isDirty }, getValues, watch, trigger, setValue } = form;
   const watchedProducts = watch("products");
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      for (const file of files) {
+          if (initialOrder) {
+              const att = await addAttachment(initialOrder.id, currentProductIndex, file);
+              if (att) {
+                  const updated = [...getValues('products')];
+                  updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+                  setValue('products', updated, { shouldDirty: true });
+              }
+          }
+      }
+    }
+  };
+
   const nextStep = async () => {
     let fieldsToValidate: any = [];
-    const stepConfig = STEPS.find(s => s.id === currentStep);
-    if (stepConfig) {
-      if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
-      else if (currentStep === 3) fieldsToValidate = [`products.${currentProductIndex}.category`];
-    }
+    if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
+    else if (currentStep === 3) fieldsToValidate = [`products.${currentProductIndex}.category`];
+    
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) return;
 
@@ -257,45 +267,87 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
     });
   };
-  
+
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
 
-  useEffect(() => { if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); }, [totalIncome, setValue, form]);
+  useEffect(() => { 
+    if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); 
+  }, [totalIncome, setValue, form]);
+
+  const handleCreateAndSelectCustomer = async (data: any) => { 
+      setNewCustomerSubmitting(true); 
+      const id = await addCustomer(data); 
+      setValue("customerId", id, { shouldDirty: true }); 
+      setIsCreatingNewCustomer(false); 
+      setNewCustomerSubmitting(false); 
+  };
 
   return (
     <>
       <div className="mb-8 space-y-4">
-        <Progress value={(currentStep/STEPS.length)*100} className="w-full" />
+        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
         <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
             <span>Step {currentStep} of {STEPS.length}</span>
             <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
         </div>
       </div>
-      <Form {...form}><form onSubmit={e => e.preventDefault()} className="space-y-8">
+      <Form {...form}>
+        <form onSubmit={e => e.preventDefault()} className="space-y-8">
           {currentStep === 1 && !isProductCreationMode && (
-              <Card><CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader><CardContent className="space-y-6">
-                      {isCreatingNewCustomer ? <CustomerForm onSubmit={async data => { setNewCustomerSubmitting(true); const id = await addCustomer(data); setValue("customerId", id, { shouldDirty: true }); setIsCreatingNewCustomer(false); setNewCustomerSubmitting(false); }} isSubmitting={newCustomerSubmitting} submitButtonText="Create & Select" onCancel={() => setIsCreatingNewCustomer(false)} /> : (
-                          <>
-                              <FormField control={form.control} name="customerId" render={({ field }) => (
-                                  <FormItem><FormLabel>Customer</FormLabel><div className="flex items-center gap-2"><Select onValueChange={v => { field.onChange(v); const c = customers.find(cu => cu.id === v); if(c?.location.town) setValue('location.town', c.location.town); }} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl><SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" size="sm" onClick={()=>setIsCreatingNewCustomer(true)}><UserPlus className="h-4 w-4" /></Button></div><FormMessage /></FormItem>
-                              )} />
-                              <FormField control={form.control} name="location.town" render={({ field }) => (
-                                  <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} /></FormControl><FormMessage /></FormItem>
-                              )} />
-                          </>
-                      )}
-                  </CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    {isCreatingNewCustomer ? (
+                        <CustomerForm 
+                          onSubmit={handleCreateAndSelectCustomer} 
+                          isSubmitting={newCustomerSubmitting} 
+                          submitButtonText="Create & Select" 
+                          onCancel={() => setIsCreatingNewCustomer(false)} 
+                        />
+                    ) : (
+                        <>
+                            <FormField control={form.control} name="customerId" render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Customer</FormLabel>
+                                  <div className="flex items-center gap-2">
+                                    <Select 
+                                      onValueChange={v => { field.onChange(v); const c = customers.find(cu => cu.id === v); if(c?.location.town) setValue('location.town', c.location.town); }} 
+                                      value={field.value}
+                                    >
+                                      <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
+                                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}><UserPlus className="h-4 w-4" /></Button>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                            )} />
+                            <FormField control={form.control} name="location.town" render={({ field }) => (
+                                <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} /></FormControl><FormMessage /></FormItem>
+                            )} />
+                        </>
+                    )}
+                </CardContent>
+              </Card>
           )}
+
           {initialOrder && currentStep === 2 && (
-              <Card><CardHeader><CardTitle>Product Setup</CardTitle></CardHeader><CardContent className="space-y-4">
+              <Card>
+                <CardHeader><CardTitle>Product Setup</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                           const cat = productSettings?.productCategories.find(c => c.name === p.category);
                           return (
                               <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  <div className="h-10 w-10 bg-background rounded-md flex items-center justify-center border shrink-0"><DynamicIcon icon={cat?.icon || 'Box'} className="h-5 w-5 text-muted-foreground" /></div>
-                                  <div className="flex-grow"><p className="font-semibold">{p.productName || `Product ${i + 1}`}</p><p className="text-xs text-muted-foreground">{p.category}</p></div>
+                                  <div className="h-10 w-10 bg-background rounded-md flex items-center justify-center border shrink-0">
+                                    <DynamicIcon icon={cat?.icon || 'Box'} className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                  <div className="flex-grow">
+                                    <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
+                                    <p className="text-xs text-muted-foreground">{p.category}</p>
+                                  </div>
                                   <div className="flex items-center gap-2">
                                       <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                                       {watchedProducts.length > 1 && <Button variant="ghost" size="icon" onClick={() => handleRemoveProduct(i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>}
@@ -303,42 +355,97 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                               </div>
                           )
                       })}
-                      <Button type="button" variant="outline" onClick={() => { const current = getValues('products'); setValue('products', [...current, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); setCurrentProductIndex(current.length); setCurrentStep(3); }} className="w-full sm:w-auto"><PlusCircleIcon className="mr-2 h-4 w-4"/> Add Another</Button>
-                  </CardContent></Card>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => { 
+                          const current = getValues('products'); 
+                          setValue('products', [...current, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); 
+                          setCurrentProductIndex(current.length); 
+                          setCurrentStep(3); 
+                        }} 
+                        className="w-full sm:w-auto"
+                      >
+                        <PlusCircleIcon className="mr-2 h-4 w-4" /> Add Another
+                      </Button>
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 3 && (
-              <Card><CardHeader><CardTitle>Category</CardTitle></CardHeader><CardContent><FormField control={form.control} name={`products.${currentProductIndex}.category`} render={({ field }) => (
-                      <FormItem><FormControl><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productCategories.map(c => { const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; return <button key={c.name} type="button" onClick={() => field.onChange(c.name)} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}><Icon className="h-8 w-8" /><span className="text-xs font-bold uppercase">{c.name}</span></button> })}</div></FormControl><FormMessage /></FormItem>
-                  )} /></CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Category</CardTitle></CardHeader>
+                <CardContent>
+                  <FormField control={form.control} name={`products.${currentProductIndex}.category`} render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {productCategories.map(c => { 
+                              const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; 
+                              return (
+                                <button 
+                                  key={c.name} 
+                                  type="button" 
+                                  onClick={() => field.onChange(c.name)} 
+                                  className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}
+                                >
+                                  <Icon className="h-8 w-8" />
+                                  <span className="text-xs font-bold uppercase">{c.name}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                  )} />
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 4 && (
-              <Card><CardHeader><CardTitle>Source</CardTitle></CardHeader><CardContent><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><button type="button" onClick={() => setCurrentStep(5)} className="p-6 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent"><PlusCircleIcon className="h-10 w-10" /><h3>Create New Design</h3></button><div className="p-6 border rounded-lg bg-muted/20"><Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} /><ScrollArea className="h-64 mt-4">{catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-background">{p.productName}</div>)}</ScrollArea></div></div></CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Source</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button type="button" onClick={() => setCurrentStep(5)} className="p-6 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent">
+                      <PlusCircleIcon className="h-10 w-10" />
+                      <h3>Create New Design</h3>
+                    </button>
+                    <div className="p-6 border rounded-lg bg-muted/20">
+                      <Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                      <ScrollArea className="h-64 mt-4">
+                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => (
+                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-background">
+                            {p.productName}
+                          </div>
+                        ))}
+                      </ScrollArea>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 5 && (
-              <Card><CardHeader><CardTitle>Details & Files</CardTitle></CardHeader><CardContent className="space-y-6">
+              <Card>
+                <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
                     <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} /></FormControl></FormItem>} />
-                    <div className="grid grid-cols-3 gap-4">{['width', 'height', 'depth'].map(f => <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>)}</div>
+                    <div className="grid grid-cols-3 gap-4">
+                      {['width', 'height', 'depth'].map(f => (
+                        <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
+                          <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
+                        ))}
+                      )}
+                    </div>
                     <Separator />
                     <div className="space-y-4">
                         <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => fileInputRef.current?.click()}>
                             <UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
                             <p className="text-sm">Click to upload files or photos</p>
-                            <input ref={fileInputRef} type="file" multiple onChange={(e) => {
-                                if (e.target.files) {
-                                    Array.from(e.target.files).forEach(file => {
-                                        if (initialOrder) {
-                                            addAttachment(initialOrder.id, currentProductIndex, file).then(att => {
-                                                if (att) {
-                                                    const updated = [...getValues('products')];
-                                                    updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
-                                                    setValue('products', updated, { shouldDirty: true });
-                                                }
-                                            });
-                                        }
-                                    });
-                                }
-                            }} className="hidden" />
+                            <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                         </div>
                         <div className="space-y-2">{watchedProducts[currentProductIndex].attachments?.map(att => (
                             <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
@@ -350,47 +457,130 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </div>
                         ))}</div>
                     </div>
-                  </CardContent></Card>
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 6 && (
-              <Card><CardHeader><CardTitle>Material</CardTitle></CardHeader><CardContent><FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
-                      <FormItem><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{productSettings?.materials.map(m => { const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; return <button key={m.name} type="button" onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}><Icon className="h-8 w-8" />{m.name}</button> })}</div></FormItem>
-                  )} /></CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Material</CardTitle></CardHeader>
+                <CardContent>
+                  <FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
+                      <FormItem>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {productSettings?.materials.map(m => { 
+                            const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; 
+                            return (
+                              <button 
+                                key={m.name} 
+                                type="button" 
+                                onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} 
+                                className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}
+                              >
+                                <Icon className="h-8 w-8" />
+                                {m.name}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </FormItem>
+                  )} />
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 7 && (
-              <Card><CardHeader><CardTitle>Color</CardTitle></CardHeader><CardContent className="space-y-6">
+              <Card>
+                <CardHeader><CardTitle>Color</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
                       <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={() => (
-                          <FormItem><div className={cn("space-y-6", watchedProducts[currentProductIndex].colorAsAttachment && "opacity-20 pointer-events-none")}><div className="grid grid-cols-4 gap-4">{colorSettings?.customColors.map(o => <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
-                                  <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`c-${o.name}`} /></FormControl><Label htmlFor={`c-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold text-center">{o.name}</span></Label></FormItem>
-                              )} />)}</div><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{colorSettings?.woodFinishes.map(o => <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
-                                  <FormItem><FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`w-${o.name}`} /></FormControl><Label htmlFor={`w-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold">{o.name}</span></Label></FormItem>
-                              )} />)}</div></div><FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
+                          <FormItem>
+                            <div className={cn("space-y-6", watchedProducts[currentProductIndex].colorAsAttachment && "opacity-20 pointer-events-none")}>
+                              <div className="grid grid-cols-4 gap-4">
+                                {colorSettings?.customColors.map(o => (
+                                  <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`c-${o.name}`} /></FormControl>
+                                      <Label htmlFor={`c-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold text-center">{o.name}</span></Label>
+                                    </FormItem>
+                                  )} />
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                {colorSettings?.woodFinishes.map(o => (
+                                  <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                                    <FormItem>
+                                      <FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`w-${o.name}`} /></FormControl>
+                                      <Label htmlFor={`w-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold">{o.name}</span></Label>
+                                    </FormItem>
+                                  )} />
+                                ))}
+                              </div>
+                            </div>
+                            <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
                               <FormItem className="flex items-center space-x-2 mt-8 border p-4 rounded-lg bg-muted/20"><FormControl><Checkbox checked={field.value} onCheckedChange={v => { field.onChange(v); if(v) setValue(`products.${currentProductIndex}.colors`, []); }} /></FormControl><FormLabel className="text-sm font-bold">COLOR AS ATTACHED PICTURE</FormLabel></FormItem>
-                          )} /></FormItem>
+                            )} />
+                          </FormItem>
                       )} />
-                  </CardContent></Card>
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 8 && (
-              <Card><CardHeader><CardTitle>Review Designs</CardTitle></CardHeader><CardContent className="space-y-4">
-                      {watchedProducts.map((p, i) => <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10"><span className="font-bold">{p.productName || `Product ${i+1}`}</span><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button></div></div>)}
-                      {!isProductCreationMode && <Button type="button" variant="outline" onClick={() => { const cur = getValues('products'); setValue('products', [...cur, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); setCurrentProductIndex(cur.length); setCurrentStep(3); }} className="w-full">Add Another Product</Button>}
-                  </CardContent></Card>
+              <Card>
+                <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                      {watchedProducts.map((p, i) => (
+                        <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
+                          <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
+                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        </div>
+                      ))}
+                      {!isProductCreationMode && (
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => { 
+                            const cur = getValues('products'); 
+                            setValue('products', [...cur, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); 
+                            setCurrentProductIndex(cur.length); 
+                            setCurrentStep(3); 
+                          }} 
+                          className="w-full"
+                        >
+                          Add Another Product
+                        </Button>
+                      )}
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 9 && !isProductCreationMode && (
-              <Card><CardHeader><CardTitle>Pricing</CardTitle></CardHeader><CardContent className="space-y-6">
+              <Card>
+                <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
                       <FormField control={form.control} name="incomeAmount" render={({ field }) => <FormItem><FormLabel>Total Price</FormLabel><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8 text-2xl font-bold h-12" {...field} readOnly /></div></FormItem>} />
                       <div className="space-y-4">{watchedProducts.map((p, i) => <FormField key={p.id} control={form.control} name={`products.${i}.price`} render={({ field }) => <FormItem><FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">{p.productName || `P${i+1}`} Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />)}</div>
                       <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />
                       <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                  </CardContent></Card>
+                </CardContent>
+              </Card>
           )}
+
           {currentStep === 10 && !isProductCreationMode && (
-              <Card><CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader><CardContent className="space-y-6">
+              <Card>
+                <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
                       <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>} />
                       <FormField control={form.control} name="deadline" render={({ field }) => <FormItem className="flex flex-col"><FormLabel>Delivery Deadline</FormLabel><Popover><PopoverTrigger asChild><Button variant="outline" className="h-11 justify-start font-bold">{field.value ? format(field.value, "PPP") : "Select date"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>} />
                       <FormField control={form.control} name="isUrgent" render={({ field }) => <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-red-50/50 border-red-100"><div className="space-y-0.5"><FormLabel className="text-red-700 font-bold">URGENT ORDER</FormLabel><p className="text-xs text-red-600/70 italic">Prioritizes this in all lists</p></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>} />
-                  </CardContent></Card>
+                </CardContent>
+              </Card>
           )}
+
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm py-4 z-10 border-t mt-8">
               <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()} disabled={isPending || isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
@@ -400,8 +590,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                   {currentStep === (isProductCreationMode ? 8 : 10) && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0 || isPending}>{(isSubmitting || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
               </div>
           </div>
-        </form></Form>
-      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>You have unsaved changes. Are you sure you want to discard them?</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Stay</AlertDialogCancel><AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+        </form>
+      </Form>
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>You have unsaved changes. Are you sure you want to discard them?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Stay</AlertDialogCancel><AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

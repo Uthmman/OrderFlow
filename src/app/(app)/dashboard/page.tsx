@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { DollarSign, Package, Users, Activity, TrendingUp, TrendingDown, ArrowRight, MoreHorizontal } from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, MoreHorizontal, Loader2, Activity } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -12,11 +12,10 @@ import { useUser } from "@/hooks/use-user"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
-import { Order, OrderStatus } from "@/lib/types"
+import { OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Badge } from "@/components/ui/badge"
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
@@ -69,7 +68,7 @@ export default function Dashboard() {
   if (ordersLoading || customersLoading || userLoading) {
     return (
         <div className="flex h-96 items-center justify-center">
-            <Activity className="h-8 w-8 animate-spin text-muted-foreground" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
     );
   }

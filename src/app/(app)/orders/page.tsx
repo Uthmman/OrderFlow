@@ -1,24 +1,20 @@
 
-"use client";
+"use client"
 
-import { useState, useMemo, useEffect } from "react";
-import { OrderTable } from "@/components/app/order-table";
-import { Card, CardContent } from "@/components/ui/card";
-import { useOrders } from "@/hooks/use-orders";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Order, OrderStatus } from "@/lib/types";
-import { useUser } from "@/hooks/use-user";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Search } from "lucide-react";
-import Link from "next/link";
-import { DateRange } from "react-day-picker";
-import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns";
-import { DateRangePicker } from "@/components/ui/date-range-picker";
-import { useToast } from "@/hooks/use-toast";
-
-export type SortField = 'creationDate' | 'deadline';
-export type SortDirection = 'asc' | 'desc';
+import { useState, useMemo } from "react"
+import { OrderTable } from "@/components/app/order-table"
+import { Card, CardContent } from "@/components/ui/card"
+import { useOrders } from "@/hooks/use-orders"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { OrderStatus } from "@/lib/types"
+import { useUser } from "@/hooks/use-user"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { PlusCircle, Search } from "lucide-react"
+import Link from "next/link"
+import { DateRange } from "react-day-picker"
+import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
+import { DateRangePicker } from "@/components/ui/date-range-picker"
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
@@ -42,7 +38,6 @@ export default function OrdersPage() {
   const getOrdersByStatus = (statuses: OrderStatus[]) => {
     return orders.filter(order => {
         const statusMatch = statuses.includes(order.status);
-        
         const displayName = order.uniqueName || order.id;
         const searchMatch = (
             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -61,34 +56,23 @@ export default function OrdersPage() {
                 dateMatch = isWithinInterval(creationDate, { start, end });
             }
         }
-
         return statusMatch && searchMatch && dateMatch;
     });
   };
 
-  const inProgressStatuses: OrderStatus[] = ["In Progress"];
-  const designingStatuses: OrderStatus[] = ["Designing"];
-  const designReadyStatuses: OrderStatus[] = ["Design Ready"];
-  const inProductionStatuses: OrderStatus[] = ["Manufacturing", "Painting"];
-  const activeStatuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"];
-
-  const tabs = useMemo(() => {
-    const baseTabs = [
-        { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(inProgressStatuses) },
-        { value: "active", label: "Active", orders: getOrdersByStatus(activeStatuses) },
-        { value: "designing", label: "Designing", orders: getOrdersByStatus(designingStatuses) },
-        { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(designReadyStatuses) },
-        { value: "inProduction", label: "In Production", orders: getOrdersByStatus(inProductionStatuses) },
-        { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
-        { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
-        { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
-    ];
-    return baseTabs;
-  }, [orders, searchTerm, dateRange]);
-
+  const tabs = useMemo(() => [
+    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(["In Progress"]) },
+    { value: "active", label: "Active", orders: getOrdersByStatus(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"]) },
+    { value: "designing", label: "Designing", orders: getOrdersByStatus(["Designing"]) },
+    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(["Design Ready"]) },
+    { value: "inProduction", label: "In Production", orders: getOrdersByStatus(["Manufacturing", "Painting"]) },
+    { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
+    { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
+    { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
+  ], [orders, searchTerm, dateRange]);
 
   if (loading || userLoading) {
-    return <div>Loading orders...</div>;
+    return <div className="p-8 text-center text-muted-foreground">Loading orders...</div>;
   }
 
   return (

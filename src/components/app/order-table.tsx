@@ -9,13 +9,12 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-  ColumnFiltersState,
   SortingState,
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
-import { differenceInDays } from 'date-fns';
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
+import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -30,13 +29,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Order, OrderStatus, AppUser } from "@/lib/types"
-import { formatCurrency, formatOrderId, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
+import { formatCurrency, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
 import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { useOrders } from "@/hooks/use-orders"
 import {
     AlertDialog,
@@ -51,14 +50,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useUser, useUsers } from "@/hooks/use-user"
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 import { useProductSettings } from "@/hooks/use-product-settings"
-import Image from "next/image";
+import Image from "next/image"
 import { DataTablePagination } from "./data-table/data-table-pagination"
-import { DynamicIcon } from "../ui/dynamic-icon";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { DynamicIcon } from "../ui/dynamic-icon"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -164,13 +162,6 @@ function OrderActions({ order }: { order: Order }) {
         }
     };
 
-    const handleToggleUrgent = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
-        updateOrder({ id: order.id, isUrgent: !order.isUrgent });
-        toast({ title: `Urgency ${order.isUrgent ? "Removed" : "Added"}`, description: `${orderName} updated.` });
-    };
-
     return (
         <AlertDialog>
             <DropdownMenu>
@@ -184,7 +175,7 @@ function OrderActions({ order }: { order: Order }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>View Details</DropdownMenuItem>
                 {canEdit && <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>Edit Order</DropdownMenuItem>}
-                <DropdownMenuItem onClick={handleToggleUrgent}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateOrder({ id: order.id, isUrgent: !order.isUrgent }); }}>
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
                 </DropdownMenuItem>
@@ -331,11 +322,8 @@ export const columns: ColumnDef<Order>[] = [
 ]
 
 function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, preferenceKey: string }) {
-  const { user } = useUser();
-  const { updateUserPreferences } = useUsers();
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
-
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
   return (
@@ -417,10 +405,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
 export function OrderTable({ orders: propOrders, preferenceKey, hidePagination = false }: { orders?: Order[], preferenceKey: string, hidePagination?: boolean }) {
   const { orders: contextOrders, loading } = useOrders();
   const { user: userProfile, loading: isUserLoading } = useUser();
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({
-    creationDate: false,
-  });
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({ creationDate: false });
 
   const initialSorting = React.useMemo((): SortingState => {
     if (userProfile?.[preferenceKey as any]) {
@@ -440,9 +425,8 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const table = useReactTable({
     data: orders,
     columns,
-    state: { sorting, columnFilters, columnVisibility },
+    state: { sorting, columnVisibility },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

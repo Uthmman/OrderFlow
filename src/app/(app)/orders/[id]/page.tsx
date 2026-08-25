@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, type Customer, Product, AppUser } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Link as LinkIcon, Eye, Printer, Boxes, ShieldAlert, MessageSquare, Info, MapPin, UploadCloud, Loader2, CheckCircle, PlusCircle, Search, Star, Share2, QrCode, X, RefreshCw } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -39,9 +39,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogClose,
   DialogFooter,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +58,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -150,17 +149,6 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
     const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
-    const { toast } = useToast();
-
-    const handleShare = async (e: React.MouseEvent) => {
-        e.preventDefault(); e.stopPropagation();
-        if (navigator.share) {
-            try { await navigator.share({ title: att.fileName, url: att.url }); } catch (err) {}
-        } else {
-             navigator.clipboard.writeText(att.url);
-             toast({ title: "Link Copied" });
-        }
-    };
 
     return (
         <Card className="group relative overflow-hidden">
@@ -180,7 +168,6 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                         <p className="text-xs text-center text-muted-foreground truncate w-full px-2">{att.fileName}</p>
                         <div className="flex flex-wrap items-center justify-center gap-1.5 w-full mt-2">
                              <Button size="sm" variant="outline" onClick={() => downloadFile(att.url, att.fileName)} className="h-7 text-[10px] px-2 flex-1"><Download className="h-3 w-3 mr-1" /> Download</Button>
-                             <Button size="sm" variant="outline" onClick={handleShare} className="h-7 text-[10px] px-2 flex-1"><Share2 className="h-3 w-3 mr-1" /> Share</Button>
                         </div>
                     </div>
                 )}

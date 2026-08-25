@@ -14,8 +14,6 @@ import { compressImage, formatOrderUniqueName } from '@/lib/utils';
 import { useProducts } from './use-products';
 import { useUser } from './use-user';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 interface OrderContextType {
   orders: Order[];
@@ -55,7 +53,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const { addOrderToCustomer } = useCustomers();
   const { firestore } = useFirebase();
   const { user } = useUser();
-  const { addProduct, addOrderIdToProduct } = useProducts();
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   const ordersRef = useMemoFirebase(() => collection(firestore, 'orders'), [firestore]);
