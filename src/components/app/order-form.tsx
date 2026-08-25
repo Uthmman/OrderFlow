@@ -268,6 +268,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     });
   };
 
+  const handleNewCustomerSubmit = async (data: any) => {
+      setNewCustomerSubmitting(true);
+      const id = await addCustomer(data);
+      setValue("customerId", id, { shouldDirty: true });
+      setIsCreatingNewCustomer(false);
+      setNewCustomerSubmitting(false);
+  };
+
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
@@ -275,14 +283,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   useEffect(() => { 
     if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); 
   }, [totalIncome, setValue, form]);
-
-  const handleCreateAndSelectCustomer = async (data: any) => { 
-      setNewCustomerSubmitting(true); 
-      const id = await addCustomer(data); 
-      setValue("customerId", id, { shouldDirty: true }); 
-      setIsCreatingNewCustomer(false); 
-      setNewCustomerSubmitting(false); 
-  };
 
   return (
     <>
@@ -301,7 +301,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent className="space-y-6">
                     {isCreatingNewCustomer ? (
                         <CustomerForm 
-                          onSubmit={handleCreateAndSelectCustomer} 
+                          onSubmit={handleNewCustomerSubmit} 
                           isSubmitting={newCustomerSubmitting} 
                           submitButtonText="Create & Select" 
                           onCancel={() => setIsCreatingNewCustomer(false)} 

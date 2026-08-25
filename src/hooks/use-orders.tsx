@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
-import { collection, doc, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, where, getDocs, arrayRemove, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc, setDoc, arrayUnion, writeBatch, query, orderBy, Timestamp } from 'firebase/firestore';
 import type { Order, OrderAttachment, OrderChatMessage, Product, OrderStatus } from '@/lib/types';
 import { useToast } from './use-toast';
 import { useCustomers } from './use-customers';
@@ -27,7 +27,6 @@ interface OrderContextType {
   uploadProgress: Record<string, number>;
   addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
-  syncOrderUniqueNames: () => Promise<number>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -276,21 +275,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   
   const getOrderById = useCallback((orderId: string) => orders?.find(order => order.id === orderId), [orders]);
 
-  const syncOrderUniqueNames = useCallback(async (): Promise<number> => {
-    if (!orders) return 0;
-    const batch = writeBatch(firestore);
-    let count = 0;
-    for (const order of orders) {
-      const expected = formatOrderUniqueName(order.customerName, order.products, order.id);
-      if (order.uniqueName !== expected) { batch.update(doc(firestore, 'orders', order.id), { uniqueName: expected }); count++; }
-    }
-    if (count > 0) await batch.commit();
-    return count;
-  }, [firestore, orders]);
-  
   const value = useMemo(() => ({
-      orders: orders || [], loading, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, getOrderById, uploadProgress, addAttachment, removeAttachment, syncOrderUniqueNames,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, syncOrderUniqueNames]);
+      orders: orders || [], loading, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, getOrderById, uploadProgress, addAttachment, removeAttachment,
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders]);
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 }

@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { TrendingUp, TrendingDown, ArrowRight, MoreHorizontal, Loader2, Activity } from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -12,7 +12,6 @@ import { useUser } from "@/hooks/use-user"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
-import { OrderStatus } from "@/lib/types"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
@@ -20,7 +19,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
-  const { role, loading: userLoading } = useUser();
+  const { user, role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -95,7 +94,6 @@ export default function Dashboard() {
                 <CardTitle className="text-lg font-bold">Order Overview</CardTitle>
                 <CardDescription>Order statistics for the selected period</CardDescription>
             </div>
-            <SelectPeriod />
           </CardHeader>
           <CardContent className="space-y-8">
             <div className="flex items-end gap-4">
@@ -129,7 +127,6 @@ export default function Dashboard() {
                 <CardTitle className="text-lg font-bold">Revenue</CardTitle>
                 <CardDescription>Income distribution</CardDescription>
             </div>
-            <SelectPeriod />
           </CardHeader>
           <CardContent>
             <div className="relative h-48 w-full">
@@ -211,13 +208,5 @@ function StatusStat({ label, count, color }: { label: string, count: number, col
             </div>
             <span className="text-lg font-bold leading-tight">{count}</span>
         </div>
-    )
-}
-
-function SelectPeriod() {
-    return (
-        <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground">
-            Month <MoreHorizontal className="ml-1 h-3 w-3" />
-        </Button>
     )
 }
