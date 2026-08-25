@@ -52,7 +52,6 @@ const removeUndefined = (obj: any): any => {
   return newObj;
 };
 
-/** Helper to get initial image from product attachments */
 const getInitialMainImage = (product: Product) => {
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
   const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
@@ -193,7 +192,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const existingOrderId = (orderData as any).id;
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
-    // Handle Split Case (Multiple products being finalized or created active)
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
@@ -230,10 +228,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             };
 
             const cleanData = removeUndefined(splitOrder);
-            if (isFirst) {
-                batch.set(currentOrderRef, cleanData);
-            } else {
-                batch.set(currentOrderRef, cleanData);
+            batch.set(currentOrderRef, cleanData);
+
+            if (!isFirst) {
                 addOrderToCustomer(orderData.customerId, currentOrderId);
             }
 

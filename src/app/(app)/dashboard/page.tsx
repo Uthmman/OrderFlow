@@ -6,7 +6,7 @@ import { OrderTable } from "@/components/app/order-table"
 import { DollarSign, Package, Users, Activity, TrendingUp, TrendingDown, ArrowRight, MoreHorizontal } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, cn } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
@@ -119,10 +119,10 @@ export default function Dashboard() {
             </div>
 
             <div className="flex h-3 w-full rounded-full overflow-hidden bg-muted">
-                <div style={{ width: `${(stats.active / stats.totalOrders) * 100}%` }} className="bg-primary" />
-                <div style={{ width: `${(stats.pending / stats.totalOrders) * 100}%` }} className="bg-amber-400" />
-                <div style={{ width: `${(filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length / stats.totalOrders) * 100}%` }} className="bg-green-400" />
-                <div style={{ width: `${(stats.delivered / stats.totalOrders) * 100}%` }} className="bg-blue-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.active / stats.totalOrders) * 100 : 0}%` }} className="bg-primary" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.pending / stats.totalOrders) * 100 : 0}%` }} className="bg-amber-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length / stats.totalOrders) * 100 : 0}%` }} className="bg-green-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.delivered / stats.totalOrders) * 100 : 0}%` }} className="bg-blue-400" />
             </div>
           </CardContent>
         </Card>

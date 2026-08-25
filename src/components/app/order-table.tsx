@@ -13,7 +13,7 @@ import {
   SortingState,
   Table,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon } from "lucide-react"
+import { MoreHorizontal, PlusCircle, AlertTriangle, Trash2, CheckCircle2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
 import { differenceInDays } from 'date-fns';
 
 import { Button } from "@/components/ui/button"

@@ -7,6 +7,7 @@ import * as z from "zod"
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -29,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, Mic, Square, Play, Pause, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Edit, Hash } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, Mic, Square, Play, Pause, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Edit, Hash, X } from "lucide-react"
 import { cn, compressImage } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
