@@ -73,12 +73,19 @@ export default function OrdersPage() {
   };
 
   const tabs = useMemo(() => [
-    { value: "active", label: "Active", orders: getOrdersByStatus(["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"]) },
-    { value: "drafts", label: "Drafts", orders: getOrdersByStatus(["Pending"]) },
-    { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
-    { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
-    { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
-  ], [getVisibleOrders, searchTerm, dateRange]);
+    { value: "active", label: "Active", statuses: ["Designing", "In Progress", "Design Ready", "Manufacturing", "Painting"] },
+    { value: "designing", label: "Designing", statuses: ["Designing"] },
+    { value: "in-progress", label: "In Progress", statuses: ["In Progress"] },
+    { value: "ready", label: "Design Ready", statuses: ["Design Ready"] },
+    { value: "production", label: "Production", statuses: ["Manufacturing", "Painting"] },
+    { value: "drafts", label: "Drafts", statuses: ["Pending"] },
+    { value: "completed", label: "Completed", statuses: ["Completed"] },
+    { value: "shipped", label: "Shipped", statuses: ["Shipped"] },
+    { value: "cancelled", label: "Cancelled", statuses: ["Cancelled"] },
+  ].map(t => ({
+      ...t,
+      orders: getOrdersByStatus(t.statuses as OrderStatus[])
+  })), [getVisibleOrders, searchTerm, dateRange]);
 
   if (loading || userLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading orders...</div>;
@@ -114,10 +121,10 @@ export default function OrdersPage() {
        </div>
 
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="w-full overflow-x-auto">
-                <TabsList className="flex-wrap h-auto sm:h-10">
+            <div className="w-full overflow-x-auto pb-1">
+                <TabsList className="flex w-max min-w-full sm:w-auto">
                    {tabs.map(tab => (
-                        <TabsTrigger key={tab.value} value={tab.value}>
+                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap">
                             {tab.label} ({tab.orders.length})
                         </TabsTrigger>
                     ))}
@@ -126,7 +133,7 @@ export default function OrdersPage() {
             <Card className="mt-4">
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
-                        <TabsContent key={tab.value} value={tab.value}>
+                        <TabsContent key={tab.value} value={tab.value} className="mt-0">
                             {activeTab === tab.value && (
                                 <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
                             )}
