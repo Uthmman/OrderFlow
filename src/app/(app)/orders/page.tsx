@@ -118,7 +118,7 @@ export default function OrdersPage() {
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
                         activeTab === tab.value && (
-                            <TabsContent key={tab.value} value={tab.value} forceMount={true}>
+                            <TabsContent key={tab.value} value={tab.value}>
                                <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
                             </TabsContent>
                         )

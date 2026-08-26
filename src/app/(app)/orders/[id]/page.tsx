@@ -319,13 +319,37 @@ function OrderDetailPageContent() {
         </div>
       </div>
        <Tabs defaultValue={defaultTab} className="w-full lg:hidden"><TabsList><TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger><TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger></TabsList>
-            <TabsContent value="details" className="mt-6"><div className="grid gap-8 grid-cols-1"><div className="space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
-                       <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>{(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}</Accordion></div>
-                    <div className="space-y-8"><Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+            <TabsContent value="details" className="mt-6">
+                <div className="grid gap-8 grid-cols-1">
+                    <div className="space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
+                       <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>{(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}</Accordion>
+                    </div>
+                    <div className="space-y-8">
+                        <Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                                 {canViewSensitiveData && (<><Separator /><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div><div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div><Separator /><p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p></>)}
-                            </CardContent></Card>
-                        {canViewSensitiveData ? (customer ? <Card><CardHeader><CardTitle>Customer</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div><p className="text-sm text-muted-foreground">{customer.email}</p><p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p></CardContent></Card> : <Card><CardContent className="p-6">Customer not found.</CardContent></Card>) : (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>)}
-                    </div></div></TabsContent>
+                        </CardContent></Card>
+                        {canViewSensitiveData ? (
+                            customer ? (
+                                <Card>
+                                    <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <User className="h-4 w-4 text-muted-foreground"/> 
+                                            <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
+                            )
+                        ) : (
+                            <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                        )}
+                    </div>
+                </div>
+            </TabsContent>
             <TabsContent value="chat" className="mt-6"><ChatInterface order={order} /></TabsContent></Tabs>
         <div className="hidden lg:grid lg:grid-cols-3 gap-8"><div className="lg:col-span-2 space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
           <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
@@ -335,7 +359,25 @@ function OrderDetailPageContent() {
             <div className="space-y-8"><Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                         {canViewSensitiveData && (<><Separator /><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div><div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div><Separator /><p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p></>)}
                     </CardContent></Card>
-                {canViewSensitiveData ? (customer ? <Card><CardHeader><CardTitle>Customer</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex items-center gap-3"><User className="h-4 w-4 text-muted-foreground"/> <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link></div><p className="text-sm text-muted-foreground">{customer.email}</p><p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p></CardContent></Card> : <Card><CardContent className="p-6">Customer not found.</CardContent></Card>) : (<Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>)}
+                {canViewSensitiveData ? (
+                    customer ? (
+                        <Card>
+                            <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <User className="h-4 w-4 text-muted-foreground"/> 
+                                    <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{customer.email}</p>
+                                <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
+                    )
+                ) : (
+                    <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                )}
                  <ChatInterface order={order} /></div></div>
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
     </div>

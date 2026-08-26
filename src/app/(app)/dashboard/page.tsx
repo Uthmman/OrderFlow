@@ -54,12 +54,14 @@ export default function Dashboard() {
     const totalOrders = filteredOrdersByDate.length;
     const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).length;
     const designing = filteredOrdersByDate.filter(o => o.status === 'Designing').length;
+    const inProgress = filteredOrdersByDate.filter(o => o.status === 'In Progress').length;
     const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length;
+    const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
     const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    return { totalOrders, active, designing, designReady, delivered, revenue, prepaid };
+    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue, prepaid };
   }, [filteredOrdersByDate]);
 
   const revenueData = [
@@ -108,19 +110,21 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                 <StatusStat label="Active Order" count={stats.active} color="bg-primary" />
                 <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />
+                <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />
                 <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-400" />
-                <StatusStat label="On Production" count={filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length} color="bg-green-400" />
+                <StatusStat label="On Production" count={stats.onProduction} color="bg-green-400" />
                 <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-400" />
             </div>
 
             <div className="flex h-3 w-full rounded-full overflow-hidden bg-muted">
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.active / stats.totalOrders) * 100 : 0}%` }} className="bg-primary" />
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.designing / stats.totalOrders) * 100 : 0}%` }} className="bg-orange-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.inProgress / stats.totalOrders) * 100 : 0}%` }} className="bg-blue-300" />
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.designReady / stats.totalOrders) * 100 : 0}%` }} className="bg-purple-400" />
-                <div style={{ width: `${stats.totalOrders > 0 ? (filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length / stats.totalOrders) * 100 : 0}%` }} className="bg-green-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.onProduction / stats.totalOrders) * 100 : 0}%` }} className="bg-green-400" />
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.delivered / stats.totalOrders) * 100 : 0}%` }} className="bg-blue-400" />
             </div>
           </CardContent>
