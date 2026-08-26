@@ -53,12 +53,13 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const totalOrders = filteredOrdersByDate.length;
     const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).length;
-    const pending = filteredOrdersByDate.filter(o => o.status === 'Pending').length;
+    const designing = filteredOrdersByDate.filter(o => o.status === 'Designing').length;
+    const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
     const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    return { totalOrders, active, pending, delivered, revenue, prepaid };
+    return { totalOrders, active, designing, designReady, delivered, revenue, prepaid };
   }, [filteredOrdersByDate]);
 
   const revenueData = [
@@ -107,16 +108,18 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <StatusStat label="Active Order" count={stats.active} color="bg-primary" />
-                <StatusStat label="Pending Order" count={stats.pending} color="bg-amber-400" />
+                <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />
+                <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-400" />
                 <StatusStat label="On Production" count={filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length} color="bg-green-400" />
                 <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-400" />
             </div>
 
             <div className="flex h-3 w-full rounded-full overflow-hidden bg-muted">
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.active / stats.totalOrders) * 100 : 0}%` }} className="bg-primary" />
-                <div style={{ width: `${stats.totalOrders > 0 ? (stats.pending / stats.totalOrders) * 100 : 0}%` }} className="bg-amber-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.designing / stats.totalOrders) * 100 : 0}%` }} className="bg-orange-400" />
+                <div style={{ width: `${stats.totalOrders > 0 ? (stats.designReady / stats.totalOrders) * 100 : 0}%` }} className="bg-purple-400" />
                 <div style={{ width: `${stats.totalOrders > 0 ? (filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length / stats.totalOrders) * 100 : 0}%` }} className="bg-green-400" />
                 <div style={{ width: `${stats.totalOrders > 0 ? (stats.delivered / stats.totalOrders) * 100 : 0}%` }} className="bg-blue-400" />
             </div>
