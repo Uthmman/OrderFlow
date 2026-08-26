@@ -18,10 +18,10 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
-  const { user: userProfile, role, loading: userLoading } = useUser();
+  const { user: userProfile, loading: userLoading } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState("inProgress");
+  const [activeTab, setActiveTab] = useState("active");
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
@@ -35,7 +35,7 @@ export default function OrdersPage() {
     return null;
   }
 
-  // Helper to filter orders by visibility rules:
+  // Filter orders by visibility rules:
   // - Pending (Drafts) are ONLY visible to their ownerId
   const getVisibleOrders = useMemo(() => {
       if (!userProfile) return [];
@@ -73,11 +73,8 @@ export default function OrdersPage() {
   };
 
   const tabs = useMemo(() => [
-    { value: "inProgress", label: "In Progress", orders: getOrdersByStatus(["In Progress"]) },
-    { value: "active", label: "Active", orders: getOrdersByStatus(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"]) },
-    { value: "designing", label: "Designing", orders: getOrdersByStatus(["Designing"]) },
-    { value: "designReady", label: "Design Ready", orders: getOrdersByStatus(["Design Ready"]) },
-    { value: "inProduction", label: "In Production", orders: getOrdersByStatus(["Manufacturing", "Painting"]) },
+    { value: "active", label: "Active", orders: getOrdersByStatus(["In Progress", "Designing", "Design Ready", "Manufacturing", "Painting"]) },
+    { value: "drafts", label: "Drafts", orders: getOrdersByStatus(["Pending"]) },
     { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
     { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
     { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
@@ -129,8 +126,10 @@ export default function OrdersPage() {
             <Card className="mt-4">
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
-                        <TabsContent key={tab.value} value={tab.value} forceMount={false}>
-                            {activeTab === tab.value && <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />}
+                        <TabsContent key={tab.value} value={tab.value}>
+                            {activeTab === tab.value && (
+                                <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                            )}
                         </TabsContent>
                     ))}
                 </CardContent>
