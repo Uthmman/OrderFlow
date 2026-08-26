@@ -1,7 +1,7 @@
 
 "use client"
 
-import { zodResolver } from "@hookform/resolvers"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import {
@@ -577,7 +577,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent></Select></FormItem>} />
+                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s === 'Pending' ? 'Draft' : s}</SelectItem>)}</SelectContent></Select></FormItem>} />
                       <FormField control={form.control} name="deadline" render={({ field }) => <FormItem className="flex flex-col"><FormLabel>Delivery Deadline</FormLabel><Popover><PopoverTrigger asChild><Button variant="outline" className="h-11 justify-start font-bold">{field.value ? format(field.value, "PPP") : "Select date"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>} />
                       <FormField control={form.control} name="isUrgent" render={({ field }) => <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-red-50/50 border-red-100"><div className="space-y-0.5"><FormLabel className="text-red-700 font-bold">URGENT ORDER</FormLabel><p className="text-xs text-red-600/70 italic">Prioritizes this in all lists</p></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>} />
                 </CardContent>

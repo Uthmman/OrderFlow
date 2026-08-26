@@ -196,13 +196,20 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
     );
 }
 
+function StatusBadge({ status }: { status: OrderStatus }) {
+    if (status === 'Pending') {
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Draft</Badge>;
+    }
+    return <Badge variant={statusVariantMap[status]}>{status}</Badge>;
+}
+
 function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2">
-          <Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>
+          <StatusBadge status={order.status} />
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -210,7 +217,9 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
         <DropdownMenuLabel>Change Status</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {statuses.map(status => (
-          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>{status}</DropdownMenuItem>
+          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>
+              {status === 'Pending' ? 'Draft' : status}
+          </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -301,7 +310,7 @@ function OrderDetailPageContent() {
             <div>
                 <div className="flex items-center gap-4 flex-wrap"><h1 className="text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
                      {canChangeStatus && <div className="flex items-center gap-2"><StatusChanger order={order} onStatusChange={handleStatusChange} />{order.assignedTo && order.assignedTo.length > 0 && <div className="flex -space-x-2 ml-2">{order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}</div>}</div>}
-                    {isDesigner && <div className="flex items-center gap-2"><Badge variant={statusVariantMap[order.status]}>{order.status}</Badge>{order.assignedTo && order.assignedTo.length > 0 && <div className="flex -space-x-2 ml-1">{order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}</div>}</div>}
+                    {isDesigner && <div className="flex items-center gap-2"><StatusBadge status={order.status} />{order.assignedTo && order.assignedTo.length > 0 && <div className="flex -space-x-2 ml-1">{order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}</div>}</div>}
                     {order.isUrgent && <Badge variant="destructive">Urgent</Badge>}
                 </div>
                  <h2 className="text-lg text-muted-foreground mt-1">{order.customerName} - {formatProductDisplay(order.products)}</h2>
@@ -345,7 +354,7 @@ function OrderDetailPageContent() {
                                 <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                             )
                         ) : (
-                            <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                            <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
                         )}
                     </div>
                 </div>
@@ -376,7 +385,7 @@ function OrderDetailPageContent() {
                         <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                     )
                 ) : (
-                    <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                    <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
                 )}
                  <ChatInterface order={order} /></div></div>
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />

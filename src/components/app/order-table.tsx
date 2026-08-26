@@ -127,9 +127,15 @@ function StatusCell({ order }: { order: Order }) {
 
     return (
         <div className="flex items-center gap-2">
-            <Badge variant={statusVariantMap[status] || 'outline'} className="rounded-sm px-2 py-0.5 text-[10px] uppercase font-bold">
-                {status}
-            </Badge>
+            {status === 'Pending' ? (
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 rounded-sm px-2 py-0.5 text-[10px] uppercase font-bold">
+                    Draft
+                </Badge>
+            ) : (
+                <Badge variant={statusVariantMap[status] || 'outline'} className="rounded-sm px-2 py-0.5 text-[10px] uppercase font-bold">
+                    {status}
+                </Badge>
+            )}
             {order.assignedTo && order.assignedTo.length > 0 && (
                 <div className="flex -space-x-2 ml-1">
                     {order.assignedTo.map(uid => (
@@ -343,7 +349,7 @@ function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, pref
                                 updateMultipleOrdersStatus(table.getFilteredSelectedRowModel().rows.map(r => r.original), s);
                                 table.resetRowSelection();
                             }}>
-                                {s}
+                                {s === 'Pending' ? 'Draft' : s}
                             </DropdownMenuItem>
                         ))}
                     </DropdownMenuContent>

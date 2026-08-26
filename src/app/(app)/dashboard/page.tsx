@@ -39,20 +39,27 @@ export default function Dashboard() {
     return null;
   }
 
+  // Filter orders by date range AND ensure we don't show Pending (Drafts) in global dashboard stats
+  // except perhaps if the user wants to see their own drafts, but usually drafts are excluded from analytics.
+  const dashboardOrders = useMemo(() => {
+    return orders.filter(o => o.status !== 'Pending');
+  }, [orders]);
+
   const filteredOrdersByDate = useMemo(() => {
-    if (!dateRange?.from) return orders;
-    return orders.filter(order => {
+    if (!dateRange?.from) return dashboardOrders;
+    return dashboardOrders.filter(order => {
         const creationDate = parseOrderDate(order.creationDate);
         if (!creationDate) return false;
         const start = startOfDay(dateRange.from!);
         const end = endOfDay(dateRange.to || dateRange.from!);
         return isWithinInterval(creationDate, { start, end });
     });
-  }, [orders, dateRange]);
+  }, [dashboardOrders, dateRange]);
 
   const stats = useMemo(() => {
     const totalOrders = filteredOrdersByDate.length;
-    const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled'].includes(o.status)).length;
+    // Active excludes Completed, Shipped, Cancelled AND Pending(Drafts)
+    const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled', 'Pending'].includes(o.status)).length;
     const designing = filteredOrdersByDate.filter(o => o.status === 'Designing').length;
     const inProgress = filteredOrdersByDate.filter(o => o.status === 'In Progress').length;
     const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length;

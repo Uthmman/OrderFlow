@@ -18,7 +18,7 @@ import { DateRangePicker } from "@/components/ui/date-range-picker"
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
-  const { role, loading: userLoading } = useUser();
+  const { user: userProfile, role, loading: userLoading } = useUser();
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("inProgress");
@@ -35,8 +35,20 @@ export default function OrdersPage() {
     return null;
   }
 
+  // Helper to filter orders by visibility rules:
+  // - Pending (Drafts) are ONLY visible to their ownerId
+  const getVisibleOrders = useMemo(() => {
+      if (!userProfile) return [];
+      return orders.filter(order => {
+          if (order.status === 'Pending') {
+              return order.ownerId === userProfile.id;
+          }
+          return true; // Everyone with app access can see non-drafts
+      });
+  }, [orders, userProfile]);
+
   const getOrdersByStatus = (statuses: OrderStatus[]) => {
-    return orders.filter(order => {
+    return getVisibleOrders.filter(order => {
         const statusMatch = statuses.includes(order.status);
         const displayName = order.uniqueName || order.id;
         const searchMatch = (
@@ -69,7 +81,7 @@ export default function OrdersPage() {
     { value: "completed", label: "Completed", orders: getOrdersByStatus(["Completed"]) },
     { value: "shipped", label: "Shipped", orders: getOrdersByStatus(["Shipped"]) },
     { value: "cancelled", label: "Cancelled", orders: getOrdersByStatus(["Cancelled"]) },
-  ], [orders, searchTerm, dateRange]);
+  ], [getVisibleOrders, searchTerm, dateRange]);
 
   if (loading || userLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading orders...</div>;
@@ -117,11 +129,9 @@ export default function OrdersPage() {
             <Card className="mt-4">
                 <CardContent className="pt-6">
                     {tabs.map(tab => (
-                        activeTab === tab.value && (
-                            <TabsContent key={tab.value} value={tab.value}>
-                               <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
-                            </TabsContent>
-                        )
+                        <TabsContent key={tab.value} value={tab.value} forceMount={activeTab === tab.value}>
+                            {activeTab === tab.value && <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />}
+                        </TabsContent>
                     ))}
                 </CardContent>
             </Card>
