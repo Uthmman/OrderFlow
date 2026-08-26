@@ -25,6 +25,8 @@ export default function Dashboard() {
     to: endOfMonth(new Date()),
   });
   
+  const isDesigner = role === 'Designer';
+
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
     if (date instanceof Date) return date;
@@ -88,7 +90,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-none shadow-sm bg-white/50 backdrop-blur-sm">
+        <Card className={cn("border-none shadow-sm bg-white/50 backdrop-blur-sm", isDesigner ? "lg:col-span-3" : "lg:col-span-2")}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
                 <CardTitle className="text-lg font-bold">Order Overview</CardTitle>
@@ -121,61 +123,63 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-             <div>
-                <CardTitle className="text-lg font-bold">Revenue</CardTitle>
-                <CardDescription>Income distribution</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="relative h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                        <Pie
-                            data={revenueData}
-                            cx="50%"
-                            cy="100%"
-                            startAngle={180}
-                            endAngle={0}
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                        >
-                            {revenueData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                        </Pie>
-                    </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-center">
-                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Total Revenue</p>
-                    <p className="text-2xl font-bold">{formatCurrency(stats.revenue)}</p>
-                     <div className="flex items-center text-[10px] font-bold text-red-500 mt-1">
-                        <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
-                        -7.2%
-                    </div>
-                </div>
-            </div>
-            <div className="flex justify-around mt-4">
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <div className="text-xs">
-                        <span className="text-muted-foreground">Prepaid: </span>
-                        <span className="font-bold">{formatCurrency(stats.prepaid)}</span>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-accent" />
-                    <div className="text-xs">
-                        <span className="text-muted-foreground">Balance: </span>
-                        <span className="font-bold">{formatCurrency(Math.max(0, stats.revenue - stats.prepaid))}</span>
-                    </div>
-                </div>
-            </div>
-          </CardContent>
-        </Card>
+        {!isDesigner && (
+          <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                  <CardTitle className="text-lg font-bold">Revenue</CardTitle>
+                  <CardDescription>Income distribution</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="relative h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                          <Pie
+                              data={revenueData}
+                              cx="50%"
+                              cy="100%"
+                              startAngle={180}
+                              endAngle={0}
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={5}
+                              dataKey="value"
+                          >
+                              {revenueData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                          </Pie>
+                      </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center justify-center">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest">Total Revenue</p>
+                      <p className="text-2xl font-bold">{formatCurrency(stats.revenue)}</p>
+                      <div className="flex items-center text-[10px] font-bold text-red-500 mt-1">
+                          <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+                          -7.2%
+                      </div>
+                  </div>
+              </div>
+              <div className="flex justify-around mt-4">
+                  <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      <div className="text-xs">
+                          <span className="text-muted-foreground">Prepaid: </span>
+                          <span className="font-bold">{formatCurrency(stats.prepaid)}</span>
+                      </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-accent" />
+                      <div className="text-xs">
+                          <span className="text-muted-foreground">Balance: </span>
+                          <span className="font-bold">{formatCurrency(Math.max(0, stats.revenue - stats.prepaid))}</span>
+                      </div>
+                  </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
       
       <div className="space-y-4">
