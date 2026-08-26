@@ -412,6 +412,11 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const { orders: contextOrders, loading } = useOrders();
   const { user: userProfile, loading: isUserLoading } = useUser();
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({ creationDate: false });
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const initialSorting = React.useMemo((): SortingState => {
     if (userProfile?.[preferenceKey as any]) {
@@ -440,7 +445,10 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  if ((loading && !propOrders) || isUserLoading) return <div className="text-center p-8"><Activity className="animate-spin h-6 w-6 mx-auto opacity-50" /></div>;
+  if (!mounted || isUserLoading || (loading && !propOrders)) {
+      return <div className="text-center p-8"><Activity className="animate-spin h-6 w-6 mx-auto opacity-20" /></div>;
+  }
+
   if (orders.length === 0) return <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg m-4"><p>No results found matching your criteria.</p></div>;
 
   return (

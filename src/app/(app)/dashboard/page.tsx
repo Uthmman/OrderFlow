@@ -40,7 +40,6 @@ export default function Dashboard() {
   }
 
   // Filter orders by date range AND ensure we don't show Pending (Drafts) in global dashboard stats
-  // except perhaps if the user wants to see their own drafts, but usually drafts are excluded from analytics.
   const dashboardOrders = useMemo(() => {
     return orders.filter(o => o.status !== 'Pending');
   }, [orders]);
