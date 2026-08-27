@@ -13,7 +13,7 @@ import {
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Download as DownloadIcon, Activity } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
@@ -57,7 +57,6 @@ import { DataTablePagination } from "./data-table/data-table-pagination"
 import { DynamicIcon } from "../ui/dynamic-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { v4 as uuidv4 } from "uuid"
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -383,10 +382,10 @@ function OrderTableToolbar({ table }: { table: Table<Order> }) {
           ) : (
              <div className="flex items-center gap-2">
                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
-                     <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Manage
+                     Manage
                  </Button>
                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
-                     <DownloadIcon className="h-3.5 w-3.5 mr-1.5" /> Export
+                     Export
                  </Button>
              </div>
           )}
