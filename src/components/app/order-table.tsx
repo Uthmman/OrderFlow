@@ -13,7 +13,7 @@ import {
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity, Check } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
@@ -25,7 +25,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +57,7 @@ import { DataTablePagination } from "./data-table/data-table-pagination"
 import { DynamicIcon } from "../ui/dynamic-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { v4 as uuidv4 } from "uuid"
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -328,52 +328,14 @@ export const columns: ColumnDef<Order>[] = [
   },
 ]
 
-function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, preferenceKey: string }) {
+function OrderTableToolbar({ table }: { table: Table<Order> }) {
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
-  // Filter functionality
-  const currentStatusFilter = table.getColumn("status")?.getFilterValue() as string[] | undefined;
-  
   return (
     <div className="flex items-center justify-between p-4 bg-muted/20 border-b">
        <div className="flex items-center gap-2 flex-wrap">
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
-                      <ListFilter className="h-3.5 w-3.5 mr-1.5" /> Filters
-                      {currentStatusFilter && currentStatusFilter.length > 0 && <Badge variant="secondary" className="ml-2 h-4 px-1 rounded-sm">{currentStatusFilter.length}</Badge>}
-                  </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {statuses.map(s => (
-                      <DropdownMenuCheckboxItem
-                        key={s}
-                        checked={currentStatusFilter?.includes(s)}
-                        onCheckedChange={(checked) => {
-                            const newFilters = checked 
-                                ? [...(currentStatusFilter || []), s]
-                                : (currentStatusFilter || []).filter(v => v !== s);
-                            table.getColumn("status")?.setFilterValue(newFilters.length > 0 ? newFilters : undefined);
-                        }}
-                      >
-                          {s === 'Pending' ? 'Draft' : s}
-                      </DropdownMenuCheckboxItem>
-                  ))}
-                  {currentStatusFilter && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => table.getColumn("status")?.setFilterValue(undefined)} className="justify-center text-xs font-bold text-muted-foreground">
-                            Clear Filters
-                        </DropdownMenuItem>
-                      </>
-                  )}
-              </DropdownMenuContent>
-          </DropdownMenu>
-
           {numSelected > 0 ? (
               <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                 <DropdownMenu>
@@ -509,7 +471,7 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   return (
     <>
         <div className="hidden md:block">
-            <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
+            <OrderTableToolbar table={table} />
             <DataTable 
               table={table} 
               columns={columns} 

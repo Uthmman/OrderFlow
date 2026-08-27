@@ -119,11 +119,11 @@ const toDate = (timestamp: any): Date | undefined => {
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Product Setup', fields: [] },
-  { id: 3, title: 'Category', fields: [`products.0.category`] },
+  { id: 3, title: 'Category', fields: ['category'] },
   { id: 4, title: 'Source', fields: [] },
-  { id: 5, title: 'Details', fields: [`products.0.productName`] },
-  { id: 6, title: 'Material', fields: [`products.0.material`] },
-  { id: 7, title: 'Color', fields: [`products.0.colors`] },
+  { id: 5, title: 'Details', fields: ['productName'] },
+  { id: 6, title: 'Material', fields: ['material'] },
+  { id: 7, title: 'Color', fields: ['colors'] },
   { id: 8, title: 'Review', fields: [] },
   { id: 9, title: 'Pricing', fields: ['incomeAmount'] },
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
@@ -213,7 +213,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const nextStep = async () => {
     let fieldsToValidate: any = [];
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
-    else if (currentStep === 3) fieldsToValidate = [`products.${currentProductIndex}.category`];
     
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) return;
