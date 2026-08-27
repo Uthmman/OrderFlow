@@ -409,6 +409,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
 }
 
 export function OrderTable({ orders: propOrders, preferenceKey, hidePagination = false }: { orders?: Order[], preferenceKey: string, hidePagination?: boolean }) {
+  const router = useRouter();
   const { orders: contextOrders, loading } = useOrders();
   const { user: userProfile, loading: isUserLoading } = useUser();
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({ creationDate: false });
@@ -455,7 +456,13 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     <>
         <div className="hidden md:block">
             <OrderTableToolbar table={table} preferenceKey={preferenceKey} />
-            <DataTable table={table} columns={columns} data={orders} onRowClick={(row) => useRouter().push(`/orders/${row.original.id}`)} hidePagination={hidePagination} />
+            <DataTable 
+              table={table} 
+              columns={columns} 
+              data={orders} 
+              onRowClick={(row) => router.push(`/orders/${row.original.id}`)} 
+              hidePagination={hidePagination} 
+            />
         </div>
         <div className="block md:hidden">
              <MobileOrderList table={table} />
