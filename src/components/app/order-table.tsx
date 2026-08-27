@@ -13,7 +13,7 @@ import {
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, ListFilter, SlidersHorizontal, Download as DownloadIcon, Activity, Check } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -332,15 +333,53 @@ function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, pref
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
+  // Filter functionality
+  const currentStatusFilter = table.getColumn("status")?.getFilterValue() as string[] | undefined;
+  
   return (
     <div className="flex items-center justify-between p-4 bg-muted/20 border-b">
        <div className="flex items-center gap-2 flex-wrap">
+          <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                      <ListFilter className="h-3.5 w-3.5 mr-1.5" /> Filters
+                      {currentStatusFilter && currentStatusFilter.length > 0 && <Badge variant="secondary" className="ml-2 h-4 px-1 rounded-sm">{currentStatusFilter.length}</Badge>}
+                  </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {statuses.map(s => (
+                      <DropdownMenuCheckboxItem
+                        key={s}
+                        checked={currentStatusFilter?.includes(s)}
+                        onCheckedChange={(checked) => {
+                            const newFilters = checked 
+                                ? [...(currentStatusFilter || []), s]
+                                : (currentStatusFilter || []).filter(v => v !== s);
+                            table.getColumn("status")?.setFilterValue(newFilters.length > 0 ? newFilters : undefined);
+                        }}
+                      >
+                          {s === 'Pending' ? 'Draft' : s}
+                      </DropdownMenuCheckboxItem>
+                  ))}
+                  {currentStatusFilter && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => table.getColumn("status")?.setFilterValue(undefined)} className="justify-center text-xs font-bold text-muted-foreground">
+                            Clear Filters
+                        </DropdownMenuItem>
+                      </>
+                  )}
+              </DropdownMenuContent>
+          </DropdownMenu>
+
           {numSelected > 0 ? (
               <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-8 shadow-sm">
-                            Status ({numSelected}) <ChevronDown className="ml-1 h-3 w-3" />
+                        <Button variant="outline" size="sm" className="h-8 shadow-sm font-bold text-xs uppercase">
+                            Set Status ({numSelected}) <ChevronDown className="ml-1 h-3 w-3" />
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
@@ -354,22 +393,37 @@ function OrderTableToolbar({ table, preferenceKey }: { table: Table<Order>, pref
                         ))}
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <Button variant="destructive" size="sm" className="h-8 shadow-sm" onClick={() => {
-                    deleteMultipleOrders(table.getFilteredSelectedRowModel().rows.map(r => r.original));
-                    table.resetRowSelection();
-                }}>
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                </Button>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="h-8 shadow-sm font-bold text-xs uppercase">
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {numSelected} Orders?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action is permanent and will remove all selected orders and their associated data.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                                deleteMultipleOrders(table.getFilteredSelectedRowModel().rows.map(r => r.original));
+                                table.resetRowSelection();
+                            }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Delete Permanently
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
               </div>
           ) : (
              <div className="flex items-center gap-2">
-                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
-                     <ListFilter className="h-3.5 w-3.5 mr-1.5" /> Filters
-                 </Button>
-                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
                      <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" /> Manage
                  </Button>
-                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3">
+                 <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
                      <DownloadIcon className="h-3.5 w-3.5 mr-1.5" /> Export
                  </Button>
              </div>
