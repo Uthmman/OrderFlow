@@ -13,7 +13,7 @@ import {
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Download as DownloadIcon, Activity } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Activity } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
