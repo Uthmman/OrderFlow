@@ -761,5 +761,5 @@ export function OrderForm({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
