@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -340,7 +341,7 @@ export function OrderForm({
   }, [totalIncome, setValue, form]);
 
   return (
-    <>
+    <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
         <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
         <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
@@ -348,6 +349,7 @@ export function OrderForm({
             <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
         </div>
       </div>
+      
       <Form {...form}>
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
           {currentStep === 1 && !isProductCreationMode && (
@@ -751,12 +753,13 @@ export function OrderForm({
           </div>
         </form>
       </Form>
+      
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>You have unsaved changes. Are you sure you want to discard them?</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Stay</AlertDialogCancel><AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   )
 }

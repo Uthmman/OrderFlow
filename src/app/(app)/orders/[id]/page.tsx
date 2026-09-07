@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -388,15 +389,17 @@ function OrderDetailPageContent() {
                                   <>
                                     <Separator />
                                     {order.withReceipt && (
-                                        <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
-                                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                                            <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                            {order.receiptAttachment && (
-                                                <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
-                                            )}
-                                        </div>
+                                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                            <div className="space-y-2">
+                                              <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                              <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                              <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                              {order.receiptAttachment && (
+                                                  <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
+                                              )}
+                                            </div>
+                                        </Card>
                                     )}
                                     <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
                                     <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
@@ -456,15 +459,17 @@ function OrderDetailPageContent() {
                           <>
                             <Separator />
                             {order.withReceipt && (
-                                <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
-                                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                                    <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                                    <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                                    <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                    {order.receiptAttachment && (
-                                        <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
-                                    )}
-                                </div>
+                                <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                      <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                      <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                      {order.receiptAttachment && (
+                                          <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
+                                      )}
+                                    </div>
+                                </Card>
                             )}
                             <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
                             <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>

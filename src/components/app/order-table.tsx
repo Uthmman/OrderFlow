@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -475,7 +476,7 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   if (orders.length === 0) return <div className="text-center p-12 text-muted-foreground border-2 border-dashed rounded-lg m-4"><p>No results found matching your criteria.</p></div>;
 
   return (
-    <>
+    <div className="w-full">
         <div className="hidden md:block">
             <OrderTableToolbar table={table} />
             <DataTable 
@@ -490,6 +491,6 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
              <MobileOrderList table={table} />
              {!hidePagination && <div className="p-4"><DataTablePagination table={table} /></div>}
         </div>
-    </>
+    </div>
   );
 }
