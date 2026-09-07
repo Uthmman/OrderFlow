@@ -319,7 +319,8 @@ function OrderDetailPageContent() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
                 <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                {canEdit && (<>
+                {canEdit && (
+                    <>
                     <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button></Link>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -365,7 +366,8 @@ function OrderDetailPageContent() {
                             </AlertDialog>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    </>)}
+                    </>
+                )}
             </div>
         </div>
       </div>
@@ -478,9 +480,18 @@ function OrderDetailPageContent() {
     </div>
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
-        <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Order QR Code</DialogTitle><DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription></DialogHeader>
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg"><QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} /><p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p></div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2"><Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button></DialogFooter>
+        <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+                <DialogTitle>Order QR Code</DialogTitle>
+                <DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
+                <QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} />
+                <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
+            </div>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
+            </DialogFooter>
         </DialogContent>
         </DialogPortal>
     </Dialog>
