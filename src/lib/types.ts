@@ -9,7 +9,7 @@ export type OrderSortPreference = {
 };
 
 export type AppUser = {
-  id: string; // This is the uid from Firebase Auth
+  id: string; 
   name: string;
   email: string;
   avatarUrl: string;
@@ -21,19 +21,12 @@ export type AppUser = {
   workerType?: 'Monthly' | 'Daily';
 };
 
-export type FirebaseUser = {
-    uid: string;
-    email: string | null;
-    displayName: string | null;
-    photoURL: string | null;
-}
-
 export type CustomerReview = {
   id: string;
   orderId: string;
   rating: number;
   comment: string;
-  date: string; // ISO string
+  date: string; 
 }
 
 export type Customer = {
@@ -74,7 +67,7 @@ export type OrderAttachment = {
 };
 
 export type OrderChatMessage = {
-    id: string; // Unique ID for the message itself
+    id: string; 
     user: {
         id: string;
         name: string;
@@ -82,7 +75,7 @@ export type OrderChatMessage = {
     };
     text: string;
     attachment?: OrderAttachment;
-    timestamp: any; // Can be string or Firestore Timestamp
+    timestamp: any; 
     isSystemMessage?: boolean;
 }
 
@@ -91,7 +84,7 @@ export type UserNotification = {
     userId: string;
     type: string;
     message: string;
-    timestamp: any; // Can be string or Firestore Timestamp
+    timestamp: any; 
     isRead: boolean;
     orderId?: string;
 }
@@ -102,14 +95,14 @@ export type Product = {
   category: string;
   description: string;
   attachments?: OrderAttachment[];
-  designAttachments?: OrderAttachment[]; // For 'Design Ready' files
+  designAttachments?: OrderAttachment[]; 
   colors?: string[];
   material?: string[];
   dimensions?: { width: number; height: number; depth: number };
   price: number;
   orderIds?: string[];
   billOfMaterials?: string;
-  isStandard?: boolean; // True if added from the products page, false/undefined if synced from orders
+  isStandard?: boolean; 
 }
 
 export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid';
@@ -117,7 +110,7 @@ export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid'
 export type Order = {
   id:string;
   uniqueName?: string;
-  mainImageUrl?: string; // URL for the primary order icon
+  mainImageUrl?: string; 
   customerName: string;
   customerId: string;
   products: Product[];
@@ -129,14 +122,11 @@ export type Order = {
   prepaidAmount?: number;
   isUrgent: boolean;
   creationDate: Timestamp | Date | string;
-  testDate?: Timestamp | Date | string;
-  paidDate?: Timestamp | Date | string;
   paymentDetails?: string;
   assignedTo: string[];
   ownerId: string;
   chatMessages?: OrderChatMessage[];
   
-  // Receipt & Payment fields
   withReceipt?: boolean;
   vatAmount?: number;
   totalWithVat?: number;
@@ -218,18 +208,4 @@ export type StockItem = {
 
 export type StockSettings = {
   categories: string[];
-};
-
-export type SecondaryItem = {
-  id: string;
-  name: string;
-  unit?: string;
-  category?: string;
-  price?: number;
-  description?: string;
-};
-
-export type SecondaryCategory = {
-  id: string;
-  name: string;
 };

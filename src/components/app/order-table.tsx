@@ -280,7 +280,7 @@ export const columns: ColumnDef<Order>[] = [
     header: "Customer",
     cell: ({ row }) => {
         const order = row.original;
-        const { role } = useUser();
+        const { role } = (row as any).tableContext || { role: 'Pending' };
         const canViewCustomer = role === 'Admin' || role === 'Sales';
         return (
             <div className="flex items-center gap-2">
@@ -426,7 +426,7 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
 export function OrderTable({ orders: propOrders, preferenceKey, hidePagination = false }: { orders?: Order[], preferenceKey: string, hidePagination?: boolean }) {
   const router = useRouter();
   const { orders: contextOrders, loading } = useOrders();
-  const { user: userProfile, loading: isUserLoading } = useUser();
+  const { user: userProfile, role, loading: isUserLoading } = useUser();
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({ creationDate: false });
   const [mounted, setMounted] = React.useState(false);
   const [rowSelection, setRowSelection] = React.useState({});
@@ -462,6 +462,13 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    // Custom context to pass role down to cells safely
+    meta: { role }
+  });
+
+  // Attach context to rows so cells can access it
+  table.getRowModel().rows.forEach(row => {
+      (row as any).tableContext = { role };
   });
 
   if (!mounted || isUserLoading || (loading && !propOrders)) {
