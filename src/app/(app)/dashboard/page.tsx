@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -198,9 +197,9 @@ export default function Dashboard() {
       <div className="space-y-4">
         <div className="flex items-center justify-between px-2">
             <h2 className="text-xl font-bold font-headline">Recent Orders</h2>
-            <Button variant="ghost" size="sm" asChild>
-                <Link href="/orders">View all <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
+            <button className="text-sm text-primary font-medium hover:underline flex items-center gap-1">
+                <Link href="/orders">View all <ArrowRight className="h-4 w-4" /></Link>
+            </button>
         </div>
         <Card className="border-none shadow-sm overflow-hidden">
             <CardContent className="p-0">
