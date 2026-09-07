@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -13,7 +12,7 @@ import {
   Table,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Activity } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Activity, Trash } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
@@ -457,6 +456,7 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -91,6 +90,7 @@ export function DataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
+  // Use external table if provided, but still run hooks for local state if needed (though redundant here)
   const table = externalTable || internalTable;
 
   return (
