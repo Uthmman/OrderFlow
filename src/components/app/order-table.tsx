@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -52,7 +51,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useUser, useUsers } from "@/hooks/use-user"
 import { cn } from "@/lib/utils"
 import { useProductSettings } from "@/hooks/use-product-settings"
-import Image from "image"
+import Image from "next/image"
 import { DataTablePagination } from "./data-table/data-table-pagination"
 import { DynamicIcon } from "../ui/dynamic-icon"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -462,8 +461,6 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    // Custom context to pass role down to cells safely
-    meta: { role }
   });
 
   // Attach context to rows so cells can access it

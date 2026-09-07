@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -31,11 +30,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle2 } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderStatus, Product } from "@/lib/types"
+import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
@@ -141,7 +140,13 @@ const STEPS = [
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
 ];
 
-export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
+export function OrderForm({ 
+    order: initialOrder, 
+    onSave, 
+    submitButtonText = "Create Order", 
+    isSubmitting: isExternallySubmitting = false, 
+    isProductCreationMode = false 
+}: OrderFormProps) {
   const router = useRouter();
   const { customers, addCustomer } = useCustomers();
   const { products: catalogProducts } = useProducts();
@@ -197,7 +202,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     } as OrderFormValues;
   }, []);
 
-  const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
+  const form = useForm<OrderFormValues>({ 
+    resolver: zodResolver(formSchema), 
+    defaultValues: mapOrderToFormValues(initialOrder) 
+  });
+
   const { setValue, getValues, watch, trigger } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
@@ -251,7 +260,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (!initialOrder && currentStep === 1 && onSave) {
         setIsManualSaving(true);
         const vals = getValues();
-        const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
+        const id = await onSave({ 
+          ...vals, 
+          customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", 
+          status: 'Pending' 
+        } as any, true);
         if (id) { 
             router.replace(`/orders/${id}/edit?step=3`); 
             setIsManualSaving(false); 
@@ -320,7 +333,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
 
   useEffect(() => { 
-    if (form.getValues('incomeAmount') !== totalIncome) setValue('incomeAmount', totalIncome, { shouldDirty: true }); 
+    const currentIncome = form.getValues('incomeAmount');
+    if (currentIncome !== totalIncome) {
+        setValue('incomeAmount', totalIncome, { shouldDirty: true });
+    }
   }, [totalIncome, setValue, form]);
 
   return (
@@ -455,7 +471,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       <Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
                       <ScrollArea className="h-64 mt-4">
                         {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => (
-                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-background">
+                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-background text-sm font-medium">
                             {p.productName}
                           </div>
                         ))}
@@ -608,7 +624,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-4">
-                                <FormField control={form.control} name="incomeAmount" render={({ field }) => <FormItem><FormLabel>Base Price (Before VAT)</FormLabel><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8 text-xl font-bold" {...field} readOnly /></div></FormItem>} />
+                                <FormField control={form.control} name="incomeAmount" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Base Price (Before VAT)</FormLabel>
+                                        <div className="relative">
+                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                            <Input type="number" className="pl-8 text-xl font-bold" {...field} readOnly />
+                                        </div>
+                                    </FormItem>
+                                )} />
                                 <FormField control={form.control} name="withReceipt" render={({ field }) => (
                                     <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-primary/5">
                                         <div className="space-y-0.5">
@@ -620,17 +644,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 )} />
                                 {watchedWithReceipt && (
                                     <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
-                                        <div className="flex justify-between text-sm"><span>VAT (15%)</span><span className="font-bold">+{form.getValues('vatAmount')}</span></div>
+                                        <div className="flex justify-between text-sm">
+                                            <span>VAT (15%)</span>
+                                            <span className="font-bold">+{form.getValues('vatAmount')}</span>
+                                        </div>
                                         <Separator />
-                                        <div className="flex justify-between text-lg font-bold"><span>Total with VAT</span><span>{form.getValues('totalWithVat')}</span></div>
+                                        <div className="flex justify-between text-lg font-bold">
+                                            <span>Total with VAT</span>
+                                            <span>{form.getValues('totalWithVat')}</span>
+                                        </div>
                                         
                                         <div className="space-y-2">
                                             <Label>Receipt Attachment</Label>
                                             <div className="flex items-center gap-2">
                                                 <Button type="button" variant="outline" size="sm" onClick={() => receiptInputRef.current?.click()}>
-                                                    <Receipt className="mr-2 h-4 w-4" /> {form.watch('receiptFile') ? 'Change Receipt' : 'Attach Receipt'}
+                                                    <Receipt className="mr-2 h-4 w-4" /> 
+                                                    {form.watch('receiptFile') ? 'Change Receipt' : 'Attach Receipt'}
                                                 </Button>
-                                                {form.watch('receiptFile') && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                                                {form.watch('receiptFile') && <CheckCircle className="h-5 w-5 text-green-500" />}
                                                 <input ref={receiptInputRef} type="file" onChange={(e) => setValue('receiptFile', e.target.files?.[0])} className="hidden" />
                                             </div>
                                         </div>
@@ -689,7 +720,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                       <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s === 'Pending' ? 'Draft' : s}</SelectItem>)}</SelectContent></Select></FormItem>} />
-                      <FormField control={form.control} name="deadline" render={({ field }) => <FormItem className="flex flex-col"><FormLabel>Delivery Deadline</FormLabel><Popover><PopoverTrigger asChild><Button variant="outline" className="h-11 justify-start font-bold">{field.value ? format(field.value, "PPP") : "Select date"}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover></FormItem>} />
+                      <FormField control={form.control} name="deadline" render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Delivery Deadline</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" className="h-11 justify-start font-bold">
+                                  {field.value ? format(field.value, "PPP") : "Select date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                              </PopoverContent>
+                            </Popover>
+                          </FormItem>
+                      )} />
                       <FormField control={form.control} name="isUrgent" render={({ field }) => <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-red-50/50 border-red-100"><div className="space-y-0.5"><FormLabel className="text-red-700 font-bold">URGENT ORDER</FormLabel><p className="text-xs text-red-600/70 italic">Prioritizes this in all lists</p></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>} />
                 </CardContent>
               </Card>

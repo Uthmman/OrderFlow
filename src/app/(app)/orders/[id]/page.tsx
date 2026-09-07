@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -427,7 +426,14 @@ function OrderDetailPageContent() {
                                 <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                             )
                         ) : (
-                            <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
+                                        Access Restricted
+                                    </CardTitle>
+                                </CardHeader>
+                            </Card>
                         )}
                     </div>
                 </div>
@@ -488,7 +494,14 @@ function OrderDetailPageContent() {
                         <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                     )
                 ) : (
-                    <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
+                                Access Restricted
+                            </CardTitle>
+                        </CardHeader>
+                    </Card>
                 )}
                  <ChatInterface order={order} />
             </div>
