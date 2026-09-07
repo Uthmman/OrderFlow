@@ -96,7 +96,6 @@ const formSchema = z.object({
   deadline: z.date().optional(),
   isUrgent: z.boolean().default(false),
   
-  // Receipt & Payment fields
   withReceipt: z.boolean().default(false),
   vatAmount: z.coerce.number().default(0),
   totalWithVat: z.coerce.number().default(0),
@@ -199,20 +198,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }, []);
 
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
-  const { formState: { isDirty }, getValues, watch, trigger, setValue } = form;
+  const { setValue, getValues, watch, trigger } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
 
-  // VAT and Total calculation
   useEffect(() => {
     if (watchedWithReceipt) {
-        const vat = watchedIncome * VAT_RATE;
+        const vat = (watchedIncome || 0) * VAT_RATE;
         setValue("vatAmount", Math.round(vat), { shouldDirty: true });
-        setValue("totalWithVat", Math.round(watchedIncome + vat), { shouldDirty: true });
+        setValue("totalWithVat", Math.round((watchedIncome || 0) + vat), { shouldDirty: true });
     } else {
         setValue("vatAmount", 0);
-        setValue("totalWithVat", watchedIncome);
+        setValue("totalWithVat", watchedIncome || 0);
     }
   }, [watchedWithReceipt, watchedIncome, setValue]);
 
@@ -302,7 +300,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
         }));
         
-        // Find selected bank details
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
 
         const payload: any = { 
@@ -314,7 +311,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             bankAccountNumber: selectedBank?.accountNumber
         };
         
-        // If there's a receipt file, we stash it for the useOrders hook to handle
         if (values.receiptFile) payload.file = values.receiptFile;
 
         try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
@@ -352,7 +348,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           onCancel={() => setIsCreatingNewCustomer(false)} 
                         />
                     ) : (
-                        <>
+                        <div className="space-y-6">
                             <FormField control={form.control} name="customerId" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Customer</FormLabel>
@@ -372,7 +368,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormField control={form.control} name="location.town" render={({ field }) => (
                                 <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} /></FormControl><FormMessage /></FormItem>
                             )} />
-                        </>
+                        </div>
                     )}
                 </CardContent>
               </Card>
@@ -492,7 +488,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <p className="text-sm">Click to upload files or photos</p>
                             <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                         </div>
-                        <div className="space-y-2">{watchedProducts[currentProductIndex].attachments?.map(att => (
+                        <div className="space-y-2">{watchedProducts[currentProductIndex].attachments?.map((att: any) => (
                             <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
                                 <div className="flex items-center gap-2 truncate">
                                     {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
@@ -692,7 +688,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           )}
 
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm py-4 z-10 border-t mt-8">
-              <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()} disabled={isPending || isSubmitting}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isPending || isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
                   {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isPending || isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
                   {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep} disabled={isPending || isSubmitting}>{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}

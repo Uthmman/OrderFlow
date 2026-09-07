@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -413,7 +414,7 @@ function MobileOrderList({ table }: { table: Table<Order> }) {
                                 <StatusCell order={order} />
                                 <DeadlineDisplay deadline={order.deadline} />
                             </div>
-                             {role === 'Admin' && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
+                             {(role === 'Admin' || role === 'Sales') && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
                         </div>
                     </div>
                  </Card>

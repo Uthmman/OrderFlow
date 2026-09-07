@@ -291,9 +291,9 @@ function OrderDetailPageContent() {
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
   const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
   const isDesigner = role === 'Designer';
-  const canViewSensitiveData = role === 'Admin';
-  const prepaid = order.prepaidAmount || 0; const balance = (order.incomeAmount || 0) - prepaid;
-  const isPaid = (balance <= 0 && order.incomeAmount > 0) || order.paymentStatus === 'Paid';
+  const canViewSensitiveData = role === 'Admin' || role === 'Sales';
+  const prepaid = order.prepaidAmount || 0;
+  const isPaid = order.paymentStatus === 'Paid';
 
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
   if (order.receiptAttachment) allImageAttachments.push(order.receiptAttachment);
