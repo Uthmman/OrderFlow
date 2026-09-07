@@ -16,6 +16,7 @@ import {
   getSortedRowModel,
   useReactTable,
   Row,
+  Table as TableInstance,
 } from "@tanstack/react-table"
 
 import {
@@ -37,6 +38,7 @@ interface DataTableProps<TData, TValue> {
   children?: React.ReactNode
   onRowClick?: (row: Row<TData>) => void;
   hidePagination?: boolean;
+  table?: TableInstance<TData>;
 }
 
 export function DataTable<TData, TValue>({
@@ -45,6 +47,7 @@ export function DataTable<TData, TValue>({
   children,
   onRowClick,
   hidePagination = false,
+  table: externalTable,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -66,7 +69,7 @@ export function DataTable<TData, TValue>({
     }
   }, [isAdmin]);
 
-  const table = useReactTable({
+  const internalTable = useReactTable({
     data,
     columns,
     state: {
@@ -87,6 +90,8 @@ export function DataTable<TData, TValue>({
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
+
+  const table = externalTable || internalTable;
 
   return (
     <div className="space-y-4">

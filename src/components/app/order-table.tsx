@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -428,6 +429,7 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const { user: userProfile, loading: isUserLoading } = useUser();
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({ creationDate: false });
   const [mounted, setMounted] = React.useState(false);
+  const [rowSelection, setRowSelection] = React.useState({});
 
   React.useEffect(() => {
     setMounted(true);
@@ -451,9 +453,10 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
   const table = useReactTable({
     data: orders,
     columns,
-    state: { sorting, columnVisibility },
+    state: { sorting, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
