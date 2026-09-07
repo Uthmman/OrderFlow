@@ -11,12 +11,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -29,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -58,6 +60,7 @@ import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "../ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
+import { usePaymentSettings } from "@/hooks/use-payment-settings"
 import * as LucideIcons from 'lucide-react'
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
@@ -92,6 +95,14 @@ const formSchema = z.object({
   creationDate: z.date().optional(),
   deadline: z.date().optional(),
   isUrgent: z.boolean().default(false),
+  
+  // Receipt & Payment fields
+  withReceipt: z.boolean().default(false),
+  vatAmount: z.coerce.number().default(0),
+  totalWithVat: z.coerce.number().default(0),
+  paymentMethod: z.string().optional(),
+  bankId: z.string().optional(),
+  receiptFile: z.any().optional(),
 })
 
 type OrderFormValues = z.infer<typeof formSchema>
@@ -103,6 +114,8 @@ interface OrderFormProps {
   isSubmitting?: boolean;
   isProductCreationMode?: boolean;
 }
+
+const VAT_RATE = 0.15;
 
 const toDate = (timestamp: any): Date | undefined => {
     if (!timestamp) return undefined;
@@ -125,7 +138,7 @@ const STEPS = [
   { id: 6, title: 'Material', fields: ['material'] },
   { id: 7, title: 'Color', fields: ['colors'] },
   { id: 8, title: 'Review', fields: [] },
-  { id: 9, title: 'Pricing', fields: ['incomeAmount'] },
+  { id: 9, title: 'Pricing & Receipt', fields: ['incomeAmount'] },
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
 ];
 
@@ -135,6 +148,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
+  const { settings: paymentSettings } = usePaymentSettings();
   const { addAttachment, uploadProgress, removeAttachment } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
@@ -147,6 +161,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [isPending, startTransition] = useTransition();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const receiptInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
@@ -159,7 +174,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         customerId: '', 
         creationDate: new Date(), 
         deadline: new Date(), 
-        location: { town: '' } 
+        location: { town: '' },
+        withReceipt: false,
+        vatAmount: 0,
+        totalWithVat: 0,
+        paymentMethod: 'Cash'
     };
     if (!orderToMap) return defaultValues as OrderFormValues;
     const products = orderToMap.products?.map(p => ({ 
@@ -182,6 +201,20 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
   const { formState: { isDirty }, getValues, watch, trigger, setValue } = form;
   const watchedProducts = watch("products");
+  const watchedWithReceipt = watch("withReceipt");
+  const watchedIncome = watch("incomeAmount");
+
+  // VAT and Total calculation
+  useEffect(() => {
+    if (watchedWithReceipt) {
+        const vat = watchedIncome * VAT_RATE;
+        setValue("vatAmount", Math.round(vat), { shouldDirty: true });
+        setValue("totalWithVat", Math.round(watchedIncome + vat), { shouldDirty: true });
+    } else {
+        setValue("vatAmount", 0);
+        setValue("totalWithVat", watchedIncome);
+    }
+  }, [watchedWithReceipt, watchedIncome, setValue]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -268,12 +301,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, 
             dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
         }));
-        const payload = { 
+        
+        // Find selected bank details
+        const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
+
+        const payload: any = { 
             ...values, 
             products: updated, 
             status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), 
-            customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown" 
+            customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown",
+            bankName: selectedBank?.bankName,
+            bankAccountNumber: selectedBank?.accountNumber
         };
+        
+        // If there's a receipt file, we stash it for the useOrders hook to handle
+        if (values.receiptFile) payload.file = values.receiptFile;
+
         try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
     });
   };
@@ -561,15 +604,80 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           )}
 
           {currentStep === 9 && !isProductCreationMode && (
-              <Card>
-                <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                      <FormField control={form.control} name="incomeAmount" render={({ field }) => <FormItem><FormLabel>Total Price</FormLabel><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8 text-2xl font-bold h-12" {...field} readOnly /></div></FormItem>} />
-                      <div className="space-y-4">{watchedProducts.map((p, i) => <FormField key={p.id} control={form.control} name={`products.${i}.price`} render={({ field }) => <FormItem><FormLabel className="text-[10px] uppercase font-bold text-muted-foreground">{p.productName || `P${i+1}`} Price</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />)}</div>
-                      <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />
-                      <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Pricing & Receipt</CardTitle>
+                        <CardDescription>Manage totals, VAT, and official billing.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="incomeAmount" render={({ field }) => <FormItem><FormLabel>Base Price (Before VAT)</FormLabel><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8 text-xl font-bold" {...field} readOnly /></div></FormItem>} />
+                                <FormField control={form.control} name="withReceipt" render={({ field }) => (
+                                    <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-primary/5">
+                                        <div className="space-y-0.5">
+                                            <FormLabel className="text-base">Official Receipt</FormLabel>
+                                            <FormDescription>Calculates VAT and enables receipt uploads.</FormDescription>
+                                        </div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                {watchedWithReceipt && (
+                                    <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
+                                        <div className="flex justify-between text-sm"><span>VAT (15%)</span><span className="font-bold">+{form.getValues('vatAmount')}</span></div>
+                                        <Separator />
+                                        <div className="flex justify-between text-lg font-bold"><span>Total with VAT</span><span>{form.getValues('totalWithVat')}</span></div>
+                                        
+                                        <div className="space-y-2">
+                                            <Label>Receipt Attachment</Label>
+                                            <div className="flex items-center gap-2">
+                                                <Button type="button" variant="outline" size="sm" onClick={() => receiptInputRef.current?.click()}>
+                                                    <Receipt className="mr-2 h-4 w-4" /> {form.watch('receiptFile') ? 'Change Receipt' : 'Attach Receipt'}
+                                                </Button>
+                                                {form.watch('receiptFile') && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                                                <input ref={receiptInputRef} type="file" onChange={(e) => setValue('receiptFile', e.target.files?.[0])} className="hidden" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="space-y-4">
+                                <FormField control={form.control} name="paymentMethod" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Payment Method</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger></FormControl>
+                                            <SelectContent>{(paymentSettings?.methods || []).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                                        </Select>
+                                    </FormItem>
+                                )} />
+                                {watch('paymentMethod') === 'Bank Transfer' && (
+                                    <FormField control={form.control} name="bankId" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Deposit Bank</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl>
+                                                <SelectContent>{(paymentSettings?.banks || []).map(b => (
+                                                    <SelectItem key={b.id} value={b.id}>{b.bankName} ({b.accountNumber})</SelectItem>
+                                                ))}</SelectContent>
+                                            </Select>
+                                        </FormItem>
+                                    )} />
+                                )}
+                                <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Individual Product Prices</CardTitle></CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {watchedProducts.map((p, i) => <FormField key={p.id} control={form.control} name={`products.${i}.price`} render={({ field }) => <FormItem><FormLabel className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />)}
+                    </CardContent>
+                </Card>
+              </div>
           )}
 
           {currentStep === 10 && !isProductCreationMode && (

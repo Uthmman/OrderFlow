@@ -135,6 +135,16 @@ export type Order = {
   assignedTo: string[];
   ownerId: string;
   chatMessages?: OrderChatMessage[];
+  
+  // Receipt & Payment fields
+  withReceipt?: boolean;
+  vatAmount?: number;
+  totalWithVat?: number;
+  paymentMethod?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  receiptAttachment?: OrderAttachment;
+  batchReceiptId?: string;
 };
 
 export type WoodFinish = {
@@ -165,6 +175,17 @@ export type Material = {
 export type ProductSettings = {
     productCategories: ProductCategory[];
     materials: Material[];
+}
+
+export type BankAccount = {
+    bankName: string;
+    accountNumber: string;
+    id: string;
+}
+
+export type PaymentSettings = {
+    methods: string[];
+    banks: BankAccount[];
 }
 
 export type StockUnit = 'pcs' | 'kg' | 'liter' | 'meters' | 'set' | 'box' | 'sheets' | 'liters' | 'grams';

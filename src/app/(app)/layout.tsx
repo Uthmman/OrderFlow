@@ -16,6 +16,7 @@ import { NotificationProvider } from "@/hooks/use-notifications";
 import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
+import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 
@@ -83,24 +84,26 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <CustomerProvider>
             <ColorSettingProvider>
               <ProductSettingProvider>
-                <ProductProvider>
-                    <OrderProvider>
-                    <NotificationProvider>
-                        <StockProvider>
-                          <div className="flex h-screen w-full flex-col">
-                          <AppHeader />
-                          <div className="flex flex-1 overflow-hidden relative">
-                              <AppSidebar />
-                              <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
-                                  {children}
-                              </main>
-                              <FloatingBottomNav />
-                          </div>
-                          </div>
-                        </StockProvider>
-                    </NotificationProvider>
-                    </OrderProvider>
-                </ProductProvider>
+                <PaymentSettingProvider>
+                  <ProductProvider>
+                      <OrderProvider>
+                      <NotificationProvider>
+                          <StockProvider>
+                            <div className="flex h-screen w-full flex-col">
+                            <AppHeader />
+                            <div className="flex flex-1 overflow-hidden relative">
+                                <AppSidebar />
+                                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
+                                    {children}
+                                </main>
+                                <FloatingBottomNav />
+                            </div>
+                            </div>
+                          </StockProvider>
+                      </NotificationProvider>
+                      </OrderProvider>
+                  </ProductProvider>
+                </PaymentSettingProvider>
               </ProductSettingProvider>
             </ColorSettingProvider>
         </CustomerProvider>

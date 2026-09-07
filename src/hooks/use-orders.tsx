@@ -134,10 +134,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const existingOrderId = (orderData as any).id;
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
+    // Handle receipt file if present
+    let receiptAttachment: OrderAttachment | undefined;
+    if ((orderData as any).file) {
+        receiptAttachment = await handleFileUpload((orderData as any).file);
+    }
+
     // Splitting logic: if multiple products and not a draft, create individual orders
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
+        const batchReceiptId = uuidv4(); // All split orders share one receipt ID
 
         for (let i = 0; i < products.length; i++) {
             const product = products[i];
@@ -160,16 +167,22 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 prepaidAmount: productPrepaid,
                 status: finalStatus,
                 ownerId: user.id,
+                batchReceiptId,
+                receiptAttachment,
                 creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate,
                 deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline,
             };
+            
+            // Clean up split internal properties
+            delete splitOrder.file;
+            delete (splitOrder as any).receiptFile;
 
             batch.set(currentOrderRef, removeUndefined(splitOrder));
             if (!isFirst) addOrderToCustomer(orderData.customerId, currentOrderId);
         }
 
         await batch.commit();
-        toast({ title: "Orders Split", description: `Created ${products.length} separate orders.` });
+        toast({ title: "Orders Split", description: `Created ${products.length} separate orders linked to one receipt.` });
         return firstOrderId;
     }
 
@@ -183,23 +196,31 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
             status: orderData.status || 'Pending',
             ownerId: user.id,
+            receiptAttachment,
             creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
             deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
         };
+        delete (newOrder as any).file;
+        delete (newOrder as any).receiptFile;
+
         setDocumentNonBlocking(newOrderRef, removeUndefined(newOrder), {});
         addOrderToCustomer(orderData.customerId, newId);
         return newId;
     }
 
     const orderRef = doc(firestore, 'orders', existingOrderId);
-    const finalData = {
+    const finalData: any = {
         ...orderData,
         uniqueName: formatOrderUniqueName(orderData.customerName, products, existingOrderId),
         mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
         status: finalStatus,
+        receiptAttachment: receiptAttachment || (orderData as any).receiptAttachment,
         creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate as any,
         deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline as any,
     };
+    delete finalData.file;
+    delete finalData.receiptFile;
+
     updateDocumentNonBlocking(orderRef, removeUndefined(finalData));
     return existingOrderId;
   };

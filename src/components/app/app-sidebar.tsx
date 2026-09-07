@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -21,7 +22,7 @@ import {
   Shapes,
   Library,
   MessageSquare,
-  Warehouse,
+  CreditCard,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -38,6 +39,7 @@ const navItems = [
 const settingsNavItems = [
     { href: "/settings", icon: Palette, label: "Color Settings" },
     { href: "/settings/products", icon: Shapes, label: "Product Categories" },
+    { href: "/settings/payments", icon: CreditCard, label: "Payment & Banks" },
 ]
 
 export function AppSidebar() {

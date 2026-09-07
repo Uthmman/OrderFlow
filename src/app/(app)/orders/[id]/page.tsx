@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -7,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogPortal,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -294,9 +296,10 @@ function OrderDetailPageContent() {
   const isPaid = (balance <= 0 && order.incomeAmount > 0) || order.paymentStatus === 'Paid';
 
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i)) || [];
+  if (order.receiptAttachment) allImageAttachments.push(order.receiptAttachment);
 
     const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" }); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); }
-    const handleDelete = () => { if (!orderData) return; const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); deleteOrder(orderData.id, allAttachments); toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); router.push("/orders"); };
+    const handleDelete = () => { if (!orderData) return; const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); deleteOrder(orderData.id, allAttachments); toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); router.push("/orders"); };
     const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent }); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
     const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus }); await updateOrder({ id: orderData.id, status: newStatus }); }); };
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
@@ -374,7 +377,29 @@ function OrderDetailPageContent() {
                     </div>
                     <div className="space-y-8">
                         <Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                                {canViewSensitiveData && (<><Separator /><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div><div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div><Separator /><p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p></>)}
+                                {canViewSensitiveData && (
+                                  <>
+                                    <Separator />
+                                    {order.withReceipt && (
+                                        <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                            <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                            {order.receiptAttachment && (
+                                                <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                    <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
+                                    {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
+                                    <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                                    <Separator />
+                                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                                  </>
+                                )}
                         </CardContent></Card>
                         {canViewSensitiveData ? (
                             customer ? (
@@ -405,7 +430,29 @@ function OrderDetailPageContent() {
           </Accordion>
         </div>
             <div className="space-y-8"><Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                        {canViewSensitiveData && (<><Separator /><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Total Price</span><span className="text-sm font-semibold">{formatCurrency(order.incomeAmount || 0)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div><div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency(balance)}</span></div><div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div><Separator /><p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p></>)}
+                        {canViewSensitiveData && (
+                          <>
+                            <Separator />
+                            {order.withReceipt && (
+                                <div className="space-y-2 p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                    <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                    <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                    <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                    <div className="flex justify-between font-bold border-t pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                    {order.receiptAttachment && (
+                                        <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
+                                    )}
+                                </div>
+                            )}
+                            <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                            <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                            <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
+                            {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
+                            <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                            <Separator />
+                            <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                          </>
+                        )}
                     </CardContent></Card>
                 {canViewSensitiveData ? (
                     customer ? (
@@ -430,10 +477,12 @@ function OrderDetailPageContent() {
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
     </div>
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogPortal>
         <DialogContent className="sm:max-w-sm"><DialogHeader><DialogTitle>Order QR Code</DialogTitle><DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription></DialogHeader>
             <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg"><QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} /><p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p></div>
             <DialogFooter className="flex flex-col sm:flex-row gap-2"><Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button></DialogFooter>
         </DialogContent>
+        </DialogPortal>
     </Dialog>
     </>
   );
