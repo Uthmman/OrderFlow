@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -90,7 +91,9 @@ export function DataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
-  // Use external table if provided, but still run hooks for local state if needed (though redundant here)
+  // We only use internal state if no external table is provided.
+  // Note: Standard React guidance forbids conditional hooks, 
+  // so internalTable is always computed but ignored if externalTable exists.
   const table = externalTable || internalTable;
 
   return (

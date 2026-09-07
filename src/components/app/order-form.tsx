@@ -40,9 +40,9 @@ import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
 import Image from "next/image"
-import { Checkbox } from "../ui/checkbox"
-import { Label } from "../ui/label"
-import { Separator } from "../ui/separator"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
+import { Separator } from "@/components/ui/separator"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -58,13 +58,13 @@ import { CustomerForm } from "./customer-form"
 import { Timestamp } from "firebase/firestore"
 import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
-import { Progress } from "../ui/progress"
+import { Progress } from "@/components/ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
 import { usePaymentSettings } from "@/hooks/use-payment-settings"
 import * as LucideIcons from 'lucide-react'
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
-import { ScrollArea } from "../ui/scroll-area"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
 import { DynamicIcon } from "../ui/dynamic-icon"
 
@@ -248,22 +248,20 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) return;
 
-    startTransition(async () => {
-        if (!initialOrder && currentStep === 1 && onSave) {
-            setIsManualSaving(true);
-            const vals = getValues();
-            const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
-            if (id) { 
-                router.replace(`/orders/${id}/edit?step=3`); 
-                setIsManualSaving(false); 
-                return; 
-            }
-            setIsManualSaving(false);
+    if (!initialOrder && currentStep === 1 && onSave) {
+        setIsManualSaving(true);
+        const vals = getValues();
+        const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
+        if (id) { 
+            router.replace(`/orders/${id}/edit?step=3`); 
+            setIsManualSaving(false); 
+            return; 
         }
-        let next = currentStep + 1;
-        if (currentStep === 3) next = 4;
-        setCurrentStep(Math.min(next, STEPS.length));
-    });
+        setIsManualSaving(false);
+    }
+    let next = currentStep + 1;
+    if (currentStep === 3) next = 4;
+    setCurrentStep(Math.min(next, STEPS.length));
   };
 
   const prevStep = () => {
@@ -534,35 +532,36 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                 <CardHeader><CardTitle>Color</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                      <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={() => (
-                          <FormItem>
-                            <div className={cn("space-y-6", watchedProducts[currentProductIndex].colorAsAttachment && "opacity-20 pointer-events-none")}>
-                              <div className="grid grid-cols-4 gap-4">
-                                {colorSettings?.customColors.map(o => (
-                                  <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`c-${o.name}`} /></FormControl>
-                                      <Label htmlFor={`c-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold text-center">{o.name}</span></Label>
-                                    </FormItem>
-                                  )} />
-                                ))}
-                              </div>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {colorSettings?.woodFinishes.map(o => (
-                                  <FormField key={o.name} control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
-                                    <FormItem>
-                                      <FormControl><Checkbox checked={field.value?.includes(o.name)} onCheckedChange={c => field.onChange(c ? [...(field.value || []), o.name] : field.value?.filter(v => v !== o.name))} className="sr-only" id={`w-${o.name}`} /></FormControl>
-                                      <Label htmlFor={`w-${o.name}`} className="flex flex-col items-center gap-2 cursor-pointer group"><Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", field.value?.includes(o.name) && "ring-2 ring-primary ring-offset-2")} /><span className="text-[10px] uppercase font-bold">{o.name}</span></Label>
-                                    </FormItem>
-                                  )} />
-                                ))}
-                              </div>
-                            </div>
-                            <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
-                              <FormItem className="flex items-center space-x-2 mt-8 border p-4 rounded-lg bg-muted/20"><FormControl><Checkbox checked={field.value} onCheckedChange={v => { field.onChange(v); if(v) setValue(`products.${currentProductIndex}.colors`, []); }} /></FormControl><FormLabel className="text-sm font-bold">COLOR AS ATTACHED PICTURE</FormLabel></FormItem>
-                            )} />
-                          </FormItem>
-                      )} />
+                    <div className={cn("space-y-6", watchedProducts[currentProductIndex].colorAsAttachment && "opacity-20 pointer-events-none")}>
+                        <div className="grid grid-cols-4 gap-4">
+                        {colorSettings?.customColors.map(o => (
+                            <button key={o.name} type="button" onClick={() => {
+                                const cur = getValues(`products.${currentProductIndex}.colors`) || [];
+                                setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
+                            }} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                <div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", (watchedProducts[currentProductIndex].colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
+                                <span className="text-[10px] uppercase font-bold text-center">{o.name}</span>
+                            </button>
+                        ))}
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {colorSettings?.woodFinishes.map(o => (
+                            <button key={o.name} type="button" onClick={() => {
+                                const cur = getValues(`products.${currentProductIndex}.colors`) || [];
+                                setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
+                            }} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                <Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", (watchedProducts[currentProductIndex].colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
+                                <span className="text-[10px] uppercase font-bold">{o.name}</span>
+                            </button>
+                        ))}
+                        </div>
+                    </div>
+                    <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 mt-8 border p-4 rounded-lg bg-muted/20">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={v => { field.onChange(v); if(v) setValue(`products.${currentProductIndex}.colors`, []); }} /></FormControl>
+                        <FormLabel className="text-sm font-bold">COLOR AS ATTACHED PICTURE</FormLabel>
+                        </FormItem>
+                    )} />
                 </CardContent>
               </Card>
           )}
@@ -670,7 +669,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <Card>
                     <CardHeader><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Individual Product Prices</CardTitle></CardHeader>
                     <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {watchedProducts.map((p, i) => <FormField key={p.id} control={form.control} name={`products.${i}.price`} render={({ field }) => <FormItem><FormLabel className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />)}
+                        {watchedProducts.map((p, i) => (
+                            <div key={p.id}>
+                                <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</Label>
+                                <Input type="number" value={p.price || 0} onChange={e => {
+                                    const updated = [...watchedProducts];
+                                    updated[i].price = Number(e.target.value);
+                                    setValue('products', updated, { shouldDirty: true });
+                                }} />
+                            </div>
+                        ))}
                     </CardContent>
                 </Card>
               </div>
