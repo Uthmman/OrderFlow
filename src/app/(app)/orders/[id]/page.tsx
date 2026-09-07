@@ -378,7 +378,13 @@ function OrderDetailPageContent() {
                        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>{(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}</Accordion>
                     </div>
                     <div className="space-y-8">
-                        <Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+                        <Card>
+                            <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                                 {canViewSensitiveData && (
                                   <>
                                     <Separator />
@@ -402,7 +408,8 @@ function OrderDetailPageContent() {
                                     <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                                   </>
                                 )}
-                        </CardContent></Card>
+                            </CardContent>
+                        </Card>
                         {canViewSensitiveData ? (
                             customer ? (
                                 <Card>
@@ -431,7 +438,14 @@ function OrderDetailPageContent() {
             {(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}
           </Accordion>
         </div>
-            <div className="space-y-8"><Card><CardHeader><CardTitle>Details</CardTitle></CardHeader><CardContent className="space-y-4"><div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div><div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div><div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>{order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                        <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                        <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                        {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
                         {canViewSensitiveData && (
                           <>
                             <Separator />
@@ -455,7 +469,8 @@ function OrderDetailPageContent() {
                             <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
                           </>
                         )}
-                    </CardContent></Card>
+                    </CardContent>
+                </Card>
                 {canViewSensitiveData ? (
                     customer ? (
                         <Card>
@@ -475,7 +490,9 @@ function OrderDetailPageContent() {
                 ) : (
                     <Card><CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-muted-foreground" /> Access Restricted</CardTitle></CardHeader></Card>
                 )}
-                 <ChatInterface order={order} /></div></div>
+                 <ChatInterface order={order} />
+            </div>
+        </div>
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
     </div>
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>

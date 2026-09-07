@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
   SortingState,
-  Table,
+  Table as TableInstance,
   VisibilityState,
 } from "@tanstack/react-table"
 import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Activity, Trash } from "lucide-react"
@@ -327,7 +327,7 @@ export const columns: ColumnDef<Order>[] = [
   },
 ]
 
-function OrderTableToolbar({ table }: { table: Table<Order> }) {
+function OrderTableToolbar({ table }: { table: TableInstance<Order> }) {
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
@@ -395,7 +395,7 @@ function OrderTableToolbar({ table }: { table: Table<Order> }) {
   );
 }
 
-function MobileOrderList({ table }: { table: Table<Order> }) {
+function MobileOrderList({ table }: { table: TableInstance<Order> }) {
     const router = useRouter();
     const orders = table.getRowModel().rows.map(row => row.original);
     const { role } = useUser();
