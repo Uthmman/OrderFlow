@@ -31,12 +31,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback, useTransition } from "react"
 import Image from "next/image"
@@ -70,7 +70,7 @@ import { DynamicIcon } from "../ui/dynamic-icon"
 
 const productSchema = z.object({
   id: z.string(),
-  productName: z.string().min(3, "Product name required.").optional().or(z.literal('')),
+  productName: z.string().min(1, "Product name required.").optional().or(z.literal('')),
   category: z.string().min(1, "Category is required."),
   description: z.string().optional(),
   attachments: z.array(z.any()).optional(),
@@ -149,6 +149,7 @@ export function OrderForm({
     isProductCreationMode = false 
 }: OrderFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { customers, addCustomer } = useCustomers();
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
@@ -156,8 +157,9 @@ export function OrderForm({
   const { settings: paymentSettings } = usePaymentSettings();
   const { addAttachment, uploadProgress, removeAttachment } = useOrders();
   
+  const initialStepParam = searchParams.get('step');
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
-  const [currentStep, setCurrentStep] = useState(isProductCreationMode ? 3 : 1);
+  const [currentStep, setCurrentStep] = useState(initialStepParam ? parseInt(initialStepParam) : (isProductCreationMode ? 3 : 1));
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -332,6 +334,7 @@ export function OrderForm({
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  const currentProgress = (currentStep / STEPS.length) * 100;
 
   useEffect(() => { 
     const currentIncome = form.getValues('incomeAmount');
@@ -343,7 +346,7 @@ export function OrderForm({
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
-        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
+        <Progress value={currentProgress} className="w-full" />
         <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
             <span>Step {currentStep} of {STEPS.length}</span>
             <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
@@ -494,8 +497,8 @@ export function OrderForm({
                       {['width', 'height', 'depth'].map(f => (
                         <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
                           <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
-                        ))}
-                      )}
+                        )} />
+                      ))}
                     </div>
                     <Separator />
                     <div className="space-y-4">
@@ -504,7 +507,7 @@ export function OrderForm({
                             <p className="text-sm">Click to upload files or photos</p>
                             <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                         </div>
-                        <div className="space-y-2">{watchedProducts[currentProductIndex].attachments?.map((att: any) => (
+                        <div className="space-y-2">{watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
                             <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
                                 <div className="flex items-center gap-2 truncate">
                                     {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
@@ -550,14 +553,14 @@ export function OrderForm({
               <Card>
                 <CardHeader><CardTitle>Color</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <div className={cn("space-y-6", watchedProducts[currentProductIndex].colorAsAttachment && "opacity-20 pointer-events-none")}>
+                    <div className={cn("space-y-6", watchedProducts[currentProductIndex]?.colorAsAttachment && "opacity-20 pointer-events-none")}>
                         <div className="grid grid-cols-4 gap-4">
                         {colorSettings?.customColors.map(o => (
                             <button key={o.name} type="button" onClick={() => {
                                 const cur = getValues(`products.${currentProductIndex}.colors`) || [];
                                 setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
                             }} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                <div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", (watchedProducts[currentProductIndex].colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
+                                <div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", (watchedProducts[currentProductIndex]?.colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
                                 <span className="text-[10px] uppercase font-bold text-center">{o.name}</span>
                             </button>
                         ))}
@@ -568,8 +571,8 @@ export function OrderForm({
                                 const cur = getValues(`products.${currentProductIndex}.colors`) || [];
                                 setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
                             }} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                <Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", (watchedProducts[currentProductIndex].colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
-                                <span className="text-[10px] uppercase font-bold">{o.name}</span>
+                                <Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", (watchedProducts[currentProductIndex]?.colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
+                                <span className="text-[10px] uppercase font-bold text-center">{o.name}</span>
                             </button>
                         ))}
                         </div>
@@ -728,11 +731,12 @@ export function OrderForm({
                             <Popover>
                               <PopoverTrigger asChild>
                                 <Button variant="outline" className="h-11 justify-start font-bold">
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
                                   {field.value ? format(field.value, "PPP") : "Select date"}
                                 </Button>
                               </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} />
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
                               </PopoverContent>
                             </Popover>
                           </FormItem>

@@ -272,7 +272,7 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
                 <TooltipTrigger asChild>
                     <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
                         <AvatarImage src={profile.avatarUrl} />
-                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                        <AvatarFallback className="text-[8px]">{profile.name?.split(" ").map(n => n[0]).join("") || '?'}</AvatarFallback>
                     </Avatar>
                 </TooltipTrigger>
                 <TooltipContent><p className="text-xs">{profile.name}</p></TooltipContent>

@@ -110,7 +110,7 @@ function DesignerAvatar({ userId, users }: { userId: string, users: AppUser[] })
                 <TooltipTrigger asChild>
                     <Avatar className="h-7 w-7 ring-2 ring-background shrink-0 hover:z-10 transition-all">
                         <AvatarImage src={profile.avatarUrl} />
-                        <AvatarFallback className="text-[9px] font-bold">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                        <AvatarFallback className="text-[9px] font-bold">{profile.name?.split(" ").map(n => n[0]).join("") || '?'}</AvatarFallback>
                     </Avatar>
                 </TooltipTrigger>
                 <TooltipContent>
