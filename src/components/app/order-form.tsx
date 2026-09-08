@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -331,14 +330,14 @@ export function OrderForm({
 
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
-  const totalIncome = useMemo(() => watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0), [watchedProducts]);
+  const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 
   useEffect(() => { 
     const currentIncome = form.getValues('incomeAmount');
-    if (currentIncome !== totalIncome) {
-        setValue('incomeAmount', totalIncome, { shouldDirty: true });
+    if (currentIncome !== totalIncomeValue) {
+        setValue('incomeAmount', totalIncomeValue, { shouldDirty: true });
     }
-  }, [totalIncome, setValue, form]);
+  }, [totalIncomeValue, setValue, form]);
 
   return (
     <div className="w-full max-w-4xl mx-auto">

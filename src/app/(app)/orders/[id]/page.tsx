@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -271,11 +270,12 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
 
 function OrderDetailPageContent() {
   const params = useParams(); const id = params.id as string;
+  const router = useRouter(); 
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
   const { user, role } = useUser();
-  const router = useRouter(); const searchParams = useSearchParams(); const { toast } = useToast();
+  const searchParams = useSearchParams(); const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -298,10 +298,10 @@ function OrderDetailPageContent() {
   const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
 
-    const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" }); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); }
+    const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" } as any); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); }
     const handleDelete = () => { if (!orderData) return; const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); deleteOrder(orderData.id, allAttachments); toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); router.push("/orders"); };
-    const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent }); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
-    const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus }); await updateOrder({ id: orderData.id, status: newStatus }); }); };
+    const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
+    const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
 
   return (
