@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -37,7 +38,7 @@ import { Switch } from "@/components/ui/switch"
 import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback, useTransition, useMemo } from "react"
+import { useState, useRef, useEffect, useCallback, useTransition } from "react"
 import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -115,18 +116,6 @@ interface OrderFormProps {
 
 const VAT_RATE = 0.15;
 
-const toDate = (timestamp: any): Date | undefined => {
-    if (!timestamp) return undefined;
-    if (timestamp instanceof Date) return timestamp;
-    if (timestamp && typeof timestamp.seconds === 'number') return new Date(timestamp.seconds * 1000);
-    if (typeof timestamp === 'string') {
-        const date = new Date(timestamp);
-        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-        return isNaN(date.getTime()) ? undefined : date;
-    }
-    return undefined;
-}
-
 const STEPS = [
   { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
   { id: 2, title: 'Product Setup', fields: [] },
@@ -139,6 +128,18 @@ const STEPS = [
   { id: 9, title: 'Pricing & Receipt', fields: ['incomeAmount'] },
   { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
 ];
+
+const toDate = (timestamp: any): Date | undefined => {
+    if (!timestamp) return undefined;
+    if (timestamp instanceof Date) return timestamp;
+    if (timestamp && typeof timestamp.seconds === 'number') return new Date(timestamp.seconds * 1000);
+    if (typeof timestamp === 'string') {
+        const date = new Date(timestamp);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+        return isNaN(date.getTime()) ? undefined : date;
+    }
+    return undefined;
+}
 
 export function OrderForm({ 
     order: initialOrder, 
@@ -760,5 +761,5 @@ export function OrderForm({
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  );
+  )
 }

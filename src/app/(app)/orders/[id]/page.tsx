@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -265,7 +266,19 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
 
 function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
     const profile = users.find(u => u.id === userId); if (!profile) return null;
-    return ( <TooltipProvider><Tooltip><TooltipTrigger asChild><Avatar className="h-6 w-6 ring-2 ring-background shrink-0"><AvatarImage src={profile.avatarUrl} /><AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback></Avatar></TooltipTrigger><TooltipContent><p className="text-xs">{profile.name}</p></TooltipContent></Tooltip></TooltipProvider> );
+    return ( 
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
+                        <AvatarImage src={profile.avatarUrl} />
+                        <AvatarFallback className="text-[8px]">{profile.name.split(" ").map(n => n[0]).join("")}</AvatarFallback>
+                    </Avatar>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-xs">{profile.name}</p></TooltipContent>
+            </Tooltip>
+        </TooltipProvider> 
+    );
 }
 
 function OrderDetailPageContent() {
@@ -305,7 +318,6 @@ function OrderDetailPageContent() {
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
 
   return (
-    <>
     <div className="flex flex-col gap-8">
       <div>
         <div className="flex justify-between items-start">
@@ -371,7 +383,8 @@ function OrderDetailPageContent() {
             </div>
         </div>
       </div>
-       <Tabs defaultValue={defaultTab} className="w-full lg:hidden"><TabsList><TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger><TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger></TabsList>
+       <Tabs defaultValue={defaultTab} className="w-full lg:hidden">
+            <TabsList><TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger><TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger></TabsList>
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
                     <div className="space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
@@ -412,41 +425,17 @@ function OrderDetailPageContent() {
                                 )}
                             </CardContent>
                         </Card>
-                        {canViewSensitiveData ? (
-                            customer ? (
-                                <Card>
-                                    <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <User className="h-4 w-4 text-muted-foreground"/> 
-                                            <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">{customer.email}</p>
-                                        <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
-                            )
-                        ) : (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
-                                        Access Restricted
-                                    </CardTitle>
-                                </CardHeader>
-                            </Card>
-                        )}
                     </div>
                 </div>
             </TabsContent>
-            <TabsContent value="chat" className="mt-6"><ChatInterface order={order} /></TabsContent></Tabs>
-        <div className="hidden lg:grid lg:grid-cols-3 gap-8"><div className="lg:col-span-2 space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
-          <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
-            {(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}
-          </Accordion>
-        </div>
+            <TabsContent value="chat" className="mt-6"><ChatInterface order={order} /></TabsContent>
+        </Tabs>
+        <div className="hidden lg:grid lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
+            <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
+                {(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}
+            </Accordion>
+            </div>
             <div className="space-y-8">
                 <Card>
                     <CardHeader><CardTitle>Details</CardTitle></CardHeader>
@@ -482,22 +471,20 @@ function OrderDetailPageContent() {
                         )}
                     </CardContent>
                 </Card>
-                {canViewSensitiveData ? (
-                    customer ? (
-                        <Card>
-                            <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <User className="h-4 w-4 text-muted-foreground"/> 
-                                    <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{customer.email}</p>
-                                <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
-                    )
+                {canViewSensitiveData && customer ? (
+                    <Card>
+                        <CardHeader><CardTitle>Customer</CardTitle></CardHeader>
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <User className="h-4 w-4 text-muted-foreground"/> 
+                                <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{customer.email}</p>
+                            <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                        </CardContent>
+                    </Card>
+                ) : canViewSensitiveData && !customer ? (
+                    <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
                 ) : (
                     <Card>
                         <CardHeader>
@@ -512,25 +499,24 @@ function OrderDetailPageContent() {
             </div>
         </div>
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
-    </div>
-    <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
-        <DialogContent className="sm:max-w-sm">
-            <DialogHeader>
-                <DialogTitle>Order QR Code</DialogTitle>
-                <DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
-                <QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} />
-                <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
-            </DialogFooter>
-        </DialogContent>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Order QR Code</DialogTitle>
+                    <DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
+                    <QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} />
+                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
+                </div>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
+                </DialogFooter>
+            </DialogContent>
         </DialogPortal>
     </Dialog>
-    </>
+    </div>
   );
 }
 
