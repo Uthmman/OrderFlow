@@ -215,16 +215,26 @@ export function OrderForm({
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
 
-  useEffect(() => {
-    if (watchedWithReceipt) {
-        const vat = (watchedIncome || 0) * VAT_RATE;
-        setValue("vatAmount", Math.round(vat), { shouldDirty: true });
-        setValue("totalWithVat", Math.round((watchedIncome || 0) + vat), { shouldDirty: true });
+  const updateCalculations = useCallback((base: number, withReceiptActive: boolean) => {
+    if (withReceiptActive) {
+      const vat = base * VAT_RATE;
+      setValue("vatAmount", Math.round(vat), { shouldDirty: true });
+      setValue("totalWithVat", Math.round(base + vat), { shouldDirty: true });
     } else {
-        setValue("vatAmount", 0);
-        setValue("totalWithVat", watchedIncome || 0);
+      setValue("vatAmount", 0, { shouldDirty: true });
+      setValue("totalWithVat", base, { shouldDirty: true });
     }
-  }, [watchedWithReceipt, watchedIncome, setValue]);
+  }, [setValue]);
+
+  // Sync income from products only if not in pricing step or manually overridden
+  const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  
+  useEffect(() => { 
+    if (currentStep < 9) {
+      setValue('incomeAmount', totalIncomeValue, { shouldDirty: true });
+      updateCalculations(totalIncomeValue, watchedWithReceipt);
+    }
+  }, [totalIncomeValue, currentStep, setValue, updateCalculations, watchedWithReceipt]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -333,15 +343,7 @@ export function OrderForm({
 
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
-  const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
   const currentProgress = (currentStep / STEPS.length) * 100;
-
-  useEffect(() => { 
-    const currentIncome = form.getValues('incomeAmount');
-    if (currentIncome !== totalIncomeValue) {
-        setValue('incomeAmount', totalIncomeValue, { shouldDirty: true });
-    }
-  }, [totalIncomeValue, setValue, form]);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -634,7 +636,16 @@ export function OrderForm({
                                         <FormLabel>Base Price (Before VAT)</FormLabel>
                                         <div className="relative">
                                             <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                            <Input type="number" className="pl-8 text-xl font-bold" {...field} readOnly />
+                                            <Input 
+                                                type="number" 
+                                                className="pl-8 text-xl font-bold" 
+                                                {...field} 
+                                                onChange={(e) => {
+                                                    const base = parseFloat(e.target.value) || 0;
+                                                    field.onChange(base);
+                                                    updateCalculations(base, watchedWithReceipt);
+                                                }}
+                                            />
                                         </div>
                                     </FormItem>
                                 )} />
@@ -644,20 +655,41 @@ export function OrderForm({
                                             <FormLabel className="text-base">Official Receipt</FormLabel>
                                             <FormDescription>Calculates VAT and enables receipt uploads.</FormDescription>
                                         </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={(v) => {
+                                            field.onChange(v);
+                                            updateCalculations(watchedIncome || 0, v);
+                                        }} /></FormControl>
                                     </FormItem>
                                 )} />
                                 {watchedWithReceipt && (
                                     <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
                                         <div className="flex justify-between text-sm">
                                             <span>VAT (15%)</span>
-                                            <span className="font-bold">+{form.getValues('vatAmount')}</span>
+                                            <span className="font-bold">+{form.watch('vatAmount')}</span>
                                         </div>
                                         <Separator />
-                                        <div className="flex justify-between text-lg font-bold">
-                                            <span>Total with VAT</span>
-                                            <span>{form.getValues('totalWithVat')}</span>
-                                        </div>
+                                        <FormField control={form.control} name="totalWithVat" render={({ field }) => (
+                                            <FormItem>
+                                                <div className="flex justify-between items-center text-lg font-bold">
+                                                    <span>Total with VAT</span>
+                                                    <div className="relative w-32">
+                                                        <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                                        <Input 
+                                                            type="number" 
+                                                            className="pl-7 h-9 text-right" 
+                                                            {...field}
+                                                            onChange={(e) => {
+                                                                const total = parseFloat(e.target.value) || 0;
+                                                                field.onChange(total);
+                                                                const base = total / (1 + VAT_RATE);
+                                                                setValue('incomeAmount', Math.round(base), { shouldDirty: true });
+                                                                setValue('vatAmount', Math.round(total - base), { shouldDirty: true });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </FormItem>
+                                        )} />
                                         
                                         <div className="space-y-2">
                                             <Label>Receipt Attachment</Label>
@@ -709,9 +741,11 @@ export function OrderForm({
                             <div key={p.id}>
                                 <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</Label>
                                 <Input type="number" value={p.price || 0} onChange={e => {
+                                    const val = parseFloat(e.target.value) || 0;
                                     const updated = [...watchedProducts];
-                                    updated[i].price = Number(e.target.value);
+                                    updated[i].price = val;
                                     setValue('products', updated, { shouldDirty: true });
+                                    // Total income will be updated via product prices sum next step
                                 }} />
                             </div>
                         ))}
