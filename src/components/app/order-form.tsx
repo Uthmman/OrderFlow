@@ -375,7 +375,7 @@ export function OrderForm({
                                   <div className="flex items-center gap-2">
                                     <Select 
                                       onValueChange={v => { field.onChange(v); const c = customers.find(cu => cu.id === v); if(c?.location.town) setValue('location.town', c.location.town); }} 
-                                      value={field.value}
+                                      value={field.value ?? ""} 
                                     >
                                       <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
                                       <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
@@ -386,7 +386,7 @@ export function OrderForm({
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="location.town" render={({ field }) => (
-                                <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     )}
@@ -492,8 +492,8 @@ export function OrderForm({
               <Card>
                 <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                    <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} /></FormControl></FormItem>} />
+                    <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
+                    <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     <div className="grid grid-cols-3 gap-4">
                       {['width', 'height', 'depth'].map(f => (
                         <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
@@ -639,6 +639,7 @@ export function OrderForm({
                                                 type="number" 
                                                 className="pl-8 text-xl font-bold" 
                                                 {...field} 
+                                                value={field.value ?? ""}
                                                 onChange={(e) => {
                                                     const base = parseFloat(e.target.value) || 0;
                                                     field.onChange(base);
@@ -677,6 +678,7 @@ export function OrderForm({
                                                             type="number" 
                                                             className="pl-7 h-9 text-right" 
                                                             {...field}
+                                                            value={field.value ?? ""}
                                                             onChange={(e) => {
                                                                 const total = parseFloat(e.target.value) || 0;
                                                                 field.onChange(total);
@@ -708,7 +710,7 @@ export function OrderForm({
                                 <FormField control={form.control} name="paymentMethod" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Payment Method</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
                                             <FormControl><SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger></FormControl>
                                             <SelectContent>{(paymentSettings?.methods || []).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                                         </Select>
@@ -718,7 +720,7 @@ export function OrderForm({
                                     <FormField control={form.control} name="bankId" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Deposit Bank</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
                                                 <FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl>
                                                 <SelectContent>{(paymentSettings?.banks || []).map(b => (
                                                     <SelectItem key={b.id} value={b.id}>{b.bankName} ({b.accountNumber})</SelectItem>
@@ -727,8 +729,8 @@ export function OrderForm({
                                         </FormItem>
                                     )} />
                                 )}
-                                <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>} />
-                                <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                                <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                             </div>
                         </div>
                     </CardContent>
@@ -739,7 +741,7 @@ export function OrderForm({
                         {watchedProducts.map((p, i) => (
                             <div key={p.id}>
                                 <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</Label>
-                                <Input type="number" value={p.price || 0} onChange={e => {
+                                <Input type="number" value={p.price ?? 0} onChange={e => {
                                     const val = parseFloat(e.target.value) || 0;
                                     const updated = [...watchedProducts];
                                     updated[i].price = val;
@@ -756,7 +758,7 @@ export function OrderForm({
               <Card>
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s === 'Pending' ? 'Draft' : s}</SelectItem>)}</SelectContent></Select></FormItem>} />
+                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} value={field.value ?? ""}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s === 'Pending' ? 'Draft' : s}</SelectItem>)}</SelectContent></Select></FormItem>} />
                       <FormField control={form.control} name="deadline" render={({ field }) => (
                           <FormItem className="flex flex-col">
                             <FormLabel>Delivery Deadline</FormLabel>
