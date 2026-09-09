@@ -226,7 +226,6 @@ export function OrderForm({
     }
   }, [setValue]);
 
-  // Sync income from products only if not in pricing step or manually overridden
   const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
   
   useEffect(() => { 
@@ -745,7 +744,6 @@ export function OrderForm({
                                     const updated = [...watchedProducts];
                                     updated[i].price = val;
                                     setValue('products', updated, { shouldDirty: true });
-                                    // Total income will be updated via product prices sum next step
                                 }} />
                             </div>
                         ))}
