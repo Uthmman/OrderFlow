@@ -264,8 +264,8 @@ export function OrderForm({
   };
 
   const nextStep = async () => {
-    const isSubmitting = isExternallySubmitting || isManualSaving;
-    if (isSubmitting) return;
+    const activeSubmitting = isExternallySubmitting || isManualSaving;
+    if (activeSubmitting) return;
 
     let fieldsToValidate: any = [];
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
@@ -355,7 +355,7 @@ export function OrderForm({
   });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-  const isSubmitting = isExternallySubmitting || isManualSaving;
+  const isSubmittingFinal = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const currentProgress = (currentStep / STEPS.length) * 100;
 
@@ -567,7 +567,7 @@ export function OrderForm({
                     <div className="grid grid-cols-3 gap-4">
                       {['width', 'height', 'depth'].map(f => (
                         <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
-                          <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl></FormItem>
+                          <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                         )} />
                       ))}
                     </div>
@@ -851,23 +851,23 @@ export function OrderForm({
           )}
 
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm py-4 z-10 border-t mt-8">
-              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isSubmitting}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isSubmittingFinal}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
+                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isSubmittingFinal}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
                   {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && (
-                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Button type="button" onClick={nextStep} disabled={isSubmittingFinal}>
+                        {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
                   {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
-                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>
+                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmittingFinal}>
                         Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
                   {currentStep === (isProductCreationMode ? 8 : 10) && (
-                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0}>
-                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
+                        {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>
                   )}

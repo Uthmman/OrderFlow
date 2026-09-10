@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Card } from "@/components/ui/card"
 import { Order, OrderStatus, AppUser } from "@/lib/types"
 import { formatCurrency, formatOrderUniqueName, formatTimestamp } from "@/lib/utils"
 import { DataTable } from "./data-table/data-table"
