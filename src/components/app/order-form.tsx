@@ -264,6 +264,9 @@ export function OrderForm({
   };
 
   const nextStep = async () => {
+    const isSubmitting = isExternallySubmitting || isManualSaving;
+    if (isSubmitting) return;
+
     let fieldsToValidate: any = [];
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
     
@@ -272,19 +275,23 @@ export function OrderForm({
 
     if (!initialOrder && currentStep === 1 && onSave) {
         setIsManualSaving(true);
-        const vals = getValues();
-        const id = await onSave({ 
-          ...vals, 
-          customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", 
-          status: 'Pending' 
-        } as any, true);
-        if (id) { 
-            router.replace(`/orders/${id}/edit?step=3`); 
-            setIsManualSaving(false); 
-            return; 
+        try {
+            const vals = getValues();
+            const id = await onSave({ 
+              ...vals, 
+              customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", 
+              status: 'Pending' 
+            } as any, true);
+            if (id) { 
+                router.replace(`/orders/${id}/edit?step=3`); 
+                return; 
+            }
+        } finally {
+            setIsManualSaving(false);
         }
-        setIsManualSaving(false);
+        return;
     }
+    
     let next = currentStep + 1;
     if (currentStep === 3) next = 4;
     setCurrentStep(Math.min(next, STEPS.length));
@@ -847,9 +854,23 @@ export function OrderForm({
               <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
                   {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
-                  {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {currentStep === (isProductCreationMode ? 8 : 10) && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0}>{(isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
+                  {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && (
+                      <Button type="button" onClick={nextStep} disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Next <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                  )}
+                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
+                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>
+                        Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                  )}
+                  {currentStep === (isProductCreationMode ? 8 : 10) && (
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
+                      </Button>
+                  )}
               </div>
           </div>
         </form>
