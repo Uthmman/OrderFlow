@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -30,7 +31,6 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
@@ -498,7 +498,7 @@ function OrderDetailPageContent() {
                                 <User className="h-4 w-4 text-muted-foreground"/> 
                                 <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
                             </div>
-                            {customer.phoneNumbers.map((p, idx) => (
+                            {(customer.phoneNumbers || []).map((p, idx) => (
                                 <p key={idx} className="text-sm text-muted-foreground">
                                     <span className="font-medium mr-1">{p.type}:</span>
                                     {p.number}

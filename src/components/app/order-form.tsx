@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -306,9 +307,9 @@ export function OrderForm({
   };
   
   const handleRemoveProduct = (index: number) => {
-    const current = getValues('products');
-    if (current.length <= 1) return;
-    const updated = current.filter((_, i) => i !== index);
+    const currentList = getValues('products');
+    if (currentList.length <= 1) return;
+    const updated = currentList.filter((_, i) => i !== index);
     setValue('products', updated, { shouldDirty: true });
     if (currentProductIndex >= updated.length) setCurrentProductIndex(Math.max(0, updated.length - 1));
   };
@@ -319,7 +320,7 @@ export function OrderForm({
     
     const updated = values.products.map(p => ({ 
         ...p, 
-        colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, 
+        colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), 
         dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
     }));
     
@@ -339,10 +340,12 @@ export function OrderForm({
     try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
   };
 
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
-    c.phoneNumbers.some(p => p.number.includes(customerSearch))
-  );
+  const filteredCustomers = customers.filter(c => {
+    const search = customerSearch.toLowerCase();
+    const nameMatch = c.name?.toLowerCase().includes(search);
+    const phoneMatch = c.phoneNumbers?.some(p => p.number.includes(search));
+    return nameMatch || phoneMatch;
+  });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const isSubmitting = isExternallySubmitting || isManualSaving;
@@ -404,7 +407,7 @@ export function OrderForm({
                                                             type="button"
                                                             onClick={() => {
                                                                 field.onChange(c.id);
-                                                                if(c.location.town) setValue('location.town', c.location.town);
+                                                                if(c.location?.town) setValue('location.town', c.location.town);
                                                                 setCustomerSearch("");
                                                             }}
                                                             className={cn(
@@ -414,7 +417,7 @@ export function OrderForm({
                                                         >
                                                             <span className="font-bold">{c.name}</span>
                                                             <span className="text-[10px] text-muted-foreground uppercase tracking-tight">
-                                                                {c.phoneNumbers.map(p => `${p.type}: ${p.number}`).join(' | ')}
+                                                                {(c.phoneNumbers || []).map(p => `${p.type}: ${p.number}`).join(' | ')}
                                                             </span>
                                                         </button>
                                                     ))}
@@ -435,7 +438,7 @@ export function OrderForm({
                                     <div className="flex-1">
                                         <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Selected Customer Phones</p>
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
-                                            {selectedCustomer.phoneNumbers.map((p, idx) => (
+                                            {(selectedCustomer.phoneNumbers || []).map((p, idx) => (
                                                 <p key={idx} className="text-xs font-medium">
                                                     <span className="text-muted-foreground mr-1">{p.type}:</span>
                                                     {p.number}
