@@ -1,9 +1,7 @@
-
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
 import {
   Form,
@@ -30,9 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Customer } from "@/lib/types";
 import {
     AlertDialog,
@@ -46,10 +44,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "../ui/textarea";
 
+const phoneSchema = z.object({
+  type: z.enum(["Mobile", "Work", "Home", "Secondary"]),
+  number: z.string().min(5, "Number is too short."),
+});
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
-  phone: z.string().min(5, "A primary phone number is required."),
+  phoneNumbers: z.array(phoneSchema).min(1, "At least one phone number is required."),
   gender: z.enum(["Male", "Female"]),
   town: z.string().min(2, "Town/City is required."),
   notes: z.string().optional(),
@@ -79,17 +81,17 @@ export function CustomerForm({
     if (customer) {
       return {
           name: customer.name,
-          phone: customer.phoneNumbers.find(p => p.type === 'Mobile')?.number || "",
-          gender: customer.gender === 'Other' ? 'Female' : customer.gender, // Default to Female if 'Other'
+          phoneNumbers: customer.phoneNumbers.length > 0 ? customer.phoneNumbers : [{ type: 'Mobile' as const, number: "" }],
+          gender: customer.gender === 'Other' ? 'Female' : customer.gender, 
           town: customer.location.town,
-          notes: customer.notes,
+          notes: customer.notes || "",
         };
     }
     
     return {
           name: "",
-          phone: "",
-          gender: "Female",
+          phoneNumbers: [{ type: 'Mobile' as const, number: "" }],
+          gender: "Female" as const,
           town: "",
           notes: "",
         };
@@ -100,11 +102,14 @@ export function CustomerForm({
     defaultValues: getInitialValues(),
   });
   
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "phoneNumbers",
+  });
+
   const { formState: { isDirty } } = form;
 
   const handleFormSubmit = (values: CustomerFormValues) => {
-    const phoneNumbers = [{ type: 'Mobile' as const, number: values.phone }];
-
     let avatarUrl;
     if (values.gender === 'Male') {
       avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${values.name}`;
@@ -112,12 +117,11 @@ export function CustomerForm({
       avatarUrl = `https://avatar.iran.liara.run/public/girl?username=${values.name}`;
     }
 
-
     const customerData = {
         name: values.name,
         gender: values.gender,
         notes: values.notes,
-        phoneNumbers,
+        phoneNumbers: values.phoneNumbers,
         location: {
             town: values.town,
         },
@@ -138,99 +142,143 @@ export function CustomerForm({
     }
   };
 
-  const handleDiscard = () => {
-    router.back();
-  }
-
-  const FormContent = (
-    <>
-        <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. Jane Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-         <FormField
-            control={form.control}
-            name="gender"
-            render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select a gender" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Male">Male</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Primary Phone</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. +1 555-123-4567" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="town"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Town/City</FormLabel>
-                <FormControl>
-                    <Input placeholder="e.g. San Francisco" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-            control={form.control}
-            name="notes"
-            render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                <FormLabel>Notes</FormLabel>
-                <FormControl>
-                    <Textarea
-                        placeholder="Add any internal notes about this customer..."
-                        rows={4}
-                        {...field}
-                    />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-    </>
-  );
-
   return (
     <>
       <Form {...form}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {FormContent}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-6">
+                <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Full Name</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g. Jane Doe" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Gender</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select a gender" />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="Female">Female</SelectItem>
+                                    <SelectItem value="Male">Male</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="town"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Town/City</FormLabel>
+                        <FormControl>
+                            <Input placeholder="e.g. Addis Ababa" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                 <FormField
+                    control={form.control}
+                    name="notes"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Internal Notes</FormLabel>
+                        <FormControl>
+                            <Textarea
+                                placeholder="Add any specific details about this customer..."
+                                rows={4}
+                                {...field}
+                                value={field.value ?? ""}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <FormLabel>Phone Numbers</FormLabel>
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => append({ type: 'Mobile', number: "" })}
+                        className="h-8 text-xs"
+                    >
+                        <PlusCircle className="h-3.5 w-3.5 mr-1" /> Add Phone
+                    </Button>
+                </div>
+                
+                <div className="space-y-3">
+                    {fields.map((field, index) => (
+                        <div key={field.id} className="flex items-start gap-2 animate-in fade-in slide-in-from-left-2">
+                             <FormField
+                                control={form.control}
+                                name={`phoneNumbers.${index}.type`}
+                                render={({ field }) => (
+                                    <FormItem className="w-32 shrink-0">
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger className="h-10"><SelectValue /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="Mobile">Mobile</SelectItem>
+                                                <SelectItem value="Work">Work</SelectItem>
+                                                <SelectItem value="Home">Home</SelectItem>
+                                                <SelectItem value="Secondary">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name={`phoneNumbers.${index}.number`}
+                                render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                        <FormControl>
+                                            <Input placeholder="Number..." {...field} value={field.value ?? ""} className="h-10" />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            {fields.length > 1 && (
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => remove(index)}
+                                    className="h-10 w-10 text-destructive shrink-0"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
-        <div className="flex justify-end gap-2 mt-8">
+        
+        <div className="flex justify-end gap-2 mt-10 pt-6 border-t">
             <Button variant="outline" type="button" onClick={handleCancelClick}>Cancel</Button>
             <Button type="button" disabled={isSubmitting} onClick={form.handleSubmit(handleFormSubmit)}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -242,16 +290,12 @@ export function CustomerForm({
     <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
             <AlertDialogHeader>
-                <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Are you sure you want to leave? Your changes will be lost.
-                </AlertDialogDescription>
+                <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+                <AlertDialogDescription>Are you sure you want to discard your changes?</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>Stay on page</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDiscard}>
-                    Discard changes
-                </AlertDialogAction>
+                <AlertDialogCancel>Stay</AlertDialogCancel>
+                <AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>

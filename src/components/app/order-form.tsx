@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -31,14 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback, useTransition } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -165,7 +164,7 @@ export function OrderForm({
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [customerSearch, setCustomerSearch] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +213,7 @@ export function OrderForm({
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
+  const selectedCustomerId = watch("customerId");
 
   const updateCalculations = useCallback((base: number, withReceiptActive: boolean) => {
     if (withReceiptActive) {
@@ -316,30 +316,35 @@ export function OrderForm({
   const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
     setIsManualSaving(true);
-    startTransition(async () => {
-        const updated = values.products.map(p => ({ 
-            ...p, 
-            colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, 
-            dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
-        }));
-        
-        const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
+    
+    const updated = values.products.map(p => ({ 
+        ...p, 
+        colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : p.colors, 
+        dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
+    }));
+    
+    const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
 
-        const payload: any = { 
-            ...values, 
-            products: updated, 
-            status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), 
-            customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown",
-            bankName: selectedBank?.bankName,
-            bankAccountNumber: selectedBank?.accountNumber
-        };
-        
-        if (values.receiptFile) payload.file = values.receiptFile;
+    const payload: any = { 
+        ...values, 
+        products: updated, 
+        status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), 
+        customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown",
+        bankName: selectedBank?.bankName,
+        bankAccountNumber: selectedBank?.accountNumber
+    };
+    
+    if (values.receiptFile) payload.file = values.receiptFile;
 
-        try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
-    });
+    try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
   };
 
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
+    c.phoneNumbers.some(p => p.number.includes(customerSearch))
+  );
+
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const isSubmitting = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const currentProgress = (currentStep / STEPS.length) * 100;
@@ -373,18 +378,73 @@ export function OrderForm({
                                 <FormItem>
                                   <FormLabel>Customer</FormLabel>
                                   <div className="flex items-center gap-2">
-                                    <Select 
-                                      onValueChange={v => { field.onChange(v); const c = customers.find(cu => cu.id === v); if(c?.location.town) setValue('location.town', c.location.town); }} 
-                                      value={field.value ?? ""} 
-                                    >
-                                      <FormControl><SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger></FormControl>
-                                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}><UserPlus className="h-4 w-4" /></Button>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="w-full justify-between font-normal h-10">
+                                                {field.value ? customers.find(c => c.id === field.value)?.name : "Select customer..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                                            <div className="p-2 border-b flex items-center gap-2">
+                                                <Search className="h-4 w-4 opacity-50" />
+                                                <Input 
+                                                    placeholder="Search name or phone..." 
+                                                    className="h-8 border-none focus-visible:ring-0"
+                                                    value={customerSearch}
+                                                    onChange={e => setCustomerSearch(e.target.value)}
+                                                />
+                                            </div>
+                                            <ScrollArea className="h-72">
+                                                <div className="p-1">
+                                                    {filteredCustomers.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground">No customers found.</p>}
+                                                    {filteredCustomers.map(c => (
+                                                        <button
+                                                            key={c.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                field.onChange(c.id);
+                                                                if(c.location.town) setValue('location.town', c.location.town);
+                                                                setCustomerSearch("");
+                                                            }}
+                                                            className={cn(
+                                                                "flex flex-col items-start w-full px-4 py-2 text-sm rounded-md hover:bg-accent text-left transition-colors",
+                                                                field.value === c.id && "bg-accent"
+                                                            )}
+                                                        >
+                                                            <span className="font-bold">{c.name}</span>
+                                                            <span className="text-[10px] text-muted-foreground uppercase tracking-tight">
+                                                                {c.phoneNumbers.map(p => `${p.type}: ${p.number}`).join(' | ')}
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </ScrollArea>
+                                        </PopoverContent>
+                                    </Popover>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)} className="h-10 px-3 shrink-0"><UserPlus className="h-4 w-4" /></Button>
                                   </div>
                                   <FormMessage />
                                 </FormItem>
                             )} />
+                            {selectedCustomer && (
+                                <div className="p-3 border rounded-lg bg-muted/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+                                    <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center border shadow-sm">
+                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Selected Customer Phones</p>
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
+                                            {selectedCustomer.phoneNumbers.map((p, idx) => (
+                                                <p key={idx} className="text-xs font-medium">
+                                                    <span className="text-muted-foreground mr-1">{p.type}:</span>
+                                                    {p.number}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             <FormField control={form.control} name="location.town" render={({ field }) => (
                                 <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -781,12 +841,12 @@ export function OrderForm({
           )}
 
           <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm py-4 z-10 border-t mt-8">
-              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isPending || isSubmitting}>Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isSubmitting}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isPending || isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
-                  {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep} disabled={isPending || isSubmitting}>{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && <Button type="button" onClick={() => setCurrentStep(9)} disabled={isPending || isSubmitting}>Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" /></Button>}
-                  {currentStep === (isProductCreationMode ? 8 : 10) && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0 || isPending}>{(isSubmitting || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
+                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
+                  {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && <Button type="button" onClick={nextStep} disabled={isSubmitting}>Next <ArrowRight className="ml-2 h-4 w-4" /></Button>}
+                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmitting}>Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" /></Button>}
+                  {currentStep === (isProductCreationMode ? 8 : 10) && <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmitting || Object.keys(uploadProgress).length > 0}>{(isSubmitting) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}</Button>}
               </div>
           </div>
         </form>

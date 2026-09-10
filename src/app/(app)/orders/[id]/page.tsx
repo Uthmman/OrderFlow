@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
@@ -499,8 +498,12 @@ function OrderDetailPageContent() {
                                 <User className="h-4 w-4 text-muted-foreground"/> 
                                 <Link href={`/customers/${customer.id}`} className="font-semibold hover:underline">{customer.name}</Link>
                             </div>
-                            <p className="text-sm text-muted-foreground">{customer.email}</p>
-                            <p className="text-sm text-muted-foreground">{customer.phoneNumbers?.find(p => p.type === 'Mobile')?.number}</p>
+                            {customer.phoneNumbers.map((p, idx) => (
+                                <p key={idx} className="text-sm text-muted-foreground">
+                                    <span className="font-medium mr-1">{p.type}:</span>
+                                    {p.number}
+                                </p>
+                            ))}
                         </CardContent>
                     </Card>
                 ) : canViewSensitiveData && !customer ? (

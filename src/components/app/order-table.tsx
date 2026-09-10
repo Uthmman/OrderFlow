@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -35,7 +34,6 @@ import { DataTableColumnHeader } from "./data-table/data-table-column-header"
 import { DataTableViewOptions } from "./data-table/data-table-view-options"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Card } from "@/components/ui/card"
 import { useOrders } from "@/hooks/use-orders"
 import {
     AlertDialog,
