@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle, User, Plus, Minus } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
@@ -883,7 +883,6 @@ export function OrderForm({
                                 )} />
                                 {watchedWithReceipt && (
                                     <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
-                                        {/* Itemized Breakdown */}
                                         <div className="space-y-2 mb-4">
                                             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest border-b pb-1">Itemized Breakdown</p>
                                             {watchedProducts.map((p, i) => (

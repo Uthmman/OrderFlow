@@ -11,7 +11,6 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
 import { compressImage, formatOrderUniqueName } from '@/lib/utils';
-import { useProducts } from './use-products';
 import { useUser } from './use-user';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
