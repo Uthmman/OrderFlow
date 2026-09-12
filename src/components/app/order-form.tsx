@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -167,6 +167,7 @@ export function OrderForm({
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
   const [newPhone, setNewPhone] = useState({ number: "", type: "Mobile" as any });
   const [isUpdatingCustomer, setIsUpdatingCustomer] = useState(false);
 
@@ -262,6 +263,7 @@ export function OrderForm({
         const id = await addCustomer(data);
         setValue("customerId", id, { shouldDirty: true });
         setIsCreatingNewCustomer(false);
+        setIsCustomerPopoverOpen(false);
     } finally {
         setNewCustomerSubmitting(false);
     }
@@ -304,7 +306,8 @@ export function OrderForm({
                 router.replace(`/orders/${id}/edit?step=3`); 
                 return; 
             }
-        } finally {
+        } catch (e) {
+            console.error(e);
             setIsManualSaving(false);
         }
         return;
@@ -362,7 +365,7 @@ export function OrderForm({
     
     if (values.receiptFile) payload.file = values.receiptFile;
 
-    try { await onSave(payload as any, !initialOrder); } finally { setIsManualSaving(false); }
+    try { await onSave(payload as any, !initialOrder); } catch(e) { console.error(e); } finally { setIsManualSaving(false); }
   };
 
   const filteredCustomers = customers.filter(c => {
@@ -406,26 +409,57 @@ export function OrderForm({
                                 <FormItem>
                                   <FormLabel>Customer</FormLabel>
                                   <div className="flex items-center gap-2">
-                                    <Popover>
+                                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
                                         <PopoverTrigger asChild>
-                                            <Button variant="outline" className="w-full justify-between font-normal h-10">
-                                                {field.value ? customers.find(c => c.id === field.value)?.name : "Select customer..."}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                                            <div className="p-2 border-b flex items-center gap-2">
-                                                <Search className="h-4 w-4 opacity-50" />
+                                            <div className="relative w-full">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                                                 <Input 
                                                     placeholder="Search name or phone..." 
-                                                    className="h-8 border-none focus-visible:ring-0"
-                                                    value={customerSearch}
-                                                    onChange={e => setCustomerSearch(e.target.value)}
+                                                    className="pl-9 h-11"
+                                                    value={selectedCustomer ? selectedCustomer.name : customerSearch}
+                                                    onChange={e => {
+                                                        if (selectedCustomer) {
+                                                            field.onChange("");
+                                                            setCustomerSearch(e.target.value);
+                                                        } else {
+                                                            setCustomerSearch(e.target.value);
+                                                        }
+                                                        setIsCustomerPopoverOpen(true);
+                                                    }}
+                                                    onFocus={() => setIsCustomerPopoverOpen(true)}
                                                 />
+                                                {selectedCustomer && (
+                                                     <Button 
+                                                        variant="ghost" 
+                                                        size="icon" 
+                                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            field.onChange("");
+                                                            setCustomerSearch("");
+                                                        }}
+                                                     >
+                                                        <Trash2 className="h-4 w-4" />
+                                                     </Button>
+                                                )}
                                             </div>
-                                            <ScrollArea className="h-72">
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                            <ScrollArea className="max-h-72">
                                                 <div className="p-1">
-                                                    {filteredCustomers.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground">No customers found.</p>}
+                                                    {filteredCustomers.length === 0 && customerSearch.length > 1 && (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            className="w-full justify-start gap-3 h-12 text-primary hover:text-primary hover:bg-primary/5"
+                                                            onClick={() => setIsCreatingNewCustomer(true)}
+                                                        >
+                                                            <UserPlus className="h-4 w-4" />
+                                                            <div className="flex flex-col items-start">
+                                                                <span className="text-sm font-bold">Create "{customerSearch}"</span>
+                                                                <span className="text-[10px] uppercase font-bold opacity-70">No matching customer found</span>
+                                                            </div>
+                                                        </Button>
+                                                    )}
                                                     {filteredCustomers.map(c => (
                                                         <button
                                                             key={c.id}
@@ -434,23 +468,35 @@ export function OrderForm({
                                                                 field.onChange(c.id);
                                                                 if(c.location?.town) setValue('location.town', c.location.town);
                                                                 setCustomerSearch("");
+                                                                setIsCustomerPopoverOpen(false);
                                                             }}
                                                             className={cn(
-                                                                "flex flex-col items-start w-full px-4 py-2 text-sm rounded-md hover:bg-accent text-left transition-colors",
+                                                                "flex flex-col items-start w-full px-4 py-3 text-sm rounded-md hover:bg-accent text-left transition-colors border-b last:border-0",
                                                                 field.value === c.id && "bg-accent"
                                                             )}
                                                         >
-                                                            <span className="font-bold">{c.name}</span>
-                                                            <span className="text-[10px] text-muted-foreground uppercase tracking-tight">
+                                                            <div className="flex items-center gap-2">
+                                                                <User className="h-3 w-3 opacity-40" />
+                                                                <span className="font-bold">{c.name}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-muted-foreground uppercase tracking-tight ml-5">
                                                                 {(c.phoneNumbers || []).map(p => `${p.type}: ${p.number}`).join(' | ')}
                                                             </span>
                                                         </button>
                                                     ))}
+                                                    {filteredCustomers.length > 0 && (
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            className="w-full justify-start gap-3 h-10 text-xs border-t rounded-none"
+                                                            onClick={() => setIsCreatingNewCustomer(true)}
+                                                        >
+                                                            <PlusCircle className="h-3.5 w-3.5" /> New Customer
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </ScrollArea>
                                         </PopoverContent>
                                     </Popover>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)} className="h-10 px-3 shrink-0"><UserPlus className="h-4 w-4" /></Button>
                                   </div>
                                   <FormMessage />
                                 </FormItem>
@@ -568,7 +614,7 @@ export function OrderForm({
                                   key={c.name} 
                                   type="button" 
                                   onClick={() => field.onChange(c.name)} 
-                                  className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}
+                                  className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all text-left", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}
                                 >
                                   <Icon className="h-8 w-8" />
                                   <span className="text-xs font-bold uppercase">{c.name}</span>
@@ -663,7 +709,7 @@ export function OrderForm({
                                 key={m.name} 
                                 type="button" 
                                 onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} 
-                                className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}
+                                className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all text-left", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}
                               >
                                 <Icon className="h-8 w-8" />
                                 {m.name}
