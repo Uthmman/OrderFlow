@@ -642,11 +642,25 @@ export function OrderForm({
                     <div className="p-6 border rounded-lg bg-muted/20">
                       <Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
                       <ScrollArea className="h-64 mt-4">
-                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => (
-                          <div key={p.id} onClick={() => handleExistingProductSelect(p)} className="p-3 border rounded-md mb-2 cursor-pointer hover:bg-background text-sm font-medium">
-                            {p.productName}
-                          </div>
-                        ))}
+                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => {
+                          const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
+                          return (
+                            <div 
+                              key={p.id} 
+                              onClick={() => handleExistingProductSelect(p)} 
+                              className="flex items-center gap-3 p-2 border rounded-md mb-2 cursor-pointer hover:bg-background text-sm font-medium"
+                            >
+                              <div className="h-10 w-10 bg-muted rounded overflow-hidden shrink-0 border relative">
+                                {primaryAttachment?.url ? (
+                                  <Image src={primaryAttachment.url} alt={p.productName} fill className="object-cover" />
+                                ) : (
+                                  <LucideIcons.Box className="h-5 w-5 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                )}
+                              </div>
+                              <span className="flex-1 truncate">{p.productName}</span>
+                            </div>
+                          )
+                        })}
                       </ScrollArea>
                     </div>
                   </div>
@@ -687,7 +701,7 @@ export function OrderForm({
                                     {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
                                     <span className="text-xs truncate">{att.fileName}</span>
                                 </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAttachment(initialOrder?.id || '', currentProductIndex, att)}><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" className="h-7 v-7 text-destructive" onClick={() => removeAttachment(initialOrder?.id || '', currentProductIndex, att)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                         ))}</div>
                     </div>
@@ -765,15 +779,27 @@ export function OrderForm({
               <Card>
                 <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                      {watchedProducts.map((p, i) => (
-                        <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
-                          <span className="font-bold">{p.productName || `Product ${i+1}`} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>
+                      {watchedProducts.map((p, i) => {
+                        const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
+                        return (
+                          <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border">
+                                {primaryAttachment?.url ? (
+                                  <Image src={primaryAttachment.url} alt="thumb" fill className="object-cover" />
+                                ) : (
+                                  <LucideIcons.Box className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
+                                )}
+                              </div>
+                              <span className="font-bold">{p.productName || `Product ${i+1}`} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
+                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                       {!isProductCreationMode && (
                         <Button 
                           type="button" 
