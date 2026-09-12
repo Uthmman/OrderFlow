@@ -154,7 +154,12 @@ export function formatProductDisplay(products: Product[] | undefined): string {
   if (!products || products.length === 0) {
     return 'Custom Order';
   }
-  const productNames = products.map(p => p.productName).filter(Boolean) as string[];
+  const productNames = products.map(p => {
+      if (!p.productName) return null;
+      const qty = Number(p.quantity) || 1;
+      return qty > 1 ? `${p.productName} (x${qty})` : p.productName;
+  }).filter(Boolean) as string[];
+
   if (productNames.length === 0) {
     return 'Custom Order';
   }
@@ -182,18 +187,15 @@ export async function downloadFile(url: string, fileName: string) {
     link.href = objectUrl;
     link.download = fileName;
     
-    // Add to DOM temporarily to ensure child relationship is valid for programmatic clicks
     document.body.appendChild(link);
     link.click();
     
-    // Safety check before removal
     if (document.body.contains(link)) {
         document.body.removeChild(link);
     }
     
     setTimeout(() => URL.revokeObjectURL(objectUrl), 200);
   } catch (error) {
-    // Fallback for CORS restricted or failed fetches
     window.open(url, '_blank');
   }
 }

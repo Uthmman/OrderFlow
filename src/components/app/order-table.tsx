@@ -464,7 +464,6 @@ export function OrderTable({ orders: propOrders, preferenceKey, hidePagination =
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Attach context to rows so cells can access it
   table.getRowModel().rows.forEach(row => {
       (row as any).tableContext = { role };
   });

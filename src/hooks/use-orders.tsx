@@ -134,27 +134,33 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const existingOrderId = (orderData as any).id;
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
-    // Handle receipt file if present
     let receiptAttachment: OrderAttachment | undefined;
     if ((orderData as any).file) {
         receiptAttachment = await handleFileUpload((orderData as any).file);
     }
 
-    // Splitting logic: if multiple products and not a draft, create individual orders
-    if (products.length > 1 && finalStatus !== 'Pending') {
+    const expandedProducts: Product[] = [];
+    products.forEach(p => {
+        const qty = Number(p.quantity) || 1;
+        for (let i = 0; i < qty; i++) {
+            expandedProducts.push({ ...p, quantity: 1 });
+        }
+    });
+
+    if (expandedProducts.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         let firstOrderId = existingOrderId;
-        const batchReceiptId = uuidv4(); // All split orders share one receipt ID
+        const batchReceiptId = uuidv4();
 
-        for (let i = 0; i < products.length; i++) {
-            const product = products[i];
+        for (let i = 0; i < expandedProducts.length; i++) {
+            const product = expandedProducts[i];
             const isFirst = i === 0 && !!existingOrderId;
             const currentOrderId = isFirst ? existingOrderId : doc(collection(firestore, "orders")).id;
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
             if (i === 0) firstOrderId = currentOrderId;
 
             const productPrice = Number(product.price) || 0;
-            const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
+            const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / expandedProducts.length);
             const productPrepaid = totalPrepaid * priceProportion;
 
             const splitOrder: any = {
@@ -173,7 +179,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline,
             };
             
-            // Clean up split internal properties
             delete splitOrder.file;
             delete (splitOrder as any).receiptFile;
 
@@ -182,7 +187,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         await batch.commit();
-        toast({ title: "Orders Split", description: `Created ${products.length} separate orders linked to one receipt.` });
+        toast({ title: "Orders Split", description: `Created ${expandedProducts.length} separate units linked to one receipt.` });
         return firstOrderId;
     }
 
@@ -230,11 +235,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // If updating a multi-product order to a non-pending status, trigger the split
-    if (orderData.status && orderData.status !== 'Pending' && (orderData.products?.length || originalOrder?.products?.length || 0) > 1) {
-        const mergedData = { ...originalOrder, ...orderData };
-        await addOrder(mergedData as any, false);
-        return; 
+    if (orderData.status && orderData.status !== 'Pending') {
+        const mergedProducts = orderData.products || originalOrder?.products || [];
+        const totalQty = mergedProducts.reduce((sum, p) => sum + (Number(p.quantity) || 1), 0);
+        if (totalQty > 1) {
+            const mergedData = { ...originalOrder, ...orderData };
+            await addOrder(mergedData as any, false);
+            return; 
+        }
     }
 
     const finalProducts = orderData.products || originalOrder?.products || [];

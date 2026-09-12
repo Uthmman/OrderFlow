@@ -100,6 +100,7 @@ export type Product = {
   material?: string[];
   dimensions?: { width: number; height: number; depth: number };
   price: number;
+  quantity?: number;
   orderIds?: string[];
   billOfMaterials?: string;
   isStandard?: boolean; 

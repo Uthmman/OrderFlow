@@ -80,6 +80,7 @@ const productSchema = z.object({
   width: z.coerce.number().optional(),
   height: z.coerce.number().optional(),
   depth: z.coerce.number().optional(),
+  quantity: z.coerce.number().min(1).default(1),
   colorAsAttachment: z.boolean().default(false),
   price: z.coerce.number().min(0).default(0),
 })
@@ -166,8 +167,6 @@ export function OrderForm({
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
-  
-  // Inline phone adding state
   const [newPhone, setNewPhone] = useState({ number: "", type: "Mobile" as any });
   const [isUpdatingCustomer, setIsUpdatingCustomer] = useState(false);
 
@@ -176,7 +175,7 @@ export function OrderForm({
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
-    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 };
+    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 };
     const defaultValues = { 
         products: [defaultProduct], 
         isUrgent: false, 
@@ -197,7 +196,8 @@ export function OrderForm({
         colorAsAttachment: p.colors?.includes("As Attached Picture"), 
         width: p.dimensions?.width, 
         height: p.dimensions?.height, 
-        depth: p.dimensions?.depth 
+        depth: p.dimensions?.depth,
+        quantity: p.quantity || 1
     })) || [defaultProduct];
     return { 
         ...defaultValues, 
@@ -231,7 +231,7 @@ export function OrderForm({
     }
   }, [setValue]);
 
-  const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+  const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.quantity) || 1), 0);
   
   useEffect(() => { 
     if (currentStep < 9) {
@@ -283,8 +283,7 @@ export function OrderForm({
   };
 
   const nextStep = async () => {
-    const activeSubmitting = isExternallySubmitting || isManualSaving;
-    if (activeSubmitting) return;
+    if (isExternallySubmitting || isManualSaving) return;
 
     let fieldsToValidate: any = [];
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
@@ -327,7 +326,7 @@ export function OrderForm({
 
   const handleExistingProductSelect = (product: Product) => {
     const updated = [...getValues('products')];
-    updated[currentProductIndex] = { ...product, price: Number(product.price) || 0, id: uuidv4() };
+    updated[currentProductIndex] = { ...product, price: Number(product.price) || 0, id: uuidv4(), quantity: 1 };
     setValue('products', updated, { shouldDirty: true });
     setCurrentStep(8);
   };
@@ -528,7 +527,7 @@ export function OrderForm({
                                   </div>
                                   <div className="flex-grow">
                                     <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
-                                    <p className="text-xs text-muted-foreground">{p.category}</p>
+                                    <p className="text-xs text-muted-foreground">{p.category} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</p>
                                   </div>
                                   <div className="flex items-center gap-2">
                                       <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
@@ -542,7 +541,7 @@ export function OrderForm({
                         variant="outline" 
                         onClick={() => { 
                           const current = getValues('products'); 
-                          setValue('products', [...current, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); 
+                          setValue('products', [...current, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 }], { shouldDirty: true }); 
                           setCurrentProductIndex(current.length); 
                           setCurrentStep(3); 
                         }} 
@@ -613,12 +612,19 @@ export function OrderForm({
               <Card>
                 <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="md:col-span-3">
+                            <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
+                        </div>
+                        <div className="md:col-span-1">
+                            <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
+                        </div>
+                    </div>
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     <div className="grid grid-cols-3 gap-4">
                       {['width', 'height', 'depth'].map(f => (
                         <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
-                          <FormItem><FormLabel className="capitalize">{f}</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                          <FormItem><FormLabel className="capitalize">{f} (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>
                         )} />
                       ))}
                     </div>
@@ -715,7 +721,7 @@ export function OrderForm({
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => (
                         <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
-                          <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
+                          <span className="font-bold">{p.productName || `Product ${i+1}`} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                             <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>
@@ -728,7 +734,7 @@ export function OrderForm({
                           variant="outline" 
                           onClick={() => { 
                             const cur = getValues('products'); 
-                            setValue('products', [...cur, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0 }], { shouldDirty: true }); 
+                            setValue('products', [...cur, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 }], { shouldDirty: true }); 
                             setCurrentProductIndex(cur.length); 
                             setCurrentStep(3); 
                           }} 
@@ -861,7 +867,7 @@ export function OrderForm({
                     <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {watchedProducts.map((p, i) => (
                             <div key={p.id}>
-                                <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`}</Label>
+                                <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`} (per unit)</Label>
                                 <Input type="number" value={p.price ?? 0} onChange={e => {
                                     const val = parseFloat(e.target.value) || 0;
                                     const updated = [...watchedProducts];
