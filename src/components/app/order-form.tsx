@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -150,7 +150,7 @@ export function OrderForm({
 }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { customers, addCustomer } = useCustomers();
+  const { customers, addCustomer, updateCustomer } = useCustomers();
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
@@ -166,6 +166,10 @@ export function OrderForm({
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
+  
+  // Inline phone adding state
+  const [newPhone, setNewPhone] = useState({ number: "", type: "Mobile" as any });
+  const [isUpdatingCustomer, setIsUpdatingCustomer] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -260,6 +264,21 @@ export function OrderForm({
         setIsCreatingNewCustomer(false);
     } finally {
         setNewCustomerSubmitting(false);
+    }
+  };
+
+  const handleAddPhoneToSelectedCustomer = async () => {
+    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+    if (!selectedCustomer || !newPhone.number) return;
+    
+    setIsUpdatingCustomer(true);
+    try {
+        const updatedPhoneNumbers = [...(selectedCustomer.phoneNumbers || []), newPhone];
+        await updateCustomer({ ...selectedCustomer, phoneNumbers: updatedPhoneNumbers });
+        setNewPhone({ number: "", type: "Mobile" });
+        toast({ title: "Phone Added", description: "Customer profile has been updated." });
+    } finally {
+        setIsUpdatingCustomer(false);
     }
   };
 
@@ -438,19 +457,51 @@ export function OrderForm({
                                 </FormItem>
                             )} />
                             {selectedCustomer && (
-                                <div className="p-3 border rounded-lg bg-muted/30 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
-                                    <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center border shadow-sm">
-                                        <Phone className="h-4 w-4 text-muted-foreground" />
+                                <div className="p-3 border rounded-lg bg-muted/30 flex flex-col gap-3 animate-in fade-in slide-in-from-top-1">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center border shadow-sm">
+                                            <Phone className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Selected Customer Phones</p>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
+                                                {(selectedCustomer.phoneNumbers || []).map((p, idx) => (
+                                                    <p key={idx} className="text-xs font-medium">
+                                                        <span className="text-muted-foreground mr-1">{p.type}:</span>
+                                                        {p.number}
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Selected Customer Phones</p>
-                                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
-                                            {(selectedCustomer.phoneNumbers || []).map((p, idx) => (
-                                                <p key={idx} className="text-xs font-medium">
-                                                    <span className="text-muted-foreground mr-1">{p.type}:</span>
-                                                    {p.number}
-                                                </p>
-                                            ))}
+                                    <div className="pt-3 border-t flex flex-col gap-2">
+                                        <p className="text-[9px] uppercase font-bold text-muted-foreground">Add Additional Phone</p>
+                                        <div className="flex gap-2">
+                                            <Select value={newPhone.type} onValueChange={(v: any) => setNewPhone({ ...newPhone, type: v })}>
+                                                <SelectTrigger className="w-24 h-8 text-[10px]"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Mobile">Mobile</SelectItem>
+                                                    <SelectItem value="Work">Work</SelectItem>
+                                                    <SelectItem value="Home">Home</SelectItem>
+                                                    <SelectItem value="Secondary">Other</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Input 
+                                                placeholder="Number..." 
+                                                value={newPhone.number} 
+                                                onChange={e => setNewPhone({ ...newPhone, number: e.target.value })}
+                                                className="h-8 text-xs flex-1"
+                                            />
+                                            <Button 
+                                                variant="outline" 
+                                                size="sm" 
+                                                className="h-8 px-2" 
+                                                disabled={isUpdatingCustomer || !newPhone.number}
+                                                onClick={handleAddPhoneToSelectedCustomer}
+                                            >
+                                                {isUpdatingCustomer ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlusCircle className="h-3 w-3 mr-1" />}
+                                                Add
+                                            </Button>
                                         </div>
                                     </div>
                                 </div>
