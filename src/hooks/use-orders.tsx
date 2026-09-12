@@ -140,7 +140,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     // SPLITTING LOGIC: 
-    // "orders with multiple product will be splitted but one product with multiple quantity will not be splitted"
+    // separate multiple different products while creating order
+    // but one product with multiple quantity will not be splitted
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -155,15 +156,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (i === 0) firstOrderId = currentOrderId;
 
             // Simple proportionality for splitting financial totals if multiple products
-            // Ideally we'd use the individual product price from the form
-            const productPrice = Number(product.price) || 0;
+            const productPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
             const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
 
             const splitOrder: any = {
                 ...orderData,
                 id: currentOrderId,
-                products: [product], // Splitted by product type
+                products: [product], 
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productPrice > 0 ? productPrice : (totalIncome / products.length),
@@ -184,7 +184,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         await batch.commit();
-        toast({ title: "Orders Split", description: `Created ${products.length} separate items linked to one receipt.` });
+        toast({ title: "Orders Split", description: `Created ${products.length} separate records for unique items.` });
         return firstOrderId;
     }
 
@@ -232,7 +232,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // If finalizing a draft that now has multiple products, trigger splitting
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {

@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle, User } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle, User, Plus, Minus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -282,6 +282,13 @@ export function OrderForm({
     } finally {
         setIsUpdatingCustomer(false);
     }
+  };
+
+  const updateQuantity = (index: number, delta: number) => {
+    const current = [...getValues('products')];
+    const newQty = Math.max(1, (current[index].quantity || 1) + delta);
+    current[index].quantity = newQty;
+    setValue('products', current, { shouldDirty: true });
   };
 
   const nextStep = async () => {
@@ -573,7 +580,13 @@ export function OrderForm({
                                   </div>
                                   <div className="flex-grow">
                                     <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
-                                    <p className="text-xs text-muted-foreground">{p.category} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</p>
+                                    <p className="text-xs text-muted-foreground">{p.category}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
+                                        <span className="text-sm font-bold w-6 text-center">{p.quantity || 1}</span>
+                                        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
+                                        <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">pcs</span>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                       <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
@@ -654,7 +667,7 @@ export function OrderForm({
                                 {primaryAttachment?.url ? (
                                   <Image src={primaryAttachment.url} alt={p.productName} fill className="object-cover" />
                                 ) : (
-                                  <LucideIcons.Box className="h-5 w-5 text-muted-foreground absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                  <LucideIcons.Box className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
                                 )}
                               </div>
                               <span className="flex-1 truncate">{p.productName}</span>
@@ -791,7 +804,15 @@ export function OrderForm({
                                   <LucideIcons.Box className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
                                 )}
                               </div>
-                              <span className="font-bold">{p.productName || `Product ${i+1}`} {p.quantity && p.quantity > 1 ? `(x${p.quantity})` : ''}</span>
+                              <div>
+                                <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
+                                    <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
+                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
+                                    <span className="text-[9px] uppercase font-bold text-muted-foreground">pcs</span>
+                                </div>
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
@@ -862,6 +883,16 @@ export function OrderForm({
                                 )} />
                                 {watchedWithReceipt && (
                                     <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
+                                        {/* Itemized Breakdown */}
+                                        <div className="space-y-2 mb-4">
+                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest border-b pb-1">Itemized Breakdown</p>
+                                            {watchedProducts.map((p, i) => (
+                                                <div key={p.id} className="flex justify-between items-center text-xs">
+                                                    <span className="truncate pr-4">{p.productName || `Item ${i+1}`} ({p.quantity || 1} pcs)</span>
+                                                    <span className="font-medium shrink-0">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                         <div className="flex justify-between text-sm">
                                             <span>VAT (15%)</span>
                                             <span className="font-bold">+{form.watch('vatAmount')}</span>

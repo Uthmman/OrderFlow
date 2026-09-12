@@ -405,12 +405,12 @@ function OrderDetailPageContent() {
                                         <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
                                             <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
                                             <div className="space-y-2">
-                                              {order.products && order.products.length > 1 && (
+                                              {order.products && order.products.length > 0 && (
                                                   <div className="space-y-1 mb-2 border-b border-primary/10 pb-2">
                                                       {order.products.map((p, idx) => (
                                                           <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                              <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`}</span>
-                                                              <span className="font-medium">{formatCurrency(p.price)}</span>
+                                                              <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`} ({p.quantity || 1} pcs)</span>
+                                                              <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                                           </div>
                                                       ))}
                                                   </div>
@@ -461,12 +461,12 @@ function OrderDetailPageContent() {
                                 <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
                                     <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
                                     <div className="space-y-2">
-                                      {order.products && order.products.length > 1 && (
+                                      {order.products && order.products.length > 0 && (
                                           <div className="space-y-1 mb-2 border-b border-primary/10 pb-2">
                                               {order.products.map((p, idx) => (
                                                   <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                      <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`}</span>
-                                                      <span className="font-medium">{formatCurrency(p.price)}</span>
+                                                      <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`} ({p.quantity || 1} pcs)</span>
+                                                      <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                                   </div>
                                               ))}
                                           </div>
