@@ -25,6 +25,7 @@ interface OrderContextType {
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
   addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
+  uploadFile: (file: File) => Promise<OrderAttachment>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
 }
 
@@ -66,7 +67,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const handleFileUpload = async (file: File): Promise<OrderAttachment> => {
+  const uploadFile = async (file: File): Promise<OrderAttachment> => {
     const fileName = file.name;
     setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
     try {
@@ -94,18 +95,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false): Promise<OrderAttachment | undefined> => {
       try {
         const currentOrder = orders?.find(o => o.id === orderId);
-        if (!currentOrder || !currentOrder.products[productIndex]) {
-            throw new Error("Order or product not found for attachment.");
+        if (!currentOrder) {
+            throw new Error("Order not found for attachment.");
         }
 
-        const newAttachment = await handleFileUpload(file);
+        const newAttachment = await uploadFile(file);
         const orderRef = doc(firestore, 'orders', orderId);
         
-        const updatedProducts = [...currentOrder.products];
-        const p = updatedProducts[productIndex];
-        if (isDesignFile) p.designAttachments = [...(p.designAttachments || []), newAttachment];
-        else p.attachments = [...(p.attachments || []), newAttachment];
-        await updateDoc(orderRef, { products: updatedProducts });
+        const updatedProducts = [...(currentOrder.products || [])];
+        if (updatedProducts[productIndex]) {
+            const p = updatedProducts[productIndex];
+            if (isDesignFile) p.designAttachments = [...(p.designAttachments || []), newAttachment];
+            else p.attachments = [...(p.attachments || []), newAttachment];
+            await updateDoc(orderRef, { products: updatedProducts });
+        }
         return newAttachment;
       } catch (error) {
           toast({ variant: "destructive", title: "Upload Failed", description: (error as Error).message });
@@ -140,7 +143,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
     let receiptAttachment: OrderAttachment | undefined;
     if ((orderData as any).file) {
-        receiptAttachment = await handleFileUpload((orderData as any).file);
+        receiptAttachment = await uploadFile((orderData as any).file);
     }
 
     if (products.length > 1 && finalStatus !== 'Pending') {
@@ -262,7 +265,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
     if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
         const msg: OrderChatMessage = { id: uuidv4(), user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl }, text: chatMessage.text, timestamp };
-        if (chatMessage.file) msg.attachment = await handleFileUpload(chatMessage.file);
+        if (chatMessage.file) msg.attachment = await uploadFile(chatMessage.file);
         newMessages.push(msg);
     }
 
@@ -301,8 +304,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const getOrderById = useCallback((orderId: string) => orders?.find(order => order.id === orderId), [orders]);
 
   const value = useMemo(() => ({
-      orders: orders || [], loading, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, getOrderById, uploadProgress, addAttachment, removeAttachment,
-  }), [orders, loading, uploadProgress, getOrderById, addAttachment, removeAttachment, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders]);
+      orders: orders || [], loading, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders, getOrderById, uploadProgress, addAttachment, uploadFile, removeAttachment,
+  }), [orders, loading, uploadProgress, getOrderById, addAttachment, uploadFile, removeAttachment, addOrder, updateOrder, updateMultipleOrdersStatus, deleteOrder, deleteMultipleOrders]);
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 }

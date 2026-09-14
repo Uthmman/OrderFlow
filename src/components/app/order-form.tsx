@@ -156,7 +156,7 @@ export function OrderForm({
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
   const { settings: paymentSettings } = usePaymentSettings();
-  const { addAttachment, uploadProgress, removeAttachment } = useOrders();
+  const { uploadFile, uploadProgress, removeAttachment } = useOrders();
   
   const initialStepParam = searchParams.get('step');
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
@@ -244,16 +244,18 @@ export function OrderForm({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
+      const updatedProducts = [...getValues('products')];
+      const p = updatedProducts[currentProductIndex];
+      
+      if (!p) return;
+
       for (const file of files) {
-          if (initialOrder) {
-              const att = await addAttachment(initialOrder.id, currentProductIndex, file);
-              if (att) {
-                  const updated = [...getValues('products')];
-                  if (updated[currentProductIndex]) {
-                    updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
-                    setValue('products', updated, { shouldDirty: true });
-                  }
-              }
+          try {
+              const att = await uploadFile(file);
+              p.attachments = [...(p.attachments || []), att];
+              setValue('products', updatedProducts, { shouldDirty: true });
+          } catch (error) {
+              console.error("Upload failed", error);
           }
       }
     }
@@ -749,7 +751,13 @@ export function OrderForm({
                                     {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
                                     <span className="text-xs truncate">{att.fileName}</span>
                                 </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 v-7 text-destructive" onClick={() => removeAttachment(initialOrder?.id || '', currentProductIndex, att)}><Trash2 className="h-4 w-4" /></Button>
+                                <Button type="button" variant="ghost" size="icon" className="h-7 v-7 text-destructive" onClick={() => {
+                                    const updated = [...getValues('products')];
+                                    if (updated[currentProductIndex]) {
+                                        updated[currentProductIndex].attachments = (updated[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                        setValue('products', updated, { shouldDirty: true });
+                                    }
+                                }}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                         ))}</div>
                     </div>
