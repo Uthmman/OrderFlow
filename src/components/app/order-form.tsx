@@ -96,7 +96,6 @@ const formSchema = z.object({
   creationDate: z.date().optional(),
   deadline: z.date().optional(),
   isUrgent: z.boolean().default(false),
-  
   withReceipt: z.boolean().default(false),
   vatAmount: z.coerce.number().default(0),
   totalWithVat: z.coerce.number().default(0),
@@ -122,7 +121,7 @@ const STEPS = [
   { id: 2, title: 'Product Setup', fields: [] },
   { id: 3, title: 'Category', fields: [] },
   { id: 4, title: 'Source', fields: [] },
-  { id: 5, title: 'Details', fields: ['products.index.productName'] },
+  { id: 5, title: 'Details', fields: [] },
   { id: 6, title: 'Material', fields: [] },
   { id: 7, title: 'Color', fields: [] },
   { id: 8, title: 'Review', fields: [] },
@@ -136,19 +135,12 @@ const toDate = (timestamp: any): Date | undefined => {
     if (timestamp && typeof timestamp.seconds === 'number') return new Date(timestamp.seconds * 1000);
     if (typeof timestamp === 'string') {
         const date = new Date(timestamp);
-        if (/^\d{4}-\d{2}-\d{2}$/.test(timestamp)) return new Date(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
         return isNaN(date.getTime()) ? undefined : date;
     }
     return undefined;
 }
 
-export function OrderForm({ 
-    order: initialOrder, 
-    onSave, 
-    submitButtonText = "Create Order", 
-    isSubmitting: isExternallySubmitting = false, 
-    isProductCreationMode = false 
-}: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, addCustomer, updateCustomer } = useCustomers();
@@ -158,12 +150,12 @@ export function OrderForm({
   const { settings: paymentSettings } = usePaymentSettings();
   const { uploadFile, uploadProgress, removeAttachment } = useOrders();
   
-  const initialStepParam = searchParams.get('step');
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
-  const [currentStep, setCurrentStep] = useState(initialStepParam ? parseInt(initialStepParam) : (isProductCreationMode ? 3 : 1));
+  const [currentStep, setCurrentStep] = useState(searchParams.get('step') ? parseInt(searchParams.get('step')!) : (isProductCreationMode ? 3 : 1));
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelAction, setCancelAction] = useState<'discard' | 'draft' | 'stay' | null>(null);
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
@@ -177,58 +169,39 @@ export function OrderForm({
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
     const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 };
-    const defaultValues = { 
-        products: [defaultProduct], 
-        isUrgent: false, 
-        status: "Pending" as OrderStatus, 
-        incomeAmount: 0, 
-        customerId: '', 
-        creationDate: new Date(), 
-        deadline: new Date(), 
-        location: { town: '' },
-        withReceipt: false,
-        vatAmount: 0,
-        totalWithVat: 0,
-        paymentMethod: 'Cash'
-    };
+    const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash' };
     if (!orderToMap) return defaultValues as OrderFormValues;
-    const products = orderToMap.products?.map(p => ({ 
-        ...p, 
-        colorAsAttachment: p.colors?.includes("As Attached Picture"), 
-        width: p.dimensions?.width, 
-        height: p.dimensions?.height, 
-        depth: p.dimensions?.depth,
-        quantity: p.quantity || 1
-    })) || [defaultProduct];
-    return { 
-        ...defaultValues, 
-        ...orderToMap, 
-        creationDate: toDate(orderToMap.creationDate) || new Date(), 
-        deadline: toDate(orderToMap.deadline) || new Date(), 
-        location: orderToMap.location || { town: '' }, 
-        products 
-    } as OrderFormValues;
+    const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth, quantity: p.quantity || 1 })) || [defaultProduct];
+    return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
   }, []);
 
-  const form = useForm<OrderFormValues>({ 
-    resolver: zodResolver(formSchema), 
-    defaultValues: mapOrderToFormValues(initialOrder) 
-  });
-
-  const { setValue, getValues, watch, trigger } = form;
+  const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
+  const { setValue, getValues, watch, trigger, formState: { isDirty, errors } } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
   const selectedCustomerId = watch("customerId");
 
+  // Navigation Guard logic
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   const updateCalculations = useCallback((base: number, withReceiptActive: boolean) => {
     if (withReceiptActive) {
       const vat = base * VAT_RATE;
-      setValue("vatAmount", Math.round(vat), { shouldDirty: true });
-      setValue("totalWithVat", Math.round(base + vat), { shouldDirty: true });
+      setValue("vatAmount", Math.round(vat));
+      setValue("totalWithVat", Math.round(base + vat));
     } else {
-      setValue("vatAmount", 0, { shouldDirty: true });
-      setValue("totalWithVat", base, { shouldDirty: true });
+      setValue("vatAmount", 0);
+      setValue("totalWithVat", base);
     }
   }, [setValue]);
 
@@ -236,7 +209,7 @@ export function OrderForm({
   
   useEffect(() => { 
     if (currentStep < 9) {
-      setValue('incomeAmount', totalIncomeValue, { shouldDirty: true });
+      setValue('incomeAmount', totalIncomeValue);
       updateCalculations(totalIncomeValue, watchedWithReceipt);
     }
   }, [totalIncomeValue, currentStep, setValue, updateCalculations, watchedWithReceipt]);
@@ -246,17 +219,13 @@ export function OrderForm({
       const files = Array.from(e.target.files);
       const updatedProducts = [...getValues('products')];
       const p = updatedProducts[currentProductIndex];
-      
       if (!p) return;
-
       for (const file of files) {
           try {
               const att = await uploadFile(file);
               p.attachments = [...(p.attachments || []), att];
               setValue('products', updatedProducts, { shouldDirty: true });
-          } catch (error) {
-              console.error("Upload failed", error);
-          }
+          } catch (error) { console.error("Upload failed", error); }
       }
     }
   };
@@ -268,161 +237,76 @@ export function OrderForm({
         setValue("customerId", id, { shouldDirty: true });
         setIsCreatingNewCustomer(false);
         setIsCustomerPopoverOpen(false);
-    } finally {
-        setNewCustomerSubmitting(false);
-    }
-  };
-
-  const handleAddPhoneToSelectedCustomer = async () => {
-    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-    if (!selectedCustomer || !newPhone.number) return;
-    
-    setIsUpdatingCustomer(true);
-    try {
-        const updatedPhoneNumbers = [...(selectedCustomer.phoneNumbers || []), newPhone];
-        await updateCustomer({ ...selectedCustomer, phoneNumbers: updatedPhoneNumbers });
-        setNewPhone({ number: "", type: "Mobile" });
-        toast({ title: "Phone Added", description: "Customer profile has been updated." });
-    } finally {
-        setIsUpdatingCustomer(false);
-    }
+    } finally { setNewCustomerSubmitting(false); }
   };
 
   const updateQuantity = (index: number, delta: number) => {
     const current = [...getValues('products')];
     if (current[index]) {
-        const newQty = Math.max(1, (current[index].quantity || 1) + delta);
-        current[index].quantity = newQty;
+        current[index].quantity = Math.max(1, (current[index].quantity || 1) + delta);
         setValue('products', current, { shouldDirty: true });
     }
   };
 
   const nextStep = async () => {
     if (isExternallySubmitting || isManualSaving) return;
-
-    let fieldsToValidate: any = [];
-    if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
-    if(currentStep === 5) fieldsToValidate = [`products.${currentProductIndex}.productName`];
-    
-    const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
+    let fields: any = [];
+    if(currentStep === 1) fields = ['customerId', 'location.town'];
+    if(currentStep === 5) fields = [`products.${currentProductIndex}.productName`];
+    const isValid = fields.length > 0 ? await trigger(fields) : true;
     if (!isValid) {
-        const errors = form.formState.errors;
-        let errorMessage = "Please check required fields.";
-        
-        if (errors.customerId) errorMessage = "Customer is required.";
-        else if (errors.location?.town) errorMessage = "Town/City is required.";
-        else if (errors.products?.[currentProductIndex]?.productName) errorMessage = "Product Name is required.";
-
-        toast({
-            variant: "destructive",
-            title: "Required Fields Missing",
-            description: errorMessage
-        });
+        toast({ variant: "destructive", title: "Validation Error", description: "Please complete required fields." });
         return;
     }
-
     if (!initialOrder && currentStep === 1 && onSave) {
         setIsManualSaving(true);
         try {
             const vals = getValues();
-            const id = await onSave({ 
-              ...vals, 
-              customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", 
-              status: 'Pending' 
-            } as any, true);
-            if (id) { 
-                router.replace(`/orders/${id}/edit?step=3`); 
-                return; 
-            }
-        } catch (e) {
-            console.error(e);
-            setIsManualSaving(false);
-        }
+            const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
+            if (id) { router.replace(`/orders/${id}/edit?step=3`); return; }
+        } catch (e) { setIsManualSaving(false); }
         return;
     }
-    
-    let next = currentStep + 1;
-    if (currentStep === 3) next = 4;
-    setCurrentStep(Math.min(next, STEPS.length));
-  };
-
-  const prevStep = () => {
-     let prev = currentStep - 1;
-     if (initialOrder && [5, 6, 7].includes(currentStep)) prev = 4;
-     else if (currentStep === 8) prev = isProductCreationMode ? 7 : 4;
-     else if (currentStep === 4) prev = 3;
-     else if (currentStep === 3 && !isProductCreationMode) prev = 1;
-     setCurrentStep(Math.max(prev, 1));
-  };
-
-  const handleExistingProductSelect = (product: Product) => {
-    const updated = [...getValues('products')];
-    updated[currentProductIndex] = { ...product, price: Number(product.price) || 0, id: uuidv4(), quantity: 1 };
-    setValue('products', updated, { shouldDirty: true });
-    setCurrentStep(8);
-  };
-  
-  const handleRemoveProduct = (index: number) => {
-    const currentList = getValues('products');
-    if (currentList.length <= 1) return;
-    const updated = currentList.filter((_, i) => i !== index);
-    setValue('products', updated, { shouldDirty: true });
-    if (currentProductIndex >= updated.length) setCurrentProductIndex(Math.max(0, updated.length - 1));
+    setCurrentStep(Math.min(currentStep + 1, STEPS.length));
   };
 
   const handleFormSubmit = async (values: OrderFormValues) => {
     if (!onSave) return;
     setIsManualSaving(true);
-    
-    const updated = values.products.map(p => ({ 
-        ...p, 
-        colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), 
-        dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined 
-    }));
-    
-    const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
-
-    const payload: any = { 
-        ...values, 
-        products: updated, 
-        status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), 
-        customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown",
-        bankName: selectedBank?.bankName,
-        bankAccountNumber: selectedBank?.accountNumber
-    };
-    
-    if (values.receiptFile) payload.file = values.receiptFile;
-
-    try { 
+    try {
+        const updated = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined }));
+        const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
+        const payload: any = { ...values, products: updated, status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
+        if (values.receiptFile) payload.file = values.receiptFile;
         await onSave(payload as any, !initialOrder); 
     } catch(e) { 
-        console.error(e);
-        toast({
-            variant: "destructive",
-            title: "Save Failed",
-            description: "Please check all fields and try again."
-        });
-    } finally { 
-        setIsManualSaving(false); 
-    }
+        toast({ variant: "destructive", title: "Save Failed", description: "Please verify all steps." });
+    } finally { setIsManualSaving(false); }
   };
+
+  const handleSaveDraft = async () => {
+    setIsManualSaving(true);
+    try {
+      const vals = getValues();
+      await onSave?.({ ...vals, status: 'Pending' } as any, !initialOrder);
+      setShowCancelDialog(false);
+      router.back();
+    } finally { setIsManualSaving(false); }
+  }
 
   const filteredCustomers = customers.filter(c => {
     const search = (customerSearch || "").toLowerCase();
-    const nameMatch = c.name?.toLowerCase().includes(search);
-    const phoneMatch = c.phoneNumbers?.some(p => (p.number || "").includes(search));
-    return nameMatch || phoneMatch;
+    return c.name?.toLowerCase().includes(search) || c.phoneNumbers?.some(p => p.number.includes(search));
   });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const isSubmittingFinal = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
-  const currentProgress = (currentStep / STEPS.length) * 100;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
-        <Progress value={currentProgress} className="w-full" />
+        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
         <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
             <span>Step {currentStep} of {STEPS.length}</span>
             <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
@@ -436,160 +320,36 @@ export function OrderForm({
                 <CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     {isCreatingNewCustomer ? (
-                        <CustomerForm 
-                          onSubmit={handleCreateAndSelectCustomer} 
-                          isSubmitting={newCustomerSubmitting} 
-                          submitButtonText="Create & Select" 
-                          onCancel={() => setIsCreatingNewCustomer(false)} 
-                        />
+                        <CustomerForm onSubmit={handleCreateAndSelectCustomer} isSubmitting={newCustomerSubmitting} submitButtonText="Create & Select" onCancel={() => setIsCreatingNewCustomer(false)} />
                     ) : (
                         <div className="space-y-6">
                             <FormField control={form.control} name="customerId" render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Customer</FormLabel>
-                                  <div className="flex items-center gap-2">
-                                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-                                        <PopoverTrigger asChild>
-                                            <div className="relative w-full">
-                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                                <Input 
-                                                    placeholder="Search name or phone..." 
-                                                    className="pl-9 h-11"
-                                                    value={selectedCustomer ? selectedCustomer.name : (customerSearch || "")}
-                                                    onChange={e => {
-                                                        if (selectedCustomer) {
-                                                            field.onChange("");
-                                                            setCustomerSearch(e.target.value);
-                                                        } else {
-                                                            setCustomerSearch(e.target.value);
-                                                        }
-                                                        setIsCustomerPopoverOpen(true);
-                                                    }}
-                                                    onFocus={() => setIsCustomerPopoverOpen(true)}
-                                                />
-                                                {selectedCustomer && (
-                                                     <Button 
-                                                        variant="ghost" 
-                                                        size="icon" 
-                                                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            field.onChange("");
-                                                            setCustomerSearch("");
-                                                        }}
-                                                     >
-                                                        <Trash2 className="h-4 w-4" />
-                                                     </Button>
-                                                )}
-                                            </div>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                            <ScrollArea className="max-h-72">
-                                                <div className="p-1">
-                                                    {filteredCustomers.length === 0 && (customerSearch || "").length > 1 && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            className="w-full justify-start gap-3 h-12 text-primary hover:text-primary hover:bg-primary/5"
-                                                            onClick={() => setIsCreatingNewCustomer(true)}
-                                                        >
-                                                            <UserPlus className="h-4 w-4" />
-                                                            <div className="flex flex-col items-start">
-                                                                <span className="text-sm font-bold">Create "{customerSearch}"</span>
-                                                                <span className="text-[10px] uppercase font-bold opacity-70">No matching customer found</span>
-                                                            </div>
-                                                        </Button>
-                                                    )}
-                                                    {filteredCustomers.map(c => (
-                                                        <button
-                                                            key={c.id}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                field.onChange(c.id);
-                                                                if(c.location?.town) setValue('location.town', c.location.town);
-                                                                setCustomerSearch("");
-                                                                setIsCustomerPopoverOpen(false);
-                                                            }}
-                                                            className={cn(
-                                                                "flex flex-col items-start w-full px-4 py-3 text-sm rounded-md hover:bg-accent text-left transition-colors border-b last:border-0",
-                                                                field.value === c.id && "bg-accent"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <User className="h-3 w-3 opacity-40" />
-                                                                <span className="font-bold">{c.name}</span>
-                                                            </div>
-                                                            <span className="text-[10px] text-muted-foreground uppercase tracking-tight ml-5">
-                                                                {(c.phoneNumbers || []).map(p => `${p.type}: ${p.number}`).join(' | ')}
-                                                            </span>
-                                                        </button>
-                                                    ))}
-                                                    {filteredCustomers.length > 0 && (
-                                                        <Button 
-                                                            variant="ghost" 
-                                                            className="w-full justify-start gap-3 h-10 text-xs border-t rounded-none"
-                                                            onClick={() => setIsCreatingNewCustomer(true)}
-                                                        >
-                                                            <PlusCircle className="h-3.5 w-3.5" /> New Customer
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </ScrollArea>
-                                        </PopoverContent>
-                                    </Popover>
-                                  </div>
+                                  <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                                      <PopoverTrigger asChild>
+                                          <div className="relative">
+                                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                              <Input placeholder="Search name or phone..." className="pl-9" value={selectedCustomer ? selectedCustomer.name : customerSearch} onChange={e => { if(selectedCustomer) field.onChange(""); setCustomerSearch(e.target.value); setIsCustomerPopoverOpen(true); }} onFocus={() => setIsCustomerPopoverOpen(true)} />
+                                          </div>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                                          <ScrollArea className="h-64">
+                                              {filteredCustomers.length === 0 && customerSearch.length > 1 && (
+                                                  <Button variant="ghost" className="w-full justify-start text-primary" onClick={() => setIsCreatingNewCustomer(true)}><UserPlus className="mr-2 h-4 w-4"/> Create "{customerSearch}"</Button>
+                                              )}
+                                              {filteredCustomers.map(c => (
+                                                  <button key={c.id} className="w-full text-left p-3 hover:bg-muted border-b" onClick={() => { field.onChange(c.id); if(c.location?.town) setValue('location.town', c.location.town); setIsCustomerPopoverOpen(false); }}>
+                                                      <p className="font-bold text-sm">{c.name}</p>
+                                                      <p className="text-[10px] text-muted-foreground">{(c.phoneNumbers || []).map(p => p.number).join(' | ')}</p>
+                                                  </button>
+                                              ))}
+                                          </ScrollArea>
+                                      </PopoverContent>
+                                  </Popover>
                                   <FormMessage />
                                 </FormItem>
                             )} />
-                            {selectedCustomer && (
-                                <div className="p-3 border rounded-lg bg-muted/30 flex flex-col gap-3 animate-in fade-in slide-in-from-top-1">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 bg-background rounded-full flex items-center justify-center border shadow-sm">
-                                            <Phone className="h-4 w-4 text-muted-foreground" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Selected Customer Phones</p>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-0.5">
-                                                {(selectedCustomer.phoneNumbers || []).map((p, idx) => (
-                                                    <p key={idx} className="text-xs font-medium">
-                                                        <span className="text-muted-foreground mr-1">{p.type}:</span>
-                                                        {p.number}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="pt-3 border-t flex flex-col gap-2">
-                                        <p className="text-[9px] uppercase font-bold text-muted-foreground">Add Additional Phone</p>
-                                        <div className="flex gap-2">
-                                            <Select value={newPhone.type} onValueChange={(v: any) => setNewPhone({ ...newPhone, type: v })}>
-                                                <SelectTrigger className="w-24 h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Mobile">Mobile</SelectItem>
-                                                    <SelectItem value="Work">Work</SelectItem>
-                                                    <SelectItem value="Home">Home</SelectItem>
-                                                    <SelectItem value="Secondary">Other</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <Input 
-                                                placeholder="Number..." 
-                                                value={newPhone.number || ""} 
-                                                onChange={e => setNewPhone({ ...newPhone, number: e.target.value })}
-                                                className="h-8 text-xs flex-1"
-                                            />
-                                            <Button 
-                                                variant="outline" 
-                                                size="sm" 
-                                                className="h-8 px-2" 
-                                                disabled={isUpdatingCustomer || !newPhone.number}
-                                                onClick={handleAddPhoneToSelectedCustomer}
-                                            >
-                                                {isUpdatingCustomer ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlusCircle className="h-3 w-3 mr-1" />}
-                                                Add
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                             <FormField control={form.control} name="location.town" render={({ field }) => (
                                 <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                             )} />
@@ -605,46 +365,25 @@ export function OrderForm({
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                           const cat = productSettings?.productCategories.find(c => c.name === p.category);
-                          const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
+                          const primary = p.attachments?.[0] || p.designAttachments?.[0];
                           return (
                               <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  <div className="h-12 w-12 bg-background rounded-md flex items-center justify-center border shrink-0 relative overflow-hidden">
-                                    {primaryAttachment?.url ? (
-                                        <Image src={primaryAttachment.url} alt="product" fill className="object-cover" />
-                                    ) : (
-                                        <DynamicIcon icon={cat?.icon || 'Box'} className="h-6 w-6 text-muted-foreground" />
-                                    )}
+                                  <div className="h-12 w-12 bg-background rounded-md border shrink-0 relative overflow-hidden">
+                                    {primary?.url ? <Image src={primary.url} alt="product" fill className="object-cover" /> : <DynamicIcon icon={cat?.icon || 'Box'} className="h-6 w-6 m-auto" />}
                                   </div>
                                   <div className="flex-grow">
                                     <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
-                                    <p className="text-xs text-muted-foreground">{p.category}</p>
                                     <div className="flex items-center gap-2 mt-1">
                                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
                                         <span className="text-sm font-bold w-6 text-center">{p.quantity || 1}</span>
                                         <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
-                                        <span className="text-[10px] uppercase font-bold text-muted-foreground ml-1">pcs</span>
+                                        <span className="text-[10px] text-muted-foreground uppercase font-bold ml-1">pcs</span>
                                     </div>
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                      <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
-                                      {watchedProducts.length > 1 && <Button variant="ghost" size="icon" onClick={() => handleRemoveProduct(i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>}
-                                  </div>
+                                  <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                               </div>
                           )
                       })}
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={() => { 
-                          const current = getValues('products'); 
-                          setValue('products', [...current, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 }], { shouldDirty: true }); 
-                          setCurrentProductIndex(current.length); 
-                          setCurrentStep(3); 
-                        }} 
-                        className="w-full sm:w-auto"
-                      >
-                        <PlusCircleIcon className="mr-2 h-4 w-4" /> Add Another
-                      </Button>
                 </CardContent>
               </Card>
           )}
@@ -654,66 +393,18 @@ export function OrderForm({
                 <CardHeader><CardTitle>Category</CardTitle></CardHeader>
                 <CardContent>
                   <FormField control={form.control} name={`products.${currentProductIndex}.category`} render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {productCategories.map(c => { 
-                              const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; 
-                              return (
-                                <button 
-                                  key={c.name} 
-                                  type="button" 
-                                  onClick={() => field.onChange(c.name)} 
-                                  className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent transition-all text-left", field.value === c.name && "bg-primary text-primary-foreground shadow-lg scale-105")}
-                                >
-                                  <Icon className="h-8 w-8" />
-                                  <span className="text-xs font-bold uppercase">{c.name}</span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                  )} />
-                </CardContent>
-              </Card>
-          )}
-
-          {currentStep === 4 && (
-              <Card>
-                <CardHeader><CardTitle>Source</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button type="button" onClick={() => setCurrentStep(5)} className="p-6 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent">
-                      <PlusCircleIcon className="h-10 w-10" />
-                      <h3>Create New Design</h3>
-                    </button>
-                    <div className="p-6 border rounded-lg bg-muted/20">
-                      <Input placeholder="Search catalog..." value={catalogSearchTerm || ""} onChange={e => setCatalogSearchTerm(e.target.value)} />
-                      <ScrollArea className="h-64 mt-4">
-                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && ((p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase()))).map(p => {
-                          const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {productCategories.map(c => { 
+                          const Icon = (LucideIcons as any)[c.icon] || LucideIcons.Box; 
                           return (
-                            <div 
-                              key={p.id} 
-                              onClick={() => handleExistingProductSelect(p)} 
-                              className="flex items-center gap-3 p-2 border rounded-md mb-2 cursor-pointer hover:bg-background text-sm font-medium"
-                            >
-                              <div className="h-10 w-10 bg-muted rounded overflow-hidden shrink-0 border relative">
-                                {primaryAttachment?.url ? (
-                                  <Image src={primaryAttachment.url} alt={p.productName} fill className="object-cover" />
-                                ) : (
-                                  <LucideIcons.Box className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
-                                )}
-                              </div>
-                              <span className="flex-1 truncate">{p.productName}</span>
-                            </div>
+                            <button key={c.name} type="button" onClick={() => field.onChange(c.name)} className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:bg-accent", field.value === c.name && "bg-primary text-primary-foreground")}>
+                              <Icon className="h-8 w-8" />
+                              <span className="text-xs font-bold uppercase">{c.name}</span>
+                            </button>
                           )
                         })}
-                      </ScrollArea>
-                    </div>
-                  </div>
+                      </div>
+                  )} />
                 </CardContent>
               </Card>
           )}
@@ -731,102 +422,21 @@ export function OrderForm({
                         </div>
                     </div>
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
-                    <div className="grid grid-cols-3 gap-4">
-                      {['width', 'height', 'depth'].map(f => (
-                        <FormField key={f} control={form.control} name={`products.${currentProductIndex}.${f}` as any} render={({ field }) => (
-                          <FormItem><FormLabel className="capitalize">{f} (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>
-                        )} />
-                      ))}
+                    <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                        <UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">Click to upload files</p>
+                        <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                     </div>
-                    <Separator />
-                    <div className="space-y-4">
-                        <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors" onClick={() => fileInputRef.current?.click()}>
-                            <UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">Click to upload files or photos</p>
-                            <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
+                    <div className="space-y-2">{watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
+                        <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                            <span className="text-xs truncate">{att.fileName}</span>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+                                const up = [...getValues('products')];
+                                up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                setValue('products', up, { shouldDirty: true });
+                            }}><Trash2 className="h-4 w-4" /></Button>
                         </div>
-                        <div className="space-y-2">{watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
-                            <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                                <div className="flex items-center gap-2 truncate">
-                                    {att.fileName?.match(/\.(jpeg|jpg|png|webp)$/i) ? <Image src={att.url} alt="img" width={24} height={24} className="h-6 w-6 rounded object-cover" /> : <FileIcon className="h-4 w-4 opacity-50" />}
-                                    <span className="text-xs truncate">{att.fileName}</span>
-                                </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-7 v-7 text-destructive" onClick={() => {
-                                    const updated = [...getValues('products')];
-                                    if (updated[currentProductIndex]) {
-                                        updated[currentProductIndex].attachments = (updated[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
-                                        setValue('products', updated, { shouldDirty: true });
-                                    }
-                                }}><Trash2 className="h-4 w-4" /></Button>
-                            </div>
-                        ))}</div>
-                    </div>
-                </CardContent>
-              </Card>
-          )}
-
-          {currentStep === 6 && (
-              <Card>
-                <CardHeader><CardTitle>Material</CardTitle></CardHeader>
-                <CardContent>
-                  <FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
-                      <FormItem>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {productSettings?.materials.map(m => { 
-                            const Icon = (LucideIcons as any)[m.icon] || LucideIcons.Box; 
-                            return (
-                              <button 
-                                key={m.name} 
-                                type="button" 
-                                onClick={() => field.onChange(field.value?.includes(m.name) ? field.value?.filter(n => n !== m.name) : [...(field.value || []), m.name])} 
-                                className={cn("p-4 border rounded-lg flex flex-col items-center gap-2 hover:border-primary transition-all text-left", field.value?.includes(m.name) && "bg-primary text-primary-foreground shadow-lg scale-105")}
-                              >
-                                <Icon className="h-8 w-8" />
-                                {m.name}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </FormItem>
-                  )} />
-                </CardContent>
-              </Card>
-          )}
-
-          {currentStep === 7 && (
-              <Card>
-                <CardHeader><CardTitle>Color</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                    <div className={cn("space-y-6", watchedProducts[currentProductIndex]?.colorAsAttachment && "opacity-20 pointer-events-none")}>
-                        <div className="grid grid-cols-4 gap-4">
-                        {colorSettings?.customColors.map(o => (
-                            <button key={o.name} type="button" onClick={() => {
-                                const cur = getValues(`products.${currentProductIndex}.colors`) || [];
-                                setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
-                            }} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                <div style={{ backgroundColor: o.colorValue }} className={cn("rounded-full h-12 w-12 border shadow-sm group-hover:scale-110 transition-transform", (watchedProducts[currentProductIndex]?.colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
-                                <span className="text-[10px] uppercase font-bold text-center">{o.name}</span>
-                            </button>
-                        ))}
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {colorSettings?.woodFinishes.map(o => (
-                            <button key={o.name} type="button" onClick={() => {
-                                const cur = getValues(`products.${currentProductIndex}.colors`) || [];
-                                setValue(`products.${currentProductIndex}.colors`, cur.includes(o.name) ? cur.filter(v => v !== o.name) : [...cur, o.name], { shouldDirty: true });
-                            }} className="flex flex-col items-center gap-2 cursor-pointer group">
-                                <Image src={o.imageUrl} alt={o.name} width={80} height={80} className={cn("rounded-lg h-20 w-full object-cover shadow-sm group-hover:scale-105 transition-transform", (watchedProducts[currentProductIndex]?.colors || []).includes(o.name) && "ring-2 ring-primary ring-offset-2")} />
-                                <span className="text-[10px] uppercase font-bold text-center">{o.name}</span>
-                            </button>
-                        ))}
-                        </div>
-                    </div>
-                    <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
-                        <FormItem className="flex items-center space-x-2 mt-8 border p-4 rounded-lg bg-muted/20">
-                        <FormControl><Checkbox checked={field.value} onCheckedChange={v => { field.onChange(v); if(v) setValue(`products.${currentProductIndex}.colors`, []); }} /></FormControl>
-                        <FormLabel className="text-sm font-bold">COLOR AS ATTACHED PICTURE</FormLabel>
-                        </FormItem>
-                    )} />
+                    ))}</div>
                 </CardContent>
               </Card>
           )}
@@ -836,16 +446,12 @@ export function OrderForm({
                 <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
-                        const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
+                        const pri = p.attachments?.[0] || p.designAttachments?.[0];
                         return (
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border">
-                                {primaryAttachment?.url ? (
-                                  <Image src={primaryAttachment.url} alt="thumb" fill className="object-cover" />
-                                ) : (
-                                  <LucideIcons.Box className="h-5 w-5 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-muted-foreground" />
-                                )}
+                                {pri?.url ? <Image src={pri.url} alt="thumb" fill className="object-cover" /> : <LucideIcons.Box className="h-5 w-5 m-auto opacity-20" />}
                               </div>
                               <div>
                                 <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
@@ -853,250 +459,72 @@ export function OrderForm({
                                     <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
                                     <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
                                     <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
-                                    <span className="text-[9px] uppercase font-bold text-muted-foreground">pcs</span>
+                                    <span className="text-[9px] font-bold text-muted-foreground">PCS</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
-                              {watchedProducts.length > 1 && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>}
-                            </div>
+                            <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                           </div>
                         )
                       })}
-                      {!isProductCreationMode && (
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => { 
-                            const cur = getValues('products'); 
-                            setValue('products', [...cur, { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 }], { shouldDirty: true }); 
-                            setCurrentProductIndex(cur.length); 
-                            setCurrentStep(3); 
-                          }} 
-                          className="w-full"
-                        >
-                          Add Another Product
-                        </Button>
-                      )}
                 </CardContent>
               </Card>
           )}
 
-          {currentStep === 9 && !isProductCreationMode && (
+          {currentStep === 9 && (
               <div className="space-y-6">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Pricing & Receipt</CardTitle>
-                        <CardDescription>Manage totals, VAT, and official billing.</CardDescription>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Pricing & Receipt</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="incomeAmount" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Base Price (Before VAT)</FormLabel>
-                                        <div className="relative">
-                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                            <Input 
-                                                type="number" 
-                                                className="pl-8 text-xl font-bold" 
-                                                {...field} 
-                                                value={field.value ?? ""}
-                                                onChange={(e) => {
-                                                    const base = parseFloat(e.target.value) || 0;
-                                                    field.onChange(base);
-                                                    updateCalculations(base, watchedWithReceipt);
-                                                }}
-                                            />
-                                        </div>
-                                    </FormItem>
-                                )} />
-                                <FormField control={form.control} name="withReceipt" render={({ field }) => (
-                                    <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-primary/5">
-                                        <div className="space-y-0.5">
-                                            <FormLabel className="text-base">Official Receipt</FormLabel>
-                                            <FormDescription>Calculates VAT and enables receipt uploads.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={(v) => {
-                                            field.onChange(v);
-                                            updateCalculations(watchedIncome || 0, v);
-                                        }} /></FormControl>
-                                    </FormItem>
-                                )} />
-                                {watchedWithReceipt && (
-                                    <div className="space-y-4 p-4 border rounded-lg bg-accent/10 animate-in fade-in slide-in-from-top-2">
-                                        <div className="space-y-2 mb-4">
-                                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest border-b pb-1">Itemized Breakdown</p>
-                                            {watchedProducts.map((p, i) => (
-                                                <div key={p.id} className="flex justify-between items-center text-xs">
-                                                    <span className="truncate pr-4">{p.productName || `Item ${i+1}`} ({p.quantity || 1} pcs)</span>
-                                                    <span className="font-medium shrink-0">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span>VAT (15%)</span>
-                                            <span className="font-bold">+{form.watch('vatAmount')}</span>
-                                        </div>
-                                        <Separator />
-                                        <FormField control={form.control} name="totalWithVat" render={({ field }) => (
-                                            <FormItem>
-                                                <div className="flex justify-between items-center text-lg font-bold">
-                                                    <span>Total with VAT</span>
-                                                    <div className="relative w-32">
-                                                        <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                                        <Input 
-                                                            type="number" 
-                                                            className="pl-7 h-9 text-right" 
-                                                            {...field}
-                                                            value={field.value ?? ""}
-                                                            onChange={(e) => {
-                                                                const total = parseFloat(e.target.value) || 0;
-                                                                field.onChange(total);
-                                                                const base = total / (1 + VAT_RATE);
-                                                                setValue('incomeAmount', Math.round(base), { shouldDirty: true });
-                                                                setValue('vatAmount', Math.round(total - base), { shouldDirty: true });
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </FormItem>
-                                        )} />
-                                        
-                                        <div className="space-y-2">
-                                            <Label>Receipt Attachment</Label>
-                                            <div className="flex items-center gap-2">
-                                                <Button type="button" variant="outline" size="sm" onClick={() => receiptInputRef.current?.click()}>
-                                                    <Receipt className="mr-2 h-4 w-4" /> 
-                                                    {form.watch('receiptFile') ? 'Change Receipt' : 'Attach Receipt'}
-                                                </Button>
-                                                {form.watch('receiptFile') && <CheckCircle className="h-5 w-5 text-green-500" />}
-                                                <input ref={receiptInputRef} type="file" onChange={(e) => setValue('receiptFile', e.target.files?.[0])} className="hidden" />
-                                            </div>
-                                        </div>
+                        <FormField control={form.control} name="incomeAmount" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Base Price (Before VAT)</FormLabel>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                    <Input type="number" className="pl-8" {...field} value={field.value ?? ""} onChange={(e) => { const b = parseFloat(e.target.value) || 0; field.onChange(b); updateCalculations(b, watchedWithReceipt); }} />
+                                </div>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="withReceipt" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-primary/5">
+                                <div><FormLabel>Official Receipt</FormLabel><FormDescription>Includes 15% VAT.</FormDescription></div>
+                                <FormControl><Switch checked={field.value} onCheckedChange={(v) => { field.onChange(v); updateCalculations(watchedIncome || 0, v); }} /></FormControl>
+                            </FormItem>
+                        )} />
+                        {watchedWithReceipt && (
+                            <div className="space-y-4 p-4 border rounded-lg bg-accent/10">
+                                <div className="space-y-1">{watchedProducts.map((p, i) => (
+                                    <div key={p.id} className="flex justify-between text-xs text-muted-foreground">
+                                        <span>{p.productName || `Item ${i+1}`} ({p.quantity || 1} pcs)</span>
+                                        <span>{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                     </div>
-                                )}
+                                ))}</div>
+                                <div className="flex justify-between text-sm"><span>VAT (15%):</span><span>+{formatCurrency(form.watch('vatAmount'))}</span></div>
+                                <div className="flex justify-between font-bold border-t pt-2"><span>Total:</span><span>{formatCurrency(form.watch('totalWithVat'))}</span></div>
                             </div>
-                            <div className="space-y-4">
-                                <FormField control={form.control} name="paymentMethod" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Payment Method</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select method" /></SelectTrigger></FormControl>
-                                            <SelectContent>{(paymentSettings?.methods || []).map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-                                        </Select>
-                                    </FormItem>
-                                )} />
-                                {watch('paymentMethod') === 'Bank Transfer' && (
-                                    <FormField control={form.control} name="bankId" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Deposit Bank</FormLabel>
-                                            <Select onValueChange={field.onChange} value={field.value ?? ""}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl>
-                                                <SelectContent>{(paymentSettings?.banks || []).map(b => (
-                                                    <SelectItem key={b.id} value={b.id}>{b.bankName} ({b.accountNumber})</SelectItem>
-                                                ))}</SelectContent>
-                                            </Select>
-                                        </FormItem>
-                                    )} />
-                                )}
-                                <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Pre-paid Amount</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
-                                <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Payment Notes</FormLabel><FormControl><Textarea {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle className="text-sm font-bold uppercase text-muted-foreground">Individual Product Prices</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {watchedProducts.map((p, i) => (
-                            <div key={p.id}>
-                                <Label className="text-[10px] uppercase font-bold">{p.productName || `P${i+1}`} (per unit)</Label>
-                                <Input type="number" value={p.price ?? 0} onChange={e => {
-                                    const val = parseFloat(e.target.value) || 0;
-                                    const updated = [...watchedProducts];
-                                    if (updated[i]) {
-                                        updated[i].price = val;
-                                        setValue('products', updated, { shouldDirty: true });
-                                    }
-                                }} />
-                            </div>
-                        ))}
+                        )}
                     </CardContent>
                 </Card>
               </div>
           )}
 
-          {currentStep === 10 && !isProductCreationMode && (
-              <Card>
-                <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                      <FormField control={form.control} name="status" render={({ field }) => <FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} value={field.value ?? ""}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{["Pending", "In Progress", "Designing", "Manufacturing", "Painting", "Completed"].map(s => <SelectItem key={s} value={s}>{s === 'Pending' ? 'Draft' : s}</SelectItem>)}</SelectContent></Select></FormItem>} />
-                      <FormField control={form.control} name="deadline" render={({ field }) => (
-                          <FormItem className="flex flex-col">
-                            <FormLabel>Delivery Deadline</FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" className="h-11 justify-start font-bold">
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {field.value ? format(field.value, "PPP") : "Select date"}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
-                              </PopoverContent>
-                            </Popover>
-                          </FormItem>
-                      )} />
-                      <FormField control={form.control} name="isUrgent" render={({ field }) => <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-red-50/50 border-red-100"><div className="space-y-0.5"><FormLabel className="text-red-700 font-bold">URGENT ORDER</FormLabel><p className="text-xs text-red-600/70 italic">Prioritizes this in all lists</p></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>} />
-                </CardContent>
-              </Card>
-          )}
-
-          <div className="flex justify-between items-center gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm py-4 z-10 border-t mt-8">
-              <Button variant="outline" type="button" onClick={() => form.formState.isDirty ? setShowCancelDialog(true) : router.back()} disabled={isSubmittingFinal}>Cancel</Button>
+          <div className="flex justify-between gap-2 sticky bottom-0 bg-background/95 py-4 z-10 border-t mt-8">
+              <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && <Button variant="outline" type="button" onClick={prevStep} disabled={isSubmittingFinal}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
-                  {currentStep < (isProductCreationMode ? 8 : 10) && ![2, 4, 8].includes(currentStep) && (
+                  {currentStep > 1 && <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
+                  {currentStep < 10 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmittingFinal}>
                         {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Next <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                   )}
-                  {((initialOrder && currentStep === 2) || (currentStep === 8 && !isProductCreationMode)) && (
-                      <Button type="button" onClick={() => setCurrentStep(9)} disabled={isSubmittingFinal}>
-                        Continue to Pricing <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
-                  )}
-                  {currentStep === (isProductCreationMode ? 8 : 10) && (
-                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (err) => {
-                          console.error("Form Validation Error:", err);
-                          const errorList: string[] = [];
-                          
-                          if (err.customerId) errorList.push("Customer is required");
-                          if (err.location?.town) errorList.push("Order Location is required");
-                          if (err.products) {
-                              if (Array.isArray(err.products)) {
-                                  err.products.forEach((p: any, i: number) => {
-                                      if (p?.productName) errorList.push(`Product ${i+1} Name is missing`);
-                                      if (p?.category) errorList.push(`Product ${i+1} Category is missing`);
-                                  });
-                              } else {
-                                  errorList.push("Some product details are incomplete");
-                              }
-                          }
-                          if (err.incomeAmount) errorList.push("Price must be a valid number");
-                          if (err.deadline) errorList.push("Deadline is required");
-                          
-                          toast({ 
-                            variant: "destructive", 
-                            title: "Incomplete Form", 
-                            description: errorList.length > 0 ? errorList.join(". ") : "Required fields are missing. Please check all steps." 
-                          });
-                      })} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
+                  {currentStep === 10 && (
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (e) => {
+                          const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message}`).join(". ");
+                          toast({ variant: "destructive", title: "Missing Fields", description: msgs || "Check all steps." });
+                      })} disabled={isSubmittingFinal}>
                         {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
+                        {initialOrder ? submitButtonText : 'Finish Order'}
                       </Button>
                   )}
               </div>
@@ -1106,8 +534,12 @@ export function OrderForm({
       
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>You have unsaved changes. Are you sure you want to discard them?</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Stay</AlertDialogCancel><AlertDialogAction onClick={() => router.back()}>Discard</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>Do you want to save this as a draft before leaving?</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogAction onClick={handleSaveDraft} className="bg-primary">Save Draft</AlertDialogAction>
+            <AlertDialogAction onClick={() => router.back()} className="bg-destructive hover:bg-destructive/90">Discard</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setShowCancelDialog(false)}>Stay</AlertDialogCancel>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

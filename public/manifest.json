@@ -2,21 +2,23 @@
 {
   "name": "OrderFlow",
   "short_name": "OrderFlow",
-  "description": "Streamline furniture order management.",
+  "description": "Streamline your furniture order management process.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4355b9",
   "icons": [
     {
-      "src": "https://images.unsplash.com/photo-1642756063091-0b6abb1bf595?w=192&h=192&fit=crop",
+      "src": "https://picsum.photos/seed/orderflow/192/192",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://images.unsplash.com/photo-1642756063091-0b6abb1bf595?w=512&h=512&fit=crop",
+      "src": "https://picsum.photos/seed/orderflow/512/512",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

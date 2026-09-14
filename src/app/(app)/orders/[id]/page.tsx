@@ -402,25 +402,20 @@ function OrderDetailPageContent() {
                                   <>
                                     <Separator />
                                     {order.withReceipt && (
-                                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
                                             <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
                                             <div className="space-y-2">
-                                              {order.products && order.products.length > 0 && (
-                                                  <div className="space-y-1 mb-2 border-b border-primary/10 pb-2">
-                                                      {order.products.map((p, idx) => (
-                                                          <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                              <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`} ({p.quantity || 1} pcs)</span>
-                                                              <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                                          </div>
-                                                      ))}
+                                              {order.products?.map((p, idx) => (
+                                                  <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
+                                                      <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
+                                                      <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                                   </div>
-                                              )}
+                                              ))}
+                                              <Separator className="bg-primary/10" />
                                               <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
                                               <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
                                               <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                              {order.receiptAttachment && (
-                                                  <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
-                                              )}
+                                              {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
                                             </div>
                                         </Card>
                                     )}
@@ -458,25 +453,20 @@ function OrderDetailPageContent() {
                           <>
                             <Separator />
                             {order.withReceipt && (
-                                <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4 animate-in fade-in">
+                                <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
                                     <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
                                     <div className="space-y-2">
-                                      {order.products && order.products.length > 0 && (
-                                          <div className="space-y-1 mb-2 border-b border-primary/10 pb-2">
-                                              {order.products.map((p, idx) => (
-                                                  <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                      <span className="text-muted-foreground truncate pr-4">{p.productName || `Item ${idx+1}`} ({p.quantity || 1} pcs)</span>
-                                                      <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                                  </div>
-                                              ))}
+                                      {order.products?.map((p, idx) => (
+                                          <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
+                                              <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
+                                              <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                           </div>
-                                      )}
+                                      ))}
+                                      <Separator className="bg-primary/10" />
                                       <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
                                       <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
                                       <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                      {order.receiptAttachment && (
-                                          <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt File</Button>
-                                      )}
+                                      {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
                                     </div>
                                 </Card>
                             )}

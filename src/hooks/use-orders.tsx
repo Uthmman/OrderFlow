@@ -95,13 +95,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false): Promise<OrderAttachment | undefined> => {
       try {
         const currentOrder = orders?.find(o => o.id === orderId);
-        if (!currentOrder) {
-            throw new Error("Order not found for attachment.");
-        }
-
+        if (!currentOrder) throw new Error("Order not found.");
         const newAttachment = await uploadFile(file);
         const orderRef = doc(firestore, 'orders', orderId);
-        
         const updatedProducts = [...(currentOrder.products || [])];
         if (updatedProducts[productIndex]) {
             const p = updatedProducts[productIndex];
@@ -120,10 +116,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
       try {
         const currentOrder = orders?.find(o => o.id === orderId);
         if (!currentOrder || !currentOrder.products[productIndex]) return;
-
         if (attachment.storagePath) await deleteFileFlow({ fileName: attachment.storagePath });
         const orderRef = doc(firestore, 'orders', orderId);
-        
         const updatedProducts = [...currentOrder.products];
         const p = updatedProducts[productIndex];
         if (isDesignFile) p.designAttachments = (p.designAttachments || []).filter(att => att.storagePath !== attachment.storagePath);
@@ -134,7 +128,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const addOrder = async (orderData: Omit<Order, 'id'>, isNew: boolean) => {
     if (!user) throw new Error("User must be logged in.");
-
     const products = orderData.products || [];
     const totalIncome = orderData.incomeAmount || 0;
     const totalPrepaid = orderData.prepaidAmount || 0;
@@ -146,6 +139,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         receiptAttachment = await uploadFile((orderData as any).file);
     }
 
+    // Split logic: If multiple DIFFERENT products exist, split them.
+    // If only one unique product type (even if multiple qty), keep together.
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -156,7 +151,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const isFirst = i === 0 && !!existingOrderId;
             const currentOrderId = isFirst ? existingOrderId : doc(collection(firestore, "orders")).id;
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
-            
             if (i === 0) firstOrderId = currentOrderId;
 
             const productTotalPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
@@ -178,16 +172,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate,
                 deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline,
             };
-            
             delete splitOrder.file;
             delete (splitOrder as any).receiptFile;
-
             batch.set(currentOrderRef, removeUndefined(splitOrder));
             if (!isFirst) addOrderToCustomer(orderData.customerId, currentOrderId);
         }
-
         await batch.commit();
-        toast({ title: "Order Finalized", description: `Distinct products have been split into ${products.length} separate orders.` });
+        toast({ title: "Order Finalized", description: `Distinct products split into ${products.length} orders.` });
         return firstOrderId;
     }
 
@@ -207,7 +198,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         };
         delete (newOrder as any).file;
         delete (newOrder as any).receiptFile;
-
         setDocumentNonBlocking(newOrderRef, removeUndefined(newOrder), {});
         addOrderToCustomer(orderData.customerId, newId);
         return newId;
@@ -225,7 +215,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     delete finalData.file;
     delete finalData.receiptFile;
-
     await updateDoc(orderRef, removeUndefined(finalData));
     return existingOrderId;
   };
@@ -234,16 +223,13 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
-    
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {
-            const mergedData = { ...originalOrder, ...orderData };
-            await addOrder(mergedData as any, false);
+            await addOrder({ ...originalOrder, ...orderData } as any, false);
             return; 
         }
     }
-
     const finalProducts = orderData.products || originalOrder?.products || [];
     const dataToUpdate: any = { 
         ...orderData, 
@@ -252,7 +238,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     };
     delete dataToUpdate.id; 
     delete dataToUpdate.chatMessages;
-    
     if (dataToUpdate.creationDate instanceof Date) dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
     if (dataToUpdate.deadline instanceof Date) dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
 
@@ -260,7 +245,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const newMessages: OrderChatMessage[] = [];
     if (originalOrder) {
         if (orderData.status && originalOrder.status !== orderData.status) {
-            newMessages.push({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `Status changed to '${orderData.status}' by ${user.name}.`, timestamp, isSystemMessage: true });
+            newMessages.push({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `Status: '${orderData.status}' by ${user.name}.`, timestamp, isSystemMessage: true });
         }
     }
     if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
@@ -283,7 +268,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     ordersToUpdate.forEach(order => {
         batch.update(doc(firestore, 'orders', order.id), { 
             status: newStatus,
-            chatMessages: arrayUnion({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `Bulk status update to '${newStatus}' by ${user.name}.`, timestamp, isSystemMessage: true })
+            chatMessages: arrayUnion({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `Bulk update to '${newStatus}' by ${user.name}.`, timestamp, isSystemMessage: true })
         });
     });
     await batch.commit();
