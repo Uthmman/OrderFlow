@@ -49,7 +49,7 @@ import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   Carousel,
   CarouselContent,
@@ -317,6 +317,19 @@ function OrderDetailPageContent() {
     const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
 
+    const downloadQRCode = () => {
+        const canvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
+        if (canvas) {
+            const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pngUrl;
+            downloadLink.download = `order-qr-${order.id}.png`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    };
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -513,19 +526,34 @@ function OrderDetailPageContent() {
             </div>
         </div>
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
+      
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent className="sm:max-w-sm overflow-hidden">
                 <DialogHeader>
-                    <DialogTitle>Order QR Code</DialogTitle>
-                    <DialogDescription>Scan this code using the internal OrderFlow scanner.</DialogDescription>
+                    <DialogTitle className="flex items-center gap-2">
+                        <QrCode className="h-5 w-5" /> Order QR Code
+                    </DialogTitle>
+                    <DialogDescription>Use this code for workshop tracking.</DialogDescription>
                 </DialogHeader>
-                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
-                    <QRCodeSVG id="order-qr-code" value={`ORDERFLOW-ORDER:${order.id}`} size={200} level="H" includeMargin={true} />
-                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{order.uniqueName}</p>
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                    <div className="p-4 bg-white rounded-3xl shadow-xl">
+                        <QRCodeCanvas 
+                            id="order-qr-code" 
+                            value={`ORDERFLOW-ORDER:${order.id}`} 
+                            size={200} 
+                            level="H" 
+                            includeMargin={false}
+                        />
+                    </div>
+                    <p className="mt-6 text-sm font-bold text-slate-700 uppercase tracking-widest">{order.uniqueName}</p>
+                    <p className="text-[10px] text-slate-400 font-mono mt-1">#{order.id.slice(-8).toUpperCase()}</p>
                 </div>
-                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
                     <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
+                    <Button onClick={downloadQRCode} className="flex-1">
+                        <Download className="mr-2 h-4 w-4" /> Download PNG
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </DialogPortal>

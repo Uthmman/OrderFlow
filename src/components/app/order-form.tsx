@@ -251,8 +251,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if(currentStep === 5) fields = [`products.${currentProductIndex}.productName`];
     const isValid = fields.length > 0 ? await trigger(fields) : true;
     if (!isValid) {
-        const firstError = Object.keys(errors)[0];
-        toast({ variant: "destructive", title: "Validation Error", description: `Field ${firstError} is incorrect or missing.` });
+        const firstErrorKey = Object.keys(errors)[0];
+        const error = (errors as any)[firstErrorKey];
+        const message = error?.message || error?.town?.message || error?.customerId?.message || "Please fill in all required fields.";
+        toast({ variant: "destructive", title: "Missing Information", description: message });
         return;
     }
     if (!initialOrder && currentStep === 1 && onSave) {

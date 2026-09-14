@@ -24,7 +24,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel"
-import { QRCodeSVG } from "qrcode.react"
+import { QRCodeCanvas } from "qrcode.react"
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -126,6 +126,19 @@ function ProductDetailContent() {
   const allImageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
+  const downloadQRCode = () => {
+    const canvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
+    if (canvas) {
+        const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+        const downloadLink = document.createElement("a");
+        downloadLink.href = pngUrl;
+        downloadLink.download = `product-qr-${product.id}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+  };
+
   return (
     <>
     <div className="flex flex-col gap-8">
@@ -177,17 +190,31 @@ function ProductDetailContent() {
     
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent className="sm:max-w-sm overflow-hidden">
                 <DialogHeader>
-                    <DialogTitle>Product QR Code</DialogTitle>
-                    <DialogDescription>Scan this to identify the product design.</DialogDescription>
+                    <DialogTitle className="flex items-center gap-2">
+                        <QrCode className="h-5 w-5" /> Product QR Code
+                    </DialogTitle>
+                    <DialogDescription>Workshop tracking for this design.</DialogDescription>
                 </DialogHeader>
-                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
-                    <QRCodeSVG value={`ORDERFLOW-PRODUCT:${product.id}`} size={200} level="H" includeMargin={true} />
-                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{product.productName}</p>
+                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                    <div className="p-4 bg-white rounded-3xl shadow-xl">
+                        <QRCodeCanvas 
+                            id="product-qr-code" 
+                            value={`ORDERFLOW-PRODUCT:${product.id}`} 
+                            size={200} 
+                            level="H" 
+                            includeMargin={false}
+                        />
+                    </div>
+                    <p className="mt-6 text-sm font-bold text-slate-700 uppercase tracking-widest">{product.productName}</p>
+                    <p className="text-[10px] text-slate-400 font-mono mt-1">#{product.id.slice(-8).toUpperCase()}</p>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
                     <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="w-full">Close</Button>
+                    <Button onClick={downloadQRCode} className="w-full">
+                        <Download className="mr-2 h-4 w-4" /> Download PNG
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </DialogPortal>
