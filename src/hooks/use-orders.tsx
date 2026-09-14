@@ -42,7 +42,7 @@ const removeUndefined = (obj: any): any => {
 
 const getInitialMainImage = (product: Product) => {
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
-  const firstImage = allAtts.find(att => att.fileName?.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const firstImage = allAtts.find(att => (att.fileName || "").match(/\.(jpeg|jpg|gif|png|webp)$/i));
   return firstImage?.url;
 };
 
@@ -139,8 +139,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     // SPLITTING LOGIC: 
-    // separate multiple different products while creating order
-    // but one product with multiple quantity will not be splitted
+    // separate multiple DIFFERENT products while creating/finalizing order
+    // but one product with multiple quantity (identical items) will not be splitted
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -154,7 +154,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             
             if (i === 0) firstOrderId = currentOrderId;
 
-            // Simple proportionality for splitting financial totals if multiple products
+            // Simple proportionality for splitting financial totals if multiple unique products exist
             const productPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
             const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
@@ -170,7 +170,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 status: finalStatus,
                 ownerId: user.id,
                 batchReceiptId,
-                receiptAttachment,
+                receiptAttachment: receiptAttachment || (orderData as any).receiptAttachment,
                 creationDate: orderData.creationDate instanceof Date ? Timestamp.fromDate(orderData.creationDate) : orderData.creationDate,
                 deadline: orderData.deadline instanceof Date ? Timestamp.fromDate(orderData.deadline) : orderData.deadline,
             };
@@ -183,7 +183,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         await batch.commit();
-        toast({ title: "Orders Split", description: `Created ${products.length} separate records for unique items.` });
+        toast({ title: "Orders Split", description: `Created ${products.length} separate records for distinct product designs.` });
         return firstOrderId;
     }
 
@@ -222,7 +222,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     delete finalData.file;
     delete finalData.receiptFile;
 
-    updateDocumentNonBlocking(orderRef, removeUndefined(finalData));
+    await updateDoc(orderRef, removeUndefined(finalData));
     return existingOrderId;
   };
 
@@ -231,6 +231,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
+    // Check for splitting if this was a draft being finalized with multiple different products
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {

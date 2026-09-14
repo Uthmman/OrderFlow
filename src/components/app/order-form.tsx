@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, ChevronsUpDown, Phone, Search, PlusCircle, User, Plus, Minus } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -372,13 +372,24 @@ export function OrderForm({
     
     if (values.receiptFile) payload.file = values.receiptFile;
 
-    try { await onSave(payload as any, !initialOrder); } catch(e) { console.error(e); } finally { setIsManualSaving(false); }
+    try { 
+        await onSave(payload as any, !initialOrder); 
+    } catch(e) { 
+        console.error(e);
+        toast({
+            variant: "destructive",
+            title: "Save Failed",
+            description: "Please check all fields and try again."
+        });
+    } finally { 
+        setIsManualSaving(false); 
+    }
   };
 
   const filteredCustomers = customers.filter(c => {
-    const search = customerSearch.toLowerCase();
+    const search = (customerSearch || "").toLowerCase();
     const nameMatch = c.name?.toLowerCase().includes(search);
-    const phoneMatch = c.phoneNumbers?.some(p => p.number.includes(search));
+    const phoneMatch = c.phoneNumbers?.some(p => (p.number || "").includes(search));
     return nameMatch || phoneMatch;
   });
 
@@ -423,7 +434,7 @@ export function OrderForm({
                                                 <Input 
                                                     placeholder="Search name or phone..." 
                                                     className="pl-9 h-11"
-                                                    value={selectedCustomer ? selectedCustomer.name : customerSearch}
+                                                    value={selectedCustomer ? selectedCustomer.name : (customerSearch || "")}
                                                     onChange={e => {
                                                         if (selectedCustomer) {
                                                             field.onChange("");
@@ -454,7 +465,7 @@ export function OrderForm({
                                         <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                                             <ScrollArea className="max-h-72">
                                                 <div className="p-1">
-                                                    {filteredCustomers.length === 0 && customerSearch.length > 1 && (
+                                                    {filteredCustomers.length === 0 && (customerSearch || "").length > 1 && (
                                                         <Button 
                                                             variant="ghost" 
                                                             className="w-full justify-start gap-3 h-12 text-primary hover:text-primary hover:bg-primary/5"
@@ -540,7 +551,7 @@ export function OrderForm({
                                             </Select>
                                             <Input 
                                                 placeholder="Number..." 
-                                                value={newPhone.number} 
+                                                value={newPhone.number || ""} 
                                                 onChange={e => setNewPhone({ ...newPhone, number: e.target.value })}
                                                 className="h-8 text-xs flex-1"
                                             />
@@ -653,9 +664,9 @@ export function OrderForm({
                       <h3>Create New Design</h3>
                     </button>
                     <div className="p-6 border rounded-lg bg-muted/20">
-                      <Input placeholder="Search catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                      <Input placeholder="Search catalog..." value={catalogSearchTerm || ""} onChange={e => setCatalogSearchTerm(e.target.value)} />
                       <ScrollArea className="h-64 mt-4">
-                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && (p.productName?.toLowerCase().includes(catalogSearchTerm.toLowerCase()))).map(p => {
+                        {catalogProducts.filter(p => p.category === getValues(`products.${currentProductIndex}.category`) && ((p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase()))).map(p => {
                           const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
                           return (
                             <div 
@@ -816,7 +827,7 @@ export function OrderForm({
                             </div>
                             <div className="flex gap-2">
                               <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
-                              <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>
+                              {watchedProducts.length > 1 && <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleRemoveProduct(i)}><Trash2 className="h-4 w-4" /></Button>}
                             </div>
                           </div>
                         )
@@ -1025,7 +1036,10 @@ export function OrderForm({
                       </Button>
                   )}
                   {currentStep === (isProductCreationMode ? 8 : 10) && (
-                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (err) => {
+                          console.error("Form Validation Error:", err);
+                          toast({ variant: "destructive", title: "Form Error", description: "Please ensure all required fields are filled correctly." });
+                      })} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
                         {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>

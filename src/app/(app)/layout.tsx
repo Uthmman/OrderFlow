@@ -19,7 +19,7 @@ import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
-
+import { Loader2 } from "lucide-react";
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
 const PRIMARY_ADMIN_EMAIL = 'zenbabfurniture@gmail.com';
@@ -33,25 +33,25 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const isPrimaryAdmin = authUser?.email === PRIMARY_ADMIN_EMAIL;
 
   useEffect(() => {
-    // If loading is finished and there's no authenticated user, redirect to login.
-    if (!loading && !user) {
+    // Only redirect to login if loading is finished and there is explicitly NO user.
+    // This prevents unnecessary redirects when the app is backgrounded.
+    if (!loading && !user && !authUser) {
       router.push("/");
     }
-  }, [user, loading, router]);
+  }, [user, authUser, loading, router]);
 
   // While Firebase is checking the auth state, show a loading screen.
   if (loading) {
     return (
-        <div className="flex items-center justify-center h-screen">
-            <div>Loading session...</div>
+        <div className="flex flex-col items-center justify-center h-screen gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Restoring Session...</div>
         </div>
     );
   }
   
-  // After loading, if a user's profile (which contains the role) exists...
+  // After loading, if a user's profile exists...
   if (user && role) {
-    // ...but their role is 'Pending', show the pending approval screen.
-    // PRIMARY ADMIN can always bypass this screen to fix their role.
     if (role === 'Pending' && !isPrimaryAdmin) {
       return (
           <div className="flex items-center justify-center h-screen">
@@ -67,14 +67,18 @@ function AuthGuard({ children }: { children: ReactNode }) {
           </div>
       )
     }
-    // If the user has a valid role, or is the primary admin, show the app.
     if (ALLOWED_ROLES.includes(role) || isPrimaryAdmin) {
         return <>{children}</>;
     }
   }
 
-  // If loading is done and we still don't have a user or a valid role, the useEffect will redirect.
-  return null;
+  // If loading is done and we still don't have a user, the useEffect will redirect to root.
+  // We return a fallback loader to prevent flickering.
+  return (
+    <div className="flex items-center justify-center h-screen">
+       <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+    </div>
+  );
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
