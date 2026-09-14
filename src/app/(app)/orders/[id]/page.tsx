@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useOptimistic, useTransition } from "react";
+import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ import {
 } from "@/components/ui/carousel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { arrayUnion } from "firebase/firestore";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -227,9 +228,24 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
-const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDesignAttachmentDelete }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void }) => {
+const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void }) => {
     const { settings: colorSettings } = useColorSettings();
     const allColorOptions = [...(colorSettings?.woodFinishes || []), ...(colorSettings?.customColors || [])];
+    const designInputRef = useRef<HTMLInputElement>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setIsUploading(true);
+            try {
+                await onDesignUpload(e.target.files[0]);
+            } finally {
+                setIsUploading(false);
+                if (designInputRef.current) designInputRef.current.value = "";
+            }
+        }
+    };
+
     return (
         <AccordionItem value={product.id}>
             <AccordionTrigger className="font-bold text-lg">{product.productName || "Unnamed Product"}</AccordionTrigger>
@@ -254,11 +270,29 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                         {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} />)}
                     </CardContent></Card>
                 )}
-                {product.designAttachments && product.designAttachments.length > 0 && (
-                     <Card><CardHeader><CardTitle>Design Attachments</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} />)}
-                    </CardContent></Card>
-                )}
+                <Card className={cn(isDesigner && "border-primary/40 bg-primary/5")}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle>Design Attachments</CardTitle>
+                        {isDesigner && (
+                            <div>
+                                <input type="file" ref={designInputRef} onChange={handleFileChange} className="hidden" />
+                                <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={isUploading}>
+                                    {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
+                                    Upload Technical File
+                                </Button>
+                            </div>
+                        )}
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {product.designAttachments && product.designAttachments.length > 0 ? (
+                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} />)
+                        ) : (
+                            <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
+                                No design files uploaded yet.
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
             </AccordionContent>
         </AccordionItem>
     );
@@ -284,7 +318,7 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
 function OrderDetailPageContent() {
   const params = useParams(); const id = params.id as string;
   const router = useRouter(); 
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, loading: ordersLoading } = useOrders();
+  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
   const { user, role } = useUser();
@@ -316,6 +350,21 @@ function OrderDetailPageContent() {
     const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
     const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
+
+    const startDesign = () => {
+        if (!user) return;
+        handleStatusChange('Designing');
+        // Add designer to assigned list if not already there
+        if (!order.assignedTo?.includes(user.id)) {
+            updateOrder({ id: order.id, assignedTo: arrayUnion(user.id) as any });
+        }
+        toast({ title: "Design Started", description: "Status updated to Designing." });
+    };
+
+    const finishDesign = () => {
+        handleStatusChange('Design Ready');
+        toast({ title: "Design Finished", description: "Status updated to Design Ready." });
+    };
 
     const downloadQRCode = () => {
         const canvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
@@ -396,12 +445,51 @@ function OrderDetailPageContent() {
             </div>
         </div>
       </div>
+
+      {isDesigner && (
+        <Card className="border-primary bg-primary/5">
+            <CardHeader className="py-4">
+                <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Boxes className="h-4 w-4 text-primary" /> Designer Tools
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="flex gap-4">
+                {order.status === 'In Progress' && (
+                    <Button className="flex-1 h-12 text-lg font-bold" onClick={startDesign}>
+                        <PlayCircle className="mr-2 h-5 w-5" /> Start Design Task
+                    </Button>
+                )}
+                {order.status === 'Designing' && (
+                    <Button className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" onClick={finishDesign}>
+                        <CheckCircle2 className="mr-2 h-5 w-5" /> Finish Design & Mark Ready
+                    </Button>
+                )}
+                {['In Progress', 'Designing'].includes(order.status) === false && (
+                    <p className="text-sm text-muted-foreground italic">No active design actions for current status: {order.status}</p>
+                )}
+            </CardContent>
+        </Card>
+      )}
+
        <Tabs defaultValue={defaultTab} className="w-full lg:hidden">
             <TabsList><TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger><TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger></TabsList>
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
                     <div className="space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
-                       <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>{(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}</Accordion>
+                       <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
+                            {(order.products || []).map((product, index) => (
+                                <ProductDetails 
+                                    key={product.id} 
+                                    product={product} 
+                                    order={order} 
+                                    onImageClick={handleImageClick} 
+                                    onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
+                                    onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
+                                    isDesigner={isDesigner}
+                                    onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                                />
+                            ))}
+                        </Accordion>
                     </div>
                     <div className="space-y-8">
                         <Card>
@@ -451,7 +539,18 @@ function OrderDetailPageContent() {
         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
             <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
-                {(order.products || []).map((product, index) => <ProductDetails key={product.id} product={product} order={order} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} />)}
+                {(order.products || []).map((product, index) => (
+                    <ProductDetails 
+                        key={product.id} 
+                        product={product} 
+                        order={order} 
+                        onImageClick={handleImageClick} 
+                        onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
+                        onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
+                        isDesigner={isDesigner}
+                        onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                    />
+                ))}
             </Accordion>
             </div>
             <div className="space-y-8">
