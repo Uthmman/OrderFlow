@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -69,7 +70,7 @@ import { DynamicIcon } from "../ui/dynamic-icon"
 
 const productSchema = z.object({
   id: z.string(),
-  productName: z.string().min(1, "Product name required.").optional().or(z.literal('')),
+  productName: z.string().min(1, "Product name required."),
   category: z.string().min(1, "Category is required."),
   description: z.string().optional(),
   attachments: z.array(z.any()).optional(),
@@ -85,11 +86,11 @@ const productSchema = z.object({
 })
 
 const formSchema = z.object({
-  customerId: z.string().min(1, "Customer required.").optional(),
-  location: z.object({ town: z.string().min(2, "Location required.") }).optional(),
+  customerId: z.string().min(1, "Customer required."),
+  location: z.object({ town: z.string().min(2, "Town/City is required.") }),
   products: z.array(productSchema).min(1, "At least one product required."),
-  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]).optional(),
-  incomeAmount: z.coerce.number().min(0).optional(),
+  status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
+  incomeAmount: z.coerce.number().min(0),
   prepaidAmount: z.coerce.number().optional(),
   paymentDetails: z.string().optional(),
   creationDate: z.date().optional(),
@@ -117,16 +118,16 @@ interface OrderFormProps {
 const VAT_RATE = 0.15;
 
 const STEPS = [
-  { id: 1, title: 'Customer & Location', fields: ['customerId', 'location'] },
+  { id: 1, title: 'Customer & Location', fields: ['customerId', 'location.town'] },
   { id: 2, title: 'Product Setup', fields: [] },
-  { id: 3, title: 'Category', fields: ['category'] },
+  { id: 3, title: 'Category', fields: [] },
   { id: 4, title: 'Source', fields: [] },
-  { id: 5, title: 'Details', fields: ['productName'] },
-  { id: 6, title: 'Material', fields: ['material'] },
-  { id: 7, title: 'Color', fields: ['colors'] },
+  { id: 5, title: 'Details', fields: ['products.index.productName'] },
+  { id: 6, title: 'Material', fields: [] },
+  { id: 7, title: 'Color', fields: [] },
   { id: 8, title: 'Review', fields: [] },
   { id: 9, title: 'Pricing & Receipt', fields: ['incomeAmount'] },
-  { id: 10, title: 'Finalize', fields: ['status', 'deadline'] }
+  { id: 10, title: 'Finalize', fields: ['deadline'] }
 ];
 
 const toDate = (timestamp: any): Date | undefined => {
@@ -295,18 +296,21 @@ export function OrderForm({
 
     let fieldsToValidate: any = [];
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
+    if(currentStep === 5) fieldsToValidate = [`products.${currentProductIndex}.productName`];
     
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
     if (!isValid) {
-        const stepErrors = STEPS.find(s => s.id === currentStep)?.fields.map(f => {
-            const err = (form.formState.errors as any)[f];
-            return err ? (err.message || `${f} is incorrect`) : null;
-        }).filter(Boolean);
+        const errors = form.formState.errors;
+        let errorMessage = "Please check required fields.";
         
+        if (errors.customerId) errorMessage = "Customer is required.";
+        else if (errors.location?.town) errorMessage = "Town/City is required.";
+        else if (errors.products?.[currentProductIndex]?.productName) errorMessage = "Product Name is required.";
+
         toast({
             variant: "destructive",
             title: "Required Fields Missing",
-            description: stepErrors?.length ? stepErrors.join(". ") : "Please fill in all required information for this step."
+            description: errorMessage
         });
         return;
     }
@@ -595,10 +599,15 @@ export function OrderForm({
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                           const cat = productSettings?.productCategories.find(c => c.name === p.category);
+                          const primaryAttachment = p.attachments?.[0] || p.designAttachments?.[0];
                           return (
                               <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
-                                  <div className="h-10 w-10 bg-background rounded-md flex items-center justify-center border shrink-0">
-                                    <DynamicIcon icon={cat?.icon || 'Box'} className="h-5 w-5 text-muted-foreground" />
+                                  <div className="h-12 w-12 bg-background rounded-md flex items-center justify-center border shrink-0 relative overflow-hidden">
+                                    {primaryAttachment?.url ? (
+                                        <Image src={primaryAttachment.url} alt="product" fill className="object-cover" />
+                                    ) : (
+                                        <DynamicIcon icon={cat?.icon || 'Box'} className="h-6 w-6 text-muted-foreground" />
+                                    )}
                                   </div>
                                   <div className="flex-grow">
                                     <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
@@ -1049,16 +1058,27 @@ export function OrderForm({
                   {currentStep === (isProductCreationMode ? 8 : 10) && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (err) => {
                           console.error("Form Validation Error:", err);
-                          const errorList = Object.keys(err).map(key => {
-                             const fieldErr = (err as any)[key];
-                             if (Array.isArray(fieldErr)) return "Some product details are incomplete";
-                             return fieldErr.message || `${key} is incorrect`;
-                          }).filter(Boolean);
+                          const errorList: string[] = [];
+                          
+                          if (err.customerId) errorList.push("Customer is required");
+                          if (err.location?.town) errorList.push("Order Location is required");
+                          if (err.products) {
+                              if (Array.isArray(err.products)) {
+                                  err.products.forEach((p: any, i: number) => {
+                                      if (p?.productName) errorList.push(`Product ${i+1} Name is missing`);
+                                      if (p?.category) errorList.push(`Product ${i+1} Category is missing`);
+                                  });
+                              } else {
+                                  errorList.push("Some product details are incomplete");
+                              }
+                          }
+                          if (err.incomeAmount) errorList.push("Price must be a valid number");
+                          if (err.deadline) errorList.push("Deadline is required");
                           
                           toast({ 
                             variant: "destructive", 
-                            title: "Please complete the form", 
-                            description: errorList.length > 0 ? errorList.slice(0, 2).join(". ") + (errorList.length > 2 ? "..." : "") : "Required fields are missing." 
+                            title: "Incomplete Form", 
+                            description: errorList.length > 0 ? errorList.join(". ") : "Required fields are missing. Please check all steps." 
                           });
                       })} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
                         {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

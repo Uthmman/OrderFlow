@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, type ReactNode } from "react";
@@ -32,19 +33,18 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const isPrimaryAdmin = authUser?.email === PRIMARY_ADMIN_EMAIL;
 
   useEffect(() => {
-    // Only redirect if auth loading is definitely finished and no user exists.
-    // We check both the profile and the authUser to be safe.
-    if (!isUserLoading && !loading && !user && !authUser) {
-      router.push("/");
+    // Session hardening: Only redirect if loading is completely finished and no user exists.
+    if (!isUserLoading && !loading && !authUser && !user) {
+      router.replace("/");
     }
   }, [user, authUser, loading, isUserLoading, router]);
 
-  // Use a more robust loading state that waits for auth check completion.
+  // Loading state remains active until auth check is truly conclusive
   if (isUserLoading || (authUser && loading)) {
     return (
         <div className="flex flex-col items-center justify-center h-screen gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Restoring Session...</div>
+            <div className="text-sm font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Checking Session...</div>
         </div>
     );
   }
@@ -70,12 +70,8 @@ function AuthGuard({ children }: { children: ReactNode }) {
     }
   }
 
-  // Fallback to prevent flicker during brief re-auth gaps
-  return (
-    <div className="flex items-center justify-center h-screen">
-       <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
-    </div>
-  );
+  // Final fallback
+  return null;
 }
 
 export default function AppLayout({ children }: { children: ReactNode }) {
@@ -90,7 +86,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       <OrderProvider>
                       <NotificationProvider>
                           <StockProvider>
-                            <div className="flex h-screen w-full flex-col">
+                            <div className="flex h-screen w-full flex-col overflow-hidden">
                             <AppHeader />
                             <div className="flex flex-1 overflow-hidden relative">
                                 <AppSidebar />

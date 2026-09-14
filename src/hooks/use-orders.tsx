@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -137,9 +138,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         receiptAttachment = await handleFileUpload((orderData as any).file);
     }
 
-    // SPLITTING LOGIC: 
-    // separate multiple DIFFERENT products while creating/finalizing order
-    // but one product with multiple quantity (identical items) will not be splitted
+    // Logic: orders with multiple DIFFERENT products will be splitted
+    // But one product with multiple quantity will not be splitted.
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -153,9 +153,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             
             if (i === 0) firstOrderId = currentOrderId;
 
-            // Simple proportionality for splitting financial totals if multiple unique products exist
-            const productPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
-            const priceProportion = totalIncome > 0 ? (productPrice / totalIncome) : (1 / products.length);
+            // Pro-rate prices for the split orders
+            const productTotalPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
+            const priceProportion = totalIncome > 0 ? (productTotalPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
 
             const splitOrder: any = {
@@ -164,7 +164,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 products: [product], 
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
-                incomeAmount: productPrice > 0 ? productPrice : (totalIncome / products.length),
+                incomeAmount: productTotalPrice > 0 ? productTotalPrice : (totalIncome / products.length),
                 prepaidAmount: Math.round(productPrepaid),
                 status: finalStatus,
                 ownerId: user.id,
@@ -182,7 +182,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         await batch.commit();
-        toast({ title: "Orders Split", description: `Created ${products.length} separate records for distinct product designs.` });
+        toast({ title: "Order Finalized", description: `Distinct products have been split into ${products.length} separate orders for tracking.` });
         return firstOrderId;
     }
 
