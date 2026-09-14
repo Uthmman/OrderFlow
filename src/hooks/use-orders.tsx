@@ -139,8 +139,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         receiptAttachment = await uploadFile((orderData as any).file);
     }
 
-    // Split logic: If multiple DIFFERENT products exist, split them.
-    // If only one unique product type (even if multiple qty), keep together.
+    // Split logic: If multiple DIFFERENT product definitions exist, split them.
+    // If only one product definition exists (even if quantity > 1), keep as one order.
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -153,6 +153,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             const currentOrderRef = doc(firestore, 'orders', currentOrderId);
             if (i === 0) firstOrderId = currentOrderId;
 
+            // Calculate proportional prepaid amount if base price is set
             const productTotalPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
             const priceProportion = totalIncome > 0 ? (productTotalPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
@@ -223,6 +224,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
+
+    // If moving from Draft to active and has multiple products, run split logic
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {
@@ -230,6 +233,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             return; 
         }
     }
+
     const finalProducts = orderData.products || originalOrder?.products || [];
     const dataToUpdate: any = { 
         ...orderData, 

@@ -155,13 +155,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [cancelAction, setCancelAction] = useState<'discard' | 'draft' | 'stay' | null>(null);
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
-  const [newPhone, setNewPhone] = useState({ number: "", type: "Mobile" as any });
-  const [isUpdatingCustomer, setIsUpdatingCustomer] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +179,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedIncome = watch("incomeAmount");
   const selectedCustomerId = watch("customerId");
 
-  // Navigation Guard logic
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
@@ -255,7 +251,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if(currentStep === 5) fields = [`products.${currentProductIndex}.productName`];
     const isValid = fields.length > 0 ? await trigger(fields) : true;
     if (!isValid) {
-        toast({ variant: "destructive", title: "Validation Error", description: "Please complete required fields." });
+        const firstError = Object.keys(errors)[0];
+        toast({ variant: "destructive", title: "Validation Error", description: `Field ${firstError} is incorrect or missing.` });
         return;
     }
     if (!initialOrder && currentStep === 1 && onSave) {
@@ -409,6 +406,34 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
+          {currentStep === 4 && (
+              <Card>
+                <CardHeader><CardTitle>Search catalog</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <Input placeholder="Type to filter catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                    <ScrollArea className="h-[300px]">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => p.productName.toLowerCase().includes(catalogSearchTerm.toLowerCase())).map(p => (
+                                <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-lg text-left hover:bg-accent" onClick={() => { 
+                                    const up = [...getValues('products')];
+                                    up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };
+                                    setValue('products', up, { shouldDirty: true });
+                                    setCurrentStep(8);
+                                }}>
+                                    <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden">
+                                        {p.attachments?.[0]?.url ? <Image src={p.attachments[0].url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
+                                    </div>
+                                    <span className="text-sm font-bold">{p.productName}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                    <Separator />
+                    <Button variant="outline" className="w-full" onClick={() => setCurrentStep(5)}>Add manually (New design)</Button>
+                </CardContent>
+              </Card>
+          )}
+
           {currentStep === 5 && (
               <Card>
                 <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
@@ -441,6 +466,57 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
+          {currentStep === 6 && (
+              <Card>
+                <CardHeader><CardTitle>Material</CardTitle></CardHeader>
+                <CardContent>
+                    <FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {productSettings?.materials.map(m => (
+                                <button key={m.name} type="button" onClick={() => field.onChange([m.name])} className={cn("flex items-center gap-3 p-4 border rounded-lg hover:bg-accent", field.value?.includes(m.name) && "bg-primary text-primary-foreground")}>
+                                    <DynamicIcon icon={m.icon} />
+                                    <span className="font-bold">{m.name}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )} />
+                </CardContent>
+              </Card>
+          )}
+
+          {currentStep === 7 && (
+              <Card>
+                <CardHeader><CardTitle>Color</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
+                        <FormItem className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                            <div><FormLabel>Color as attached picture</FormLabel></div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        </FormItem>
+                    )} />
+                    {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
+                        <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-3"><Label>Wood Finishes</Label>
+                                    <div className="grid grid-cols-3 gap-2">{colorSettings?.woodFinishes.map(w => (
+                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg", field.value?.includes(w.name) && "border-primary border-2")}>
+                                            <div className="aspect-square relative rounded-md overflow-hidden"><Image src={w.imageUrl} alt={w.name} fill className="object-cover"/></div>
+                                            <span className="text-[10px] truncate block mt-1">{w.name}</span>
+                                        </button>
+                                    ))}</div>
+                                </div>
+                                <div className="space-y-3"><Label>Custom Colors</Label>
+                                    <div className="grid grid-cols-4 gap-2">{colorSettings?.customColors.map(c => (
+                                        <button key={c.name} type="button" title={c.name} onClick={() => field.onChange([c.name])} className={cn("h-10 w-full rounded-md border", field.value?.includes(c.name) && "ring-2 ring-primary ring-offset-1")} style={{ backgroundColor: c.colorValue }} />
+                                    ))}</div>
+                                </div>
+                            </div>
+                        )} />
+                    )}
+                </CardContent>
+              </Card>
+          )}
+
           {currentStep === 8 && (
               <Card>
                 <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
@@ -451,7 +527,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border">
-                                {pri?.url ? <Image src={pri.url} alt="thumb" fill className="object-cover" /> : <LucideIcons.Box className="h-5 w-5 m-auto opacity-20" />}
+                                {pri?.url ? <Image src={pri.url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
                               </div>
                               <div>
                                 <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
@@ -467,6 +543,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           </div>
                         )
                       })}
+                      <Button variant="outline" className="w-full mt-4" onClick={() => {
+                          const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', attachments: [], quantity: 1, price: 0 }];
+                          setValue('products', up, { shouldDirty: true });
+                          setCurrentProductIndex(up.length - 1);
+                          setCurrentStep(3);
+                      }}><PlusCircleIcon className="mr-2 h-4 w-4" /> Add another item</Button>
                 </CardContent>
               </Card>
           )}
@@ -506,6 +588,47 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </CardContent>
                 </Card>
               </div>
+          )}
+
+          {currentStep === 10 && (
+              <Card>
+                <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField control={form.control} name="deadline" render={({ field }) => (
+                            <FormItem className="flex flex-col"><FormLabel>Delivery Deadline</FormLabel>
+                                <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : "Pick a date"}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus /></PopoverContent></Popover>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="isUrgent" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between border p-3 rounded-lg"><FormLabel>Mark as Urgent</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                        )} />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Advance Payment</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? ""} /></div></FormControl></FormItem>} />
+                        <FormField control={form.control} name="paymentMethod" render={({ field }) => (
+                            <FormItem><FormLabel>Payment Method</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                    <SelectContent>{paymentSettings?.methods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </FormItem>
+                        )} />
+                    </div>
+                    {watch('paymentMethod') === 'Bank Transfer' && (
+                        <FormField control={form.control} name="bankId" render={({ field }) => (
+                            <FormItem><FormLabel>Target Bank Account</FormLabel>
+                                <Select onValueChange={field.onChange} value={field.value}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select account..." /></SelectTrigger></FormControl>
+                                    <SelectContent>{paymentSettings?.banks.map(b => <SelectItem key={b.id} value={b.id}>{b.bankName}</SelectItem>)}</SelectContent>
+                                </Select>
+                            </FormItem>
+                        )} />
+                    )}
+                    <FormField control={form.control} name="paymentDetails" render={({ field }) => <FormItem><FormLabel>Internal Payment Notes</FormLabel><FormControl><Textarea {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                </CardContent>
+              </Card>
           )}
 
           <div className="flex justify-between gap-2 sticky bottom-0 bg-background/95 py-4 z-10 border-t mt-8">

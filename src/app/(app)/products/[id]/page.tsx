@@ -7,7 +7,7 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2 } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
@@ -15,7 +15,7 @@ import { useOrders } from "@/hooks/use-orders"
 import { CustomerProvider } from "@/hooks/use-customers"
 import { downloadFile } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogPortal } from "@/components/ui/dialog"
 import {
   Carousel,
   CarouselContent,
@@ -24,6 +24,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from "@/components/ui/carousel"
+import { QRCodeSVG } from "qrcode.react"
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -114,6 +115,7 @@ function ProductDetailContent() {
   const router = useRouter(); const { getProductById, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
   if (productsLoading || ordersLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   const product = getProductById(id);
@@ -128,7 +130,10 @@ function ProductDetailContent() {
     <>
     <div className="flex flex-col gap-8">
        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Button>
+            <div className="flex gap-2">
+                <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Button>
+                <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} title="Product QR Code"><QrCode className="h-4 w-4" /></Button>
+            </div>
             <Button onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)} className="w-full sm:w-auto"><Eye className="mr-2 h-4 w-4"/> Create Order from This Product</Button>
        </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
@@ -169,6 +174,24 @@ function ProductDetailContent() {
       </Card>
     </div>
     <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
+    
+    <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogPortal>
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Product QR Code</DialogTitle>
+                    <DialogDescription>Scan this to identify the product design.</DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-lg">
+                    <QRCodeSVG value={`ORDERFLOW-PRODUCT:${product.id}`} size={200} level="H" includeMargin={true} />
+                    <p className="mt-4 text-xs font-bold text-slate-500 uppercase tracking-widest">{product.productName}</p>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="w-full">Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </DialogPortal>
+    </Dialog>
     </>
   );
 }
