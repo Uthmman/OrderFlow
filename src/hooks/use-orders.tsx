@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -166,7 +165,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productPrice > 0 ? productPrice : (totalIncome / products.length),
-                prepaidAmount: productPrepaid,
+                prepaidAmount: Math.round(productPrepaid),
                 status: finalStatus,
                 ownerId: user.id,
                 batchReceiptId,

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -298,7 +297,19 @@ export function OrderForm({
     if(currentStep === 1) fieldsToValidate = ['customerId', 'location.town'];
     
     const isValid = fieldsToValidate.length > 0 ? await trigger(fieldsToValidate) : true;
-    if (!isValid) return;
+    if (!isValid) {
+        const stepErrors = STEPS.find(s => s.id === currentStep)?.fields.map(f => {
+            const err = (form.formState.errors as any)[f];
+            return err ? (err.message || `${f} is incorrect`) : null;
+        }).filter(Boolean);
+        
+        toast({
+            variant: "destructive",
+            title: "Required Fields Missing",
+            description: stepErrors?.length ? stepErrors.join(". ") : "Please fill in all required information for this step."
+        });
+        return;
+    }
 
     if (!initialOrder && currentStep === 1 && onSave) {
         setIsManualSaving(true);
@@ -1038,7 +1049,17 @@ export function OrderForm({
                   {currentStep === (isProductCreationMode ? 8 : 10) && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (err) => {
                           console.error("Form Validation Error:", err);
-                          toast({ variant: "destructive", title: "Form Error", description: "Please ensure all required fields are filled correctly." });
+                          const errorList = Object.keys(err).map(key => {
+                             const fieldErr = (err as any)[key];
+                             if (Array.isArray(fieldErr)) return "Some product details are incomplete";
+                             return fieldErr.message || `${key} is incorrect`;
+                          }).filter(Boolean);
+                          
+                          toast({ 
+                            variant: "destructive", 
+                            title: "Please complete the form", 
+                            description: errorList.length > 0 ? errorList.slice(0, 2).join(". ") + (errorList.length > 2 ? "..." : "") : "Required fields are missing." 
+                          });
                       })} disabled={isSubmittingFinal || Object.keys(uploadProgress).length > 0}>
                         {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         {isProductCreationMode ? 'Create Product' : (initialOrder ? submitButtonText : 'Finish Order')}

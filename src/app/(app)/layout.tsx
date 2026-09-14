@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useEffect, type ReactNode } from "react";
@@ -26,22 +25,22 @@ const PRIMARY_ADMIN_EMAIL = 'zenbabfurniture@gmail.com';
 
 function AuthGuard({ children }: { children: ReactNode }) {
   const { user, loading, role } = useUser();
-  const { user: authUser } = useFirebase();
+  const { user: authUser, isUserLoading } = useFirebase();
   const router = useRouter();
   const auth = useAuth();
 
   const isPrimaryAdmin = authUser?.email === PRIMARY_ADMIN_EMAIL;
 
   useEffect(() => {
-    // Only redirect to login if loading is finished and there is explicitly NO user.
-    // This prevents unnecessary redirects when the app is backgrounded.
-    if (!loading && !user && !authUser) {
+    // Only redirect if auth loading is definitely finished and no user exists.
+    // We check both the profile and the authUser to be safe.
+    if (!isUserLoading && !loading && !user && !authUser) {
       router.push("/");
     }
-  }, [user, authUser, loading, router]);
+  }, [user, authUser, loading, isUserLoading, router]);
 
-  // While Firebase is checking the auth state, show a loading screen.
-  if (loading) {
+  // Use a more robust loading state that waits for auth check completion.
+  if (isUserLoading || (authUser && loading)) {
     return (
         <div className="flex flex-col items-center justify-center h-screen gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -50,7 +49,6 @@ function AuthGuard({ children }: { children: ReactNode }) {
     );
   }
   
-  // After loading, if a user's profile exists...
   if (user && role) {
     if (role === 'Pending' && !isPrimaryAdmin) {
       return (
@@ -72,8 +70,7 @@ function AuthGuard({ children }: { children: ReactNode }) {
     }
   }
 
-  // If loading is done and we still don't have a user, the useEffect will redirect to root.
-  // We return a fallback loader to prevent flickering.
+  // Fallback to prevent flicker during brief re-auth gaps
   return (
     <div className="flex items-center justify-center h-screen">
        <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />

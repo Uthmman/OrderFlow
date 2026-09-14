@@ -1,21 +1,19 @@
-
 {
   "name": "OrderFlow",
   "short_name": "OrderFlow",
-  "description": "Streamline furniture manufacturing and order management.",
+  "description": "Streamline furniture order management and tracking.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#3b82f6",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/orderflow-icon/192/192",
+      "src": "https://placehold.co/192x192/3b82f6/white?text=OF",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "https://picsum.photos/seed/orderflow-icon/512/512",
+      "src": "https://placehold.co/512x512/3b82f6/white?text=OF",
       "sizes": "512x512",
       "type": "image/png"
     }
