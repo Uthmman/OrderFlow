@@ -249,8 +249,10 @@ export function OrderForm({
               const att = await addAttachment(initialOrder.id, currentProductIndex, file);
               if (att) {
                   const updated = [...getValues('products')];
-                  updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
-                  setValue('products', updated, { shouldDirty: true });
+                  if (updated[currentProductIndex]) {
+                    updated[currentProductIndex].attachments = [...(updated[currentProductIndex].attachments || []), att];
+                    setValue('products', updated, { shouldDirty: true });
+                  }
               }
           }
       }
@@ -286,9 +288,11 @@ export function OrderForm({
 
   const updateQuantity = (index: number, delta: number) => {
     const current = [...getValues('products')];
-    const newQty = Math.max(1, (current[index].quantity || 1) + delta);
-    current[index].quantity = newQty;
-    setValue('products', current, { shouldDirty: true });
+    if (current[index]) {
+        const newQty = Math.max(1, (current[index].quantity || 1) + delta);
+        current[index].quantity = newQty;
+        setValue('products', current, { shouldDirty: true });
+    }
   };
 
   const nextStep = async () => {
@@ -1004,8 +1008,10 @@ export function OrderForm({
                                 <Input type="number" value={p.price ?? 0} onChange={e => {
                                     const val = parseFloat(e.target.value) || 0;
                                     const updated = [...watchedProducts];
-                                    updated[i].price = val;
-                                    setValue('products', updated, { shouldDirty: true });
+                                    if (updated[i]) {
+                                        updated[i].price = val;
+                                        setValue('products', updated, { shouldDirty: true });
+                                    }
                                 }} />
                             </div>
                         ))}

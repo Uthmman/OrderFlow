@@ -41,6 +41,7 @@ const removeUndefined = (obj: any): any => {
 };
 
 const getInitialMainImage = (product: Product) => {
+  if (!product) return undefined;
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
   const firstImage = allAtts.find(att => (att.fileName || "").match(/\.(jpeg|jpg|gif|png|webp)$/i));
   return firstImage?.url;
@@ -92,17 +93,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
   
   const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false): Promise<OrderAttachment | undefined> => {
       try {
+        const currentOrder = orders?.find(o => o.id === orderId);
+        if (!currentOrder || !currentOrder.products[productIndex]) {
+            throw new Error("Order or product not found for attachment.");
+        }
+
         const newAttachment = await handleFileUpload(file);
         const orderRef = doc(firestore, 'orders', orderId);
-        const currentOrder = orders?.find(o => o.id === orderId);
-        if (currentOrder) {
-            const updatedProducts = [...currentOrder.products];
-            const p = updatedProducts[productIndex];
-            if (isDesignFile) p.designAttachments = [...(p.designAttachments || []), newAttachment];
-            else p.attachments = [...(p.attachments || []), newAttachment];
-            await updateDoc(orderRef, { products: updatedProducts });
-            return newAttachment;
-        }
+        
+        const updatedProducts = [...currentOrder.products];
+        const p = updatedProducts[productIndex];
+        if (isDesignFile) p.designAttachments = [...(p.designAttachments || []), newAttachment];
+        else p.attachments = [...(p.attachments || []), newAttachment];
+        await updateDoc(orderRef, { products: updatedProducts });
+        return newAttachment;
       } catch (error) {
           toast({ variant: "destructive", title: "Upload Failed", description: (error as Error).message });
           return undefined;
@@ -111,16 +115,17 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
   const removeAttachment = async (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile = false) => {
       try {
+        const currentOrder = orders?.find(o => o.id === orderId);
+        if (!currentOrder || !currentOrder.products[productIndex]) return;
+
         if (attachment.storagePath) await deleteFileFlow({ fileName: attachment.storagePath });
         const orderRef = doc(firestore, 'orders', orderId);
-        const currentOrder = orders?.find(o => o.id === orderId);
-        if (currentOrder) {
-            const updatedProducts = [...currentOrder.products];
-            const p = updatedProducts[productIndex];
-            if (isDesignFile) p.designAttachments = (p.designAttachments || []).filter(att => att.storagePath !== attachment.storagePath);
-            else p.attachments = (p.attachments || []).filter(att => att.storagePath !== attachment.storagePath);
-            await updateDoc(orderRef, { products: updatedProducts });
-        }
+        
+        const updatedProducts = [...currentOrder.products];
+        const p = updatedProducts[productIndex];
+        if (isDesignFile) p.designAttachments = (p.designAttachments || []).filter(att => att.storagePath !== attachment.storagePath);
+        else p.attachments = (p.attachments || []).filter(att => att.storagePath !== attachment.storagePath);
+        await updateDoc(orderRef, { products: updatedProducts });
       } catch (error) { toast({ variant: "destructive", title: "Deletion Failed" }); }
   };
 
@@ -138,8 +143,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         receiptAttachment = await handleFileUpload((orderData as any).file);
     }
 
-    // Logic: orders with multiple DIFFERENT products will be splitted
-    // But one product with multiple quantity will not be splitted.
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -153,7 +156,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             
             if (i === 0) firstOrderId = currentOrderId;
 
-            // Pro-rate prices for the split orders
             const productTotalPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
             const priceProportion = totalIncome > 0 ? (productTotalPrice / totalIncome) : (1 / products.length);
             const productPrepaid = totalPrepaid * priceProportion;
@@ -182,7 +184,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
 
         await batch.commit();
-        toast({ title: "Order Finalized", description: `Distinct products have been split into ${products.length} separate orders for tracking.` });
+        toast({ title: "Order Finalized", description: `Distinct products have been split into ${products.length} separate orders.` });
         return firstOrderId;
     }
 
@@ -230,7 +232,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
     
-    // Check for splitting if this was a draft being finalized with multiple different products
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {
