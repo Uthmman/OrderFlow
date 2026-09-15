@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -31,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2 } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -84,6 +83,7 @@ const productSchema = z.object({
   quantity: z.coerce.number().min(1).default(1),
   colorAsAttachment: z.boolean().default(false),
   price: z.coerce.number().min(0).default(0),
+  mainImageUrl: z.string().optional(),
 })
 
 const formSchema = z.object({
@@ -223,6 +223,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           try {
               const att = await uploadFile(file);
               p.attachments = [...(p.attachments || []), att];
+              // Automatically set as main if none exists
+              if (!p.mainImageUrl) p.mainImageUrl = att.url;
               setValue('products', updatedProducts, { shouldDirty: true });
           } catch (error) { 
               toast({ variant: "destructive", title: "Upload Failed", description: file.name });
@@ -231,6 +233,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           }
       }
     }
+  };
+
+  const setProductMainImage = (index: number, url: string) => {
+      const updated = [...getValues('products')];
+      if (updated[index]) {
+          updated[index].mainImageUrl = url;
+          setValue('products', updated, { shouldDirty: true });
+      }
   };
 
   const handleCreateAndSelectCustomer = async (data: any) => {
@@ -382,11 +392,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                           const cat = productSettings?.productCategories.find(c => c.name === p.category);
-                          const primary = p.attachments?.[0] || p.designAttachments?.[0];
+                          const primary = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
                           return (
                               <div key={p.id} className="flex items-center gap-4 p-3 border rounded-lg bg-muted/50">
                                   <div className="h-12 w-12 bg-background rounded-md border shrink-0 relative overflow-hidden">
-                                    {primary?.url ? <Image src={primary.url} alt="product" fill className="object-cover" /> : <DynamicIcon icon={cat?.icon || 'Box'} className="h-6 w-6 m-auto" />}
+                                    {primary ? <Image src={primary} alt="product" fill className="object-cover" /> : <DynamicIcon icon={cat?.icon || 'Box'} className="h-6 w-6 m-auto" />}
                                   </div>
                                   <div className="flex-grow">
                                     <p className="font-semibold">{p.productName || `Product ${i + 1}`}</p>
@@ -481,7 +491,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     
-                    <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel>Bill of Materials (Technial List)</FormLabel><FormControl><Textarea rows={5} placeholder="e.g. 4x Hettich Hinges, 2.5m Oak Edge Band..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl><FormDescription>List all raw materials and hardware needed for production.</FormDescription></FormItem>} />
+                    <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel>Bill of Materials (Technical List)</FormLabel><FormControl><Textarea rows={5} placeholder="e.g. 4x Hettich Hinges, 2.5m Oak Edge Band..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl><FormDescription>List all raw materials and hardware needed for production.</FormDescription></FormItem>} />
 
                     <div className="space-y-4">
                         <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
@@ -510,18 +520,32 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </div>
                         )}
 
-                        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
                             {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
-                                <div key={att.url} className="group relative flex flex-col gap-1">
-                                    <div className="relative aspect-square rounded-md overflow-hidden border bg-muted shrink-0">
-                                        <Image src={att.url} alt="upload" fill className="object-cover" />
-                                        <Button variant="destructive" size="icon" className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                                <div key={att.url} className={cn(
+                                    "group relative flex flex-col gap-1 aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                                    watchedProducts[currentProductIndex].mainImageUrl === att.url ? "border-primary shadow-md" : "border-muted"
+                                )}>
+                                    <Image src={att.url} alt="upload" fill className="object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2">
+                                        <Button 
+                                            variant="secondary" 
+                                            size="sm" 
+                                            className="h-7 text-[9px] font-bold uppercase rounded-full w-full"
+                                            onClick={() => setProductMainImage(currentProductIndex, att.url)}
+                                        >
+                                            {watchedProducts[currentProductIndex].mainImageUrl === att.url ? <CheckCircle2 className="h-3 w-3 mr-1" /> : "Set Main"}
+                                        </Button>
+                                        <Button variant="destructive" size="sm" className="h-7 text-[9px] font-bold uppercase rounded-full w-full" onClick={() => {
                                             const up = [...getValues('products')];
                                             up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                            if (up[currentProductIndex].mainImageUrl === att.url) up[currentProductIndex].mainImageUrl = up[currentProductIndex].attachments[0]?.url;
                                             setValue('products', up, { shouldDirty: true });
-                                        }}><Trash2 className="h-2.5 w-2.5" /></Button>
+                                        }}><Trash2 className="h-3 w-3 mr-1" /> Remove</Button>
                                     </div>
-                                    <p className="text-[9px] text-muted-foreground truncate w-full text-center px-1" title={att.fileName}>{att.fileName}</p>
+                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
+                                        <p className="text-[8px] text-white truncate text-center font-medium">{att.fileName}</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -586,12 +610,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
-                        const pri = p.attachments?.[0] || p.designAttachments?.[0];
+                        const pri = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
                         return (
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border shadow-sm">
-                                {pri?.url ? <Image src={pri.url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
+                                {pri ? <Image src={pri} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
                               </div>
                               <div className="min-w-0">
                                 <span className="font-bold text-sm block truncate">{p.productName || `Product ${i+1}`}</span>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -9,7 +8,7 @@ import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadFileFlow } from '@/ai/flows/backblaze-flow';
-import { compressImage } from '@/lib/utils';
+import { compressImage, removeUndefined } from '@/lib/utils';
 
 interface ProductContextType {
   products: Product[];
@@ -23,29 +22,6 @@ interface ProductContextType {
 }
 
 const ProductContext = createContext<ProductContextType | undefined>(undefined);
-
-// Helper function to remove undefined values from an object, which Firestore doesn't like.
-const removeUndefined = (obj: any): any => {
-  if (typeof obj !== 'object' || obj === null) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(item => removeUndefined(item)).filter(item => item !== undefined);
-  }
-
-  const newObj: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const value = obj[key];
-      if (value !== undefined) {
-        newObj[key] = removeUndefined(value);
-      }
-    }
-  }
-  return newObj;
-};
-
 
 export function ProductProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
@@ -72,11 +48,9 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     try {
       const newProductRef = doc(collection(firestore, "products"));
       
-      // Handle file uploads if they exist (stashed in the custom 'file' property during form setup)
       const updatedAttachments: OrderAttachment[] = [];
       if (productData.attachments && productData.attachments.length > 0) {
         for (const att of productData.attachments) {
-            // Check if it's a new file stashed for upload
             const file = (att as any).file as File;
             if (file) {
                 let fileToUpload = file;
@@ -95,7 +69,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
                     storagePath: uploadResult.fileName,
                 });
             } else if (att.url && !att.url.startsWith('blob:')) {
-                // Keep existing permanent attachments
                 updatedAttachments.push(att);
             }
         }
@@ -116,7 +89,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         orderIds: productData.orderIds || [],
         isStandard: productData.isStandard ?? false,
       };
-      // CRITICAL FIX: Strip undefined values before setDoc
+      
       await setDoc(newProductRef, removeUndefined(newProduct));
       return newProductRef.id;
     } catch (error) {
@@ -133,8 +106,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const updateProduct = useCallback(async (productId: string, productData: Partial<Product>) => {
     const productRef = doc(firestore, 'products', productId);
     try {
-      const cleanData = removeUndefined(productData);
-      updateDocumentNonBlocking(productRef, cleanData);
+      updateDocumentNonBlocking(productRef, removeUndefined(productData));
     } catch (error) {
        console.error("Error updating product: ", error);
        toast({
@@ -175,12 +147,10 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             ...orderProduct,
             id: newProductRef.id,
             orderIds: [order.id],
-            isStandard: false, // Explicitly false for synced items
+            isStandard: false, 
           };
           
-          const cleanProduct = removeUndefined(newProduct);
-          batch.set(newProductRef, cleanProduct);
-
+          batch.set(newProductRef, removeUndefined(newProduct));
           existingProductNames.add(orderProduct.productName);
           newProductsCount++;
         }

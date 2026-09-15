@@ -1,4 +1,3 @@
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Timestamp } from "firebase/firestore";
@@ -61,7 +60,6 @@ export function formatTimestamp(timestamp: any): string {
   return date.toLocaleDateString();
 }
 
-
 export function formatToYyyyMmDd(date: Date | any): string {
   if (!date) return '';
   let d: Date;
@@ -90,6 +88,21 @@ export function formatToYyyyMmDd(date: Date | any): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Strips undefined values from an object recursively.
+ * Essential for preventing Firestore "Unsupported field value: undefined" errors.
+ */
+export function removeUndefined(obj: any): any {
+  if (typeof obj !== 'object' || obj === null) return obj;
+  if (Array.isArray(obj)) return obj.map(item => removeUndefined(item)).filter(item => item !== undefined);
+  const newObj: any = {};
+  Object.keys(obj).forEach(key => {
+    if (obj[key] !== undefined) {
+      newObj[key] = removeUndefined(obj[key]);
+    }
+  });
+  return newObj;
+}
 
 export const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
