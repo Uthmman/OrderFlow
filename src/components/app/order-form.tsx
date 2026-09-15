@@ -112,7 +112,6 @@ interface OrderFormProps {
   onSave?: (data: Omit<Order, 'id' | 'creationDate'>, isNew: boolean) => Promise<string | undefined>;
   submitButtonText?: string;
   isSubmitting?: boolean;
-  isProductCreationMode?: boolean;
 }
 
 const VAT_RATE = 0.15;
@@ -141,7 +140,7 @@ const toDate = (timestamp: any): Date | undefined => {
     return undefined;
 }
 
-export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, addCustomer } = useCustomers();
@@ -152,7 +151,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { uploadFile, uploadProgress } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
-  const [currentStep, setCurrentStep] = useState(searchParams.get('step') ? parseInt(searchParams.get('step')!) : (isProductCreationMode ? 3 : 1));
+  const [currentStep, setCurrentStep] = useState(searchParams.get('step') ? parseInt(searchParams.get('step')!) : 1);
   const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
   const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -277,11 +276,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         return;
     }
 
-    if (isProductCreationMode && currentStep === 8) {
-        handleFormSubmit(getValues());
-        return;
-    }
-
     setCurrentStep(Math.min(currentStep + 1, STEPS.length));
   };
 
@@ -299,7 +293,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             } : undefined 
         }));
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
-        const payload: any = { ...values, products: updated, status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
+        const payload: any = { ...values, products: updated, status: values.status === 'Pending' ? 'In Progress' : values.status, customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
         await onSave(payload as any, !initialOrder); 
     } catch(e) { 
         toast({ variant: "destructive", title: "Save Failed", description: "Please verify all steps." });
@@ -329,9 +323,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
-        <Progress value={isProductCreationMode ? ((currentStep - 2) / 6) * 100 : (currentStep / STEPS.length) * 100} className="h-2" />
+        <Progress value={(currentStep / STEPS.length) * 100} className="h-2" />
         <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            <span>{isProductCreationMode ? `Product Setup: Step ${currentStep - 2} of 6` : `Order Step ${currentStep} of 10`}</span>
+            <span>Order Step {currentStep} of 10</span>
             <span className="text-primary">{STEPS.find(s => s.id === currentStep)?.title}</span>
         </div>
       </div>
@@ -382,7 +376,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          {initialOrder && currentStep === 2 && !isProductCreationMode && (
+          {initialOrder && currentStep === 2 && (
               <Card>
                 <CardHeader><CardTitle>Product Setup</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -474,11 +468,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <div className="md:col-span-1">
                              <FormField control={form.control} name={`products.${currentProductIndex}.price`} render={({ field }) => <FormItem><FormLabel>Base Price</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? 0} /></div></FormControl><FormMessage /></FormItem>} />
                         </div>
-                        {!isProductCreationMode && (
-                            <div className="md:col-span-1">
-                                <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
-                            </div>
-                        )}
+                        <div className="md:col-span-1">
+                            <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
+                        </div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-4">
@@ -591,7 +583,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
           {currentStep === 8 && (
               <Card>
-                <CardHeader><CardTitle>Review {isProductCreationMode ? 'Design' : 'Designs'}</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                         const pri = p.attachments?.[0] || p.designAttachments?.[0];
@@ -603,33 +595,29 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                               </div>
                               <div className="min-w-0">
                                 <span className="font-bold text-sm block truncate">{p.productName || `Product ${i+1}`}</span>
-                                {!isProductCreationMode && (
-                                    <div className="flex items-center gap-2 mt-0.5">
-                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
-                                        <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
-                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
-                                        <span className="text-[9px] font-bold text-muted-foreground uppercase">PCS</span>
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
+                                    <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
+                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase">PCS</span>
+                                </div>
                               </div>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                           </div>
                         )
                       })}
-                      {!isProductCreationMode && (
-                        <Button variant="outline" className="w-full mt-4 border-dashed" onClick={() => {
-                            const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', billOfMaterials: '', attachments: [], quantity: 1, price: 0 }];
-                            setValue('products', up, { shouldDirty: true });
-                            setCurrentProductIndex(up.length - 1);
-                            setCurrentStep(3);
-                        }}><PlusCircleIcon className="mr-2 h-4 w-4" /> Add another design item</Button>
-                      )}
+                      <Button variant="outline" className="w-full mt-4 border-dashed" onClick={() => {
+                          const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', billOfMaterials: '', attachments: [], quantity: 1, price: 0 }];
+                          setValue('products', up, { shouldDirty: true });
+                          setCurrentProductIndex(up.length - 1);
+                          setCurrentStep(3);
+                      }}><PlusCircleIcon className="mr-2 h-4 w-4" /> Add another design item</Button>
                 </CardContent>
               </Card>
           )}
 
-          {currentStep === 9 && !isProductCreationMode && (
+          {currentStep === 9 && (
               <div className="space-y-6">
                 <Card>
                     <CardHeader><CardTitle>Pricing & Receipt</CardTitle></CardHeader>
@@ -667,7 +655,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </div>
           )}
 
-          {currentStep === 10 && !isProductCreationMode && (
+          {currentStep === 10 && (
               <Card>
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
@@ -711,22 +699,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           <div className="flex justify-between gap-2 sticky bottom-0 bg-background/95 py-4 z-10 border-t mt-8 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.1)] rounded-t-lg px-2">
               <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {((!isProductCreationMode && currentStep > 1) || (isProductCreationMode && currentStep > 3)) && (
+                  {currentStep > 1 && (
                       <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal || isUploading}>
                         <ArrowLeft className="mr-2 h-4 w-4" /> Back
                       </Button>
                   )}
-                  {((!isProductCreationMode && currentStep < 10) || (isProductCreationMode && currentStep < 8)) && (
+                  {currentStep < 10 && (
                       <Button type="button" onClick={nextStep} disabled={isSubmittingFinal || isUploading} className="min-w-[100px]">
                         {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Next <ArrowRight className="ml-2 h-4 w-4" /></>}
                       </Button>
                   )}
-                  {((!isProductCreationMode && currentStep === 10) || (isProductCreationMode && currentStep === 8)) && (
+                  {currentStep === 10 && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (e) => {
                           const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message || (v as any).productName?.message}`).join(". ");
                           toast({ variant: "destructive", title: "Missing Fields", description: msgs || "Check all steps." });
                       })} disabled={isSubmittingFinal || isUploading} className="min-w-[120px] bg-primary">
-                        {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialOrder ? submitButtonText : (isProductCreationMode ? 'Create Product' : 'Finish Order'))}
+                        {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>
                   )}
               </div>
@@ -738,7 +726,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>Do you want to save this as a draft before leaving?</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            {!isProductCreationMode && <AlertDialogAction onClick={handleSaveDraft} className="bg-primary">Save Draft</AlertDialogAction>}
+            <AlertDialogAction onClick={handleSaveDraft} className="bg-primary">Save Draft</AlertDialogAction>
             <AlertDialogAction onClick={() => router.back()} className="bg-destructive hover:bg-destructive/90">Discard</AlertDialogAction>
             <AlertDialogCancel onClick={() => setShowCancelDialog(false)}>Stay</AlertDialogCancel>
           </AlertDialogFooter>

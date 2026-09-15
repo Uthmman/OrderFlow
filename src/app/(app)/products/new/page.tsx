@@ -1,75 +1,52 @@
 
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState } from "react";
 import { useProducts } from "@/hooks/use-products";
-import { OrderForm } from "@/components/app/order-form";
+import { ProductForm } from "@/components/app/product-form";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
-import { Order } from "@/lib/types";
+import { Product } from "@/lib/types";
 
-
-function NewProductPageContent() {
+export default function NewProductPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addProduct } = useProducts();
   const { toast } = useToast();
   const router = useRouter();
 
-
-  const handleSaveProduct = async (productData: Omit<Order, 'id' | 'creationDate'>) => {
-      setIsSubmitting(true);
-      try {
-        // Find the newly defined product in the array
-        const productToCreate = {
-            ...productData.products[0],
-            isStandard: true // Items created via this page are standard catalog items
-        };
-        const newProductId = await addProduct(productToCreate);
-        if (newProductId) {
-            toast({
-                title: "Product Created",
-                description: `${productToCreate.productName} has been successfully created.`,
-            });
-            router.push(`/products/${newProductId}`);
-        }
-        return newProductId;
-      } catch (error) {
+  const handleCreateProduct = async (productData: Partial<Product>) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        ...productData,
+        isStandard: true,
+      };
+      const newId = await addProduct(payload);
+      if (newId) {
         toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Could not create the product.'
+          title: "Product Created",
+          description: "New item added to the catalog.",
         });
-        return undefined;
-      } finally {
-          setIsSubmitting(false);
+        router.push(`/products/${newId}`);
       }
-  }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not create the product.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline tracking-tight">
-          Create New Product
-        </h1>
-        <p className="text-muted-foreground">
-          Follow the steps to add a new product to your catalog.
-        </p>
-      </div>
-      <OrderForm 
-          onSave={handleSaveProduct}
-          isSubmitting={isSubmitting} 
-          isProductCreationMode={true}
-          submitButtonText="Create Catalog Item"
+    <div className="max-w-6xl mx-auto">
+      <ProductForm 
+        title="Create New Product" 
+        onSubmit={handleCreateProduct} 
+        isSubmitting={isSubmitting} 
       />
     </div>
   );
-}
-
-
-export default function NewProductPage() {
-    return (
-        <Suspense fallback={<div>Loading...</div>}>
-            <NewProductPageContent />
-        </Suspense>
-    )
 }
