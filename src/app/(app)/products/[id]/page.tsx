@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
@@ -7,7 +6,7 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
@@ -25,6 +24,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel"
 import { QRCodeCanvas } from "qrcode.react"
+import { useUser } from "@/hooks/use-user"
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -114,6 +114,7 @@ function ProductDetailContent() {
   const params = useParams(); const id = params.id as string;
   const router = useRouter(); const { getProductById, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
+  const { role } = useUser();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
@@ -125,6 +126,8 @@ function ProductDetailContent() {
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
   const allImageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
+
+  const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
 
   const downloadQRCode = () => {
     const canvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
@@ -146,6 +149,11 @@ function ProductDetailContent() {
             <div className="flex gap-2">
                 <Button variant="outline" onClick={() => router.back()} className="w-full sm:w-auto"><ArrowLeft className="mr-2 h-4 w-4"/> Back</Button>
                 <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} title="Product QR Code"><QrCode className="h-4 w-4" /></Button>
+                {canEdit && (
+                    <Button variant="outline" size="icon" onClick={() => router.push(`/products/${product.id}/edit`)} title="Edit Product">
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
             <Button onClick={() => router.push(`/orders/new?fromProduct=${product.id}`)} className="w-full sm:w-auto"><Eye className="mr-2 h-4 w-4"/> Create Order from This Product</Button>
        </div>
@@ -211,8 +219,8 @@ function ProductDetailContent() {
                     <p className="text-[10px] text-slate-400 font-mono mt-1">#{product.id.slice(-8).toUpperCase()}</p>
                 </div>
                 <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-                    <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="w-full">Close</Button>
-                    <Button onClick={downloadQRCode} className="w-full">
+                    <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
+                    <Button onClick={downloadQRCode} className="flex-1">
                         <Download className="mr-2 h-4 w-4" /> Download PNG
                     </Button>
                 </DialogFooter>
