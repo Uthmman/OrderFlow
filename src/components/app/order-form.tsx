@@ -295,7 +295,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const filteredCustomers = customers.filter(c => {
     const search = (customerSearch || "").toLowerCase();
-    return c.name?.toLowerCase().includes(search) || c.phoneNumbers?.some(p => p.number.includes(search));
+    return (c.name || "").toLowerCase().includes(search) || c.phoneNumbers?.some(p => p.number.includes(search));
   });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
@@ -415,7 +415,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <Input placeholder="Type to filter catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
                     <ScrollArea className="h-[300px]">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => p.productName.toLowerCase().includes(catalogSearchTerm.toLowerCase())).map(p => (
+                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())).map(p => (
                                 <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-lg text-left hover:bg-accent" onClick={() => { 
                                     const up = [...getValues('products')];
                                     up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };

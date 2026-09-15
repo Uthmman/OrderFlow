@@ -42,7 +42,7 @@ import {
   DialogFooter,
   DialogPortal,
 } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUser, useUsers } from "@/hooks/use-user";
@@ -354,7 +354,6 @@ function OrderDetailPageContent() {
     const startDesign = () => {
         if (!user) return;
         handleStatusChange('Designing');
-        // Add designer to assigned list if not already there
         if (!order.assignedTo?.includes(user.id)) {
             updateOrder({ id: order.id, assignedTo: arrayUnion(user.id) as any });
         }
