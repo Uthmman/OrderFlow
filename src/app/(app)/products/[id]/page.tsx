@@ -119,6 +119,7 @@ function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { att
                     <p className="text-[9px] text-muted-foreground uppercase tracking-widest">{isImage ? 'Image' : 'File'}</p>
                 </div>
                 <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={handleShare}><Share2 className="h-3.5 w-3.5"/></Button>
                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={e => { e.preventDefault(); downloadFile(attachment.url, attachment.fileName); }}><Download className="h-3.5 w-3.5"/></Button>
                     {canDelete && (
                         <AlertDialog>
