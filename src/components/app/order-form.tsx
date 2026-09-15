@@ -276,7 +276,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         return;
     }
 
-    // In Product Creation mode, finish after Review (Step 8)
     if (isProductCreationMode && currentStep === 8) {
         handleFormSubmit(getValues());
         return;
@@ -289,7 +288,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     if (!onSave) return;
     setIsManualSaving(true);
     try {
-        const updated = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined }));
+        const updated = values.products.map(p => ({ 
+            ...p, 
+            colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), 
+            dimensions: p.width && p.height && p.depth ? { 
+                width: Number(p.width), 
+                height: Number(p.height), 
+                depth: Number(p.depth) 
+            } : undefined 
+        }));
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
         const payload: any = { ...values, products: updated, status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
         await onSave(payload as any, !initialOrder); 
@@ -469,6 +476,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </div>
                         )}
                     </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                        <FormField control={form.control} name={`products.${currentProductIndex}.width`} render={({ field }) => <FormItem><FormLabel>Width (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                        <FormField control={form.control} name={`products.${currentProductIndex}.height`} render={({ field }) => <FormItem><FormLabel>Height (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                        <FormField control={form.control} name={`products.${currentProductIndex}.depth`} render={({ field }) => <FormItem><FormLabel>Depth (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                    </div>
+
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     
                     <div className="space-y-4">
