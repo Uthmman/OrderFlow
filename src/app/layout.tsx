@@ -13,6 +13,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'OrderFlow',
+    startupImage: '/icon-512x512.png',
   },
 };
 
@@ -50,6 +51,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
         <link rel="apple-touch-icon" href="https://picsum.photos/seed/orderflow/192/192" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>

@@ -115,7 +115,8 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         orderIds: productData.orderIds || [],
         isStandard: productData.isStandard ?? false,
       };
-      await setDoc(newProductRef, newProduct);
+      // CRITICAL FIX: Strip undefined values before setDoc
+      await setDoc(newProductRef, removeUndefined(newProduct));
       return newProductRef.id;
     } catch (error) {
       console.error("Error adding product: ", error);
