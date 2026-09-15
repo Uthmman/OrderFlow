@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Suspense, useState, useEffect, useRef } from "react"
@@ -6,13 +7,13 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
 import { useOrders } from "@/hooks/use-orders"
 import { CustomerProvider } from "@/hooks/use-customers"
-import { downloadFile, compressImage } from "@/lib/utils"
+import { downloadFile, compressImage, cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogPortal } from "@/components/ui/dialog"
 import {
@@ -157,14 +158,15 @@ function ProductDetailContent() {
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   if (productsLoading || ordersLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   const product = getProductById(id);
   if (!product) notFound();
 
-  const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
   const allImageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const activeImage = allImageAttachments[activeImageIndex] || allImageAttachments[0];
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
   const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
@@ -226,6 +228,15 @@ function ProductDetailContent() {
     }
   };
 
+  const setMainImage = async (url: string) => {
+      try {
+          await updateProduct(product.id, { mainImageUrl: url });
+          toast({ title: "Main Image Updated", description: "This image is now the primary visual for this product." });
+      } catch (e) {
+          toast({ variant: "destructive", title: "Failed to update main image" });
+      }
+  };
+
   const downloadQRCode = () => {
     const canvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
     if (canvas) {
@@ -238,6 +249,9 @@ function ProductDetailContent() {
         document.body.removeChild(downloadLink);
     }
   };
+
+  const nextImage = () => setActiveImageIndex(prev => (prev + 1) % allImageAttachments.length);
+  const prevImage = () => setActiveImageIndex(prev => (prev - 1 + allImageAttachments.length) % allImageAttachments.length);
 
   return (
     <>
@@ -263,24 +277,70 @@ function ProductDetailContent() {
                 </CardContent></Card>
         </div>
         <div className="md:col-span-2 space-y-8">
-          <Card>
-            <CardHeader className="p-0">
-              <div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer overflow-hidden group" onClick={() => {
-                  if (primaryAttachment && allImageAttachments.some(i => i.url === primaryAttachment.url)) {
-                      const idx = allImageAttachments.findIndex(i => i.url === primaryAttachment.url);
-                      setGalleryStartIndex(idx);
-                      setGalleryOpen(true);
-                  }
-              }}>
-                {primaryAttachment?.url ? (
+          <Card className="overflow-hidden">
+            <CardHeader className="p-0 border-b">
+              <div className="aspect-video bg-muted flex items-center justify-center relative group">
+                {activeImage?.url ? (
                     <>
-                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" />
-                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <Eye className="text-white h-10 w-10" />
+                        <Image src={activeImage.url} alt={product.productName} fill className="object-contain" />
+                        
+                        {/* Interactive Gallery Overlay */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6">
+                            <div className="flex items-center gap-8">
+                                <Button variant="ghost" size="icon" className="text-white h-12 w-12 hover:bg-white/10" onClick={(e) => { e.stopPropagation(); prevImage(); }}>
+                                    <ChevronLeft className="h-10 w-10" />
+                                </Button>
+                                <div className="flex flex-col items-center gap-4">
+                                    <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-full px-8 h-12 text-lg font-bold" onClick={() => {
+                                        setGalleryStartIndex(activeImageIndex);
+                                        setGalleryOpen(true);
+                                    }}>
+                                        <Eye className="mr-2 h-5 w-5" /> View Fullscreen
+                                    </Button>
+                                    
+                                    {canEdit && activeImage.url !== product.mainImageUrl && (
+                                        <Button variant="secondary" className="rounded-full px-6" onClick={(e) => { e.stopPropagation(); setMainImage(activeImage.url); }}>
+                                            <CheckCircle2 className="mr-2 h-4 w-4" /> Set as Main Catalog Image
+                                        </Button>
+                                    )}
+                                    {activeImage.url === product.mainImageUrl && (
+                                        <Badge className="bg-primary text-white border-none px-4 py-1">
+                                            Current Main Catalog Image
+                                        </Badge>
+                                    )}
+                                </div>
+                                <Button variant="ghost" size="icon" className="text-white h-12 w-12 hover:bg-white/10" onClick={(e) => { e.stopPropagation(); nextImage(); }}>
+                                    <ChevronRight className="h-10 w-10" />
+                                </Button>
+                            </div>
+                            
+                            <div className="absolute bottom-4 flex gap-1.5">
+                                {allImageAttachments.map((_, i) => (
+                                    <div key={i} className={cn("h-1.5 w-1.5 rounded-full bg-white transition-all", i === activeImageIndex ? "w-4" : "opacity-40")} />
+                                ))}
+                            </div>
                         </div>
                     </>
-                ) : <p className="text-muted-foreground">No image available</p>}
+                ) : <div className="flex flex-col items-center gap-2"><ImageIcon className="h-12 w-12 opacity-20" /><p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No visual reference</p></div>}
               </div>
+              
+              {/* Thumbnail Strip */}
+              {allImageAttachments.length > 1 && (
+                  <div className="flex p-2 gap-2 bg-muted/50 overflow-x-auto no-scrollbar">
+                      {allImageAttachments.map((img, i) => (
+                          <button 
+                            key={i} 
+                            onClick={() => setActiveImageIndex(i)}
+                            className={cn(
+                                "h-14 w-20 rounded-md border-2 overflow-hidden flex-shrink-0 transition-all",
+                                i === activeImageIndex ? "border-primary scale-105" : "border-transparent opacity-60 hover:opacity-100"
+                            )}
+                          >
+                              <Image src={img.url} alt={`Thumb ${i}`} width={80} height={56} className="object-cover h-full w-full" />
+                          </button>
+                      ))}
+                  </div>
+              )}
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex justify-between items-center mb-6">
@@ -301,7 +361,7 @@ function ProductDetailContent() {
                       <AttachmentCard 
                         key={i} 
                         attachment={att} 
-                        onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setGalleryStartIndex(idx); setGalleryOpen(true); } }}
+                        onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setActiveImageIndex(idx); setGalleryStartIndex(idx); setGalleryOpen(true); } }}
                         onDelete={() => handleDeleteAttachment(att)}
                         canDelete={canEdit}
                       />

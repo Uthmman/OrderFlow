@@ -94,6 +94,7 @@ export type Product = {
   productName: string;
   category: string;
   description: string;
+  mainImageUrl?: string;
   attachments?: OrderAttachment[];
   designAttachments?: OrderAttachment[]; 
   colors?: string[];

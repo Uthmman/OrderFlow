@@ -106,6 +106,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         productName: productData.productName || 'Unnamed Product',
         category: productData.category || 'Uncategorized',
         description: productData.description || '',
+        mainImageUrl: productData.mainImageUrl,
         price: productData.price || 0,
         attachments: updatedAttachments,
         designAttachments: productData.designAttachments || [],
