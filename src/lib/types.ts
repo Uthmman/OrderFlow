@@ -89,6 +89,18 @@ export type UserNotification = {
     orderId?: string;
 }
 
+export type BOMItem = {
+  itemId: string;
+  name: string;
+  quantity: number;
+  unit: string;
+};
+
+export type PriceEntry = {
+  price: number;
+  date: string;
+};
+
 export type Product = {
   id: string;
   productName: string;
@@ -101,9 +113,11 @@ export type Product = {
   material?: string[];
   dimensions?: { width: number; height: number; depth: number };
   price: number;
+  priceHistory?: PriceEntry[];
   quantity?: number;
   orderIds?: string[];
-  billOfMaterials?: string;
+  billOfMaterials?: string; // Legacy text BOM
+  bomItems?: BOMItem[]; // Structured BOM linked to stock
   isStandard?: boolean; 
 }
 

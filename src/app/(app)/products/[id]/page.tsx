@@ -7,13 +7,13 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, ListChecks } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, ListChecks, History } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
 import { useOrders } from "@/hooks/use-orders"
 import { CustomerProvider } from "@/hooks/use-customers"
-import { downloadFile, compressImage, cn, formatCurrency } from "@/lib/utils"
+import { downloadFile, compressImage, cn, formatCurrency, formatTimestamp } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogPortal } from "@/components/ui/dialog"
 import {
@@ -38,6 +38,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Separator } from "@/components/ui/separator";
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -159,6 +160,7 @@ function ProductDetailContent() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [showHistory, setShowHistory] = useState(false);
 
   if (productsLoading || ordersLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   const product = getProductById(id);
@@ -273,13 +275,29 @@ function ProductDetailContent() {
             <Card><CardHeader><CardTitle className="font-headline">{product.productName}</CardTitle><CardDescription>{product.category}</CardDescription></CardHeader><CardContent><p className="text-muted-foreground text-sm">{product.description}</p></CardContent></Card>
             
             <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="py-4">
+                <CardHeader className="flex flex-row items-center justify-between py-4">
                     <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-primary" /> Base Price
                     </CardTitle>
+                    {product.priceHistory && product.priceHistory.length > 0 && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowHistory(!showHistory)}>
+                            <History className="h-4 w-4 opacity-50" />
+                        </Button>
+                    )}
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                     <div className="text-2xl font-bold text-primary">{formatCurrency(product.price)}</div>
+                    {showHistory && product.priceHistory && (
+                        <div className="space-y-2 pt-2 border-t animate-in fade-in">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Price History</p>
+                            {product.priceHistory.map((h, i) => (
+                                <div key={i} className="flex justify-between text-xs">
+                                    <span className="text-muted-foreground">{formatTimestamp(h.date)}</span>
+                                    <span className="font-medium">{formatCurrency(h.price)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -353,18 +371,44 @@ function ProductDetailContent() {
               )}
             </CardHeader>
             <CardContent className="p-4 space-y-6">
-                {product.billOfMaterials && (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                            <ListChecks className="h-4 w-4" /> Bill of Materials
-                        </div>
-                        <div className="bg-muted/30 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap leading-relaxed">
-                            {product.billOfMaterials}
-                        </div>
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                        <ListChecks className="h-4 w-4" /> Bill of Materials
                     </div>
-                )}
+                    
+                    {product.bomItems && product.bomItems.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                            {product.bomItems.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold truncate">{item.name}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
+                                    </div>
+                                    <div className="text-sm font-bold text-primary">
+                                        {item.quantity} {item.unit}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
-              <div className="space-y-4">
+                    {product.billOfMaterials && (
+                        <div className="space-y-3">
+                            {product.bomItems && product.bomItems.length > 0 && <Separator className="mb-4" />}
+                            <div className="bg-muted/30 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap leading-relaxed">
+                                {product.billOfMaterials}
+                            </div>
+                        </div>
+                    )}
+                    
+                    {(!product.bomItems || product.bomItems.length === 0) && !product.billOfMaterials && (
+                        <div className="py-8 text-center border-2 border-dashed rounded-lg bg-muted/10 text-xs text-muted-foreground">
+                            No bill of materials defined.
+                        </div>
+                    )}
+                </div>
+
+              <div className="space-y-4 pt-6">
                 <div className="flex justify-between items-center">
                     <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Catalog Attachments</h3>
                     {canEdit && (
