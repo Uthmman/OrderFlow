@@ -7,13 +7,13 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, ListChecks } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
 import { useOrders } from "@/hooks/use-orders"
 import { CustomerProvider } from "@/hooks/use-customers"
-import { downloadFile, compressImage, cn } from "@/lib/utils"
+import { downloadFile, compressImage, cn, formatCurrency } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogPortal } from "@/components/ui/dialog"
 import {
@@ -271,6 +271,18 @@ function ProductDetailContent() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
         <div className="md:col-span-1 space-y-8">
             <Card><CardHeader><CardTitle className="font-headline">{product.productName}</CardTitle><CardDescription>{product.category}</CardDescription></CardHeader><CardContent><p className="text-muted-foreground text-sm">{product.description}</p></CardContent></Card>
+            
+            <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="py-4">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-primary" /> Base Price
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-primary">{formatCurrency(product.price)}</div>
+                </CardContent>
+            </Card>
+
             <Card><CardHeader><CardTitle className="text-sm font-bold uppercase tracking-wider">Specifications</CardTitle></CardHeader><CardContent className="space-y-4">
                     {product.material && product.material.length > 0 && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Materials:</span><div className="flex flex-wrap gap-1">{product.material.map(m => <Badge key={m} variant="secondary" className="text-[10px]">{m}</Badge>)}</div></div>}
                     {product.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Dims: {product.dimensions.width} x {product.dimensions.height} x {product.dimensions.depth} cm</span></div>}
@@ -284,7 +296,6 @@ function ProductDetailContent() {
                     <>
                         <Image src={activeImage.url} alt={product.productName} fill className="object-contain" />
                         
-                        {/* Interactive Gallery Overlay */}
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6">
                             <div className="flex items-center gap-8">
                                 <Button variant="ghost" size="icon" className="text-white h-12 w-12 hover:bg-white/10" onClick={(e) => { e.stopPropagation(); prevImage(); }}>
@@ -324,7 +335,6 @@ function ProductDetailContent() {
                 ) : <div className="flex flex-col items-center gap-2"><ImageIcon className="h-12 w-12 opacity-20" /><p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No visual reference</p></div>}
               </div>
               
-              {/* Thumbnail Strip */}
               {allImageAttachments.length > 1 && (
                   <div className="flex p-2 gap-2 bg-muted/50 overflow-x-auto no-scrollbar">
                       {allImageAttachments.map((img, i) => (
@@ -342,46 +352,59 @@ function ProductDetailContent() {
                   </div>
               )}
             </CardHeader>
-            <CardContent className="p-4">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Catalog Attachments</h3>
-                {canEdit && (
-                    <div className="flex items-center gap-2">
-                        <input type="file" ref={fileInputRef} multiple onChange={handleFileUpload} className="hidden" />
-                        <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
-                            {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
-                            Add Files
-                        </Button>
+            <CardContent className="p-4 space-y-6">
+                {product.billOfMaterials && (
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                            <ListChecks className="h-4 w-4" /> Bill of Materials
+                        </div>
+                        <div className="bg-muted/30 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap leading-relaxed">
+                            {product.billOfMaterials}
+                        </div>
+                    </div>
+                )}
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Catalog Attachments</h3>
+                    {canEdit && (
+                        <div className="flex items-center gap-2">
+                            <input type="file" ref={fileInputRef} multiple onChange={handleFileUpload} className="hidden" />
+                            <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                                {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
+                                Add Files
+                            </Button>
+                        </div>
+                    )}
+                </div>
+                {allAttachments.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {allAttachments.map((att, i) => (
+                        <AttachmentCard 
+                            key={i} 
+                            attachment={att} 
+                            onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setActiveImageIndex(idx); setGalleryStartIndex(idx); setGalleryOpen(true); } }}
+                            onDelete={() => handleDeleteAttachment(att)}
+                            canDelete={canEdit}
+                        />
+                    ))}
+                    {canEdit && !isUploading && (
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-muted-foreground hover:text-primary group"
+                        >
+                            <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                            <span className="text-[11px] font-bold uppercase tracking-widest">Upload More</span>
+                        </button>
+                    )}
+                    </div>
+                ) : (
+                    <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed">
+                        <p className="text-sm text-muted-foreground">No attachments for this catalog item.</p>
+                        {canEdit && <Button variant="link" onClick={() => fileInputRef.current?.click()}>Upload first image</Button>}
                     </div>
                 )}
               </div>
-              {allAttachments.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {allAttachments.map((att, i) => (
-                      <AttachmentCard 
-                        key={i} 
-                        attachment={att} 
-                        onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setActiveImageIndex(idx); setGalleryStartIndex(idx); setGalleryOpen(true); } }}
-                        onDelete={() => handleDeleteAttachment(att)}
-                        canDelete={canEdit}
-                      />
-                  ))}
-                  {canEdit && !isUploading && (
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-muted-foreground hover:text-primary group"
-                      >
-                          <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                          <span className="text-[11px] font-bold uppercase tracking-widest">Upload More</span>
-                      </button>
-                  )}
-                </div>
-              ) : (
-                  <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed">
-                      <p className="text-sm text-muted-foreground">No attachments for this catalog item.</p>
-                      {canEdit && <Button variant="link" onClick={() => fileInputRef.current?.click()}>Upload first image</Button>}
-                  </div>
-              )}
             </CardContent>
           </Card>
         </div>

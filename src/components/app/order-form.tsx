@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -72,6 +73,7 @@ const productSchema = z.object({
   productName: z.string().min(1, "Product name required."),
   category: z.string().min(1, "Category is required."),
   description: z.string().optional(),
+  billOfMaterials: z.string().optional(),
   attachments: z.array(z.any()).optional(),
   designAttachments: z.array(z.any()).optional(),
   colors: z.array(z.string()).optional(),
@@ -164,7 +166,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
-    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 };
+    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 };
     const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash' };
     if (!orderToMap) return defaultValues as OrderFormValues;
     const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth, quantity: p.quantity || 1 })) || [defaultProduct];
@@ -466,8 +468,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div className="md:col-span-3">
+                        <div className="md:col-span-2">
                             <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
+                        </div>
+                        <div className="md:col-span-1">
+                             <FormField control={form.control} name={`products.${currentProductIndex}.price`} render={({ field }) => <FormItem><FormLabel>Base Price</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? 0} /></div></FormControl><FormMessage /></FormItem>} />
                         </div>
                         {!isProductCreationMode && (
                             <div className="md:col-span-1">
@@ -482,8 +487,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <FormField control={form.control} name={`products.${currentProductIndex}.depth`} render={({ field }) => <FormItem><FormLabel>Depth (cm)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     </div>
 
-                    <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                    <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     
+                    <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel>Bill of Materials (Technial List)</FormLabel><FormControl><Textarea rows={5} placeholder="e.g. 4x Hettich Hinges, 2.5m Oak Edge Band..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl><FormDescription>List all raw materials and hardware needed for production.</FormDescription></FormItem>} />
+
                     <div className="space-y-4">
                         <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
                             {isUploading ? (
@@ -612,7 +619,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       })}
                       {!isProductCreationMode && (
                         <Button variant="outline" className="w-full mt-4 border-dashed" onClick={() => {
-                            const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', attachments: [], quantity: 1, price: 0 }];
+                            const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', billOfMaterials: '', attachments: [], quantity: 1, price: 0 }];
                             setValue('products', up, { shouldDirty: true });
                             setCurrentProductIndex(up.length - 1);
                             setCurrentStep(3);
