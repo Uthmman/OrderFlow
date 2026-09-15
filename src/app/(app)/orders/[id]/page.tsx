@@ -42,7 +42,7 @@ import {
   DialogFooter,
   DialogPortal,
 } from "@/components/ui/dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUser, useUsers } from "@/hooks/use-user";

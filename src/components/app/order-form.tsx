@@ -1,7 +1,8 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import {
   Form,
@@ -30,11 +31,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2 } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2, ListChecks, Package } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderStatus, Product, OrderAttachment } from "@/lib/types"
+import { Order, OrderStatus, Product, OrderAttachment, BOMItem } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
 import { useState, useRef, useEffect, useCallback } from "react"
@@ -60,12 +61,20 @@ import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "@/components/ui/progress"
 import { useProductSettings } from "@/hooks/use-product-settings"
 import { usePaymentSettings } from "@/hooks/use-payment-settings"
+import { useSecondaryItems } from "@/hooks/use-secondary-items"
 import * as LucideIcons from 'lucide-react'
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar } from "@/components/ui/calendar"
 import { DynamicIcon } from "../ui/dynamic-icon"
+
+const bomItemSchema = z.object({
+  itemId: z.string(),
+  name: z.string(),
+  quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
+  unit: z.string(),
+});
 
 const productSchema = z.object({
   id: z.string(),
@@ -84,6 +93,7 @@ const productSchema = z.object({
   colorAsAttachment: z.boolean().default(false),
   price: z.coerce.number().min(0).default(0),
   mainImageUrl: z.string().optional(),
+  bomItems: z.array(bomItemSchema).optional(),
 })
 
 const formSchema = z.object({
@@ -148,6 +158,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
   const { settings: paymentSettings } = usePaymentSettings();
+  const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
   const { uploadFile, uploadProgress } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
@@ -158,22 +169,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [isManualSaving, setIsManualSaving] = useState(false);
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
   const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
-    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1 };
+    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1, bomItems: [] };
     const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash' };
     if (!orderToMap) return defaultValues as OrderFormValues;
-    const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth, quantity: p.quantity || 1 })) || [defaultProduct];
+    const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth, quantity: p.quantity || 1, bomItems: p.bomItems || [] })) || [defaultProduct];
     return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
   }, []);
 
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
-  const { setValue, getValues, watch, trigger, formState: { isDirty, errors } } = form;
+  const { setValue, getValues, watch, trigger, control, formState: { isDirty, errors } } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
@@ -329,6 +342,42 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const isSubmittingFinal = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
   const isUploading = Object.keys(localUploads).length > 0;
+
+  const addItemToProductBOM = (pIndex: number, item: any) => {
+      const products = [...getValues('products')];
+      const p = products[pIndex];
+      if (!p) return;
+      p.bomItems = [...(p.bomItems || []), {
+          itemId: item.id,
+          name: item.name,
+          quantity: 1,
+          unit: item.unit
+      }];
+      setValue('products', products, { shouldDirty: true });
+      setIsItemPopoverOpen(false);
+      setItemSearch("");
+  };
+
+  const removeBOMItem = (pIndex: number, bIndex: number) => {
+      const products = [...getValues('products')];
+      const p = products[pIndex];
+      if (!p || !p.bomItems) return;
+      p.bomItems = p.bomItems.filter((_, i) => i !== bIndex);
+      setValue('products', products, { shouldDirty: true });
+  };
+
+  const updateBOMQuantity = (pIndex: number, bIndex: number, val: string) => {
+    const products = [...getValues('products')];
+    const p = products[pIndex];
+    if (!p || !p.bomItems) return;
+    p.bomItems[bIndex].quantity = parseFloat(val) || 0;
+    setValue('products', products, { shouldDirty: true });
+  };
+
+  const filteredSecondaryItems = secondaryItems.filter(item => 
+    item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
+    item.category?.toLowerCase().includes(itemSearch.toLowerCase())
+  );
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -491,7 +540,86 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     
-                    <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel>Bill of Materials (Technical List)</FormLabel><FormControl><Textarea rows={5} placeholder="e.g. 4x Hettich Hinges, 2.5m Oak Edge Band..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl><FormDescription>List all raw materials and hardware needed for production.</FormDescription></FormItem>} />
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <Label className="text-sm font-bold flex items-center gap-2">
+                                <ListChecks className="h-4 w-4 text-primary" /> Technical Bill of Materials
+                            </Label>
+                            <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-8">
+                                        <PlusCircle className="h-3.5 w-3.5 mr-1" /> Add from Catalog
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-0" align="end">
+                                    <div className="p-2 border-b bg-muted/20">
+                                        <div className="relative">
+                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                            <Input 
+                                                placeholder="Search materials..." 
+                                                className="h-8 pl-8 text-xs" 
+                                                value={itemSearch}
+                                                onChange={e => setItemSearch(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <ScrollArea className="h-64">
+                                        {secondaryLoading ? (
+                                            <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
+                                        ) : filteredSecondaryItems.length === 0 ? (
+                                            <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
+                                        ) : filteredSecondaryItems.map(item => (
+                                            <button 
+                                                key={item.id} 
+                                                type="button" 
+                                                className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
+                                                onClick={() => addItemToProductBOM(currentProductIndex, item)}
+                                            >
+                                                <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                                    <Package className="h-4 w-4 opacity-60" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold truncate">{item.name}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </ScrollArea>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        <div className="space-y-2">
+                            {watchedProducts[currentProductIndex]?.bomItems?.map((item: BOMItem, bIdx: number) => (
+                                <div key={bIdx} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
+                                    <div className="flex-grow min-w-0">
+                                        <p className="text-xs font-bold truncate">{item.name}</p>
+                                        <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Input 
+                                            type="number" 
+                                            step="0.01" 
+                                            className="h-8 w-16 text-xs text-right font-bold" 
+                                            value={item.quantity}
+                                            onChange={(e) => updateBOMQuantity(currentProductIndex, bIdx, e.target.value)}
+                                        />
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            type="button" 
+                                            className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100"
+                                            onClick={() => removeBOMItem(currentProductIndex, bIdx)}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel className="text-xs text-muted-foreground">Manual Technical Notes</FormLabel><FormControl><Textarea rows={3} placeholder="Special assembly instructions..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                    </div>
 
                     <div className="space-y-4">
                         <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
