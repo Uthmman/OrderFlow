@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { arrayUnion } from "firebase/firestore";
+import { cn } from "@/lib/utils";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -474,7 +475,36 @@ function OrderDetailPageContent() {
             <TabsList><TabsTrigger value="details"><Info className="mr-2" /> Details</TabsTrigger><TabsTrigger value="chat"><MessageSquare className="mr-2" /> Chat</TabsTrigger></TabsList>
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
-                    <div className="space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
+                    <div className="space-y-8">
+                        {order.products?.map((p, pIdx) => (
+                           <div key={p.id || pIdx} className="space-y-4">
+                                {(p.bomItems && p.bomItems.length > 0) && (
+                                    <Card className="border-primary/20 bg-primary/5">
+                                        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Bill of Materials ({p.productName})</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                {p.bomItems.map((item, i) => (
+                                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm">
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold truncate">{item.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
+                                                        </div>
+                                                        <div className="text-sm font-bold text-primary">
+                                                            {item.quantity} {item.unit}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {p.billOfMaterials && (
+                                                <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
+                                                    {p.billOfMaterials}
+                                                </div>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )}
+                           </div>
+                        ))}
                        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
                             {(order.products || []).map((product, index) => (
                                 <ProductDetails 
@@ -536,7 +566,36 @@ function OrderDetailPageContent() {
             <TabsContent value="chat" className="mt-6"><ChatInterface order={order} /></TabsContent>
         </Tabs>
         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">{(order.products && order.products[0]?.billOfMaterials) && <Card className="border-primary/20 bg-primary/5"><CardHeader><CardTitle className="text-lg flex items-center gap-2"><Boxes className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></CardHeader><CardContent><div className="bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed">{order.products[0].billOfMaterials}</div></CardContent></Card>}
+            <div className="lg:col-span-2 space-y-8">
+                {order.products?.map((p, pIdx) => (
+                    <div key={p.id || pIdx} className="space-y-4">
+                        {(p.bomItems && p.bomItems.length > 0) && (
+                            <Card className="border-primary/20 bg-primary/5">
+                                <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Bill of Materials ({p.productName})</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {p.bomItems.map((item, i) => (
+                                            <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold truncate">{item.name}</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
+                                                </div>
+                                                <div className="text-sm font-bold text-primary">
+                                                    {item.quantity} {item.unit}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {p.billOfMaterials && (
+                                        <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
+                                            {p.billOfMaterials}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                ))}
             <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
                 {(order.products || []).map((product, index) => (
                     <ProductDetails 

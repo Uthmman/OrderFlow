@@ -34,12 +34,13 @@ import {
     Plus,
     Minus,
     Search,
-    History
+    History,
+    Package
 } from "lucide-react";
 import { useProductSettings } from "@/hooks/use-product-settings";
 import { useColorSettings } from "@/hooks/use-color-settings";
 import { useOrders } from "@/hooks/use-orders";
-import { useStock } from "@/hooks/use-stock";
+import { useSecondaryItems } from "@/hooks/use-secondary-items";
 import { Product, OrderAttachment, BOMItem, PriceEntry } from "@/lib/types";
 import Image from "next/image";
 import { cn, formatCurrency, formatTimestamp } from "@/lib/utils";
@@ -87,7 +88,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   const { productSettings } = useProductSettings();
   const { settings: colorSettings } = useColorSettings();
   const { uploadFile } = useOrders();
-  const { stockItems } = useStock();
+  const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
   const [itemSearch, setItemSearch] = useState("");
@@ -190,9 +191,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
       priceHistory: updatedPriceHistory,
       billOfMaterials: values.billOfMaterials,
       dimensions: values.width && values.height && values.depth ? {
-          width: values.width,
-          height: values.height,
-          depth: values.depth
+          width: Number(values.width),
+          height: Number(values.height),
+          depth: Number(values.depth)
       } : undefined,
       material: values.materials,
       colors: values.colors,
@@ -203,12 +204,12 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
     await onSubmit(payload);
   };
 
-  const filteredStock = stockItems.filter(item => 
+  const filteredItems = secondaryItems.filter(item => 
     item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
     item.category?.toLowerCase().includes(itemSearch.toLowerCase())
   );
 
-  const addStockToBOM = (item: any) => {
+  const addItemToBOM = (item: any) => {
     appendBOM({
         itemId: item.id,
         name: item.name,
@@ -345,7 +346,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <ListChecks className="h-5 w-5 text-primary" /> Bill of Materials
                             </CardTitle>
-                            <CardDescription>Select items from inventory and specify quantities.</CardDescription>
+                            <CardDescription>Select items from central catalog and specify quantities.</CardDescription>
                         </div>
                         <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
                             <PopoverTrigger asChild>
@@ -366,17 +367,19 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                     </div>
                                 </div>
                                 <ScrollArea className="h-64">
-                                    {filteredStock.length === 0 ? (
-                                        <p className="p-4 text-center text-xs text-muted-foreground">No stock items found.</p>
-                                    ) : filteredStock.map(item => (
+                                    {secondaryLoading ? (
+                                        <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
+                                    ) : filteredItems.length === 0 ? (
+                                        <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
+                                    ) : filteredItems.map(item => (
                                         <button 
                                             key={item.id} 
                                             type="button" 
                                             className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
-                                            onClick={() => addStockToBOM(item)}
+                                            onClick={() => addItemToBOM(item)}
                                         >
                                             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                                <DynamicIcon icon={item.icon || 'Package'} className="h-4 w-4 opacity-60" />
+                                                <Package className="h-4 w-4 opacity-60" />
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="text-xs font-bold truncate">{item.name}</p>
@@ -444,7 +447,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                         <Textarea 
                                             rows={5} 
                                             className="font-mono text-sm leading-relaxed" 
-                                            placeholder="Special assembly instructions or additional non-inventory items..." 
+                                            placeholder="Special assembly instructions or additional non-catalog items..." 
                                             {...field} 
                                             value={field.value ?? ""}
                                         />
