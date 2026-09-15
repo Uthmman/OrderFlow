@@ -86,8 +86,8 @@ const productSchema = z.object({
 })
 
 const formSchema = z.object({
-  customerId: z.string().min(1, "Customer required."),
-  location: z.object({ town: z.string().min(2, "Town/City is required.") }),
+  customerId: z.string().optional(),
+  location: z.object({ town: z.string().optional() }),
   products: z.array(productSchema).min(1, "At least one product required."),
   status: z.enum(["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"]),
   incomeAmount: z.coerce.number().min(0),
@@ -143,12 +143,12 @@ const toDate = (timestamp: any): Date | undefined => {
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false, isProductCreationMode = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { customers, addCustomer, updateCustomer } = useCustomers();
+  const { customers, addCustomer } = useCustomers();
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
   const { settings: paymentSettings } = usePaymentSettings();
-  const { uploadFile, uploadProgress, removeAttachment } = useOrders();
+  const { uploadFile, uploadProgress } = useOrders();
   
   const [currentProductIndex, setCurrentProductIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState(searchParams.get('step') ? parseInt(searchParams.get('step')!) : (isProductCreationMode ? 3 : 1));
@@ -159,9 +159,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const receiptInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
@@ -216,12 +216,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       const updatedProducts = [...getValues('products')];
       const p = updatedProducts[currentProductIndex];
       if (!p) return;
+
       for (const file of files) {
+          const fileId = `${file.name}-${Date.now()}`;
+          setLocalUploads(prev => ({ ...prev, [fileId]: true }));
           try {
               const att = await uploadFile(file);
               p.attachments = [...(p.attachments || []), att];
               setValue('products', updatedProducts, { shouldDirty: true });
-          } catch (error) { console.error("Upload failed", error); }
+          } catch (error) { 
+              toast({ variant: "destructive", title: "Upload Failed", description: file.name });
+          } finally {
+              setLocalUploads(prev => { const n = { ...prev }; delete n[fileId]; return n; });
+          }
       }
     }
   };
@@ -249,6 +256,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     let fields: any = [];
     if(currentStep === 1) fields = ['customerId', 'location.town'];
     if(currentStep === 5) fields = [`products.${currentProductIndex}.productName`];
+    
     const isValid = fields.length > 0 ? await trigger(fields) : true;
     if (!isValid) {
         const firstErrorKey = Object.keys(errors)[0];
@@ -257,6 +265,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         toast({ variant: "destructive", title: "Missing Information", description: message });
         return;
     }
+
     if (!initialOrder && currentStep === 1 && onSave) {
         setIsManualSaving(true);
         try {
@@ -266,6 +275,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         } catch (e) { setIsManualSaving(false); }
         return;
     }
+
+    // In Product Creation mode, finish after Review (Step 8)
+    if (isProductCreationMode && currentStep === 8) {
+        handleFormSubmit(getValues());
+        return;
+    }
+
     setCurrentStep(Math.min(currentStep + 1, STEPS.length));
   };
 
@@ -276,7 +292,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         const updated = values.products.map(p => ({ ...p, colors: (p as any).colorAsAttachment ? ["As Attached Picture"] : (p.colors || []), dimensions: p.width && p.height && p.depth ? { width: Number(p.width), height: Number(p.height), depth: Number(p.depth) } : undefined }));
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
         const payload: any = { ...values, products: updated, status: isProductCreationMode ? undefined : (values.status === 'Pending' ? 'In Progress' : values.status), customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
-        if (values.receiptFile) payload.file = values.receiptFile;
         await onSave(payload as any, !initialOrder); 
     } catch(e) { 
         toast({ variant: "destructive", title: "Save Failed", description: "Please verify all steps." });
@@ -295,26 +310,27 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const filteredCustomers = customers.filter(c => {
     const search = (customerSearch || "").toLowerCase();
-    return (c.name || "").toLowerCase().includes(search) || c.phoneNumbers?.some(p => p.number.includes(search));
+    return (c.name || "").toLowerCase().includes(search) || (c.phoneNumbers || []).some(p => p.number.includes(search));
   });
 
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const isSubmittingFinal = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
+  const isUploading = Object.keys(localUploads).length > 0;
 
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
-        <Progress value={(currentStep / STEPS.length) * 100} className="w-full" />
-        <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase tracking-widest">
-            <span>Step {currentStep} of {STEPS.length}</span>
-            <span>{STEPS.find(s => s.id === currentStep)?.title}</span>
+        <Progress value={isProductCreationMode ? ((currentStep - 2) / 6) * 100 : (currentStep / STEPS.length) * 100} className="h-2" />
+        <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+            <span>{isProductCreationMode ? `Product Setup: Step ${currentStep - 2} of 6` : `Order Step ${currentStep} of 10`}</span>
+            <span className="text-primary">{STEPS.find(s => s.id === currentStep)?.title}</span>
         </div>
       </div>
       
       <Form {...form}>
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
-          {currentStep === 1 && !isProductCreationMode && (
+          {currentStep === 1 && (
               <Card>
                 <CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
@@ -358,7 +374,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          {initialOrder && currentStep === 2 && (
+          {initialOrder && currentStep === 2 && !isProductCreationMode && (
               <Card>
                 <CardHeader><CardTitle>Product Setup</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -412,7 +428,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Card>
                 <CardHeader><CardTitle>Search catalog</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
-                    <Input placeholder="Type to filter catalog..." value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-40" />
+                        <Input placeholder="Type to filter catalog..." className="pl-9" value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                    </div>
                     <ScrollArea className="h-[300px]">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())).map(p => (
@@ -422,10 +441,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     setValue('products', up, { shouldDirty: true });
                                     setCurrentStep(8);
                                 }}>
-                                    <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden">
+                                    <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden border">
                                         {p.attachments?.[0]?.url ? <Image src={p.attachments[0].url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
                                     </div>
-                                    <span className="text-sm font-bold">{p.productName}</span>
+                                    <span className="text-sm font-bold truncate">{p.productName}</span>
                                 </button>
                             ))}
                         </div>
@@ -444,26 +463,54 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <div className="md:col-span-3">
                             <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
                         </div>
-                        <div className="md:col-span-1">
-                            <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
-                        </div>
+                        {!isProductCreationMode && (
+                            <div className="md:col-span-1">
+                                <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
+                            </div>
+                        )}
                     </div>
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={4} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
-                    <div className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                        <UploadCloud className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Click to upload files</p>
-                        <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
-                    </div>
-                    <div className="space-y-2">{watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
-                        <div key={att.url} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
-                            <span className="text-xs truncate">{att.fileName}</span>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                                const up = [...getValues('products')];
-                                up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
-                                setValue('products', up, { shouldDirty: true });
-                            }}><Trash2 className="h-4 w-4" /></Button>
+                    
+                    <div className="space-y-4">
+                        <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
+                            {isUploading ? (
+                                <div className="space-y-3">
+                                    <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
+                                    <p className="text-sm font-bold text-primary animate-pulse">Uploading files...</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                                    <p className="text-sm font-medium">Click to upload product images</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
+                                </>
+                            )}
+                            <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                         </div>
-                    ))}</div>
+
+                        {isUploading && (
+                            <div className="space-y-1">
+                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                    <span>Syncing with Cloud</span>
+                                    <span>Please wait...</span>
+                                </div>
+                                <Progress value={75} className="h-1 animate-pulse" />
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
+                                <div key={att.url} className="group relative aspect-square rounded-lg overflow-hidden border bg-muted">
+                                    <Image src={att.url} alt="upload" fill className="object-cover" />
+                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                                        const up = [...getValues('products')];
+                                        up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                        setValue('products', up, { shouldDirty: true });
+                                    }}><Trash2 className="h-3 w-3" /></Button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </CardContent>
               </Card>
           )}
@@ -475,9 +522,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <FormField control={form.control} name={`products.${currentProductIndex}.material`} render={({ field }) => (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {productSettings?.materials.map(m => (
-                                <button key={m.name} type="button" onClick={() => field.onChange([m.name])} className={cn("flex items-center gap-3 p-4 border rounded-lg hover:bg-accent", field.value?.includes(m.name) && "bg-primary text-primary-foreground")}>
-                                    <DynamicIcon icon={m.icon} />
-                                    <span className="font-bold">{m.name}</span>
+                                <button key={m.name} type="button" onClick={() => field.onChange([m.name])} className={cn("flex items-center gap-3 p-4 border rounded-lg hover:bg-accent text-left transition-all", field.value?.includes(m.name) && "bg-primary text-primary-foreground border-primary")}>
+                                    <DynamicIcon icon={m.icon} className={cn("h-5 w-5", field.value?.includes(m.name) ? "text-white" : "text-muted-foreground")} />
+                                    <span className="font-bold text-sm">{m.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -499,17 +546,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
                         <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-3"><Label>Wood Finishes</Label>
+                                <div className="space-y-3"><Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Wood Finishes</Label>
                                     <div className="grid grid-cols-3 gap-2">{colorSettings?.woodFinishes.map(w => (
-                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg", field.value?.includes(w.name) && "border-primary border-2")}>
+                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg transition-all", field.value?.includes(w.name) && "border-primary ring-2 ring-primary ring-offset-1")}>
                                             <div className="aspect-square relative rounded-md overflow-hidden"><Image src={w.imageUrl} alt={w.name} fill className="object-cover"/></div>
-                                            <span className="text-[10px] truncate block mt-1">{w.name}</span>
+                                            <span className="text-[9px] font-bold uppercase truncate block mt-1">{w.name}</span>
                                         </button>
                                     ))}</div>
                                 </div>
-                                <div className="space-y-3"><Label>Custom Colors</Label>
+                                <div className="space-y-3"><Label className="text-xs uppercase font-bold tracking-widest text-muted-foreground">Custom Colors</Label>
                                     <div className="grid grid-cols-4 gap-2">{colorSettings?.customColors.map(c => (
-                                        <button key={c.name} type="button" title={c.name} onClick={() => field.onChange([c.name])} className={cn("h-10 w-full rounded-md border", field.value?.includes(c.name) && "ring-2 ring-primary ring-offset-1")} style={{ backgroundColor: c.colorValue }} />
+                                        <button key={c.name} type="button" title={c.name} onClick={() => field.onChange([c.name])} className={cn("h-10 w-full rounded-md border transition-all", field.value?.includes(c.name) && "ring-2 ring-primary ring-offset-1 scale-95")} style={{ backgroundColor: c.colorValue }} />
                                     ))}</div>
                                 </div>
                             </div>
@@ -521,41 +568,45 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
           {currentStep === 8 && (
               <Card>
-                <CardHeader><CardTitle>Review Designs</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Review {isProductCreationMode ? 'Design' : 'Designs'}</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                       {watchedProducts.map((p, i) => {
                         const pri = p.attachments?.[0] || p.designAttachments?.[0];
                         return (
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border">
+                              <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border shadow-sm">
                                 {pri?.url ? <Image src={pri.url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
                               </div>
-                              <div>
-                                <span className="font-bold">{p.productName || `Product ${i+1}`}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
-                                    <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
-                                    <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
-                                    <span className="text-[9px] font-bold text-muted-foreground">PCS</span>
-                                </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-sm block truncate">{p.productName || `Product ${i+1}`}</span>
+                                {!isProductCreationMode && (
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, -1)}><Minus className="h-3 w-3"/></Button>
+                                        <span className="text-xs font-bold w-5 text-center">{p.quantity || 1}</span>
+                                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(i, 1)}><Plus className="h-3 w-3"/></Button>
+                                        <span className="text-[9px] font-bold text-muted-foreground uppercase">PCS</span>
+                                    </div>
+                                )}
                               </div>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => { setCurrentProductIndex(i); setCurrentStep(5); }}>Edit</Button>
                           </div>
                         )
                       })}
-                      <Button variant="outline" className="w-full mt-4" onClick={() => {
-                          const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', attachments: [], quantity: 1, price: 0 }];
-                          setValue('products', up, { shouldDirty: true });
-                          setCurrentProductIndex(up.length - 1);
-                          setCurrentStep(3);
-                      }}><PlusCircleIcon className="mr-2 h-4 w-4" /> Add another item</Button>
+                      {!isProductCreationMode && (
+                        <Button variant="outline" className="w-full mt-4 border-dashed" onClick={() => {
+                            const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', attachments: [], quantity: 1, price: 0 }];
+                            setValue('products', up, { shouldDirty: true });
+                            setCurrentProductIndex(up.length - 1);
+                            setCurrentStep(3);
+                        }}><PlusCircleIcon className="mr-2 h-4 w-4" /> Add another design item</Button>
+                      )}
                 </CardContent>
               </Card>
           )}
 
-          {currentStep === 9 && (
+          {currentStep === 9 && !isProductCreationMode && (
               <div className="space-y-6">
                 <Card>
                     <CardHeader><CardTitle>Pricing & Receipt</CardTitle></CardHeader>
@@ -578,13 +629,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         {watchedWithReceipt && (
                             <div className="space-y-4 p-4 border rounded-lg bg-accent/10">
                                 <div className="space-y-1">{watchedProducts.map((p, i) => (
-                                    <div key={p.id} className="flex justify-between text-xs text-muted-foreground">
+                                    <div key={p.id} className="flex justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                                         <span>{p.productName || `Item ${i+1}`} ({p.quantity || 1} pcs)</span>
                                         <span>{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
                                     </div>
                                 ))}</div>
+                                <Separator className="bg-primary/20" />
                                 <div className="flex justify-between text-sm"><span>VAT (15%):</span><span>+{formatCurrency(form.watch('vatAmount'))}</span></div>
-                                <div className="flex justify-between font-bold border-t pt-2"><span>Total:</span><span>{formatCurrency(form.watch('totalWithVat'))}</span></div>
+                                <div className="flex justify-between font-bold border-t border-primary/40 pt-2 text-lg"><span>Total Payable:</span><span>{formatCurrency(form.watch('totalWithVat'))}</span></div>
                             </div>
                         )}
                     </CardContent>
@@ -592,7 +644,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </div>
           )}
 
-          {currentStep === 10 && (
+          {currentStep === 10 && !isProductCreationMode && (
               <Card>
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
@@ -633,23 +685,25 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          <div className="flex justify-between gap-2 sticky bottom-0 bg-background/95 py-4 z-10 border-t mt-8">
+          <div className="flex justify-between gap-2 sticky bottom-0 bg-background/95 py-4 z-10 border-t mt-8 shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.1)] rounded-t-lg px-2">
               <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()}>Cancel</Button>
               <div className="flex items-center gap-2">
-                  {currentStep > 1 && <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button>}
-                  {currentStep < 10 && (
-                      <Button type="button" onClick={nextStep} disabled={isSubmittingFinal}>
-                        {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Next <ArrowRight className="ml-2 h-4 w-4" />
+                  {((!isProductCreationMode && currentStep > 1) || (isProductCreationMode && currentStep > 3)) && (
+                      <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal || isUploading}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Back
                       </Button>
                   )}
-                  {currentStep === 10 && (
+                  {((!isProductCreationMode && currentStep < 10) || (isProductCreationMode && currentStep < 8)) && (
+                      <Button type="button" onClick={nextStep} disabled={isSubmittingFinal || isUploading} className="min-w-[100px]">
+                        {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Next <ArrowRight className="ml-2 h-4 w-4" /></>}
+                      </Button>
+                  )}
+                  {((!isProductCreationMode && currentStep === 10) || (isProductCreationMode && currentStep === 8)) && (
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (e) => {
-                          const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message}`).join(". ");
+                          const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message || (v as any).productName?.message}`).join(". ");
                           toast({ variant: "destructive", title: "Missing Fields", description: msgs || "Check all steps." });
-                      })} disabled={isSubmittingFinal}>
-                        {isSubmittingFinal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {initialOrder ? submitButtonText : 'Finish Order'}
+                      })} disabled={isSubmittingFinal || isUploading} className="min-w-[120px] bg-primary">
+                        {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialOrder ? submitButtonText : (isProductCreationMode ? 'Create Product' : 'Finish Order'))}
                       </Button>
                   )}
               </div>
@@ -661,7 +715,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Unsaved Changes</AlertDialogTitle><AlertDialogDescription>Do you want to save this as a draft before leaving?</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogAction onClick={handleSaveDraft} className="bg-primary">Save Draft</AlertDialogAction>
+            {!isProductCreationMode && <AlertDialogAction onClick={handleSaveDraft} className="bg-primary">Save Draft</AlertDialogAction>}
             <AlertDialogAction onClick={() => router.back()} className="bg-destructive hover:bg-destructive/90">Discard</AlertDialogAction>
             <AlertDialogCancel onClick={() => setShowCancelDialog(false)}>Stay</AlertDialogCancel>
           </AlertDialogFooter>

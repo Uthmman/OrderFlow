@@ -2,7 +2,7 @@
 {
   "name": "OrderFlow",
   "short_name": "OrderFlow",
-  "description": "Streamline furniture order management",
+  "description": "Streamline your furniture order management process.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

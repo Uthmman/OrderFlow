@@ -19,6 +19,7 @@ function NewProductPageContent() {
   const handleSaveProduct = async (productData: Omit<Order, 'id' | 'creationDate'>) => {
       setIsSubmitting(true);
       try {
+        // Find the newly defined product in the array
         const productToCreate = {
             ...productData.products[0],
             isStandard: true // Items created via this page are standard catalog items
@@ -58,6 +59,7 @@ function NewProductPageContent() {
           onSave={handleSaveProduct}
           isSubmitting={isSubmitting} 
           isProductCreationMode={true}
+          submitButtonText="Create Catalog Item"
       />
     </div>
   );

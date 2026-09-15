@@ -88,7 +88,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         setUploadProgress(prev => { const n = { ...prev }; delete n[fileName]; return n; });
         throw error;
     } finally {
-       setTimeout(() => setUploadProgress(prev => { const n = { ...prev }; delete n[fileName]; return n; }), 2000);
+       setTimeout(() => setUploadProgress(prev => { const n = { ...prev }; delete n[fileName]; return n; }), 3000);
     }
   };
   
@@ -198,7 +198,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         delete (newOrder as any).file;
         delete (newOrder as any).receiptFile;
         setDocumentNonBlocking(newOrderRef, removeUndefined(newOrder), {});
-        addOrderToCustomer(orderData.customerId, newId);
+        if (orderData.customerId) addOrderToCustomer(orderData.customerId, newId);
         return newId;
     }
 
