@@ -1,7 +1,7 @@
 {
-  "name": "OrderFlow Manager",
+  "name": "Zenbab Furniture OrderFlow",
   "short_name": "OrderFlow",
-  "description": "Manufacturing and Design Management",
+  "description": "Streamline your furniture order management and manufacturing process.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -10,12 +10,14 @@
     {
       "src": "https://picsum.photos/seed/orderflow/192/192",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "https://picsum.photos/seed/orderflow/512/512",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

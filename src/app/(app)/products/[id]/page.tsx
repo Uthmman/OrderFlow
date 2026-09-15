@@ -1,18 +1,18 @@
 "use client"
 
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useRef } from "react"
 import { useRouter, notFound, useParams } from "next/navigation"
 import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
 import { useOrders } from "@/hooks/use-orders"
 import { CustomerProvider } from "@/hooks/use-customers"
-import { downloadFile } from "@/lib/utils"
+import { downloadFile, compressImage } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogPortal } from "@/components/ui/dialog"
 import {
@@ -25,6 +25,18 @@ import {
 } from "@/components/ui/carousel"
 import { QRCodeCanvas } from "qrcode.react"
 import { useUser } from "@/hooks/use-user"
+import { uploadFileFlow, deleteFileFlow } from "@/ai/flows/backblaze-flow"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -81,10 +93,11 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
   );
 }
 
-function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void }) {
+function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void, onDelete: () => void, canDelete: boolean }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isPdf = attachment.fileName.toLowerCase().endsWith('.pdf');
     const { toast } = useToast();
+    
     const handleShare = async (e: React.MouseEvent) => {
         e.preventDefault(); e.stopPropagation();
         if (navigator.share) { 
@@ -93,17 +106,37 @@ function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachm
           try { await navigator.clipboard.writeText(attachment.url); toast({ title: "Link Copied" }); } catch (err) {} 
         }
     };
+
     return (
-        <Card className="hover:bg-muted/50 transition-colors group cursor-pointer" onClick={() => isImage && onImageClick(attachment)}>
-            <CardContent className="p-3 flex items-center gap-3">
+        <Card className="hover:bg-muted/50 transition-colors group cursor-pointer relative" onClick={() => isImage && onImageClick(attachment)}>
+            <CardContent className="p-2 flex items-center gap-3">
                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                     {isImage ? <Image src={attachment.url} alt={attachment.fileName} fill className="object-cover" /> : isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <File className="h-5 w-5" />}
                     {isImage && <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Eye className="h-4 w-4 text-white" /></div>}
                 </div>
-                <div className="flex-grow truncate min-w-0"><p className="text-[11px] font-medium truncate">{attachment.fileName}</p></div>
-                <div className="flex items-center gap-0.5 flex-wrap" onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-60 hover:opacity-100" onClick={e => { e.preventDefault(); downloadFile(attachment.url, attachment.fileName); }}><Download className="h-3.5 w-3.5"/></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-60 hover:opacity-100" onClick={handleShare}><Share2 className="h-3.5 w-3.5"/></Button>
+                <div className="flex-grow truncate min-w-0">
+                    <p className="text-[10px] font-bold truncate leading-tight">{attachment.fileName}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest">{isImage ? 'Image' : 'File'}</p>
+                </div>
+                <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={e => { e.preventDefault(); downloadFile(attachment.url, attachment.fileName); }}><Download className="h-3.5 w-3.5"/></Button>
+                    {canDelete && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="h-3.5 w-3.5"/></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Attachment?</AlertDialogTitle>
+                                    <AlertDialogDescription>This will permanently remove this file from the product catalog.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={onDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                 </div>
             </CardContent>
         </Card>
@@ -112,11 +145,17 @@ function AttachmentCard({ attachment, onImageClick }: { attachment: OrderAttachm
 
 function ProductDetailContent() {
   const params = useParams(); const id = params.id as string;
-  const router = useRouter(); const { getProductById, loading: productsLoading } = useProducts();
+  const router = useRouter(); 
+  const { getProductById, updateProduct, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
   const { role } = useUser();
-  const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [galleryOpen, setGalleryOpen] = useState(false); 
+  const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   if (productsLoading || ordersLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   const product = getProductById(id);
@@ -128,6 +167,63 @@ function ProductDetailContent() {
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
   const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setIsUploading(true);
+      const files = Array.from(e.target.files);
+      const newAttachments = [...(product.attachments || [])];
+      
+      try {
+        for (const file of files) {
+          let fileToUpload = file;
+          if (file.type.startsWith('image/')) {
+            try {
+                fileToUpload = await compressImage(file);
+            } catch (e) { console.warn("Compression skipped", e); }
+          }
+          const base64 = await fileToBase64(fileToUpload);
+          const uploadResult = await uploadFileFlow({
+            fileContent: base64,
+            contentType: fileToUpload.type,
+            fileName: file.name
+          });
+          newAttachments.push({
+            fileName: file.name,
+            url: uploadResult.url,
+            storagePath: uploadResult.fileName
+          });
+        }
+        await updateProduct(product.id, { attachments: newAttachments });
+        toast({ title: "Files Uploaded", description: `${files.length} items added to catalog.` });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Upload Failed", description: (err as Error).message });
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDeleteAttachment = async (attachment: OrderAttachment) => {
+    try {
+        const updatedAttachments = (product.attachments || []).filter(att => att.url !== attachment.url);
+        await updateProduct(product.id, { attachments: updatedAttachments });
+        if (attachment.storagePath) await deleteFileFlow({ fileName: attachment.storagePath });
+        toast({ title: "Deleted", description: "File removed from catalog." });
+    } catch (e) {
+        toast({ variant: "destructive", title: "Delete Failed" });
+    }
+  };
 
   const downloadQRCode = () => {
     const canvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
@@ -159,38 +255,78 @@ function ProductDetailContent() {
        </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
         <div className="md:col-span-1 space-y-8">
-            <Card><CardHeader><CardTitle>{product.productName}</CardTitle><CardDescription>{product.category}</CardDescription></CardHeader><CardContent><p className="text-muted-foreground">{product.description}</p></CardContent></Card>
-            <Card><CardHeader><CardTitle>Specifications</CardTitle></CardHeader><CardContent className="space-y-4">
-                    {product.material && product.material.length > 0 && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Materials:</span><div className="flex flex-wrap gap-1">{product.material.map(m => <Badge key={m} variant="secondary">{m}</Badge>)}</div></div>}
+            <Card><CardHeader><CardTitle className="font-headline">{product.productName}</CardTitle><CardDescription>{product.category}</CardDescription></CardHeader><CardContent><p className="text-muted-foreground text-sm">{product.description}</p></CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-sm font-bold uppercase tracking-wider">Specifications</CardTitle></CardHeader><CardContent className="space-y-4">
+                    {product.material && product.material.length > 0 && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Materials:</span><div className="flex flex-wrap gap-1">{product.material.map(m => <Badge key={m} variant="secondary" className="text-[10px]">{m}</Badge>)}</div></div>}
                     {product.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Dims: {product.dimensions.width} x {product.dimensions.height} x {product.dimensions.depth} cm</span></div>}
                 </CardContent></Card>
         </div>
         <div className="md:col-span-2 space-y-8">
           <Card>
             <CardHeader className="p-0">
-              <div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer overflow-hidden" onClick={() => {
+              <div className="aspect-video bg-muted rounded-t-lg flex items-center justify-center relative cursor-pointer overflow-hidden group" onClick={() => {
                   if (primaryAttachment && allImageAttachments.some(i => i.url === primaryAttachment.url)) {
                       const idx = allImageAttachments.findIndex(i => i.url === primaryAttachment.url);
                       setGalleryStartIndex(idx);
                       setGalleryOpen(true);
                   }
               }}>
-                {primaryAttachment?.url ? <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" /> : <p className="text-muted-foreground">No image</p>}
+                {primaryAttachment?.url ? (
+                    <>
+                        <Image src={primaryAttachment.url} alt={product.productName} fill className="object-contain" />
+                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Eye className="text-white h-10 w-10" />
+                        </div>
+                    </>
+                ) : <p className="text-muted-foreground">No image available</p>}
               </div>
             </CardHeader>
             <CardContent className="p-4">
-              <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-muted-foreground">Attachments</h3>
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Catalog Attachments</h3>
+                {canEdit && (
+                    <div className="flex items-center gap-2">
+                        <input type="file" ref={fileInputRef} multiple onChange={handleFileUpload} className="hidden" />
+                        <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                            {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
+                            Add Files
+                        </Button>
+                    </div>
+                )}
+              </div>
               {allAttachments.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {allAttachments.map((att, i) => <AttachmentCard key={i} attachment={att} onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setGalleryStartIndex(idx); setGalleryOpen(true); } }}/>)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {allAttachments.map((att, i) => (
+                      <AttachmentCard 
+                        key={i} 
+                        attachment={att} 
+                        onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setGalleryStartIndex(idx); setGalleryOpen(true); } }}
+                        onDelete={() => handleDeleteAttachment(att)}
+                        canDelete={canEdit}
+                      />
+                  ))}
+                  {canEdit && !isUploading && (
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-muted-foreground hover:text-primary group"
+                      >
+                          <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Upload More</span>
+                      </button>
+                  )}
                 </div>
-              ) : <p className="text-sm text-muted-foreground text-center py-8">No attachments.</p>}
+              ) : (
+                  <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed">
+                      <p className="text-sm text-muted-foreground">No attachments for this catalog item.</p>
+                      {canEdit && <Button variant="link" onClick={() => fileInputRef.current?.click()}>Upload first image</Button>}
+                  </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
       <Card>
-        <CardHeader><CardTitle>Order History</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Order History</CardTitle></CardHeader>
         <CardContent><CustomerProvider><OrderTable orders={productOrders} preferenceKey="orderSortPreference" /></CustomerProvider></CardContent>
       </Card>
     </div>
@@ -200,7 +336,7 @@ function ProductDetailContent() {
         <DialogPortal>
             <DialogContent className="sm:max-w-sm overflow-hidden">
                 <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
+                    <DialogTitle className="flex items-center gap-2 font-headline">
                         <QrCode className="h-5 w-5" /> Product QR Code
                     </DialogTitle>
                     <DialogDescription>Workshop tracking for this design.</DialogDescription>
@@ -215,7 +351,7 @@ function ProductDetailContent() {
                             includeMargin={false}
                         />
                     </div>
-                    <p className="mt-6 text-sm font-bold text-slate-700 uppercase tracking-widest">{product.productName}</p>
+                    <p className="mt-6 text-sm font-bold text-slate-700 uppercase tracking-widest text-center max-w-[250px] truncate">{product.productName}</p>
                     <p className="text-[10px] text-slate-400 font-mono mt-1">#{product.id.slice(-8).toUpperCase()}</p>
                 </div>
                 <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
