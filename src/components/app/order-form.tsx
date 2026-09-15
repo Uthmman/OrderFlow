@@ -512,15 +512,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </div>
                         )}
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3">
                             {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
-                                <div key={att.url} className="group relative aspect-square rounded-lg overflow-hidden border bg-muted">
-                                    <Image src={att.url} alt="upload" fill className="object-cover" />
-                                    <Button variant="destructive" size="icon" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
-                                        const up = [...getValues('products')];
-                                        up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
-                                        setValue('products', up, { shouldDirty: true });
-                                    }}><Trash2 className="h-3 w-3" /></Button>
+                                <div key={att.url} className="group relative flex flex-col gap-1">
+                                    <div className="relative aspect-square rounded-md overflow-hidden border bg-muted shrink-0">
+                                        <Image src={att.url} alt="upload" fill className="object-cover" />
+                                        <Button variant="destructive" size="icon" className="absolute top-0.5 right-0.5 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                                            const up = [...getValues('products')];
+                                            up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                            setValue('products', up, { shouldDirty: true });
+                                        }}><Trash2 className="h-2.5 w-2.5" /></Button>
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground truncate w-full text-center px-1" title={att.fileName}>{att.fileName}</p>
                                 </div>
                             ))}
                         </div>
