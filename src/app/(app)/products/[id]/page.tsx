@@ -7,7 +7,7 @@ import { useProducts } from "@/hooks/use-products"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, ListChecks, History } from "lucide-react"
+import { Box, Ruler, Download, File, ArrowLeft, Share2, FileText, Eye, X, Loader2, QrCode, Edit, Trash2, UploadCloud, Plus, ChevronLeft, ChevronRight, CheckCircle2, DollarSign, ListChecks, History, Cpu } from "lucide-react"
 import Image from "next/image"
 import { OrderAttachment } from "@/lib/types"
 import { OrderTable } from "@/components/app/order-table"
@@ -98,6 +98,7 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
 function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void, onDelete: () => void, canDelete: boolean }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isPdf = attachment.fileName.toLowerCase().endsWith('.pdf');
+    const isCNC = attachment.fileName.toLowerCase().endsWith('.tap');
     const { toast } = useToast();
     
     const handleShare = async (e: React.MouseEvent) => {
@@ -113,12 +114,22 @@ function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { att
         <Card className="hover:bg-muted/50 transition-colors group cursor-pointer relative" onClick={() => isImage && onImageClick(attachment)}>
             <CardContent className="p-2 flex items-center gap-3">
                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                    {isImage ? <Image src={attachment.url} alt={attachment.fileName} fill className="object-cover" /> : isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <File className="h-5 w-5" />}
+                    {isImage ? (
+                        <Image src={attachment.url} alt={attachment.fileName} fill className="object-cover" />
+                    ) : isPdf ? (
+                        <FileText className="h-5 w-5 text-red-600" />
+                    ) : isCNC ? (
+                        <Cpu className="h-5 w-5 text-blue-600" />
+                    ) : (
+                        <File className="h-5 w-5" />
+                    )}
                     {isImage && <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Eye className="h-4 w-4 text-white" /></div>}
                 </div>
                 <div className="flex-grow truncate min-w-0">
                     <p className="text-[10px] font-bold truncate leading-tight">{attachment.fileName}</p>
-                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest">{isImage ? 'Image' : 'File'}</p>
+                    <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
+                        {isImage ? 'Image' : isPdf ? 'PDF Drawing' : isCNC ? 'CNC Program' : 'File'}
+                    </p>
                 </div>
                 <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
                     <Button variant="ghost" size="icon" className="h-7 w-7 opacity-60 hover:opacity-100" onClick={handleShare}><Share2 className="h-3.5 w-3.5"/></Button>
@@ -167,8 +178,19 @@ function ProductDetailContent() {
   if (!product) notFound();
 
   const allAttachments = [...(product.attachments || []), ...(product.designAttachments || [])];
-  const allImageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-  const activeImage = allImageAttachments[activeImageIndex] || allImageAttachments[0];
+  
+  // Categorize files
+  const imageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const pdfAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
+  const cncAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
+  const otherAttachments = allAttachments.filter(att => {
+      const isImg = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+      const isP = att.fileName.toLowerCase().endsWith('.pdf');
+      const isC = att.fileName.toLowerCase().endsWith('.tap');
+      return !isImg && !isP && !isC;
+  });
+
+  const activeImage = imageAttachments[activeImageIndex] || imageAttachments[0];
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
   const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
@@ -252,8 +274,8 @@ function ProductDetailContent() {
     }
   };
 
-  const nextImage = () => setActiveImageIndex(prev => (prev + 1) % allImageAttachments.length);
-  const prevImage = () => setActiveImageIndex(prev => (prev - 1 + allImageAttachments.length) % allImageAttachments.length);
+  const nextImage = () => setActiveImageIndex(prev => (prev + 1) % imageAttachments.length);
+  const prevImage = () => setActiveImageIndex(prev => (prev - 1 + imageAttachments.length) % imageAttachments.length);
 
   return (
     <>
@@ -344,7 +366,7 @@ function ProductDetailContent() {
                             </div>
                             
                             <div className="absolute bottom-4 flex gap-1.5">
-                                {allImageAttachments.map((_, i) => (
+                                {imageAttachments.map((_, i) => (
                                     <div key={i} className={cn("h-1.5 w-1.5 rounded-full bg-white transition-all", i === activeImageIndex ? "w-4" : "opacity-40")} />
                                 ))}
                             </div>
@@ -353,9 +375,9 @@ function ProductDetailContent() {
                 ) : <div className="flex flex-col items-center gap-2"><ImageIcon className="h-12 w-12 opacity-20" /><p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No visual reference</p></div>}
               </div>
               
-              {allImageAttachments.length > 1 && (
+              {imageAttachments.length > 1 && (
                   <div className="flex p-2 gap-2 bg-muted/50 overflow-x-auto no-scrollbar">
-                      {allImageAttachments.map((img, i) => (
+                      {imageAttachments.map((img, i) => (
                           <button 
                             key={i} 
                             onClick={() => setActiveImageIndex(i)}
@@ -370,7 +392,7 @@ function ProductDetailContent() {
                   </div>
               )}
             </CardHeader>
-            <CardContent className="p-4 space-y-6">
+            <CardContent className="p-4 space-y-8">
                 <div className="space-y-4">
                     <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                         <ListChecks className="h-4 w-4" /> Bill of Materials
@@ -408,45 +430,79 @@ function ProductDetailContent() {
                     )}
                 </div>
 
-              <div className="space-y-4 pt-6">
+              <div className="space-y-8 pt-6 border-t">
                 <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Catalog Attachments</h3>
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Technical Drawings (PDF)</h3>
                     {canEdit && (
-                        <div className="flex items-center gap-2">
-                            <input type="file" ref={fileInputRef} multiple onChange={handleFileUpload} className="hidden" />
+                        <div>
+                            <input type="file" ref={fileInputRef} accept=".pdf" multiple onChange={handleFileUpload} className="hidden" />
                             <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                                 {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
-                                Add Files
+                                Add Drawing
                             </Button>
                         </div>
                     )}
                 </div>
-                {allAttachments.length > 0 ? (
+                {pdfAttachments.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {allAttachments.map((att, i) => (
+                    {pdfAttachments.map((att, i) => (
                         <AttachmentCard 
                             key={i} 
                             attachment={att} 
-                            onImageClick={att => { const idx = allImageAttachments.findIndex(img => img.url === att.url); if (idx !== -1) { setActiveImageIndex(idx); setGalleryStartIndex(idx); setGalleryOpen(true); } }}
+                            onImageClick={() => {}}
                             onDelete={() => handleDeleteAttachment(att)}
                             canDelete={canEdit}
                         />
                     ))}
-                    {canEdit && !isUploading && (
-                        <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-muted-foreground hover:text-primary group"
-                        >
-                            <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
-                            <span className="text-[11px] font-bold uppercase tracking-widest">Upload More</span>
-                        </button>
-                    )}
                     </div>
                 ) : (
-                    <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed">
-                        <p className="text-sm text-muted-foreground">No attachments for this catalog item.</p>
-                        {canEdit && <Button variant="link" onClick={() => fileInputRef.current?.click()}>Upload first image</Button>}
+                    <div className="text-center py-6 bg-muted/10 rounded-lg border-2 border-dashed">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">No PDF drawings found</p>
                     </div>
+                )}
+
+                <div className="flex justify-between items-center pt-4">
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">CNC Programs (.TAP)</h3>
+                    {canEdit && (
+                        <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+                            <Cpu className="h-3 w-3 mr-2" />
+                            Add Program
+                        </Button>
+                    )}
+                </div>
+                {cncAttachments.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {cncAttachments.map((att, i) => (
+                        <AttachmentCard 
+                            key={i} 
+                            attachment={att} 
+                            onImageClick={() => {}}
+                            onDelete={() => handleDeleteAttachment(att)}
+                            canDelete={canEdit}
+                        />
+                    ))}
+                    </div>
+                ) : (
+                    <div className="text-center py-6 bg-muted/10 rounded-lg border-2 border-dashed">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">No CNC files found</p>
+                    </div>
+                )}
+                
+                {otherAttachments.length > 0 && (
+                    <>
+                        <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground pt-4">Other Files</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {otherAttachments.map((att, i) => (
+                                <AttachmentCard 
+                                    key={i} 
+                                    attachment={att} 
+                                    onImageClick={() => {}}
+                                    onDelete={() => handleDeleteAttachment(att)}
+                                    canDelete={canEdit}
+                                />
+                            ))}
+                        </div>
+                    </>
                 )}
               </div>
             </CardContent>
@@ -458,7 +514,7 @@ function ProductDetailContent() {
         <CardContent><CustomerProvider><OrderTable orders={productOrders} preferenceKey="orderSortPreference" /></CustomerProvider></CardContent>
       </Card>
     </div>
-    <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
+    <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={imageAttachments} startIndex={galleryStartIndex} />
     
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>

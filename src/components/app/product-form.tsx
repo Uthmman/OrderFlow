@@ -35,7 +35,9 @@ import {
     Minus,
     Search,
     History,
-    Package
+    Package,
+    FileText,
+    Cpu
 } from "lucide-react";
 import { useProductSettings } from "@/hooks/use-product-settings";
 import { useColorSettings } from "@/hooks/use-color-settings";
@@ -89,7 +91,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   const { settings: colorSettings } = useColorSettings();
   const { uploadFile } = useOrders();
   const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const cncInputRef = useRef<HTMLInputElement>(null);
   const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
   const [itemSearch, setItemSearch] = useState("");
   const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
@@ -120,11 +124,16 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
     name: "bomItems",
   });
 
-  const watchedAttachments = watch("attachments");
+  const watchedAttachments = watch("attachments") as OrderAttachment[];
   const watchedMaterials = watch("materials");
   const watchedColors = watch("colors");
   const watchedMainImage = watch("mainImageUrl");
   const isAnyUploading = Object.values(localUploads).some(v => v);
+
+  // Categorize attachments
+  const imageAttachments = watchedAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const pdfAttachments = watchedAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
+  const cncAttachments = watchedAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -139,7 +148,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
           currentAttachments.push(attachment);
           setValue("attachments", currentAttachments, { shouldDirty: true });
           
-          if (!getValues("mainImageUrl")) {
+          if (file.type.startsWith('image/') && !getValues("mainImageUrl")) {
               setValue("mainImageUrl", attachment.url);
           }
         } catch (error) {
@@ -156,11 +165,12 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   };
 
   const removeAttachment = (url: string) => {
-    const current = getValues("attachments");
-    const updated = current.filter((a: OrderAttachment) => a.url !== url);
+    const current = getValues("attachments") as OrderAttachment[];
+    const updated = current.filter((a) => a.url !== url);
     setValue("attachments", updated, { shouldDirty: true });
     if (getValues("mainImageUrl") === url) {
-        setValue("mainImageUrl", updated[0]?.url || "");
+        const nextImg = updated.find(a => a.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+        setValue("mainImageUrl", nextImg?.url || "");
     }
   };
 
@@ -175,7 +185,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   const onFormSubmit = async (values: ProductFormValues) => {
     let updatedPriceHistory = initialData?.priceHistory || [];
     
-    // Check if price has changed to record history
     if (initialData && initialData.price !== values.price) {
         updatedPriceHistory = [
             { price: initialData.price, date: new Date().toISOString() },
@@ -500,6 +509,68 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                         </div>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                             <FileText className="h-5 w-5 text-primary" /> Technical Files
+                        </CardTitle>
+                        <CardDescription>Drawings and machine programming files.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <FileText className="h-3.5 w-3.5" /> PDF Drawings
+                                </FormLabel>
+                                <input ref={pdfInputRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleFileUpload} />
+                                <Button type="button" variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => pdfInputRef.current?.click()}>
+                                    <Plus className="h-3 w-3 mr-1" /> Upload PDF
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {pdfAttachments.map((att) => (
+                                    <div key={att.url} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
+                                        <div className="h-8 w-8 bg-background rounded border flex items-center justify-center shrink-0">
+                                            <FileText className="h-4 w-4 text-red-600" />
+                                        </div>
+                                        <span className="text-xs font-medium truncate flex-grow">{att.fileName}</span>
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => removeAttachment(att.url)}>
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {pdfAttachments.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No drawings uploaded.</p>}
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                                    <Cpu className="h-3.5 w-3.5" /> CNC Programming (.TAP)
+                                </FormLabel>
+                                <input ref={cncInputRef} type="file" accept=".tap" multiple className="hidden" onChange={handleFileUpload} />
+                                <Button type="button" variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => cncInputRef.current?.click()}>
+                                    <Plus className="h-3 w-3 mr-1" /> Upload .TAP
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {cncAttachments.map((att) => (
+                                    <div key={att.url} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
+                                        <div className="h-8 w-8 bg-background rounded border flex items-center justify-center shrink-0">
+                                            <Cpu className="h-4 w-4 text-blue-600" />
+                                        </div>
+                                        <span className="text-xs font-medium truncate flex-grow">{att.fileName}</span>
+                                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100" onClick={() => removeAttachment(att.url)}>
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {cncAttachments.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No machine files uploaded.</p>}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="space-y-8">
@@ -516,16 +587,16 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                 "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all bg-slate-50",
                                 isAnyUploading ? "opacity-50" : "hover:border-primary/50"
                             )}
-                            onClick={() => !isAnyUploading && fileInputRef.current?.click()}
+                            onClick={() => !isAnyUploading && imageInputRef.current?.click()}
                         >
                             <UploadCloud className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
                             <p className="text-xs font-bold uppercase tracking-wider">Upload Images</p>
-                            <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
+                            <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
                         </div>
 
-                        {watchedAttachments.length > 0 && (
+                        {imageAttachments.length > 0 && (
                             <div className="grid grid-cols-2 gap-3">
-                                {watchedAttachments.map((att: OrderAttachment) => (
+                                {imageAttachments.map((att) => (
                                     <div key={att.url} className={cn(
                                         "group relative aspect-square rounded-lg overflow-hidden border-2 transition-all",
                                         watchedMainImage === att.url ? "border-primary" : "border-transparent"
