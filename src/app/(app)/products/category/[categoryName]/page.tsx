@@ -12,7 +12,8 @@ import { PlusCircle, ArrowLeft, Search } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import * as LucideIcons from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
+import { useUser } from '@/hooks/use-user';
 
 function CategoryProductCatalog() {
   const params = useParams();
@@ -20,6 +21,7 @@ function CategoryProductCatalog() {
   const categoryName = decodeURIComponent(params.categoryName as string);
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const { role } = useUser();
   
   // 'standard' or 'orders'
   const type = searchParams.get('type') || 'standard';
@@ -54,6 +56,7 @@ function CategoryProductCatalog() {
 
   }, [products, categoryName, productSettings, searchTerm, type]);
 
+  const canViewPrice = role === 'Admin' || role === 'Sales';
   const category = productSettings?.productCategories.find(c => c.name === categoryName);
   const iconName = categoryName === 'Custom' ? 'Wrench' : category?.icon || 'Box';
   const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.Box;
@@ -122,8 +125,13 @@ function CategoryProductCatalog() {
                                 </Link>
                             </div>
                             <Link href={`/products/${product.id}`} className="flex-grow flex flex-col">
-                                <CardContent className="p-4 flex-grow">
-                                    <CardTitle className="text-base font-bold group-hover:underline">{product.productName}</CardTitle>
+                                <CardContent className="p-4 flex-grow space-y-1">
+                                    <div className="flex justify-between items-start gap-2">
+                                        <CardTitle className="text-base font-bold group-hover:underline truncate">{product.productName}</CardTitle>
+                                        {canViewPrice && (
+                                            <span className="text-sm font-bold text-primary shrink-0">{formatCurrency(product.price)}</span>
+                                        )}
+                                    </div>
                                     <CardDescription>{product.category || 'Custom'}</CardDescription>
                                 </CardContent>
                             </Link>

@@ -52,6 +52,7 @@ import { Badge } from "../ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useUser } from "@/hooks/use-user";
 
 const bomItemSchema = z.object({
   itemId: z.string(),
@@ -91,6 +92,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   const { settings: colorSettings } = useColorSettings();
   const { uploadFile } = useOrders();
   const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
+  const { role } = useUser();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const cncInputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +100,8 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
   const [itemSearch, setItemSearch] = useState("");
   const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
   const [showPriceHistory, setShowPriceHistory] = useState(false);
+
+  const canManagePrice = role === 'Admin' || role === 'Sales';
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -300,54 +304,56 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                     </CardContent>
                 </Card>
 
-                <Card className="border-primary/20 bg-primary/5">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                                <DollarSign className="h-5 w-5 text-primary" /> Financials
-                            </CardTitle>
-                            <CardDescription>Base price used for initial order quotes.</CardDescription>
-                        </div>
-                        {initialData?.priceHistory && initialData.priceHistory.length > 0 && (
-                            <Button variant="ghost" size="sm" type="button" onClick={() => setShowPriceHistory(!showPriceHistory)}>
-                                <History className="h-4 w-4 mr-2" /> 
-                                {showPriceHistory ? "Hide History" : "View History"}
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="price"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Base Unit Price</FormLabel>
-                                    <FormControl>
-                                        <div className="relative max-w-[200px]">
-                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                            <Input type="number" className="pl-9 text-lg font-bold" {...field} />
-                                        </div>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        {showPriceHistory && initialData?.priceHistory && (
-                            <div className="mt-4 p-4 bg-background border rounded-lg animate-in fade-in slide-in-from-top-2">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Price History</p>
-                                <div className="space-y-2">
-                                    {initialData.priceHistory.map((entry, i) => (
-                                        <div key={i} className="flex justify-between items-center text-xs">
-                                            <span className="text-muted-foreground">{formatTimestamp(entry.date)}</span>
-                                            <span className="font-bold">{formatCurrency(entry.price)}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                {canManagePrice && (
+                    <Card className="border-primary/20 bg-primary/5">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <DollarSign className="h-5 w-5 text-primary" /> Financials
+                                </CardTitle>
+                                <CardDescription>Base price used for initial order quotes.</CardDescription>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                            {initialData?.priceHistory && initialData.priceHistory.length > 0 && (
+                                <Button variant="ghost" size="sm" type="button" onClick={() => setShowPriceHistory(!showPriceHistory)}>
+                                    <History className="h-4 w-4 mr-2" /> 
+                                    {showPriceHistory ? "Hide History" : "View History"}
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <FormField
+                                control={form.control}
+                                name="price"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Base Unit Price</FormLabel>
+                                        <FormControl>
+                                            <div className="relative max-w-[200px]">
+                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                                <Input type="number" className="pl-9 text-lg font-bold" {...field} />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            {showPriceHistory && initialData?.priceHistory && (
+                                <div className="mt-4 p-4 bg-background border rounded-lg animate-in fade-in slide-in-from-top-2">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Price History</p>
+                                    <div className="space-y-2">
+                                        {initialData.priceHistory.map((entry, i) => (
+                                            <div key={i} className="flex justify-between items-center text-xs">
+                                                <span className="text-muted-foreground">{formatTimestamp(entry.date)}</span>
+                                                <span className="font-bold">{formatCurrency(entry.price)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">

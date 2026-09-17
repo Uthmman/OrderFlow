@@ -194,6 +194,7 @@ function ProductDetailContent() {
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
   const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
+  const canViewPrice = role === 'Admin' || role === 'Sales';
 
   // Set initial gallery index to match the main image if it exists
   useEffect(() => {
@@ -306,32 +307,34 @@ function ProductDetailContent() {
         <div className="md:col-span-1 space-y-8">
             <Card><CardHeader><CardTitle className="font-headline">{product.productName}</CardTitle><CardDescription>{product.category}</CardDescription></CardHeader><CardContent><p className="text-muted-foreground text-sm">{product.description}</p></CardContent></Card>
             
-            <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="flex flex-row items-center justify-between py-4">
-                    <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-primary" /> Base Price
-                    </CardTitle>
-                    {product.priceHistory && product.priceHistory.length > 0 && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowHistory(!showHistory)}>
-                            <History className="h-4 w-4 opacity-50" />
-                        </Button>
-                    )}
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="text-2xl font-bold text-primary">{formatCurrency(product.price)}</div>
-                    {showHistory && product.priceHistory && (
-                        <div className="space-y-2 pt-2 border-t animate-in fade-in">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Price History</p>
-                            {product.priceHistory.map((h, i) => (
-                                <div key={i} className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">{formatTimestamp(h.date)}</span>
-                                    <span className="font-medium">{formatCurrency(h.price)}</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            {canViewPrice && (
+                <Card className="border-primary/20 bg-primary/5">
+                    <CardHeader className="flex flex-row items-center justify-between py-4">
+                        <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-primary" /> Base Price
+                        </CardTitle>
+                        {product.priceHistory && product.priceHistory.length > 0 && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowHistory(!showHistory)}>
+                                <History className="h-4 w-4 opacity-50" />
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="text-2xl font-bold text-primary">{formatCurrency(product.price)}</div>
+                        {showHistory && product.priceHistory && (
+                            <div className="space-y-2 pt-2 border-t animate-in fade-in">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Price History</p>
+                                {product.priceHistory.map((h, i) => (
+                                    <div key={i} className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">{formatTimestamp(h.date)}</span>
+                                        <span className="font-medium">{formatCurrency(h.price)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             <Card><CardHeader><CardTitle className="text-sm font-bold uppercase tracking-wider">Specifications</CardTitle></CardHeader><CardContent className="space-y-4">
                     {product.material && product.material.length > 0 && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground" /><span className="text-sm font-medium">Materials:</span><div className="flex flex-wrap gap-1">{product.material.map(m => <Badge key={m} variant="secondary" className="text-[10px]">{m}</Badge>)}</div></div>}
