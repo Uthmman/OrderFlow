@@ -20,6 +20,7 @@ import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 import { Loader2 } from "lucide-react";
+import { requestNotificationPermission } from "@/lib/notifications";
 
 const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
 const PRIMARY_ADMIN_EMAIL = 'zenbabfurniture@gmail.com';
@@ -33,13 +34,18 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const isPrimaryAdmin = authUser?.email === PRIMARY_ADMIN_EMAIL;
 
   useEffect(() => {
-    // Session hardening: Only redirect if loading is completely finished and no user exists.
     if (!isUserLoading && !loading && !authUser && !user) {
       router.replace("/");
     }
   }, [user, authUser, loading, isUserLoading, router]);
 
-  // Loading state remains active until auth check is truly conclusive
+  // Request notification permissions once the user is logged in
+  useEffect(() => {
+    if (user) {
+      requestNotificationPermission();
+    }
+  }, [user]);
+
   if (isUserLoading || (authUser && loading)) {
     return (
         <div className="flex flex-col items-center justify-center h-screen gap-4">
@@ -70,7 +76,6 @@ function AuthGuard({ children }: { children: ReactNode }) {
     }
   }
 
-  // Final fallback
   return null;
 }
 
