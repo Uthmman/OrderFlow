@@ -9,7 +9,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
-import { compressImage, formatOrderUniqueName } from '@/lib/utils';
+import { compressImage, formatOrderUniqueName, formatOrderId } from '@/lib/utils';
 import { useUser } from './use-user';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { triggerNotification } from '@/lib/notifications';
@@ -183,10 +183,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const newId = newOrderRef.id;
+        const newOrderName = formatOrderUniqueName(orderData.customerName, products, newId);
         const newOrder: Order = {
             ...orderData,
             id: newId,
-            uniqueName: formatOrderUniqueName(orderData.customerName, products, newId),
+            uniqueName: newOrderName,
             mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
             status: orderData.status || 'Pending',
             ownerId: user.id,
@@ -198,13 +199,20 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         delete (newOrder as any).receiptFile;
         setDocumentNonBlocking(newOrderRef, removeUndefined(newOrder), {});
         if (orderData.customerId) addOrderToCustomer(orderData.customerId, newId);
+        
+        toast({
+            title: orderData.status === 'Pending' ? "Draft Created" : "Order Finalized",
+            description: `Order ${newOrderName} has been successfully saved.`,
+        });
+        
         return newId;
     }
 
     const orderRef = doc(firestore, 'orders', existingOrderId);
+    const updatedName = formatOrderUniqueName(orderData.customerName, products, existingOrderId);
     const finalData: any = {
         ...orderData,
-        uniqueName: formatOrderUniqueName(orderData.customerName, products, existingOrderId),
+        uniqueName: updatedName,
         mainImageUrl: products.length === 1 ? getInitialMainImage(products[0]) : undefined,
         status: finalStatus,
         receiptAttachment: receiptAttachment || (orderData as any).receiptAttachment,
@@ -214,6 +222,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     delete finalData.file;
     delete finalData.receiptFile;
     await updateDoc(orderRef, removeUndefined(finalData));
+
+    toast({
+        title: "Order Updated",
+        description: `Changes to ${updatedName} have been saved.`,
+    });
+
     return existingOrderId;
   };
 
@@ -231,9 +245,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     const finalProducts = orderData.products || originalOrder?.products || [];
+    const updatedName = formatOrderUniqueName(orderData.customerName || originalOrder?.customerName, finalProducts, orderData.id);
     const dataToUpdate: any = { 
         ...orderData, 
-        uniqueName: formatOrderUniqueName(orderData.customerName || originalOrder?.customerName, finalProducts, orderData.id),
+        uniqueName: updatedName,
         mainImageUrl: finalProducts.length === 1 ? getInitialMainImage(finalProducts[0]) : (orderData.mainImageUrl || originalOrder?.mainImageUrl)
     };
     delete dataToUpdate.id; 
@@ -260,7 +275,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (recipients.size > 0) {
                 triggerNotification(firestore, Array.from(recipients), {
                     type: 'New Message',
-                    message: `${user.name} sent a message in ${originalOrder.uniqueName || 'an order'}: "${chatMessage.text.substring(0, 50)}${chatMessage.text.length > 50 ? '...' : ''}"`,
+                    message: `${user.name} sent a message in ${updatedName || originalOrder.uniqueName || 'an order'}: "${chatMessage.text.substring(0, 50)}${chatMessage.text.length > 50 ? '...' : ''}"`,
                     orderId: originalOrder.id
                 });
             }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import {
@@ -10,12 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Bell, MailCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useOrders } from "@/hooks/use-orders";
 import { formatTimestamp } from "@/lib/utils";
 import Link from "next/link";
 import { ScrollArea } from "../ui/scroll-area";
 
 export function Notifications() {
   const { notifications, unreadCount, loading, markAllAsRead } = useNotifications();
+  const { orders } = useOrders();
 
   return (
     <Popover>
@@ -49,18 +50,30 @@ export function Notifications() {
                     </div>
                 )}
               <div className="flex flex-col gap-1">
-                {notifications.map((notification) => (
-                  <Link key={notification.id} href={notification.orderId ? `/orders/${notification.orderId}` : '#'}>
-                    <div className={`flex items-start gap-3 rounded-lg p-3 hover:bg-muted ${!notification.isRead && 'bg-blue-50/50'}`}>
-                      <div className="flex-1">
-                        <p className={`text-sm font-medium ${!notification.isRead && 'font-bold'}`}>{notification.type}</p>
-                        <p className="text-xs text-muted-foreground">{notification.message}</p>
-                         <time className="text-xs text-muted-foreground pt-1">{formatTimestamp(notification.timestamp)}</time>
+                {notifications.map((notification) => {
+                  const order = notification.orderId ? orders.find(o => o.id === notification.orderId) : null;
+                  const orderDisplayName = order?.uniqueName || notification.orderId;
+                  
+                  return (
+                    <Link key={notification.id} href={notification.orderId ? `/orders/${notification.orderId}` : '#'}>
+                      <div className={`flex items-start gap-3 rounded-lg p-3 hover:bg-muted ${!notification.isRead && 'bg-blue-50/50'}`}>
+                        <div className="flex-1">
+                          <p className={`text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1`}>{notification.type}</p>
+                          <p className={`text-sm ${!notification.isRead ? 'font-bold text-foreground' : 'text-muted-foreground'}`}>
+                            {notification.message}
+                          </p>
+                          {orderDisplayName && (
+                             <p className="text-[10px] font-bold text-primary mt-1 uppercase">
+                                {orderDisplayName}
+                             </p>
+                          )}
+                           <time className="text-[10px] text-muted-foreground pt-1 block">{formatTimestamp(notification.timestamp)}</time>
+                        </div>
+                        {!notification.isRead && <div className="h-2 w-2 rounded-full bg-primary mt-1" />}
                       </div>
-                      {!notification.isRead && <div className="h-2 w-2 rounded-full bg-primary mt-1" />}
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             </CardContent>
           </ScrollArea>
