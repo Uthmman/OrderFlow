@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -13,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { compressImage, formatOrderUniqueName } from '@/lib/utils';
 import { useUser } from './use-user';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { triggerNotification } from '@/lib/notifications';
 
 interface OrderContextType {
   orders: Order[];
@@ -139,7 +139,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         receiptAttachment = await uploadFile((orderData as any).file);
     }
 
-    // Split logic: If multiple DIFFERENT product definitions exist, split them.
     if (products.length > 1 && finalStatus !== 'Pending') {
         const batch = writeBatch(firestore);
         const batchReceiptId = uuidv4();
@@ -253,6 +252,19 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         const msg: OrderChatMessage = { id: uuidv4(), user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl }, text: chatMessage.text, timestamp };
         if (chatMessage.file) msg.attachment = await uploadFile(chatMessage.file);
         newMessages.push(msg);
+
+        // Trigger notifications for new chat messages
+        if (originalOrder) {
+            const recipients = new Set([originalOrder.ownerId, ...(originalOrder.assignedTo || [])]);
+            recipients.delete(user.id); // Don't notify the sender
+            if (recipients.size > 0) {
+                triggerNotification(firestore, Array.from(recipients), {
+                    type: 'New Message',
+                    message: `${user.name} sent a message in ${originalOrder.uniqueName || 'an order'}: "${chatMessage.text.substring(0, 50)}${chatMessage.text.length > 50 ? '...' : ''}"`,
+                    orderId: originalOrder.id
+                });
+            }
+        }
     }
 
     const batch = writeBatch(firestore);
