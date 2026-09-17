@@ -10,11 +10,15 @@ type NotificationData = {
     orderId?: string;
 }
 
-// Function to play a notification sound
+// Function to play a notification sound (Standard short pop/ping)
 const playNotificationSound = () => {
     if (typeof window !== 'undefined') {
-        const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'//'//");
-        audio.play().catch(e => console.error("Error playing sound:", e));
+        const audio = new Audio("https://ensratech.com/api/notification.mp3");
+        audio.volume = 0.5;
+        audio.play().catch(e => {
+            // Browsers often block autoplaying audio until the user interacts with the page
+            console.warn("Notification sound blocked by browser policy until interaction.");
+        });
     }
 };
 
@@ -37,7 +41,8 @@ const showNativeNotification = (data: NotificationData) => {
         notification.onclick = () => {
             window.focus();
             if (data.orderId) {
-                window.location.href = `/orders/${data.orderId}`;
+                // Navigate via router if possible, but standard location change is safer for deep links
+                window.location.href = `/orders/${data.orderId}?tab=chat`;
             }
             notification.close();
         };
@@ -50,7 +55,6 @@ export function triggerNotification(
     data: NotificationData
 ): void {
      if (!userIds || userIds.length === 0) {
-        console.error("Cannot create notification without userIds.");
         return;
     }
 
@@ -66,20 +70,18 @@ export function triggerNotification(
             isRead: false,
         };
         
+        // This requires the 'create' permission in firestore.rules
         addDocumentNonBlocking(notificationsRef, newNotification);
     });
 
     // Show a native browser notification (useful if the tab is backgrounded)
     showNativeNotification(data);
 
-    // Show a single toast notification for the person currently using the app
-    toast({
-        title: data.type,
-        description: data.message,
-    });
-    
-    // Play sound
+    // Play sound to grab user attention
     playNotificationSound();
+
+    // The Toast for the active user is handled automatically by use-notifications.tsx 
+    // or by individual component logic to avoid duplicate UI popups for the sender.
 }
 
 /**
@@ -89,8 +91,13 @@ export async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
     
     if (Notification.permission === 'default') {
-        const permission = await Notification.requestPermission();
-        return permission === 'granted';
+        try {
+            const permission = await Notification.requestPermission();
+            return permission === 'granted';
+        } catch (err) {
+            console.error("Error requesting notification permission:", err);
+            return false;
+        }
     }
     
     return Notification.permission === 'granted';

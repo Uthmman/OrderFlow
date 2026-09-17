@@ -48,7 +48,10 @@ service cloud.firestore {
       
       // Notifications subcollection
       match /notifications/{notificationId} {
-        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+        // Users can read/delete/update their own notifications
+        allow read, update, delete: if isAuthenticated() && request.auth.uid == userId;
+        // Team members can create notifications for each other
+        allow create: if isAuthenticated();
       }
     }
 
