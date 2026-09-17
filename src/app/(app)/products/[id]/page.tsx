@@ -195,6 +195,16 @@ function ProductDetailContent() {
 
   const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
 
+  // Set initial gallery index to match the main image if it exists
+  useEffect(() => {
+    if (product.mainImageUrl && imageAttachments.length > 0) {
+      const mainIdx = imageAttachments.findIndex(att => att.url === product.mainImageUrl);
+      if (mainIdx !== -1) {
+          setActiveImageIndex(mainIdx);
+      }
+    }
+  }, [product.mainImageUrl, imageAttachments.length]);
+
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();

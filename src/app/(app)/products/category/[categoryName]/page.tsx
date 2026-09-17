@@ -98,7 +98,7 @@ function CategoryProductCatalog() {
           ) : (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredProducts.map(product => {
-                    const primaryAttachment = product.attachments?.[0] || product.designAttachments?.[0];
+                    const primaryImageUrl = product.mainImageUrl || product.attachments?.[0]?.url || product.designAttachments?.[0]?.url;
                     const categoryIcon = productSettings?.productCategories.find(c => c.name === product.category)?.icon || 'Box';
                     const CategoryIcon = (LucideIcons as any)[categoryIcon] || LucideIcons.Box;
                     return (
@@ -112,8 +112,8 @@ function CategoryProductCatalog() {
                                 <Link href={`/products/${product.id}`} className="block group-hover:opacity-80 transition-opacity">
                                     <CardHeader className="p-0">
                                         <div className="aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
-                                            {primaryAttachment?.url ? (
-                                                <Image src={primaryAttachment.url} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                                            {primaryImageUrl ? (
+                                                <Image src={primaryImageUrl} alt={product.productName} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                                             ) : (
                                                 <CategoryIcon className="h-16 w-16 text-muted-foreground" />
                                             )}

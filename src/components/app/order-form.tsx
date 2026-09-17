@@ -495,19 +495,22 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </div>
                     <ScrollArea className="h-[300px]">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())).map(p => (
-                                <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-lg text-left hover:bg-accent" onClick={() => { 
-                                    const up = [...getValues('products')];
-                                    up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };
-                                    setValue('products', up, { shouldDirty: true });
-                                    setCurrentStep(8);
-                                }}>
-                                    <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden border">
-                                        {p.attachments?.[0]?.url ? <Image src={p.attachments[0].url} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
-                                    </div>
-                                    <span className="text-sm font-bold truncate">{p.productName}</span>
-                                </button>
-                            ))}
+                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())).map(p => {
+                                const catalogThumb = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
+                                return (
+                                    <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-lg text-left hover:bg-accent" onClick={() => { 
+                                        const up = [...getValues('products')];
+                                        up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };
+                                        setValue('products', up, { shouldDirty: true });
+                                        setCurrentStep(8);
+                                    }}>
+                                        <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden border">
+                                            {catalogThumb ? <Image src={catalogThumb} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
+                                        </div>
+                                        <span className="text-sm font-bold truncate">{p.productName}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </ScrollArea>
                     <Separator />
