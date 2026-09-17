@@ -19,7 +19,7 @@ import Image from "next/image"
 import { Order, OrderChatMessage, OrderAttachment } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 import { useUser } from "@/hooks/use-user"
-import { compressImage, downloadFile } from "@/lib/utils"
+import { compressImage, downloadFile, cn } from "@/lib/utils"
 import { Dialog, DialogContent } from "../ui/dialog"
 import { v4 as uuidv4 } from "uuid"
 import {
@@ -107,15 +107,15 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
 const UserAvatar = ({ message }: { message: OrderChatMessage }) => {
     if (message.isSystemMessage) {
         return (
-            <Avatar>
-                <AvatarFallback>
-                    <Info className="h-5 w-5" />
+            <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-muted">
+                    <Info className="h-4 w-4" />
                 </AvatarFallback>
             </Avatar>
         );
     }
     return (
-        <Avatar>
+        <Avatar className="h-8 w-8">
             <AvatarImage src={message.user.avatarUrl} />
             <AvatarFallback>
                 {message.user.name?.split(" ").map((n) => n[0])}
@@ -162,14 +162,14 @@ const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onI
         <UserAvatar message={message} />
         <div className="flex-1">
             <div className="flex items-center gap-2">
-            <p className="font-semibold">{message.user.name}</p>
-            <time className="text-xs text-muted-foreground flex items-center gap-1">
-                {new Date(message.timestamp).toLocaleTimeString()}
-                {(message as any).sending && <Clock className="h-3 w-3 animate-pulse" />}
+            <p className="font-bold text-xs">{message.user.name}</p>
+            <time className="text-[10px] text-muted-foreground flex items-center gap-1">
+                {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {(message as any).sending && <Clock className="h-2 w-2 animate-pulse" />}
             </time>
             </div>
-            <div className={ (message as any).sending ? "opacity-70" : "" }>
-                {message.text && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{message.text}</p>}
+            <div className={cn("mt-0.5", (message as any).sending ? "opacity-70" : "" )}>
+                {message.text && <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{message.text}</p>}
                 {message.attachment && <ChatAttachment attachment={message.attachment} onImageClick={onImageClick}/>}
             </div>
         </div>
@@ -177,10 +177,10 @@ const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onI
 );
 
 const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
-    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-4 bg-muted/30 py-2 rounded-full px-4">
+    <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground my-6 bg-muted/20 py-1.5 rounded-full px-4 mx-auto w-fit border border-dashed">
         <Info className="h-3 w-3" />
-        <span className="italic">{message.text}</span>
-        <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
+        <span className="italic font-medium uppercase tracking-tight">{message.text}</span>
+        <time className="opacity-60">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
     </div>
 );
 
@@ -293,7 +293,6 @@ export function ChatInterface({ order }: { order: Order }) {
     const currentAudioBlob = audioBlob;
     const currentFile = fileToUpload;
 
-    // Snappy UI: Reset immediately
     setInputValue("");
     setAudioBlob(null);
     setFileToUpload(null);
@@ -325,7 +324,6 @@ export function ChatInterface({ order }: { order: Order }) {
                 title: "Failed to send message",
                 description: "There was a problem delivering your message. Please try again."
             });
-            // Restore text for the user
             setInputValue(textToSend);
         }
     });
@@ -333,18 +331,13 @@ export function ChatInterface({ order }: { order: Order }) {
 
   return (
     <>
-    <Card className="flex flex-col h-[500px] border-none shadow-none bg-transparent lg:bg-card lg:border lg:shadow-sm">
-      <CardHeader className="py-3 hidden lg:block">
-        <CardTitle className="font-headline text-lg">Team Chat</CardTitle>
-        <CardDescription className="text-xs">Collaborate with the workshop and designers.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-4 p-4 lg:border-t lg:border-b scroll-smooth bg-muted/10">
+    <div className="flex flex-col h-[calc(100vh-280px)] lg:h-[650px] border-none md:border md:rounded-xl md:shadow-sm bg-transparent lg:bg-card overflow-hidden relative">
+      <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-6 scroll-smooth bg-muted/5 pb-32 lg:pb-6">
          {optimisticMessages.length === 0 ? (
              <div className="h-full flex items-center justify-center text-center p-8">
-                 <div className="space-y-2 opacity-40">
-                     <Send className="h-10 w-10 mx-auto" />
-                     <p className="text-sm font-medium">Start the conversation</p>
-                     <p className="text-[10px]">Your team will see updates here.</p>
+                 <div className="space-y-3 opacity-30 grayscale">
+                     <Send className="h-12 w-12 mx-auto" />
+                     <p className="text-sm font-bold uppercase tracking-widest">Start the conversation</p>
                  </div>
              </div>
          ) : optimisticMessages.map((message, index) => (
@@ -352,47 +345,71 @@ export function ChatInterface({ order }: { order: Order }) {
                 {message.isSystemMessage ? <SystemMessage message={message} /> : <UserMessage message={message} onImageClick={handleImageClick} />}
             </div>
         ))}
-      </CardContent>
-      <CardFooter className="p-4 flex flex-col items-start gap-2 bg-background border-t">
+      </div>
+      
+      {/* Messaging Input Area - Fixed at bottom on mobile */}
+      <div className="fixed lg:static bottom-[88px] lg:bottom-0 left-0 right-0 p-4 lg:p-4 bg-background/80 lg:bg-background backdrop-blur-xl lg:backdrop-blur-none border-t border-border/50 lg:border-t z-30">
          {fileToUpload && fileUrl && (
-            <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2 bg-muted/30">
+            <div className="w-full mb-3 p-2 border rounded-xl flex items-center justify-between gap-2 bg-muted/40 animate-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-2 truncate">
                     {fileToUpload.type.startsWith('image/') ? (
-                        <Image src={fileUrl} alt={fileToUpload.name} width={40} height={40} className="h-10 w-10 rounded-sm object-cover" />
+                        <div className="relative h-10 w-10 rounded-lg overflow-hidden border">
+                            <Image src={fileUrl} alt={fileToUpload.name} fill className="object-cover" />
+                        </div>
                     ) : <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />}
-                    <span className="text-sm truncate">{fileToUpload.name}</span>
+                    <span className="text-xs font-bold truncate">{fileToUpload.name}</span>
                 </div>
-               <Button variant="ghost" size="icon" onClick={() => { setFileToUpload(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setFileToUpload(null); if(fileInputRef.current) fileInputRef.current.value = ""; }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
             </div>
         )}
-        <form onSubmit={handleSendMessage} className="relative w-full">
+        <form onSubmit={handleSendMessage} className="relative w-full flex items-center gap-2">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
-          <Input 
-            placeholder={isRecording ? "Recording audio..." : "Type your message..."}
-            className="pr-28 h-12 shadow-sm rounded-xl"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={isPending || isRecording}
-          />
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
-            <Button variant="ghost" size="icon" type="button" onClick={() => fileInputRef.current?.click()} disabled={isPending || isRecording}><Paperclip className="h-4 w-4" /></Button>
-             <Button variant={isRecording ? "destructive" : "ghost"} size="icon" type="button" onClick={isRecording ? stopRecording : startRecording} disabled={isPending || !!fileToUpload}>
-              {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" type="submit" disabled={isPending || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Send className="h-4 w-4 text-primary" />}
-            </Button>
+          
+          <div className="relative flex-grow">
+            <Input 
+                placeholder={isRecording ? "Recording audio..." : "Type your message..."}
+                className={cn(
+                    "h-12 shadow-sm rounded-2xl bg-muted/30 border-none pr-20",
+                    isRecording && "animate-pulse ring-2 ring-destructive/20"
+                )}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isPending || isRecording}
+            />
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
+                <Button variant="ghost" size="icon" type="button" className="h-10 w-10 text-muted-foreground" onClick={() => fileInputRef.current?.click()} disabled={isPending || isRecording}><Paperclip className="h-5 w-5" /></Button>
+                <Button 
+                    variant={isRecording ? "destructive" : "ghost"} 
+                    size="icon" 
+                    type="button" 
+                    className={cn("h-10 w-10", isRecording ? "rounded-full" : "text-muted-foreground")}
+                    onClick={isRecording ? stopRecording : startRecording} 
+                    disabled={isPending || !!fileToUpload}
+                >
+                    {isRecording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+                </Button>
+            </div>
           </div>
+
+          <Button 
+            variant="default" 
+            size="icon" 
+            type="submit" 
+            className="h-12 w-12 rounded-2xl shadow-md shrink-0" 
+            disabled={isPending || (!inputValue.trim() && !audioBlob && !fileToUpload)}
+          >
+            {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+          </Button>
         </form>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
       
-      <ImageGallery 
+    <ImageGallery 
         open={galleryOpen} 
         onOpenChange={setGalleryOpen} 
         images={imageMessages} 
         startIndex={galleryStartIndex} 
-      />
+    />
     </>
   )
 }
