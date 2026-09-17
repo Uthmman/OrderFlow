@@ -158,7 +158,7 @@ const ChatAttachment = ({ attachment, onImageClick }: { attachment: OrderAttachm
 }
 
 const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onImageClick: (attachment: OrderAttachment) => void }) => (
-    <div className="flex items-start gap-3 relative group">
+    <div className="flex items-start gap-3 relative group animate-in fade-in slide-in-from-bottom-1">
         <UserAvatar message={message} />
         <div className="flex-1">
             <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ const UserMessage = ({ message, onImageClick }: { message: OrderChatMessage, onI
 );
 
 const SystemMessage = ({ message }: { message: OrderChatMessage }) => (
-    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-2">
+    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground my-4 bg-muted/30 py-2 rounded-full px-4">
         <Info className="h-3 w-3" />
         <span className="italic">{message.text}</span>
         <time>({new Date(message.timestamp).toLocaleTimeString()})</time>
@@ -221,7 +221,6 @@ export function ChatInterface({ order }: { order: Order }) {
     }
   }
 
-
   const requestMicPermission = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -262,7 +261,6 @@ export function ChatInterface({ order }: { order: Order }) {
     setAudioBlob(null);
   };
 
-
   const stopRecording = () => {
       if (mediaRecorderRef.current && isRecording) {
           mediaRecorderRef.current.stop();
@@ -291,10 +289,11 @@ export function ChatInterface({ order }: { order: Order }) {
     e.preventDefault();
     if ((!inputValue.trim() && !audioBlob && !fileToUpload) || !user) return;
 
-    const textToSend = inputValue;
+    const textToSend = inputValue.trim();
     const currentAudioBlob = audioBlob;
     const currentFile = fileToUpload;
 
+    // Snappy UI: Reset immediately
     setInputValue("");
     setAudioBlob(null);
     setFileToUpload(null);
@@ -311,14 +310,22 @@ export function ChatInterface({ order }: { order: Order }) {
         } as any);
 
         try {
-            let newFile: File | undefined = undefined;
+            let fileToPass: File | undefined = undefined;
             if (currentAudioBlob) {
-                newFile = new File([currentAudioBlob], `chat-audio-${Date.now()}.webm`, { type: 'audio/webm' });
+                fileToPass = new File([currentAudioBlob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' });
             } else if (currentFile) {
-                newFile = currentFile;
+                fileToPass = currentFile;
             }
-            await updateOrder({ id: order.id }, { text: textToSend, file: newFile });
+            
+            await updateOrder({ id: order.id }, { text: textToSend, file: fileToPass });
         } catch (error) {
+            console.error("Message send error:", error);
+            toast({
+                variant: "destructive",
+                title: "Failed to send message",
+                description: "There was a problem delivering your message. Please try again."
+            });
+            // Restore text for the user
             setInputValue(textToSend);
         }
     });
@@ -326,19 +333,27 @@ export function ChatInterface({ order }: { order: Order }) {
 
   return (
     <>
-    <Card className="flex flex-col h-[500px]">
-      <CardHeader className="py-3">
+    <Card className="flex flex-col h-[500px] border-none shadow-none bg-transparent lg:bg-card lg:border lg:shadow-sm">
+      <CardHeader className="py-3 hidden lg:block">
         <CardTitle className="font-headline text-lg">Team Chat</CardTitle>
-        <CardDescription className="text-xs">Collaborate on this order.</CardDescription>
+        <CardDescription className="text-xs">Collaborate with the workshop and designers.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto space-y-4 p-4 border-t border-b scroll-smooth">
-         {optimisticMessages.map((message, index) => (
+      <CardContent className="flex-1 overflow-y-auto space-y-4 p-4 lg:border-t lg:border-b scroll-smooth bg-muted/10">
+         {optimisticMessages.length === 0 ? (
+             <div className="h-full flex items-center justify-center text-center p-8">
+                 <div className="space-y-2 opacity-40">
+                     <Send className="h-10 w-10 mx-auto" />
+                     <p className="text-sm font-medium">Start the conversation</p>
+                     <p className="text-[10px]">Your team will see updates here.</p>
+                 </div>
+             </div>
+         ) : optimisticMessages.map((message, index) => (
             <div key={`${message.id}-${message.timestamp}-${index}`}>
                 {message.isSystemMessage ? <SystemMessage message={message} /> : <UserMessage message={message} onImageClick={handleImageClick} />}
             </div>
         ))}
       </CardContent>
-      <CardFooter className="p-4 flex flex-col items-start gap-2">
+      <CardFooter className="p-4 flex flex-col items-start gap-2 bg-background border-t">
          {fileToUpload && fileUrl && (
             <div className="w-full p-2 border rounded-md flex items-center justify-between gap-2 bg-muted/30">
                 <div className="flex items-center gap-2 truncate">
@@ -353,8 +368,8 @@ export function ChatInterface({ order }: { order: Order }) {
         <form onSubmit={handleSendMessage} className="relative w-full">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
           <Input 
-            placeholder={isRecording ? "Recording..." : "Message or attach..."}
-            className="pr-28 h-11"
+            placeholder={isRecording ? "Recording audio..." : "Type your message..."}
+            className="pr-28 h-12 shadow-sm rounded-xl"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isPending || isRecording}
@@ -365,7 +380,7 @@ export function ChatInterface({ order }: { order: Order }) {
               {isRecording ? <Square className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
             <Button variant="ghost" size="icon" type="submit" disabled={isPending || (!inputValue.trim() && !audioBlob && !fileToUpload)}>
-              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : <Send className="h-4 w-4 text-primary" />}
             </Button>
           </div>
         </form>

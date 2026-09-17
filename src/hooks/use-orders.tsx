@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -18,7 +19,7 @@ interface OrderContextType {
   orders: Order[];
   loading: boolean;
   addOrder: (order: Omit<Order, 'id'>, isNew: boolean) => Promise<string | undefined>;
-  updateOrder: (order: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => Promise<void>;
+  updateOrder: (order: Partial<Order> & { id: string }, chatMessage?: { text?: string; file?: File; }) => Promise<void>;
   updateMultipleOrdersStatus: (orders: Order[], newStatus: OrderStatus) => Promise<void>;
   deleteOrder: (orderId: string, attachments?: OrderAttachment[]) => Promise<void>;
   deleteMultipleOrders: (ordersToDelete: Order[]) => Promise<void>;
@@ -231,11 +232,12 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     return existingOrderId;
   };
 
-  const updateOrder = async (orderData: Partial<Order> & { id: string }, chatMessage?: { text: string; file?: File; }) => {
+  const updateOrder = async (orderData: Partial<Order> & { id: string }, chatMessage?: { text?: string; file?: File; }) => {
     if (!user) return;
     const orderRef = doc(firestore, 'orders', orderData.id);
     const originalOrder = orders?.find(o => o.id === orderData.id);
 
+    // 1. Handle Status Change Splits (Draft -> Active)
     if (orderData.status && orderData.status !== 'Pending' && originalOrder?.status === 'Pending') {
         const mergedProducts = orderData.products || originalOrder?.products || [];
         if (mergedProducts.length > 1) {
@@ -244,48 +246,81 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    const finalProducts = orderData.products || originalOrder?.products || [];
-    const updatedName = formatOrderUniqueName(orderData.customerName || originalOrder?.customerName, finalProducts, orderData.id);
-    const dataToUpdate: any = { 
-        ...orderData, 
-        uniqueName: updatedName,
-        mainImageUrl: finalProducts.length === 1 ? getInitialMainImage(finalProducts[0]) : (orderData.mainImageUrl || originalOrder?.mainImageUrl)
-    };
+    const batch = writeBatch(firestore);
+    
+    // 2. Prepare Data Update (Properties)
+    const dataToUpdate: any = { ...orderData };
     delete dataToUpdate.id; 
     delete dataToUpdate.chatMessages;
+
+    // Only recalculate name and image if customer or products changed explicitly in this call
+    if (orderData.customerName || orderData.products) {
+        const finalProducts = orderData.products || originalOrder?.products || [];
+        dataToUpdate.uniqueName = formatOrderUniqueName(orderData.customerName || originalOrder?.customerName, finalProducts, orderData.id);
+        if (finalProducts.length === 1) {
+            dataToUpdate.mainImageUrl = getInitialMainImage(finalProducts[0]);
+        }
+    }
+
     if (dataToUpdate.creationDate instanceof Date) dataToUpdate.creationDate = Timestamp.fromDate(dataToUpdate.creationDate);
     if (dataToUpdate.deadline instanceof Date) dataToUpdate.deadline = Timestamp.fromDate(dataToUpdate.deadline);
 
+    const cleanData = removeUndefined(dataToUpdate);
+    if (Object.keys(cleanData).length > 0) {
+        batch.update(orderRef, cleanData);
+    }
+
+    // 3. Prepare Chat Message
     const timestamp = new Date().toISOString();
     const newMessages: OrderChatMessage[] = [];
-    if (originalOrder) {
-        if (orderData.status && originalOrder.status !== orderData.status) {
-            newMessages.push({ id: uuidv4(), user: { id: 'system', name: 'System', avatarUrl: '' }, text: `Status: '${orderData.status}' by ${user.name}.`, timestamp, isSystemMessage: true });
-        }
+    
+    // Add System Message for status changes
+    if (originalOrder && orderData.status && originalOrder.status !== orderData.status) {
+        newMessages.push({ 
+            id: uuidv4(), 
+            user: { id: 'system', name: 'System', avatarUrl: '' }, 
+            text: `Status updated to '${orderData.status}' by ${user.name}.`, 
+            timestamp, 
+            isSystemMessage: true 
+        });
     }
-    if (chatMessage && (chatMessage.text.trim() || chatMessage.file)) {
-        const msg: OrderChatMessage = { id: uuidv4(), user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl }, text: chatMessage.text, timestamp };
-        if (chatMessage.file) msg.attachment = await uploadFile(chatMessage.file);
+
+    // Add User Chat Message
+    if (chatMessage && (chatMessage.text?.trim() || chatMessage.file)) {
+        const msgText = chatMessage.text || "";
+        const msg: OrderChatMessage = { 
+            id: uuidv4(), 
+            user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl }, 
+            text: msgText, 
+            timestamp 
+        };
+        
+        if (chatMessage.file) {
+            msg.attachment = await uploadFile(chatMessage.file);
+        }
+        
         newMessages.push(msg);
 
-        // Trigger notifications for new chat messages
+        // 4. Trigger Notifications
         if (originalOrder) {
             const recipients = new Set([originalOrder.ownerId, ...(originalOrder.assignedTo || [])]);
-            recipients.delete(user.id); // Don't notify the sender
+            recipients.delete(user.id);
             if (recipients.size > 0) {
+                const orderName = dataToUpdate.uniqueName || originalOrder.uniqueName || 'Order';
                 triggerNotification(firestore, Array.from(recipients), {
                     type: 'New Message',
-                    message: `${user.name} sent a message in ${updatedName || originalOrder.uniqueName || 'an order'}: "${chatMessage.text.substring(0, 50)}${chatMessage.text.length > 50 ? '...' : ''}"`,
+                    message: `${user.name}: ${msgText.substring(0, 60)}${msgText.length > 60 ? '...' : ''}${chatMessage.file ? ' [Attachment]' : ''}`,
                     orderId: originalOrder.id
                 });
             }
         }
     }
 
-    const batch = writeBatch(firestore);
-    const cleanData = removeUndefined(dataToUpdate);
-    if (Object.keys(cleanData).length > 0) batch.update(orderRef, cleanData);
-    if (newMessages.length > 0) batch.update(orderRef, { chatMessages: arrayUnion(...newMessages) });
+    // 5. Commit everything in a single batch
+    if (newMessages.length > 0) {
+        batch.update(orderRef, { chatMessages: arrayUnion(...newMessages) });
+    }
+    
     await batch.commit();
   };
 
