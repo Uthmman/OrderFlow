@@ -407,7 +407,7 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
                         <CategoryIcon order={order} />
                         <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-sm font-bold truncate pr-6">{order.uniqueName}</h3>
+                                <h3 className="text-sm font-bold pr-6 leading-tight">{order.uniqueName}</h3>
                                 <div onClick={e => e.stopPropagation()} className="shrink-0 -mt-1"><OrderActions order={order} /></div>
                             </div>
                             <div className="flex items-center justify-between">
