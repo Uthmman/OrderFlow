@@ -75,10 +75,25 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
             config,
             async (decodedText) => {
               const trimmedText = decodedText.trim();
+              let id = '';
+              let route = '';
+
+              // Support short and long prefixes for backward compatibility
+              if (trimmedText.startsWith("O:")) {
+                id = trimmedText.substring(2);
+                route = `/orders/${id}`;
+              } else if (trimmedText.startsWith("P:")) {
+                id = trimmedText.substring(2);
+                route = `/products/${id}`;
+              } else if (trimmedText.startsWith("ORDERFLOW-ORDER:")) {
+                id = trimmedText.split(":")[1];
+                route = `/orders/${id}`;
+              } else if (trimmedText.startsWith("ORDERFLOW-PRODUCT:")) {
+                id = trimmedText.split(":")[1];
+                route = `/products/${id}`;
+              }
               
-              if (trimmedText.startsWith("ORDERFLOW-ORDER:")) {
-                const orderId = trimmedText.split(":")[1];
-                if (orderId && isMounted) {
+              if (id && route && isMounted) {
                   if (navigator.vibrate) navigator.vibrate(100);
                   
                   // Stop scanning first
@@ -86,9 +101,8 @@ export function QRScannerDialog({ open, onOpenChange }: QRScannerDialogProps) {
                   
                   if (isMounted) {
                     onOpenChange(false);
-                    router.push(`/orders/${orderId}`);
+                    router.push(route);
                   }
-                }
               } else {
                 toast({
                   variant: "destructive",

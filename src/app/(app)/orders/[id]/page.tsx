@@ -584,7 +584,7 @@ function OrderDetailPageContent() {
                                                 </div>
                                                 <div className="text-sm font-bold text-primary">
                                                     {item.quantity} {item.unit}
-                                                </div>
+                               演                     </div>
                                             </div>
                                         ))}
                                     </div>
@@ -699,7 +699,7 @@ function OrderDetailPageContent() {
                     <div className="p-4 bg-white rounded-3xl shadow-xl">
                         <QRCodeCanvas 
                             id="order-qr-code" 
-                            value={`ORDERFLOW-ORDER:${order.id}`} 
+                            value={`O:${order.id}`} 
                             size={200} 
                             level="H" 
                             includeMargin={false}

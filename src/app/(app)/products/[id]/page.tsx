@@ -543,7 +543,7 @@ function ProductDetailContent() {
                     <div className="p-4 bg-white rounded-3xl shadow-xl">
                         <QRCodeCanvas 
                             id="product-qr-code" 
-                            value={`ORDERFLOW-PRODUCT:${product.id}`} 
+                            value={`P:${product.id}`} 
                             size={200} 
                             level="H" 
                             includeMargin={false}
