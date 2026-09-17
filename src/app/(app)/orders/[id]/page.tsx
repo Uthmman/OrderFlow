@@ -6,9 +6,9 @@ import { useOrders } from "@/hooks/use-orders";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
+import { OrderAttachment, OrderStatus, type Order, Product, AppUser, BOMItem, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -60,8 +60,13 @@ import {
 } from "@/components/ui/carousel";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { arrayUnion } from "firebase/firestore";
+import { arrayUnion, doc, updateDoc } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { useSecondaryItems } from "@/hooks/use-secondary-items";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
+import { useFirestore } from "@/firebase";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -229,11 +234,18 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
-const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload }: { product: Product, order: Order, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void }) => {
+const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void }) => {
     const { settings: colorSettings } = useColorSettings();
+    const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
+    const firestore = useFirestore();
+    const { toast } = useToast();
     const allColorOptions = [...(colorSettings?.woodFinishes || []), ...(colorSettings?.customColors || [])];
     const designInputRef = useRef<HTMLInputElement>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [itemSearch, setItemSearch] = useState("");
+    const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
+    const [isAddingNewCatalogItem, setIsAddingNewCatalogItem] = useState(false);
+    const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs' });
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -246,6 +258,60 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
             }
         }
     };
+
+    const updateProductBOM = async (newBOM: BOMItem[]) => {
+        const orderRef = doc(firestore, 'orders', order.id);
+        const updatedProducts = [...(order.products || [])];
+        if (updatedProducts[productIndex]) {
+            updatedProducts[productIndex].bomItems = newBOM;
+            await updateDoc(orderRef, { products: updatedProducts });
+            toast({ title: "BOM Updated" });
+        }
+    };
+
+    const handleAddItem = (item: SecondaryItem) => {
+        const currentBOM = product.bomItems || [];
+        const exists = currentBOM.find(i => i.itemId === item.id);
+        if (exists) {
+            toast({ variant: "destructive", title: "Already added" });
+            return;
+        }
+        const updated = [...currentBOM, { itemId: item.id, name: item.name, quantity: 1, unit: item.unit }];
+        updateProductBOM(updated);
+        setIsItemPopoverOpen(false);
+    };
+
+    const handleCreateNewCatalogItem = async () => {
+        if (!newItem.name || !newItem.category) return;
+        const success = await addSecondaryItem({
+            name: newItem.name,
+            category: newItem.category,
+            unit: newItem.unit
+        });
+        if (success) {
+            toast({ title: "Item Added to Catalog" });
+            setIsAddingNewCatalogItem(false);
+            setNewItem({ name: '', category: '', unit: 'pcs' });
+        }
+    };
+
+    const handleRemoveBOMItem = (idx: number) => {
+        const updated = (product.bomItems || []).filter((_, i) => i !== idx);
+        updateProductBOM(updated);
+    };
+
+    const handleUpdateQty = (idx: number, qty: number) => {
+        const updated = [...(product.bomItems || [])];
+        updated[idx].quantity = qty;
+        updateProductBOM(updated);
+    };
+
+    const filteredSecondaryItems = secondaryItems.filter(i => 
+        i.name.toLowerCase().includes(itemSearch.toLowerCase()) || 
+        i.category.toLowerCase().includes(itemSearch.toLowerCase())
+    );
+
+    const canEditBOM = isDesigner && ['Designing', 'In Progress'].includes(order.status);
 
     return (
         <AccordionItem value={product.id}>
@@ -266,11 +332,123 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                         {product.colors?.includes("As Attached Picture") && <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Color as attached picture.</span></div>}
                         {product.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Dims: {product.dimensions.width}x{product.dimensions.height}x{product.dimensions.depth}cm</span></div>}
                     </CardContent></Card>
+                
+                <Card className={cn(canEditBOM && "border-primary/20 bg-primary/5")}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle className="flex items-center gap-2">
+                                <ListChecks className="h-5 w-5 text-primary" /> Bill of Materials
+                            </CardTitle>
+                        </div>
+                        {canEditBOM && (
+                            <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <Button size="sm" className="h-8">
+                                        <PlusCircle className="h-4 w-4 mr-2" /> Add Item
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-0" align="end">
+                                    <div className="p-2 border-b bg-muted/20">
+                                        <div className="relative">
+                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                            <Input 
+                                                placeholder="Search materials..." 
+                                                className="h-8 pl-8 text-xs" 
+                                                value={itemSearch}
+                                                onChange={e => setItemSearch(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                    <ScrollArea className="h-64">
+                                        {secondaryLoading ? (
+                                            <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
+                                        ) : filteredSecondaryItems.length === 0 ? (
+                                            <div className="p-4 text-center">
+                                                <p className="text-xs text-muted-foreground mb-4">No catalog items found.</p>
+                                                <Button size="sm" variant="outline" className="w-full text-[10px]" onClick={() => setIsAddingNewCatalogItem(true)}>
+                                                    <Package className="h-3 w-3 mr-1" /> Create New Catalog Item
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {filteredSecondaryItems.map(item => (
+                                                    <button 
+                                                        key={item.id} 
+                                                        type="button" 
+                                                        className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
+                                                        onClick={() => handleAddItem(item)}
+                                                    >
+                                                        <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                                            <Package className="h-4 w-4 opacity-60" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold truncate">{item.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                                <div className="p-2">
+                                                    <Button size="sm" variant="ghost" className="w-full text-[10px] border-t" onClick={() => setIsAddingNewCatalogItem(true)}>
+                                                        <Plus className="h-3 w-3 mr-1" /> New Item to Catalog
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </ScrollArea>
+                                </PopoverContent>
+                            </Popover>
+                        )}
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {product.bomItems && product.bomItems.length > 0 ? (
+                                product.bomItems.map((item, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm group">
+                                        <div className="min-w-0 flex-grow">
+                                            <p className="text-xs font-bold truncate">{item.name}</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {canEditBOM ? (
+                                                <Input 
+                                                    type="number" 
+                                                    className="h-7 w-16 text-right text-xs font-bold" 
+                                                    value={item.quantity} 
+                                                    onChange={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)}
+                                                />
+                                            ) : (
+                                                <div className="text-sm font-bold text-primary">
+                                                    {item.quantity} {item.unit}
+                                                </div>
+                                            )}
+                                            {canEditBOM && (
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleRemoveBOMItem(i)}>
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
+                                    No material items defined yet.
+                                </div>
+                            )}
+                        </div>
+                        {product.billOfMaterials && (
+                            <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
+                                {product.billOfMaterials}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
                 {product.attachments && product.attachments.length > 0 && (
                     <Card><CardHeader><CardTitle>Customer Attachments</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} />)}
                     </CardContent></Card>
                 )}
+
                 <Card className={cn(isDesigner && "border-primary/40 bg-primary/5")}>
                     <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle>Design Attachments</CardTitle>
@@ -295,6 +473,49 @@ const ProductDetails = ({ product, order, onImageClick, onAttachmentDelete, onDe
                     </CardContent>
                 </Card>
             </AccordionContent>
+
+            <Dialog open={isAddingNewCatalogItem} onOpenChange={setIsAddingNewCatalogItem}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>New Catalog Material</DialogTitle>
+                        <DialogDescription>Add a new item to the organization-wide material catalog.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="name">Item Name</Label>
+                            <Input id="name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g. Hettich Soft Close Hinge" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="category">Category</Label>
+                                <Select value={newItem.category} onValueChange={v => setNewItem({...newItem, category: v})}>
+                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {secondaryCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="unit">Unit</Label>
+                                <Select value={newItem.unit} onValueChange={v => setNewItem({...newItem, unit: v})}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="pcs">pcs</SelectItem>
+                                        <SelectItem value="kg">kg</SelectItem>
+                                        <SelectItem value="liter">liter</SelectItem>
+                                        <SelectItem value="meters">meters</SelectItem>
+                                        <SelectItem value="set">set</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddingNewCatalogItem(false)}>Cancel</Button>
+                        <Button onClick={handleCreateNewCatalogItem}>Create Item</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AccordionItem>
     );
 }
@@ -478,45 +699,17 @@ function OrderDetailPageContent() {
             <TabsContent value="details" className="mt-6">
                 <div className="grid gap-8 grid-cols-1">
                     <div className="space-y-8">
-                        {order.products?.map((p, pIdx) => (
-                           <div key={p.id || pIdx} className="space-y-4">
-                                {(p.bomItems && p.bomItems.length > 0) && (
-                                    <Card className="border-primary/20 bg-primary/5">
-                                        <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Bill of Materials ({p.productName})</CardTitle></CardHeader>
-                                        <CardContent>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                {p.bomItems.map((item, i) => (
-                                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm">
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs font-bold truncate">{item.name}</p>
-                                                            <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
-                                                        </div>
-                                                        <div className="text-sm font-bold text-primary">
-                                                            {item.quantity} {item.unit}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            {p.billOfMaterials && (
-                                                <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
-                                                    {p.billOfMaterials}
-                                                </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                )}
-                           </div>
-                        ))}
                        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
                             {(order.products || []).map((product, index) => (
                                 <ProductDetails 
                                     key={product.id} 
                                     product={product} 
                                     order={order} 
+                                    productIndex={index}
                                     onImageClick={handleImageClick} 
                                     onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
                                     onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
-                                    isDesigner={isDesigner}
+                                    isDesigner={isDesigner || role === 'Admin'}
                                     onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
                                 />
                             ))}
@@ -569,45 +762,17 @@ function OrderDetailPageContent() {
         </Tabs>
         <div className="hidden lg:grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-                {order.products?.map((p, pIdx) => (
-                    <div key={p.id || pIdx} className="space-y-4">
-                        {(p.bomItems && p.bomItems.length > 0) && (
-                            <Card className="border-primary/20 bg-primary/5">
-                                <CardHeader><CardTitle className="text-lg flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Bill of Materials ({p.productName})</CardTitle></CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {p.bomItems.map((item, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm">
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-bold truncate">{item.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground uppercase">{item.unit}</p>
-                                                </div>
-                                                <div className="text-sm font-bold text-primary">
-                                                    {item.quantity} {item.unit}
-                               演                     </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {p.billOfMaterials && (
-                                        <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
-                                            {p.billOfMaterials}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
-                ))}
             <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
                 {(order.products || []).map((product, index) => (
                     <ProductDetails 
                         key={product.id} 
                         product={product} 
                         order={order} 
+                        productIndex={index}
                         onImageClick={handleImageClick} 
                         onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
                         onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
-                        isDesigner={isDesigner}
+                        isDesigner={isDesigner || role === 'Admin'}
                         onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
                     />
                 ))}
