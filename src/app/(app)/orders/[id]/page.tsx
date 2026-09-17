@@ -606,25 +606,29 @@ function OrderDetailPageContent() {
   return (
     <div className="flex flex-col gap-4">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-2 pb-4 px-1 flex justify-center lg:justify-start">
-             <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
-                <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>
-                <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" /> Chat</TabsTrigger>
-            </TabsList>
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-2 pb-2 px-1 flex flex-col gap-2 border-b">
+             <div className="flex justify-center lg:justify-start">
+                <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
+                    <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>
+                    <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" /> Chat</TabsTrigger>
+                </TabsList>
+             </div>
+             
+             {activeTab === 'chat' && (
+                <div className="flex items-center gap-3 px-1 py-2 animate-in fade-in slide-in-from-top-1">
+                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
+                        {order.mainImageUrl ? (
+                            <Image src={order.mainImageUrl} alt="Order" width={32} height={32} className="object-cover" />
+                        ) : (
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                        )}
+                    </div>
+                    <h1 className="text-base font-bold font-headline tracking-tight truncate">{order.uniqueName}</h1>
+                </div>
+             )}
         </div>
 
-        {activeTab === 'chat' ? (
-            <div className="flex items-center gap-3 px-1 py-4 animate-in fade-in slide-in-from-top-1">
-                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
-                    {order.mainImageUrl ? (
-                        <Image src={order.mainImageUrl} alt="Order" width={40} height={40} className="object-cover" />
-                    ) : (
-                        <Package className="h-5 w-5 text-muted-foreground" />
-                    )}
-                </div>
-                <h1 className="text-xl font-bold font-headline tracking-tight truncate">{order.uniqueName}</h1>
-            </div>
-        ) : (
+        {activeTab === 'details' && (
             <div className="px-1 py-2">
                 <div className="flex justify-between items-start">
                     <div>
