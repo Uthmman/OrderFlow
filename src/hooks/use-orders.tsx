@@ -10,7 +10,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { uploadFileFlow, deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { v4 as uuidv4 } from 'uuid';
-import { compressImage, formatOrderUniqueName, formatOrderId } from '@/lib/utils';
+import { compressImage, formatOrderUniqueName, formatOrderId, removeUndefined } from '@/lib/utils';
 import { useUser } from './use-user';
 import { setDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { triggerNotification } from '@/lib/notifications';
@@ -31,16 +31,6 @@ interface OrderContextType {
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
-
-const removeUndefined = (obj: any): any => {
-  if (typeof obj !== 'object' || obj === null) return obj;
-  if (Array.isArray(obj)) return obj.map(item => removeUndefined(item)).filter(item => item !== undefined);
-  const newObj: any = {};
-  Object.keys(obj).forEach(key => {
-    if (obj[key] !== undefined) newObj[key] = removeUndefined(obj[key]);
-  });
-  return newObj;
-};
 
 const getInitialMainImage = (product: Product) => {
   if (!product) return undefined;
@@ -303,7 +293,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         // 4. Trigger Notifications
         if (originalOrder) {
-            const recipients = new Set([originalOrder.ownerId, ...(originalOrder.assignedTo || [])]);
+            // SAFE ITERATION FIX: Ensure assignedTo is an array before spreading
+            const assigned = Array.isArray(originalOrder.assignedTo) ? originalOrder.assignedTo : [];
+            const recipients = new Set([originalOrder.ownerId, ...assigned]);
             recipients.delete(user.id);
             if (recipients.size > 0) {
                 const orderName = dataToUpdate.uniqueName || originalOrder.uniqueName || 'Order';
