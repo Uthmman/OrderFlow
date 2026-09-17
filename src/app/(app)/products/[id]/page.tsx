@@ -193,8 +193,9 @@ function ProductDetailContent() {
   const activeImage = imageAttachments[activeImageIndex] || imageAttachments[0];
   const productOrders = orders.filter(order => order.products?.some(p => p.productName === product.productName));
 
-  const canEdit = ['Admin', 'Manager', 'Sales'].includes(role || '');
+  const canEdit = ['Admin', 'Manager', 'Sales', 'Designer'].includes(role || '');
   const canViewPrice = role === 'Admin' || role === 'Sales';
+  const canDeleteFiles = role === 'Admin' || role === 'Manager';
 
   // Set initial gallery index to match the main image if it exists
   useEffect(() => {
@@ -464,7 +465,7 @@ function ProductDetailContent() {
                             attachment={att} 
                             onImageClick={() => {}}
                             onDelete={() => handleDeleteAttachment(att)}
-                            canDelete={canEdit}
+                            canDelete={canDeleteFiles}
                         />
                     ))}
                     </div>
@@ -491,7 +492,7 @@ function ProductDetailContent() {
                             attachment={att} 
                             onImageClick={() => {}}
                             onDelete={() => handleDeleteAttachment(att)}
-                            canDelete={canEdit}
+                            canDelete={canDeleteFiles}
                         />
                     ))}
                     </div>
@@ -511,7 +512,7 @@ function ProductDetailContent() {
                                     attachment={att} 
                                     onImageClick={() => {}}
                                     onDelete={() => handleDeleteAttachment(att)}
-                                    canDelete={canEdit}
+                                    canDelete={canDeleteFiles}
                                 />
                             ))}
                         </div>

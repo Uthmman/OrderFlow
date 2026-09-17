@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -327,6 +327,7 @@ function OrderDetailPageContent() {
   const [isPending, startTransition] = useTransition();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [finishDesignOpen, setFinishDesignOpen] = useState(false);
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -361,8 +362,9 @@ function OrderDetailPageContent() {
         toast({ title: "Design Started", description: "Status updated to Designing." });
     };
 
-    const finishDesign = () => {
+    const confirmFinishDesign = () => {
         handleStatusChange('Design Ready');
+        setFinishDesignOpen(false);
         toast({ title: "Design Finished", description: "Status updated to Design Ready." });
     };
 
@@ -460,7 +462,7 @@ function OrderDetailPageContent() {
                     </Button>
                 )}
                 {order.status === 'Designing' && (
-                    <Button className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" onClick={finishDesign}>
+                    <Button className="flex-1 h-12 text-lg font-bold bg-green-600 hover:bg-green-700" onClick={() => setFinishDesignOpen(true)}>
                         <CheckCircle2 className="mr-2 h-5 w-5" /> Finish Design & Mark Ready
                     </Button>
                 )}
@@ -714,6 +716,60 @@ function OrderDetailPageContent() {
                 </DialogFooter>
             </DialogContent>
         </DialogPortal>
+    </Dialog>
+
+    <Dialog open={finishDesignOpen} onOpenChange={setFinishDesignOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" /> Confirm Design Submission
+                </DialogTitle>
+                <DialogDescription>
+                    Please ensure the following technical requirements are met for production.
+                </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+                {order.products?.map((p, idx) => {
+                    const hasBOM = p.bomItems && p.bomItems.length > 0;
+                    const hasDocs = p.designAttachments && p.designAttachments.length > 0;
+                    const hasTAP = p.designAttachments?.some(att => att.fileName.toLowerCase().endsWith('.tap'));
+                    
+                    return (
+                        <div key={p.id || idx} className="p-4 border rounded-lg bg-muted/20 space-y-3">
+                            <p className="font-bold text-sm truncate">{p.productName}</p>
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-2">
+                                        <ListChecks className="h-3.5 w-3.5" /> Bill of Materials
+                                    </span>
+                                    {hasBOM ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Added</Badge> : <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/5">Missing</Badge>}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-2">
+                                        <FileText className="h-3.5 w-3.5" /> Technical Drawings
+                                    </span>
+                                    {hasDocs ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Attached</Badge> : <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/5">Missing</Badge>}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="flex items-center gap-2">
+                                        <Boxes className="h-3.5 w-3.5" /> CNC Files (.tap)
+                                    </span>
+                                    {hasTAP ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Ready</Badge> : <Badge variant="outline" className="opacity-50">Optional / Missing</Badge>}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" onClick={() => setFinishDesignOpen(false)} className="flex-1">Back to Design</Button>
+                <Button onClick={confirmFinishDesign} className="flex-1 bg-green-600 hover:bg-green-700">
+                    Confirm & Mark Ready
+                </Button>
+            </DialogFooter>
+        </DialogContent>
     </Dialog>
     </div>
   );
