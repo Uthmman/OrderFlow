@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -249,9 +248,6 @@ export default function CustomersPage() {
         <div className="flex flex-col gap-8">
              <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">Customers</h1>
-                <p className="text-muted-foreground">
-                    Manage your customer profiles and view their order history.
-                </p>
             </div>
             <div className="md:hidden">
                 <MobileCustomerList customers={data} />

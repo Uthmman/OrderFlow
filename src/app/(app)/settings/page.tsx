@@ -145,7 +145,7 @@ function ColorSettingsForm() {
                             <Label>Preview</Label>
                              <input
                                 type="file"
-                                accept="image/*"
+                                opacity="0"
                                 className="hidden"
                                 ref={(el) => (fileInputRefs.current[index] = el)}
                                 onChange={(e) => e.target.files && handleImageUpload(e.target.files[0], index)}
@@ -294,9 +294,6 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-8">
             <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">Color Settings</h1>
-                <p className="text-muted-foreground">
-                Manage your application settings and color palettes.
-                </p>
             </div>
             <ColorSettingsForm />
         </div>

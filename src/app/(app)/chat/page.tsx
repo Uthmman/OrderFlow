@@ -148,7 +148,6 @@ export default function ChatPage() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4">
         <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight">Team Chats</h1>
-            <p className="text-muted-foreground">Collaborate on order details and production.</p>
         </div>
         <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

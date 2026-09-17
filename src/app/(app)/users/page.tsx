@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -250,9 +249,6 @@ export default function UsersPage() {
         <div className="flex flex-col gap-8">
              <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">Team Management</h1>
-                <p className="text-muted-foreground">
-                    Manage team roles and worker classifications.
-                </p>
             </div>
             <div className="md:hidden">
                 <MobileUserList users={users} />

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,9 +182,6 @@ export default function ProfilePage() {
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold font-headline tracking-tight">My Profile</h1>
-                    <p className="text-muted-foreground">
-                        Update your personal information and preferences.
-                    </p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
                     <Badge variant="outline" className="h-8 px-3 flex gap-2">

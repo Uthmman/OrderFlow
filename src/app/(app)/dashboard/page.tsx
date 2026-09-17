@@ -87,7 +87,6 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight text-slate-900">Overview</h1>
-            <p className="text-muted-foreground">Detailed business operations analytics.</p>
         </div>
         <div className="flex items-center gap-2">
             <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
