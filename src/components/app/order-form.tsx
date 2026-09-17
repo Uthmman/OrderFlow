@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2, ListChecks, Package } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2, ListChecks, Package, X } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -170,11 +170,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [customerSearch, setCustomerSearch] = useState("");
   const [itemSearch, setItemSearch] = useState("");
-  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
   const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const customerSearchRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
@@ -236,7 +237,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           try {
               const att = await uploadFile(file);
               p.attachments = [...(p.attachments || []), att];
-              // Automatically set as main if none exists
               if (!p.mainImageUrl) p.mainImageUrl = att.url;
               setValue('products', updatedProducts, { shouldDirty: true });
           } catch (error) { 
@@ -262,7 +262,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         const id = await addCustomer(data);
         setValue("customerId", id, { shouldDirty: true });
         setIsCreatingNewCustomer(false);
-        setIsCustomerPopoverOpen(false);
+        setIsCustomerDropdownOpen(false);
+        setCustomerSearch("");
     } finally { setNewCustomerSubmitting(false); }
   };
 
@@ -393,41 +394,102 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
           {currentStep === 1 && (
               <Card>
-                <CardHeader><CardTitle>Customer & Location</CardTitle></CardHeader>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle>Customer & Location</CardTitle>
+                        {!isCreatingNewCustomer && !selectedCustomer && (
+                            <Button variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
+                                <PlusCircle className="mr-2 h-4 w-4" /> New Customer
+                            </Button>
+                        )}
+                    </div>
+                </CardHeader>
                 <CardContent className="space-y-6">
                     {isCreatingNewCustomer ? (
-                        <CustomerForm onSubmit={handleCreateAndSelectCustomer} isSubmitting={newCustomerSubmitting} submitButtonText="Create & Select" onCancel={() => setIsCreatingNewCustomer(false)} />
+                        <div className="p-4 border rounded-lg bg-muted/20 animate-in fade-in zoom-in-95 duration-200">
+                             <div className="flex justify-between items-center mb-4 border-b pb-2">
+                                <h3 className="font-bold text-sm">Create New Customer</h3>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsCreatingNewCustomer(false)}><X className="h-4 w-4" /></Button>
+                            </div>
+                            <CustomerForm onSubmit={handleCreateAndSelectCustomer} isSubmitting={newCustomerSubmitting} submitButtonText="Save & Select" onCancel={() => setIsCreatingNewCustomer(false)} />
+                        </div>
                     ) : (
                         <div className="space-y-6">
                             <FormField control={form.control} name="customerId" render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Customer</FormLabel>
-                                  <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-                                      <PopoverTrigger asChild>
-                                          <div className="relative">
-                                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                              <Input placeholder="Search name or phone..." className="pl-9" value={selectedCustomer ? selectedCustomer.name : customerSearch} onChange={e => { if(selectedCustomer) field.onChange(""); setCustomerSearch(e.target.value); setIsCustomerPopoverOpen(true); }} onFocus={() => setIsCustomerPopoverOpen(true)} />
+                                  <FormLabel>Customer Name</FormLabel>
+                                  {selectedCustomer ? (
+                                      <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20 animate-in fade-in slide-in-from-top-1">
+                                          <div className="flex items-center gap-3">
+                                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                                  <User className="h-5 w-5 text-primary" />
+                                              </div>
+                                              <div>
+                                                  <p className="font-bold text-sm">{selectedCustomer.name}</p>
+                                                  <p className="text-xs text-muted-foreground">{selectedCustomer.phoneNumbers?.[0]?.number || 'No phone'}</p>
+                                              </div>
                                           </div>
-                                      </PopoverTrigger>
-                                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                                          <ScrollArea className="h-64">
-                                              {filteredCustomers.length === 0 && customerSearch.length > 1 && (
-                                                  <Button variant="ghost" className="w-full justify-start text-primary" onClick={() => setIsCreatingNewCustomer(true)}><UserPlus className="mr-2 h-4 w-4"/> Create "{customerSearch}"</Button>
-                                              )}
-                                              {filteredCustomers.map(c => (
-                                                  <button key={c.id} className="w-full text-left p-3 hover:bg-muted border-b" onClick={() => { field.onChange(c.id); if(c.location?.town) setValue('location.town', c.location.town); setIsCustomerPopoverOpen(false); }}>
-                                                      <p className="font-bold text-sm">{c.name}</p>
-                                                      <p className="text-[10px] text-muted-foreground">{(c.phoneNumbers || []).map(p => p.number).join(' | ')}</p>
-                                                  </button>
-                                              ))}
-                                          </ScrollArea>
-                                      </PopoverContent>
-                                  </Popover>
+                                          <Button variant="ghost" size="sm" onClick={() => { field.onChange(""); setCustomerSearch(""); }} className="text-xs">Change</Button>
+                                      </div>
+                                  ) : (
+                                    <div className="relative">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                            <Input 
+                                                ref={customerSearchRef}
+                                                placeholder="Search by name or phone..." 
+                                                className="pl-9" 
+                                                autoComplete="off"
+                                                value={customerSearch} 
+                                                onChange={e => {
+                                                    setCustomerSearch(e.target.value);
+                                                    setIsCustomerDropdownOpen(true);
+                                                }} 
+                                                onFocus={() => setIsCustomerDropdownOpen(true)}
+                                            />
+                                        </div>
+                                        
+                                        {isCustomerDropdownOpen && (customerSearch.length > 0 || filteredCustomers.length > 0) && (
+                                            <Card className="absolute top-full left-0 right-0 z-50 mt-1 shadow-xl border overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                                <ScrollArea className="max-h-[300px]">
+                                                    {filteredCustomers.length > 0 ? (
+                                                        filteredCustomers.map(c => (
+                                                            <button 
+                                                                key={c.id} 
+                                                                type="button"
+                                                                className="w-full text-left p-3 hover:bg-muted border-b last:border-0 transition-colors" 
+                                                                onClick={() => { 
+                                                                    field.onChange(c.id); 
+                                                                    if(c.location?.town) setValue('location.town', c.location.town); 
+                                                                    setIsCustomerDropdownOpen(false); 
+                                                                    setCustomerSearch("");
+                                                                }}
+                                                            >
+                                                                <p className="font-bold text-sm">{c.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground">{(c.phoneNumbers || []).map(p => p.number).join(' | ')}</p>
+                                                            </button>
+                                                        ))
+                                                    ) : (
+                                                        <div className="p-4 text-center">
+                                                            <p className="text-sm text-muted-foreground mb-3">No matching customers found.</p>
+                                                            <Button size="sm" className="w-full" onClick={() => setIsCreatingNewCustomer(true)}>
+                                                                <PlusCircle className="mr-2 h-4 w-4" /> Create "{customerSearch}"
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </ScrollArea>
+                                            </Card>
+                                        )}
+                                        {isCustomerDropdownOpen && (
+                                             <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsCustomerDropdownOpen(false)} />
+                                        )}
+                                    </div>
+                                  )}
                                   <FormMessage />
                                 </FormItem>
                             )} />
                             <FormField control={form.control} name="location.town" render={({ field }) => (
-                                <FormItem><FormLabel>Order Location</FormLabel><FormControl><Input placeholder="Town/City" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Order Location (City/Town)</FormLabel><FormControl><Input placeholder="e.g. Addis Ababa" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                             )} />
                         </div>
                     )}
@@ -576,7 +638,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                 key={item.id} 
                                                 type="button" 
                                                 className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
-                                                onClick={() => addItemToProductBOM(currentProductIndex, item)}
+                                                onClick={() => addItemToBOM(currentProductIndex, item)}
                                             >
                                                 <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
                                                     <Package className="h-4 w-4 opacity-60" />
@@ -640,16 +702,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             )}
                             <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                         </div>
-
-                        {isUploading && (
-                            <div className="space-y-1">
-                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                    <span>Syncing with Cloud</span>
-                                    <span>Please wait...</span>
-                                </div>
-                                <Progress value={75} className="h-1 animate-pulse" />
-                            </div>
-                        )}
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
                             {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
