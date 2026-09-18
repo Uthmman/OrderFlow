@@ -311,7 +311,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                 <CardTitle className="text-lg flex items-center gap-2">
                                     <DollarSign className="h-5 w-5 text-primary" /> Financials
                                 </CardTitle>
-                                <CardDescription>Base price used for initial order quotes.</CardDescription>
                             </div>
                             {initialData?.priceHistory && initialData.priceHistory.length > 0 && (
                                 <Button variant="ghost" size="sm" type="button" onClick={() => setShowPriceHistory(!showPriceHistory)}>
@@ -361,7 +360,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <ListChecks className="h-5 w-5 text-primary" /> Bill of Materials
                             </CardTitle>
-                            <CardDescription>Select items from central catalog and specify quantities.</CardDescription>
                         </div>
                         <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
                             <PopoverTrigger asChild>
@@ -521,7 +519,6 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                         <CardTitle className="text-lg flex items-center gap-2">
                              <FileText className="h-5 w-5 text-primary" /> Technical Files
                         </CardTitle>
-                        <CardDescription>Drawings and machine programming files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-8">
                         <div className="space-y-4">
