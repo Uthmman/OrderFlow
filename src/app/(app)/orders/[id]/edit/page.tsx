@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -76,9 +77,6 @@ export default function EditOrderPage() {
         <h1 className="text-3xl font-bold font-headline tracking-tight">
           Edit {formatOrderUniqueName(order.customerName, order.products, order.id)}
         </h1>
-        <p className="text-muted-foreground">
-          Update the details of the order below.
-        </p>
       </div>
       <OrderForm
           order={order}

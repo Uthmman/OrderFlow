@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -121,12 +122,12 @@ export default function OrdersPage() {
 
        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="w-full">
-                <TabsList className="flex w-full h-auto flex-wrap justify-start gap-1 bg-transparent p-0">
+                <TabsList className="flex w-full h-auto flex-wrap justify-start gap-1.5 bg-transparent p-0">
                    {tabs.map(tab => (
                         <TabsTrigger 
                             key={tab.value} 
                             value={tab.value} 
-                            className="whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground bg-muted/50 border"
+                            className="whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground bg-muted/50 border h-9"
                         >
                             {tab.label} ({tab.orders.length})
                         </TabsTrigger>

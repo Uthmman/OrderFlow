@@ -604,9 +604,9 @@ function OrderDetailPageContent() {
     };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-2 pb-2 px-1 flex flex-col gap-2 border-b">
+        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-4 pb-2 px-1 flex flex-col gap-2 border-b">
              <div className="flex justify-center lg:justify-start">
                 <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
                     <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>
@@ -623,13 +623,13 @@ function OrderDetailPageContent() {
                             <Package className="h-4 w-4 text-muted-foreground" />
                         )}
                     </div>
-                    <h1 className="text-base font-bold font-headline tracking-tight truncate">{order.uniqueName}</h1>
+                    <h1 className="text-base font-bold font-headline tracking-tight leading-tight">{order.uniqueName}</h1>
                 </div>
              )}
         </div>
 
         {activeTab === 'details' && (
-            <div className="px-1 py-2">
+            <div className="px-1 py-2 mt-2">
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="flex items-center gap-3 flex-wrap">

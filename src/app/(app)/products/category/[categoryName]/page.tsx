@@ -74,7 +74,6 @@ function CategoryProductCatalog() {
             <IconComponent className="h-10 w-10 text-muted-foreground" />
             <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">{categoryName}</h1>
-                <p className="text-muted-foreground">Browsing {typeLabel}</p>
             </div>
         </div>
         <Button variant="outline" onClick={() => router.push('/products')}>

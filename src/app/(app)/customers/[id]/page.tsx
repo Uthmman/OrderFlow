@@ -203,7 +203,6 @@ export default function CustomerDetailPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Past Orders</CardTitle>
-                    <CardDescription>A history of all orders placed by {customer.name}.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <OrderTable orders={customerOrders} preferenceKey="orderSortPreference" />
@@ -232,5 +231,3 @@ export default function CustomerDetailPage() {
     </div>
   );
 }
-
-    

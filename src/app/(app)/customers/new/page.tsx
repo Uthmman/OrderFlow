@@ -43,9 +43,6 @@ export default function NewCustomerPage() {
         <h1 className="text-3xl font-bold font-headline tracking-tight">
           Create New Customer
         </h1>
-        <p className="text-muted-foreground">
-          Fill out the form below to add a new customer to the system.
-        </p>
       </div>
       <CustomerForm 
         onSubmit={handleCreateCustomer} 

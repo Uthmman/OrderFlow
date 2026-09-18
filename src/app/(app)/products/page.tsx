@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, Search, LayoutGrid, Loader2, RefreshCw, Box, Library, Package } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'navigation';
 import * as LucideIcons from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/use-orders';
@@ -103,7 +103,6 @@ function ProductCatalog() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
         <div>
             <h1 className="text-3xl font-bold font-headline tracking-tight">Product Catalog</h1>
-            <p className="text-muted-foreground">Browse and manage all available products.</p>
         </div>
          <div className="flex items-center gap-2 w-full sm:w-auto">
             {role === 'Admin' && (
