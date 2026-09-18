@@ -10,13 +10,12 @@ type NotificationData = {
     orderId?: string;
 }
 
-// Function to play a notification sound (Standard short pop/ping)
+// Function to play a notification sound
 const playNotificationSound = () => {
     if (typeof window !== 'undefined') {
         const audio = new Audio("https://ensratech.com/api/notification.mp3");
         audio.volume = 0.5;
         audio.play().catch(e => {
-            // Browsers often block autoplaying audio until the user interacts with the page
             console.warn("Notification sound blocked by browser policy until interaction.");
         });
     }
@@ -24,13 +23,12 @@ const playNotificationSound = () => {
 
 /**
  * Shows a native system notification if the browser supports it and permission is granted.
- * This works even if the tab is in the background.
  */
 const showNativeNotification = (data: NotificationData) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
 
     if (Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-        const notification = new Notification(data.type, {
+        const notification = new Notification(`OrderFlow: ${data.type}`, {
             body: data.message,
             icon: 'https://picsum.photos/seed/orderflow/192/192',
             badge: 'https://picsum.photos/seed/orderflow/96/96',
@@ -41,7 +39,6 @@ const showNativeNotification = (data: NotificationData) => {
         notification.onclick = () => {
             window.focus();
             if (data.orderId) {
-                // Navigate via router if possible, but standard location change is safer for deep links
                 window.location.href = `/orders/${data.orderId}?tab=chat`;
             }
             notification.close();
@@ -70,18 +67,14 @@ export function triggerNotification(
             isRead: false,
         };
         
-        // This requires the 'create' permission in firestore.rules
         addDocumentNonBlocking(notificationsRef, newNotification);
     });
 
-    // Show a native browser notification (useful if the tab is backgrounded)
+    // Show a native browser notification
     showNativeNotification(data);
 
     // Play sound to grab user attention
     playNotificationSound();
-
-    // The Toast for the active user is handled automatically by use-notifications.tsx 
-    // or by individual component logic to avoid duplicate UI popups for the sender.
 }
 
 /**

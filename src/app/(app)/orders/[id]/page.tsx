@@ -47,6 +47,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
+import { useNotifications } from "@/hooks/use-notifications";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { QRCodeCanvas } from "qrcode.react";
@@ -312,7 +313,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         i.category.toLowerCase().includes(itemSearch.toLowerCase())
     );
 
-    const canEditBOM = isDesigner && ['Designing', 'In Progress'].includes(order.status);
+    const canEditBOM = (isDesigner || order.ownerId === order.id) && ['Designing', 'In Progress'].includes(order.status);
 
     return (
         <AccordionItem value={product.id}>
@@ -544,6 +545,7 @@ function OrderDetailPageContent() {
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
+  const { markOrderNotificationsAsRead } = useNotifications();
   const { user, role } = useUser();
   const searchParams = useSearchParams(); const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -555,6 +557,13 @@ function OrderDetailPageContent() {
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
   const order = optimisticOrder;
+
+  // Auto-read notifications when viewing chat
+  useEffect(() => {
+    if (activeTab === 'chat' && order?.id) {
+        markOrderNotificationsAsRead(order.id);
+    }
+  }, [activeTab, order?.id, markOrderNotificationsAsRead]);
 
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   
@@ -606,7 +615,7 @@ function OrderDetailPageContent() {
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm pt-4 pb-2 px-1 flex flex-col gap-2 border-b">
+        <div className="sticky top-0 z-20 bg-background pt-4 pb-2 px-1 flex flex-col gap-2 border-b">
              <div className="flex justify-center lg:justify-start">
                 <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
                     <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>

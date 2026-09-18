@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
-import { collection, doc, updateDoc, orderBy, query } from 'firebase/firestore';
+import { collection, doc, updateDoc, orderBy, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import type { UserNotification } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
@@ -15,6 +15,7 @@ interface NotificationContextType {
   loading: boolean;
   markAsRead: (notificationId: string) => void;
   markAllAsRead: () => void;
+  markOrderNotificationsAsRead: (orderId: string) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -50,13 +51,30 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
   }, [firestore, user, notifications]);
 
+  const markOrderNotificationsAsRead = useCallback(async (orderId: string) => {
+    if (!user) return;
+    
+    // Find unread notifications for this order
+    const unreadForOrder = notifications?.filter(n => !n.isRead && n.orderId === orderId);
+    
+    if (unreadForOrder && unreadForOrder.length > 0) {
+        const batch = writeBatch(firestore);
+        unreadForOrder.forEach(n => {
+            const ref = doc(firestore, 'users', user.id, 'notifications', n.id);
+            batch.update(ref, { isRead: true });
+        });
+        await batch.commit();
+    }
+  }, [firestore, user, notifications]);
+
   const value = useMemo(() => ({
     notifications: notifications || [],
     unreadCount,
     loading,
     markAsRead,
-    markAllAsRead
-  }), [notifications, unreadCount, loading, markAsRead, markAllAsRead]);
+    markAllAsRead,
+    markOrderNotificationsAsRead
+  }), [notifications, unreadCount, loading, markAsRead, markAllAsRead, markOrderNotificationsAsRead]);
 
   return (
     <NotificationContext.Provider value={value}>
