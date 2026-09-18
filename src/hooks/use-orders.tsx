@@ -293,7 +293,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
 
         // 4. Trigger Notifications
         if (originalOrder) {
-            // SAFE ITERATION FIX: Ensure assignedTo is an array before spreading
             const assigned = Array.isArray(originalOrder.assignedTo) ? originalOrder.assignedTo : [];
             const recipients = new Set([originalOrder.ownerId, ...assigned]);
             recipients.delete(user.id);
@@ -301,7 +300,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 const orderName = dataToUpdate.uniqueName || originalOrder.uniqueName || 'Order';
                 triggerNotification(firestore, Array.from(recipients), {
                     type: 'New Message',
-                    message: `${user.name}: ${msgText.substring(0, 60)}${msgText.length > 60 ? '...' : ''}${chatMessage.file ? ' [Attachment]' : ''}`,
+                    message: `${user.name} on ${orderName}: ${msgText.substring(0, 40)}${msgText.length > 40 ? '...' : ''}`,
                     orderId: originalOrder.id
                 });
             }

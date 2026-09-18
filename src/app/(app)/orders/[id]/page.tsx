@@ -615,7 +615,7 @@ function OrderDetailPageContent() {
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="sticky top-0 z-20 bg-background pt-4 pb-2 px-1 flex flex-col gap-2 border-b">
+        <div className="sticky top-[-1px] z-[40] bg-background pt-2 pb-2 px-1 flex flex-col gap-2 border-b shadow-sm">
              <div className="flex justify-center lg:justify-start">
                 <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
                     <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>
@@ -624,15 +624,15 @@ function OrderDetailPageContent() {
              </div>
              
              {activeTab === 'chat' && (
-                <div className="flex items-center gap-3 px-1 py-2 animate-in fade-in slide-in-from-top-1">
-                    <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
+                <div className="flex items-center gap-3 px-1 py-1.5 animate-in fade-in slide-in-from-top-1">
+                    <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
                         {order.mainImageUrl ? (
-                            <Image src={order.mainImageUrl} alt="Order" width={32} height={32} className="object-cover" />
+                            <Image src={order.mainImageUrl} alt="Order" width={28} height={28} className="object-cover" />
                         ) : (
-                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <Package className="h-3 w-3 text-muted-foreground" />
                         )}
                     </div>
-                    <h1 className="text-base font-bold font-headline tracking-tight leading-tight">{order.uniqueName}</h1>
+                    <h1 className="text-sm font-bold font-headline tracking-tight leading-tight">{order.uniqueName}</h1>
                 </div>
              )}
         </div>
