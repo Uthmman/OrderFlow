@@ -192,6 +192,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedWithReceipt = watch("withReceipt");
   const watchedIncome = watch("incomeAmount");
   const selectedCustomerId = watch("customerId");
+  const watchedStatus = watch("status");
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -344,7 +345,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const productCategories = productSettings?.productCategories || [];
   const isUploading = Object.keys(localUploads).length > 0;
 
-  const addItemToProductBOM = (pIndex: number, item: any) => {
+  const addItemToBOM = (pIndex: number, item: any) => {
       const products = [...getValues('products')];
       const p = products[pIndex];
       if (!p) return;
@@ -379,6 +380,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     item.name.toLowerCase().includes(itemSearch.toLowerCase()) ||
     item.category?.toLowerCase().includes(itemSearch.toLowerCase())
   );
+
+  const isDesigning = watchedStatus === 'Designing';
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -583,7 +586,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
           {currentStep === 5 && (
               <Card>
-                <CardHeader><CardTitle>Details & Files</CardTitle></CardHeader>
+                <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="md:col-span-2">
@@ -605,134 +608,138 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
                     <FormField control={form.control} name={`products.${currentProductIndex}.description`} render={({ field }) => <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={3} {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
                     
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <Label className="text-sm font-bold flex items-center gap-2">
-                                <ListChecks className="h-4 w-4 text-primary" /> Technical Bill of Materials
-                            </Label>
-                            <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="h-8">
-                                        <PlusCircle className="h-3.5 w-3.5 mr-1" /> Add from Catalog
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-0" align="end">
-                                    <div className="p-2 border-b bg-muted/20">
-                                        <div className="relative">
-                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                            <Input 
-                                                placeholder="Search materials..." 
-                                                className="h-8 pl-8 text-xs" 
-                                                value={itemSearch}
-                                                onChange={e => setItemSearch(e.target.value)}
-                                            />
+                    {isDesigning && (
+                        <>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-bold flex items-center gap-2">
+                                        <ListChecks className="h-4 w-4 text-primary" /> Technical Bill of Materials
+                                    </Label>
+                                    <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm" className="h-8">
+                                                <PlusCircle className="h-3.5 w-3.5 mr-1" /> Add from Catalog
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-80 p-0" align="end">
+                                            <div className="p-2 border-b bg-muted/20">
+                                                <div className="relative">
+                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                                    <Input 
+                                                        placeholder="Search materials..." 
+                                                        className="h-8 pl-8 text-xs" 
+                                                        value={itemSearch}
+                                                        onChange={e => setItemSearch(e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <ScrollArea className="h-64">
+                                                {secondaryLoading ? (
+                                                    <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
+                                                ) : filteredSecondaryItems.length === 0 ? (
+                                                    <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
+                                                ) : filteredSecondaryItems.map(item => (
+                                                    <button 
+                                                        key={item.id} 
+                                                        type="button" 
+                                                        className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
+                                                        onClick={() => addItemToBOM(currentProductIndex, item)}
+                                                    >
+                                                        <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                                            <Package className="h-4 w-4 opacity-60" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold truncate">{item.name}</p>
+                                                            <p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </ScrollArea>
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                <div className="space-y-2">
+                                    {watchedProducts[currentProductIndex]?.bomItems?.map((item: BOMItem, bIdx: number) => (
+                                        <div key={bIdx} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
+                                            <div className="flex-grow min-w-0">
+                                                <p className="text-xs font-bold truncate">{item.name}</p>
+                                                <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Input 
+                                                    type="number" 
+                                                    step="0.01" 
+                                                    className="h-8 w-16 text-xs text-right font-bold" 
+                                                    value={item.quantity}
+                                                    onChange={(e) => updateBOMQuantity(currentProductIndex, bIdx, e.target.value)}
+                                                />
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="icon" 
+                                                    type="button" 
+                                                    className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100"
+                                                    onClick={() => removeBOMItem(currentProductIndex, bIdx)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <ScrollArea className="h-64">
-                                        {secondaryLoading ? (
-                                            <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                        ) : filteredSecondaryItems.length === 0 ? (
-                                            <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                        ) : filteredSecondaryItems.map(item => (
-                                            <button 
-                                                key={item.id} 
-                                                type="button" 
-                                                className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
-                                                onClick={() => addItemToBOM(currentProductIndex, item)}
-                                            >
-                                                <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                                    <Package className="h-4 w-4 opacity-60" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-xs font-bold truncate">{item.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </ScrollArea>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-
-                        <div className="space-y-2">
-                            {watchedProducts[currentProductIndex]?.bomItems?.map((item: BOMItem, bIdx: number) => (
-                                <div key={bIdx} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
-                                    <div className="flex-grow min-w-0">
-                                        <p className="text-xs font-bold truncate">{item.name}</p>
-                                        <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Input 
-                                            type="number" 
-                                            step="0.01" 
-                                            className="h-8 w-16 text-xs text-right font-bold" 
-                                            value={item.quantity}
-                                            onChange={(e) => updateBOMQuantity(currentProductIndex, bIdx, e.target.value)}
-                                        />
-                                        <Button 
-                                            variant="ghost" 
-                                            size="icon" 
-                                            type="button" 
-                                            className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100"
-                                            onClick={() => removeBOMItem(currentProductIndex, bIdx)}
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
 
-                        <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel className="text-xs text-muted-foreground">Manual Technical Notes</FormLabel><FormControl><Textarea rows={3} placeholder="Special assembly instructions..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
-                    </div>
+                                <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel className="text-xs text-muted-foreground">Manual Technical Notes</FormLabel><FormControl><Textarea rows={3} placeholder="Special assembly instructions..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                            </div>
 
-                    <div className="space-y-4">
-                        <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
-                            {isUploading ? (
-                                <div className="space-y-3">
-                                    <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                                    <p className="text-sm font-bold text-primary animate-pulse">Uploading files...</p>
+                            <div className="space-y-4">
+                                <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
+                                    {isUploading ? (
+                                        <div className="space-y-3">
+                                            <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
+                                            <p className="text-sm font-bold text-primary animate-pulse">Uploading files...</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                                            <p className="text-sm font-medium">Click to upload product images</p>
+                                            <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
+                                        </>
+                                    )}
+                                    <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" disabled={isUploading} />
                                 </div>
-                            ) : (
-                                <>
-                                    <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                    <p className="text-sm font-medium">Click to upload product images</p>
-                                    <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
-                                </>
-                            )}
-                            <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" disabled={isUploading} />
-                        </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                            {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
-                                <div key={att.url} className={cn(
-                                    "group relative flex flex-col gap-1 aspect-square rounded-lg overflow-hidden border-2 transition-all",
-                                    watchedProducts[currentProductIndex].mainImageUrl === att.url ? "border-primary shadow-md" : "border-muted"
-                                )}>
-                                    <Image src={att.url} alt="upload" fill className="object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2">
-                                        <Button 
-                                            variant="secondary" 
-                                            size="sm" 
-                                            className="h-7 text-[9px] font-bold uppercase rounded-full w-full"
-                                            onClick={() => setProductMainImage(currentProductIndex, att.url)}
-                                        >
-                                            {watchedProducts[currentProductIndex].mainImageUrl === att.url ? <CheckCircle2 className="h-3 w-3 mr-1" /> : "Set Main"}
-                                        </Button>
-                                        <Button variant="destructive" size="sm" className="h-7 text-[9px] font-bold uppercase rounded-full w-full" onClick={() => {
-                                            const up = [...getValues('products')];
-                                            up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
-                                            if (up[currentProductIndex].mainImageUrl === att.url) up[currentProductIndex].mainImageUrl = up[currentProductIndex].attachments[0]?.url;
-                                            setValue('products', up, { shouldDirty: true });
-                                        }}><Trash2 className="h-3 w-3 mr-1" /> Remove</Button>
-                                    </div>
-                                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
-                                        <p className="text-[8px] text-white truncate text-center font-medium">{att.fileName}</p>
-                                    </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                                    {watchedProducts[currentProductIndex]?.attachments?.map((att: any) => (
+                                        <div key={att.url} className={cn(
+                                            "group relative flex flex-col gap-1 aspect-square rounded-lg overflow-hidden border-2 transition-all",
+                                            watchedProducts[currentProductIndex].mainImageUrl === att.url ? "border-primary shadow-md" : "border-muted"
+                                        )}>
+                                            <Image src={att.url} alt="upload" fill className="object-cover" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2">
+                                                <Button 
+                                                    variant="secondary" 
+                                                    size="sm" 
+                                                    className="h-7 text-[9px] font-bold uppercase rounded-full w-full"
+                                                    onClick={() => setProductMainImage(currentProductIndex, att.url)}
+                                                >
+                                                    {watchedProducts[currentProductIndex].mainImageUrl === att.url ? <CheckCircle2 className="h-3 w-3 mr-1" /> : "Set Main"}
+                                                </Button>
+                                                <Button variant="destructive" size="sm" className="h-7 text-[9px] font-bold uppercase rounded-full w-full" onClick={() => {
+                                                    const up = [...getValues('products')];
+                                                    up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
+                                                    if (up[currentProductIndex].mainImageUrl === att.url) up[currentProductIndex].mainImageUrl = up[currentProductIndex].attachments[0]?.url;
+                                                    setValue('products', up, { shouldDirty: true });
+                                                }}><Trash2 className="h-3 w-3 mr-1" /> Remove</Button>
+                                            </div>
+                                            <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
+                                                <p className="text-[8px] text-white truncate text-center font-medium">{att.fileName}</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </div>
+                        </>
+                    )}
                 </CardContent>
               </Card>
           )}
