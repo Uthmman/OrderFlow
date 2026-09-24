@@ -480,14 +480,8 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                                 <Input 
                                                     type="number" 
                                                     className="h-7 w-16 text-right text-xs font-bold" 
-                                                    value={item.quantity} 
+                                                    defaultValue={item.quantity} 
                                                     onBlur={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)}
-                                                    onChange={e => {
-                                                        const newVal = e.target.value;
-                                                        const updated = [...(product.bomItems || [])];
-                                                        updated[i].quantity = parseFloat(newVal) || 0;
-                                                        // We don't save on every keystroke to avoid flutter, we save on blur
-                                                    }}
                                                 />
                                             ) : (
                                                 <div className="text-sm font-bold text-primary">
