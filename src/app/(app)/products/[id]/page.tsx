@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/carousel"
 import { QRCodeCanvas } from "qrcode.react"
 import { useUser } from "@/hooks/use-user"
+import { useColorSettings } from "@/hooks/use-color-settings"
 import { uploadFileFlow, deleteFileFlow } from "@/ai/flows/backblaze-flow"
 import {
     AlertDialog,
@@ -222,6 +223,7 @@ function ProductDetailContent() {
   const router = useRouter(); 
   const { getProductById, updateProduct, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
+  const { settings: colorSettings } = useColorSettings();
   const { role } = useUser();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -340,17 +342,102 @@ function ProductDetailContent() {
       }
   };
 
-  const downloadQRCode = () => {
-    const canvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
-    if (canvas) {
-        const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-        const downloadLink = document.createElement("a");
-        downloadLink.href = pngUrl;
-        downloadLink.download = `product-qr-${product.id}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    }
+  const downloadQRCode = async () => {
+    const qrCanvas = document.getElementById('product-qr-code') as HTMLCanvasElement;
+    if (!qrCanvas) return;
+
+    const width = 2400;
+    const height = 400;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // 1. Background
+    ctx.fillStyle = '#E5E2DD'; // Beige background
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. QR Code
+    const qrSize = 320;
+    const padding = 40;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(padding, padding, qrSize, qrSize);
+    ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
+
+    // 3. Project Name and Details
+    ctx.fillStyle = '#1A1C1E'; // Dark text
+    ctx.font = 'bold 80px sans-serif';
+    ctx.fillText(product.productName || "Product Item", padding + qrSize + 60, padding + 100);
+
+    ctx.font = '50px sans-serif';
+    const dims = product.dimensions;
+    const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : 'Dimensions Unset';
+    ctx.fillText(dimsText, padding + qrSize + 60, padding + 180);
+
+    const dateText = `Catalog Ref: ${product.category}`;
+    ctx.fillText(dateText, padding + qrSize + 60, padding + 260);
+
+    // 4. Vertical Separator
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padding + qrSize + 650, padding);
+    ctx.lineTo(padding + qrSize + 650, height - padding);
+    ctx.stroke();
+
+    // 5. Specifications
+    ctx.font = 'bold 50px sans-serif';
+    ctx.fillText('Specifications', padding + qrSize + 710, padding + 60);
+
+    ctx.font = '40px sans-serif';
+    const board = Array.isArray(product.material) ? product.material[0] : product.material;
+    const finishes = product.colors?.[0] || 'Catalog Finish';
+    
+    ctx.fillText(`Material: ${board || 'Standard'}`, padding + qrSize + 710, padding + 140);
+    ctx.fillText(`Finish: ${finishes}`, padding + qrSize + 710, padding + 220);
+    ctx.fillText(`ID: ${product.id.slice(-8).toUpperCase()}`, padding + qrSize + 710, padding + 300);
+
+    // 6. Color Swatches (Right side)
+    const swatchStart = width - 850;
+    const colors = product.colors || [];
+    colors.slice(0, 3).forEach((colorName, i) => {
+        const x = swatchStart + (i * 220);
+        const y = padding + 150;
+        
+        const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
+        const colorValue = colorOption?.colorValue || '#FFFFFF';
+
+        ctx.beginPath();
+        ctx.arc(x, y, 50, 0, Math.PI * 2);
+        ctx.fillStyle = colorValue;
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#000';
+        ctx.font = '30px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(colorName, x, y + 100);
+    });
+
+    // 7. Logo (Far Right)
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 60px sans-serif';
+    ctx.fillText('ZENBABA', width - 200, height / 2);
+    ctx.font = '30px sans-serif';
+    ctx.fillText('FURNITURE', width - 200, height / 2 + 50);
+
+    // Download
+    const pngUrl = canvas.toDataURL("image/png");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `product-footer-${product.id}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   };
 
   const nextImage = () => setActiveImageIndex(prev => (prev + 1) % imageAttachments.length);
@@ -516,7 +603,7 @@ function ProductDetailContent() {
                     <h3 className="font-bold text-xs uppercase tracking-widest text-muted-foreground">Technical Drawings (PDF)</h3>
                     {canEdit && (
                         <div>
-                            <input type="file" ref={fileInputRef} accept=".pdf" multiple onChange={handleFileUpload} className="hidden" />
+                            <input type="file" min="1" accept=".pdf" multiple onChange={handleFileUpload} className="hidden" ref={fileInputRef} />
                             <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
                                 {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                 Add Drawing

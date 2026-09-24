@@ -611,6 +611,7 @@ function OrderDetailPageContent() {
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
   const { markOrderNotificationsAsRead } = useNotifications();
+  const { settings: colorSettings } = useColorSettings();
   const { user, role } = useUser();
   const searchParams = useSearchParams(); const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
@@ -667,17 +668,106 @@ function OrderDetailPageContent() {
         toast({ title: "Design Finished", description: "Status updated to Design Ready." });
     };
 
-    const downloadQRCode = () => {
-        const canvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
-        if (canvas) {
-            const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-            const downloadLink = document.createElement("a");
-            downloadLink.href = pngUrl;
-            downloadLink.download = `order-qr-${order.id}.png`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-        }
+    const downloadQRCode = async () => {
+        const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
+        if (!qrCanvas) return;
+
+        const width = 2400;
+        const height = 400;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // 1. Background
+        ctx.fillStyle = '#E5E2DD'; // Beige background
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. QR Code
+        const qrSize = 320;
+        const padding = 40;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(padding, padding, qrSize, qrSize);
+        ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
+
+        // 3. Project Name and Details
+        ctx.fillStyle = '#1A1C1E'; // Dark text
+        ctx.font = 'bold 80px sans-serif';
+        const firstProduct = order.products?.[0];
+        const projectName = firstProduct?.productName || "Order Item";
+        ctx.fillText(projectName, padding + qrSize + 60, padding + 100);
+
+        ctx.font = '50px sans-serif';
+        const dims = firstProduct?.dimensions;
+        const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : 'Dimensions Pending';
+        ctx.fillText(dimsText, padding + qrSize + 60, padding + 180);
+
+        const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : new Date();
+        const dateText = `Date: ${dateObj.toISOString().split('T')[0]}`;
+        ctx.fillText(dateText, padding + qrSize + 60, padding + 260);
+
+        // 4. Vertical Separator
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding + qrSize + 650, padding);
+        ctx.lineTo(padding + qrSize + 650, height - padding);
+        ctx.stroke();
+
+        // 5. Specifications
+        ctx.font = 'bold 50px sans-serif';
+        ctx.fillText('Specifications', padding + qrSize + 710, padding + 60);
+
+        ctx.font = '40px sans-serif';
+        const materials = firstProduct?.material || [];
+        const board = Array.isArray(materials) ? materials[0] : materials;
+        const finishes = firstProduct?.colors?.[0] || 'Standard Finish';
+        
+        ctx.fillText(`Board: ${board || 'Standard'}`, padding + qrSize + 710, padding + 140);
+        ctx.fillText(`Finishes: ${finishes}`, padding + qrSize + 710, padding + 220);
+        ctx.fillText(`ID: ${order.id.slice(-8).toUpperCase()}`, padding + qrSize + 710, padding + 300);
+
+        // 6. Color Swatches (Right side)
+        const swatchStart = width - 850;
+        const colors = firstProduct?.colors || [];
+        colors.slice(0, 3).forEach((colorName, i) => {
+            const x = swatchStart + (i * 220);
+            const y = padding + 150;
+            
+            const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
+            const colorValue = colorOption?.colorValue || '#FFFFFF';
+
+            ctx.beginPath();
+            ctx.arc(x, y, 50, 0, Math.PI * 2);
+            ctx.fillStyle = colorValue;
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#000';
+            ctx.font = '30px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(colorName, x, y + 100);
+        });
+
+        // 7. Logo (Far Right)
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 60px sans-serif';
+        ctx.fillText('ZENBABA', width - 200, height / 2);
+        ctx.font = '30px sans-serif';
+        ctx.fillText('FURNITURE', width - 200, height / 2 + 50);
+
+        // Download
+        const pngUrl = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.href = pngUrl;
+        downloadLink.download = `order-footer-${order.id}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
     };
 
   return (
