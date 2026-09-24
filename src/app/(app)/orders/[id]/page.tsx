@@ -628,9 +628,8 @@ function OrderDetailPageContent() {
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
   const order = optimisticOrder;
 
-  // Auto-read notifications when viewing chat
   useEffect(() => {
-    if (activeTab === 'chat' && order?.id) {
+    if ((activeTab === 'chat' || window.innerWidth >= 1024) && order?.id) {
         markOrderNotificationsAsRead(order.id);
     }
   }, [activeTab, order?.id, markOrderNotificationsAsRead]);
@@ -784,17 +783,33 @@ function OrderDetailPageContent() {
 
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <div className="w-full">
         <div className="sticky top-[-1px] z-[40] bg-background pt-2 pb-2 px-1 flex flex-col gap-2 border-b shadow-sm">
-             <div className="flex justify-center lg:justify-start">
-                <TabsList className="grid grid-cols-2 w-full max-w-[400px]">
-                    <TabsTrigger value="details"><Info className="mr-2 h-4 w-4" /> Details</TabsTrigger>
-                    <TabsTrigger value="chat"><MessageSquare className="mr-2 h-4 w-4" /> Chat</TabsTrigger>
-                </TabsList>
+             <div className="flex justify-center lg:hidden">
+                <div className="grid grid-cols-2 w-full max-w-[400px] bg-muted p-1 rounded-md">
+                    <button 
+                        onClick={() => setActiveTab('details')}
+                        className={cn(
+                            "flex items-center justify-center py-1.5 text-sm font-medium rounded-sm transition-all",
+                            activeTab === 'details' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        <Info className="mr-2 h-4 w-4" /> Details
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('chat')}
+                        className={cn(
+                            "flex items-center justify-center py-1.5 text-sm font-medium rounded-sm transition-all",
+                            activeTab === 'chat' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        <MessageSquare className="mr-2 h-4 w-4" /> Chat
+                    </button>
+                </div>
              </div>
              
              {activeTab === 'chat' && (
-                <div className="flex items-center gap-3 px-1 py-1.5 animate-in fade-in slide-in-from-top-1">
+                <div className="lg:hidden flex items-center gap-3 px-1 py-1.5 animate-in fade-in slide-in-from-top-1">
                     <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
                         {order.mainImageUrl ? (
                             <Image src={order.mainImageUrl} alt="Order" width={28} height={28} className="object-cover" />
@@ -807,208 +822,218 @@ function OrderDetailPageContent() {
              )}
         </div>
 
-        {activeTab === 'details' && (
-            <div className="px-1 py-2 mt-2">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
-                             {canChangeStatus && (
-                                <div className="flex items-center gap-2">
-                                    <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                                    {order.assignedTo && order.assignedTo.length > 0 && (
-                                        <div className="flex -space-x-2 ml-1">
-                                            {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                        </div>
-                                    )}
-                                </div>
-                             )}
-                            {isDesigner && (
-                                <div className="flex items-center gap-2">
-                                    <StatusBadge status={order.status} />
-                                    {order.assignedTo && order.assignedTo.length > 0 && (
-                                        <div className="flex -space-x-2 ml-1">
-                                            {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                        {canEdit && (
-                            <>
-                            <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="icon" className="h-9 w-9"><MoreVertical className="h-4 w-4" /></Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleToggleUrgent}>
-                                        <AlertTriangle className="mr-2 h-4 w-4" />
-                                        <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Back</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-        )}
-
-        <TabsContent value="details" className="mt-2 space-y-6">
-            {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
-                <Card className="border-primary/40 bg-primary/5 mx-1">
-                    <CardContent className="flex items-center justify-between p-3 gap-4">
-                        <div className="flex items-center gap-2">
-                            <Boxes className="h-5 w-5 text-primary" />
-                            <span className="text-sm font-bold uppercase tracking-tight">Design Task</span>
-                        </div>
-                        {order.status === 'In Progress' && (
-                            <Button size="sm" className="font-bold" onClick={startDesign}>
-                                <PlayCircle className="mr-2 h-4 w-4" /> Start
-                            </Button>
-                        )}
-                        {order.status === 'Designing' && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setFinishDesignOpen(true)}>
-                                <CheckCircle2 className="mr-2 h-4 w-4" /> Finish
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
-                        {(order.products || []).map((product, index) => (
-                            <ProductDetails 
-                                key={product.id} 
-                                product={product} 
-                                order={order} 
-                                productIndex={index}
-                                onImageClick={handleImageClick} 
-                                onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
-                                onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
-                                isDesigner={isDesigner || role === 'Admin'}
-                                onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
-                                onFilePreview={handleFilePreview}
-                            />
-                        ))}
-                    </Accordion>
-                </div>
-                <div className="space-y-8">
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
-                            <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
-                            <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
-                            {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                            {canViewSensitiveData && (
-                            <>
-                                <Separator />
-                                {order.withReceipt && (
-                                    <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
-                                        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                                        <div className="space-y-2">
-                                        {order.products?.map((p, idx) => (
-                                            <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
-                                                <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                            </div>
-                                        ))}
-                                        <Separator className="bg-primary/10" />
-                                        <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                                        <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                                        <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                        {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
-                                        </div>
-                                    </Card>
+        <div className={cn("px-1 py-2 mt-2", activeTab === 'chat' ? "hidden lg:block" : "block")}>
+            <div className="flex justify-between items-start">
+                <div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
+                         {canChangeStatus && (
+                            <div className="flex items-center gap-2">
+                                <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                                {order.assignedTo && order.assignedTo.length > 0 && (
+                                    <div className="flex -space-x-2 ml-1">
+                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                                    </div>
                                 )}
-                                <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
-                                <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
-                                <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
-                                {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
-                                <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
-                                <Separator />
-                                <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
-                            </>
-                            )}
-                        </CardContent>
-                    </Card>
-                    {canViewSensitiveData && customer ? (
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <User className="h-4 w-4 text-muted-foreground"/> 
-                                    <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
-                                </div>
-                                {(customer.phoneNumbers || []).map((p, idx) => (
-                                    <p key={idx} className="text-xs text-muted-foreground">
-                                        <span className="font-bold mr-1 opacity-70">{p.type}:</span>
-                                        {p.number}
-                                    </p>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    ) : canViewSensitiveData && !customer ? (
-                        <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
-                    ) : (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-lg">
-                                    <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
-                                    Restricted
-                                </CardTitle>
-                            </CardHeader>
-                        </Card>
+                            </div>
+                         )}
+                        {isDesigner && (
+                            <div className="flex items-center gap-2">
+                                <StatusBadge status={order.status} />
+                                {order.assignedTo && order.assignedTo.length > 0 && (
+                                    <div className="flex -space-x-2 ml-1">
+                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
+                    {canEdit && (
+                        <>
+                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className="h-9 w-9"><MoreVertical className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleToggleUrgent}>
+                                    <AlertTriangle className="mr-2 h-4 w-4" />
+                                    <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Back</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                                        </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                </AlertDialog>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        </>
                     )}
                 </div>
             </div>
-        </TabsContent>
+        </div>
 
-        <TabsContent value="chat" className="mt-0">
-             <ChatInterface order={order} />
-        </TabsContent>
-      </Tabs>
+        <div className="mt-2">
+            <div className={cn("space-y-6", activeTab === 'chat' ? "hidden lg:block" : "block")}>
+                {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
+                    <Card className="border-primary/40 bg-primary/5 mx-1">
+                        <CardContent className="flex items-center justify-between p-3 gap-4">
+                            <div className="flex items-center gap-2">
+                                <Boxes className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-bold uppercase tracking-tight">Design Task</span>
+                            </div>
+                            {order.status === 'In Progress' && (
+                                <Button size="sm" className="font-bold" onClick={startDesign}>
+                                    <PlayCircle className="mr-2 h-4 w-4" /> Start
+                                </Button>
+                            )}
+                            {order.status === 'Designing' && (
+                                <Button size="sm" className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setFinishDesignOpen(true)}>
+                                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finish
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-8">
+                        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
+                            {(order.products || []).map((product, index) => (
+                                <ProductDetails 
+                                    key={product.id} 
+                                    product={product} 
+                                    order={order} 
+                                    productIndex={index}
+                                    onImageClick={handleImageClick} 
+                                    onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
+                                    onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
+                                    isDesigner={isDesigner || role === 'Admin'}
+                                    onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                                    onFilePreview={handleFilePreview}
+                                />
+                            ))}
+                        </Accordion>
+                    </div>
+                    <div className="space-y-8">
+                        <Card>
+                            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+                                {canViewSensitiveData && (
+                                <>
+                                    <Separator />
+                                    {order.withReceipt && (
+                                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
+                                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                            <div className="space-y-2">
+                                            {order.products?.map((p, idx) => (
+                                                <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
+                                                    <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
+                                                    <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
+                                                </div>
+                                            ))}
+                                            <Separator className="bg-primary/10" />
+                                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                            <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                            {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
+                                            </div>
+                                        </Card>
+                                    )}
+                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                    <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
+                                    {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
+                                    <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                                    <Separator />
+                                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                                </>
+                                )}
+                            </CardContent>
+                        </Card>
+                        {canViewSensitiveData && customer ? (
+                            <Card>
+                                <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
+                                <CardContent className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <User className="h-4 w-4 text-muted-foreground"/> 
+                                        <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
+                                    </div>
+                                    {(customer.phoneNumbers || []).map((p, idx) => (
+                                        <p key={idx} className="text-xs text-muted-foreground">
+                                            <span className="font-bold mr-1 opacity-70">{p.type}:</span>
+                                            {p.number}
+                                        </p>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        ) : canViewSensitiveData && !customer ? (
+                            <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
+                        ) : (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
+                                        Restricted
+                                    </CardTitle>
+                                </CardHeader>
+                            </Card>
+                        )}
+
+                        <div className="hidden lg:block space-y-4">
+                             <div className="flex items-center gap-2 px-1">
+                                <MessageSquare className="h-5 w-5 text-primary" />
+                                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
+                             </div>
+                             <div className="h-[600px] rounded-xl border bg-card overflow-hidden shadow-sm">
+                                <ChatInterface order={order} />
+                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className={cn("mt-0", activeTab === 'chat' ? "block lg:hidden" : "hidden")}>
+                 <ChatInterface order={order} />
+            </div>
+        </div>
+      </div>
 
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
       
