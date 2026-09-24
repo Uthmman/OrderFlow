@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser, BOMItem, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,65 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+}
+
+function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, onOpenChange: (open: boolean) => void, attachment: OrderAttachment | null }) {
+    const [content, setContent] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const isPdf = attachment?.fileName.toLowerCase().endsWith('.pdf');
+    const isCNC = attachment?.fileName.toLowerCase().endsWith('.tap');
+
+    useEffect(() => {
+        if (open && isCNC && attachment?.url) {
+            setLoading(true);
+            fetch(attachment.url)
+                .then(res => res.text())
+                .then(text => setContent(text))
+                .catch(() => setContent("Failed to load CNC file content."))
+                .finally(() => setLoading(false));
+        }
+    }, [open, isCNC, attachment]);
+
+    if (!attachment) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-4 border-b">
+                    <DialogTitle className="flex items-center gap-2">
+                        {isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <Cpu className="h-5 w-5 text-blue-600" />}
+                        {attachment.fileName}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 bg-muted/20 relative">
+                    {isPdf ? (
+                        <iframe src={attachment.url} className="w-full h-full border-none" title="PDF Preview" />
+                    ) : isCNC ? (
+                        <ScrollArea className="h-full w-full">
+                            {loading ? (
+                                <div className="p-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 opacity-20" /></div>
+                            ) : (
+                                <pre className="p-6 font-mono text-xs leading-relaxed">
+                                    {content}
+                                </pre>
+                            )}
+                        </ScrollArea>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            Preview not available for this file type.
+                        </div>
+                    )}
+                </div>
+                <DialogFooter className="p-4 border-t bg-background">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+                    <Button onClick={() => downloadFile(attachment.url, attachment.fileName)}>
+                        <Download className="mr-2 h-4 w-4" /> Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
@@ -155,10 +214,11 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
   );
 }
 
-const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void }) => {
+const AttachmentPreview = ({ att, onDelete, onImageClick, onPreview }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void, onPreview: (attachment: OrderAttachment) => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
     const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
+    const isCNC = att.fileName.toLowerCase().endsWith('.tap');
 
     return (
         <Card className="group relative overflow-hidden">
@@ -174,9 +234,14 @@ const AttachmentPreview = ({ att, onDelete, onImageClick }: { att: OrderAttachme
                     <div className="p-4 w-full"><audio src={att.url} controls className="w-full h-10" /></div>
                 ) : (
                     <div className="flex flex-col items-center gap-2 p-4 w-full">
-                        {isPdf ? <FileText className="h-10 w-10 text-red-600" /> : <File className="h-10 w-10 text-muted-foreground" />}
+                        {isPdf ? <FileText className="h-10 w-10 text-red-600" /> : isCNC ? <Cpu className="h-10 w-10 text-blue-600" /> : <File className="h-10 w-10 text-muted-foreground" />}
                         <p className="text-xs text-center text-muted-foreground truncate w-full px-2">{att.fileName}</p>
                         <div className="flex flex-wrap items-center justify-center gap-1.5 w-full mt-2">
+                             {(isPdf || isCNC) && (
+                                <Button size="sm" variant="outline" onClick={() => onPreview(att)} className="h-7 text-[10px] px-2 flex-1">
+                                    <Eye className="h-3 w-3 mr-1" /> Preview
+                                </Button>
+                             )}
                              <Button size="sm" variant="outline" onClick={() => downloadFile(att.url, att.fileName)} className="h-7 text-[10px] px-2 flex-1"><Download className="h-3 w-3 mr-1" /> Download</Button>
                         </div>
                     </div>
@@ -236,7 +301,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
-const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void }) => {
+const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void, onFilePreview: (attachment: OrderAttachment) => void }) => {
     const { settings: colorSettings } = useColorSettings();
     const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
     const firestore = useFirestore();
@@ -267,7 +332,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         if (updatedProducts[productIndex]) {
             updatedProducts[productIndex].bomItems = newBOM;
             await updateDoc(orderRef, { products: updatedProducts });
-            toast({ title: "BOM Updated" });
+            toast({ title: "BOM Saved" });
         }
     };
 
@@ -416,7 +481,13 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                                     type="number" 
                                                     className="h-7 w-16 text-right text-xs font-bold" 
                                                     value={item.quantity} 
-                                                    onChange={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)}
+                                                    onBlur={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)}
+                                                    onChange={e => {
+                                                        const newVal = e.target.value;
+                                                        const updated = [...(product.bomItems || [])];
+                                                        updated[i].quantity = parseFloat(newVal) || 0;
+                                                        // We don't save on every keystroke to avoid flutter, we save on blur
+                                                    }}
                                                 />
                                             ) : (
                                                 <div className="text-sm font-bold text-primary">
@@ -447,7 +518,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
 
                 {product.attachments && product.attachments.length > 0 && (
                     <Card><CardHeader><CardTitle>Customer Attachments</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} />)}
+                        {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)}
                     </CardContent></Card>
                 )}
 
@@ -466,7 +537,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {product.designAttachments && product.designAttachments.length > 0 ? (
-                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} />)
+                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)
                         ) : (
                             <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
                                 No design files uploaded yet.
@@ -553,6 +624,8 @@ function OrderDetailPageContent() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [finishDesignOpen, setFinishDesignOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'details');
+  const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -583,6 +656,7 @@ function OrderDetailPageContent() {
     const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
     const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
     const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
+    const handleFilePreview = (att: OrderAttachment) => { setPreviewAttachment(att); setPreviewOpen(true); };
 
     const startDesign = () => {
         if (!user) return;
@@ -758,6 +832,7 @@ function OrderDetailPageContent() {
                                 onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
                                 isDesigner={isDesigner || role === 'Admin'}
                                 onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                                onFilePreview={handleFilePreview}
                             />
                         ))}
                     </Accordion>
@@ -841,6 +916,12 @@ function OrderDetailPageContent() {
 
       <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
       
+      <FilePreviewDialog 
+        open={previewOpen} 
+        onOpenChange={setPreviewOpen} 
+        attachment={previewAttachment} 
+      />
+
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
             <DialogContent className="sm:max-w-sm overflow-hidden">

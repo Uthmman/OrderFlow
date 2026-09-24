@@ -39,6 +39,66 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area"
+
+function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, onOpenChange: (open: boolean) => void, attachment: OrderAttachment | null }) {
+    const [content, setContent] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const isPdf = attachment?.fileName.toLowerCase().endsWith('.pdf');
+    const isCNC = attachment?.fileName.toLowerCase().endsWith('.tap');
+
+    useEffect(() => {
+        if (open && isCNC && attachment?.url) {
+            setLoading(true);
+            fetch(attachment.url)
+                .then(res => res.text())
+                .then(text => setContent(text))
+                .catch(() => setContent("Failed to load CNC file content."))
+                .finally(() => setLoading(false));
+        }
+    }, [open, isCNC, attachment]);
+
+    if (!attachment) return null;
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+                <DialogHeader className="p-4 border-b">
+                    <DialogTitle className="flex items-center gap-2">
+                        {isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <Cpu className="h-5 w-5 text-blue-600" />}
+                        {attachment.fileName}
+                    </DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 bg-muted/20 relative">
+                    {isPdf ? (
+                        <iframe src={attachment.url} className="w-full h-full border-none" title="PDF Preview" />
+                    ) : isCNC ? (
+                        <ScrollArea className="h-full w-full">
+                            {loading ? (
+                                <div className="p-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 opacity-20" /></div>
+                            ) : (
+                                <pre className="p-6 font-mono text-xs leading-relaxed">
+                                    {content}
+                                </pre>
+                            )}
+                        </ScrollArea>
+                    ) : (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            Preview not available for this file type.
+                        </div>
+                    )}
+                </div>
+                <DialogFooter className="p-4 border-t bg-background">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+                    <Button onClick={() => downloadFile(attachment.url, attachment.fileName)}>
+                        <Download className="mr-2 h-4 w-4" /> Download
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
 
 function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: boolean, onOpenChange: (open: boolean) => void, images: OrderAttachment[], startIndex: number }) {
   const [api, setApi] = useState<CarouselApi>();
@@ -95,7 +155,7 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
   );
 }
 
-function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void, onDelete: () => void, canDelete: boolean }) {
+function AttachmentCard({ attachment, onImageClick, onDelete, canDelete, onPreview }: { attachment: OrderAttachment, onImageClick: (att: OrderAttachment) => void, onDelete: () => void, canDelete: boolean, onPreview: (att: OrderAttachment) => void }) {
     const isImage = attachment.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isPdf = attachment.fileName.toLowerCase().endsWith('.pdf');
     const isCNC = attachment.fileName.toLowerCase().endsWith('.tap');
@@ -111,7 +171,7 @@ function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { att
     };
 
     return (
-        <Card className="hover:bg-muted/50 transition-colors group cursor-pointer relative" onClick={() => isImage && onImageClick(attachment)}>
+        <Card className="hover:bg-muted/50 transition-colors group cursor-pointer relative" onClick={() => isImage ? onImageClick(attachment) : (isPdf || isCNC) && onPreview(attachment)}>
             <CardContent className="p-2 flex items-center gap-3">
                 <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center flex-shrink-0 relative overflow-hidden">
                     {isImage ? (
@@ -123,7 +183,7 @@ function AttachmentCard({ attachment, onImageClick, onDelete, canDelete }: { att
                     ) : (
                         <File className="h-5 w-5" />
                     )}
-                    {isImage && <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Eye className="h-4 w-4 text-white" /></div>}
+                    {(isImage || isPdf || isCNC) && <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Eye className="h-4 w-4 text-white" /></div>}
                 </div>
                 <div className="flex-grow truncate min-w-0">
                     <p className="text-[10px] font-bold truncate leading-tight">{attachment.fileName}</p>
@@ -172,6 +232,8 @@ function ProductDetailContent() {
   const [isUploading, setIsUploading] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   if (productsLoading || ordersLoading) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   const product = getProductById(id);
@@ -262,6 +324,11 @@ function ProductDetailContent() {
     } catch (e) {
         toast({ variant: "destructive", title: "Delete Failed" });
     }
+  };
+
+  const handleFilePreview = (att: OrderAttachment) => {
+      setPreviewAttachment(att);
+      setPreviewOpen(true);
   };
 
   const setMainImage = async (url: string) => {
@@ -466,6 +533,7 @@ function ProductDetailContent() {
                             onImageClick={() => {}}
                             onDelete={() => handleDeleteAttachment(att)}
                             canDelete={canDeleteFiles}
+                            onPreview={handleFilePreview}
                         />
                     ))}
                     </div>
@@ -493,6 +561,7 @@ function ProductDetailContent() {
                             onImageClick={() => {}}
                             onDelete={() => handleDeleteAttachment(att)}
                             canDelete={canDeleteFiles}
+                            onPreview={handleFilePreview}
                         />
                     ))}
                     </div>
@@ -513,6 +582,7 @@ function ProductDetailContent() {
                                     onImageClick={() => {}}
                                     onDelete={() => handleDeleteAttachment(att)}
                                     canDelete={canDeleteFiles}
+                                    onPreview={() => {}}
                                 />
                             ))}
                         </div>
@@ -530,6 +600,12 @@ function ProductDetailContent() {
     </div>
     <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={imageAttachments} startIndex={galleryStartIndex} />
     
+    <FilePreviewDialog 
+        open={previewOpen} 
+        onOpenChange={setPreviewOpen} 
+        attachment={previewAttachment} 
+    />
+
     <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogPortal>
             <DialogContent className="sm:max-w-sm overflow-hidden">
