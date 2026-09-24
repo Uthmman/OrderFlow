@@ -17,6 +17,7 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
+import { BrandSettingProvider } from "@/hooks/use-brand-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 import { Loader2 } from "lucide-react";
@@ -87,6 +88,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <ColorSettingProvider>
               <ProductSettingProvider>
                 <PaymentSettingProvider>
+                  <BrandSettingProvider>
                   <ProductProvider>
                       <OrderProvider>
                       <NotificationProvider>
@@ -105,6 +107,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       </NotificationProvider>
                       </OrderProvider>
                   </ProductProvider>
+                  </BrandSettingProvider>
                 </PaymentSettingProvider>
               </ProductSettingProvider>
             </ColorSettingProvider>

@@ -194,6 +194,11 @@ export type PaymentSettings = {
     banks: BankAccount[];
 }
 
+export type BrandSettings = {
+    logoUrl?: string;
+    companyName?: string;
+};
+
 export type StockUnit = 'pcs' | 'kg' | 'liter' | 'meters' | 'set' | 'box' | 'sheets' | 'liters' | 'grams';
 
 export type StockTransactionType = 'In' | 'Out';

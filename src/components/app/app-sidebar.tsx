@@ -23,6 +23,7 @@ import {
   Library,
   MessageSquare,
   CreditCard,
+  Building,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -40,6 +41,7 @@ const settingsNavItems = [
     { href: "/settings", icon: Palette, label: "Color Settings" },
     { href: "/settings/products", icon: Shapes, label: "Product Categories" },
     { href: "/settings/payments", icon: CreditCard, label: "Payment & Banks" },
+    { href: "/settings/branding", icon: Building, label: "Branding" },
 ]
 
 export function AppSidebar() {
