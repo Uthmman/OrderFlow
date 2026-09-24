@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -9,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlusCircle, Search, LayoutGrid, Loader2, RefreshCw, Box, Library, Package } from 'lucide-react';
-import { useRouter } from 'navigation';
+import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/use-orders';
