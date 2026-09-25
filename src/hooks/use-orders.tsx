@@ -26,7 +26,7 @@ interface OrderContextType {
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
   addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
-  uploadFile: (file: File) => Promise<OrderAttachment>;
+  uploadFile: (file: File, progressKey?: string) => Promise<OrderAttachment>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
 }
 
@@ -58,9 +58,9 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const uploadFile = async (file: File): Promise<OrderAttachment> => {
-    const fileName = file.name;
-    setUploadProgress(prev => ({ ...prev, [fileName]: 0 }));
+  const uploadFile = async (file: File, progressKey?: string): Promise<OrderAttachment> => {
+    const trackingKey = progressKey || file.name;
+    setUploadProgress(prev => ({ ...prev, [trackingKey]: 0 }));
     try {
         let fileContent;
         let contentType = file.type;
@@ -71,15 +71,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         } else {
             fileContent = await fileToBase64(file);
         }
-        setUploadProgress(prev => ({ ...prev, [fileName]: 50 }));
+        setUploadProgress(prev => ({ ...prev, [trackingKey]: 50 }));
         const result = await uploadFileFlow({ fileContent, contentType, fileName: file.name });
-        setUploadProgress(prev => ({ ...prev, [fileName]: 100 }));
+        setUploadProgress(prev => ({ ...prev, [trackingKey]: 100 }));
         return { fileName: file.name, url: result.url, storagePath: result.fileName };
     } catch (error) {
-        setUploadProgress(prev => { const n = { ...prev }; delete n[fileName]; return n; });
+        setUploadProgress(prev => { const n = { ...prev }; delete n[trackingKey]; return n; });
         throw error;
     } finally {
-       setTimeout(() => setUploadProgress(prev => { const n = { ...prev }; delete n[fileName]; return n; }), 3000);
+       setTimeout(() => setUploadProgress(prev => { const n = { ...prev }; delete n[trackingKey]; return n; }), 3000);
     }
   };
   

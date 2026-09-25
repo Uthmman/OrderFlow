@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -53,6 +53,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useUser } from "@/hooks/use-user";
+import { Progress } from "@/components/ui/progress";
+import { v4 as uuidv4 } from "uuid";
 
 const bomItemSchema = z.object({
   itemId: z.string(),
@@ -86,17 +88,32 @@ interface ProductFormProps {
   title: string;
 }
 
+function UploadingCard({ name, progress }: { name: string, progress: number }) {
+    return (
+        <Card className="bg-muted/30 border-dashed border-primary/20 animate-pulse overflow-hidden">
+            <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-[10px] font-bold truncate flex-1 uppercase tracking-tighter">{name}</p>
+                    <span className="text-[10px] font-bold text-primary">{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-1 bg-primary/10" />
+            </CardContent>
+        </Card>
+    );
+}
+
 export function ProductForm({ initialData, onSubmit, isSubmitting, title }: ProductFormProps) {
   const router = useRouter();
   const { productSettings } = useProductSettings();
   const { settings: colorSettings } = useColorSettings();
-  const { uploadFile } = useOrders();
+  const { uploadFile, uploadProgress } = useOrders();
   const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
   const { role } = useUser();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const cncInputRef = useRef<HTMLInputElement>(null);
-  const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
+  const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; type: string; progressKey: string }[]>([]);
   const [itemSearch, setItemSearch] = useState("");
   const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
   const [showPriceHistory, setShowPriceHistory] = useState(false);
@@ -128,52 +145,64 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
     name: "bomItems",
   });
 
+  const { fields: attachmentFields, append: appendAttachment, remove: removeAttachmentField } = useFieldArray({
+      control,
+      name: "attachments"
+  });
+
   const watchedAttachments = watch("attachments") as OrderAttachment[];
   const watchedMaterials = watch("materials");
   const watchedColors = watch("colors");
   const watchedMainImage = watch("mainImageUrl");
-  const isAnyUploading = Object.values(localUploads).some(v => v);
+  const isAnyUploading = activeUploads.length > 0;
 
-  // Categorize attachments
   const imageAttachments = watchedAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const pdfAttachments = watchedAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
   const cncAttachments = watchedAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
 
+  const uploadingImages = activeUploads.filter(u => u.type === 'image');
+  const uploadingPdfs = activeUploads.filter(u => u.type === 'pdf');
+  const uploadingCnc = activeUploads.filter(u => u.type === 'cnc');
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      const currentAttachments = [...getValues("attachments")];
       
-      for (const file of files) {
-        const tempId = `${file.name}-${Date.now()}`;
-        setLocalUploads(prev => ({ ...prev, [tempId]: true }));
-        try {
-          const attachment = await uploadFile(file);
-          currentAttachments.push(attachment);
-          setValue("attachments", currentAttachments, { shouldDirty: true });
-          
-          if (file.type.startsWith('image/') && !getValues("mainImageUrl")) {
-              setValue("mainImageUrl", attachment.url);
-          }
-        } catch (error) {
-          console.error("Upload failed", error);
-        } finally {
-          setLocalUploads(prev => {
-            const next = { ...prev };
-            delete next[tempId];
-            return next;
+      files.forEach(file => {
+          const taskId = uuidv4();
+          const progressKey = `${file.name}-${taskId}`;
+          let type = 'other';
+          if (file.type.startsWith('image/')) type = 'image';
+          else if (file.name.toLowerCase().endsWith('.pdf')) type = 'pdf';
+          else if (file.name.toLowerCase().endsWith('.tap')) type = 'cnc';
+
+          setActiveUploads(prev => [...prev, { id: taskId, name: file.name, type, progressKey }]);
+
+          uploadFile(file, progressKey).then(attachment => {
+              appendAttachment(attachment);
+              if (type === 'image' && !getValues("mainImageUrl")) {
+                  setValue("mainImageUrl", attachment.url);
+              }
+              setActiveUploads(prev => prev.filter(u => u.id !== taskId));
+          }).catch(err => {
+              setActiveUploads(prev => prev.filter(u => u.id !== taskId));
           });
-        }
-      }
+      });
+      
+      // Clear input
+      e.target.value = '';
     }
   };
 
   const removeAttachment = (url: string) => {
     const current = getValues("attachments") as OrderAttachment[];
-    const updated = current.filter((a) => a.url !== url);
-    setValue("attachments", updated, { shouldDirty: true });
+    const idx = current.findIndex(a => a.url === url);
+    if (idx !== -1) {
+        removeAttachmentField(idx);
+    }
     if (getValues("mainImageUrl") === url) {
-        const nextImg = updated.find(a => a.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+        const remaining = getValues("attachments") as OrderAttachment[];
+        const nextImg = remaining.find(a => a.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
         setValue("mainImageUrl", nextImg?.url || "");
     }
   };
@@ -543,7 +572,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                         </Button>
                                     </div>
                                 ))}
-                                {pdfAttachments.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No drawings uploaded.</p>}
+                                {uploadingPdfs.map(task => (
+                                    <UploadingCard key={task.id} name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                ))}
+                                {pdfAttachments.length === 0 && uploadingPdfs.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No drawings uploaded.</p>}
                             </div>
                         </div>
 
@@ -569,7 +601,10 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                         </Button>
                                     </div>
                                 ))}
-                                {cncAttachments.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No machine files uploaded.</p>}
+                                {uploadingCnc.map(task => (
+                                    <UploadingCard key={task.id} name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                ))}
+                                {cncAttachments.length === 0 && uploadingCnc.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No machine files uploaded.</p>}
                             </div>
                         </div>
                     </CardContent>
@@ -586,18 +621,15 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div 
-                            className={cn(
-                                "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all bg-slate-50",
-                                isAnyUploading ? "opacity-50" : "hover:border-primary/50"
-                            )}
-                            onClick={() => !isAnyUploading && imageInputRef.current?.click()}
+                            className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all bg-slate-50 hover:border-primary/50"
+                            onClick={() => imageInputRef.current?.click()}
                         >
                             <UploadCloud className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-50" />
                             <p className="text-xs font-bold uppercase tracking-wider">Upload Images</p>
                             <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileUpload} />
                         </div>
 
-                        {imageAttachments.length > 0 && (
+                        {(imageAttachments.length > 0 || uploadingImages.length > 0) && (
                             <div className="grid grid-cols-2 gap-3">
                                 {imageAttachments.map((att) => (
                                     <div key={att.url} className={cn(
@@ -613,6 +645,11 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                                 <Trash2 className="h-3 w-3" />
                                             </Button>
                                         </div>
+                                    </div>
+                                ))}
+                                {uploadingImages.map(task => (
+                                    <div key={task.id} className="aspect-square">
+                                        <UploadingCard name={task.name} progress={uploadProgress[task.progressKey] || 0} />
                                     </div>
                                 ))}
                             </div>

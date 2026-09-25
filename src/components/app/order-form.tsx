@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, Image as ImageIcon, CheckCircle2, ListChecks, Package, X } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -150,6 +150,21 @@ const toDate = (timestamp: any): Date | undefined => {
     return undefined;
 }
 
+function UploadingCard({ name, progress }: { name: string, progress: number }) {
+    return (
+        <Card className="bg-muted/30 border-dashed border-primary/20 animate-pulse overflow-hidden">
+            <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-[10px] font-bold truncate flex-1 uppercase tracking-tighter">{name}</p>
+                    <span className="text-[10px] font-bold text-primary">{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-1" />
+            </CardContent>
+        </Card>
+    );
+}
+
 export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -172,7 +187,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const [itemSearch, setItemSearch] = useState("");
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
-  const [localUploads, setLocalUploads] = useState<Record<string, boolean>>({});
+  const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; progressKey: string }[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const customerSearchRef = useRef<HTMLInputElement>(null);
@@ -228,24 +243,28 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      const updatedProducts = [...getValues('products')];
-      const p = updatedProducts[currentProductIndex];
-      if (!p) return;
+      
+      files.forEach(file => {
+          const taskId = uuidv4();
+          const progressKey = `${file.name}-${taskId}`;
+          
+          setActiveUploads(prev => [...prev, { id: taskId, name: file.name, progressKey }]);
 
-      for (const file of files) {
-          const fileId = `${file.name}-${Date.now()}`;
-          setLocalUploads(prev => ({ ...prev, [fileId]: true }));
-          try {
-              const att = await uploadFile(file);
-              p.attachments = [...(p.attachments || []), att];
-              if (!p.mainImageUrl) p.mainImageUrl = att.url;
-              setValue('products', updatedProducts, { shouldDirty: true });
-          } catch (error) { 
-              toast({ variant: "destructive", title: "Upload Failed", description: file.name });
-          } finally {
-              setLocalUploads(prev => { const n = { ...prev }; delete n[fileId]; return n; });
-          }
-      }
+          uploadFile(file, progressKey).then(att => {
+              const currentProducts = [...getValues('products')];
+              const p = currentProducts[currentProductIndex];
+              if (p) {
+                  p.attachments = [...(p.attachments || []), att];
+                  if (!p.mainImageUrl) p.mainImageUrl = att.url;
+                  setValue('products', currentProducts, { shouldDirty: true });
+              }
+              setActiveUploads(prev => prev.filter(u => u.id !== taskId));
+          }).catch(() => {
+              setActiveUploads(prev => prev.filter(u => u.id !== taskId));
+          });
+      });
+      
+      e.target.value = '';
     }
   };
 
@@ -343,7 +362,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
   const isSubmittingFinal = isExternallySubmitting || isManualSaving;
   const productCategories = productSettings?.productCategories || [];
-  const isUploading = Object.keys(localUploads).length > 0;
+  const isAnyUploading = activeUploads.length > 0;
 
   const addItemToBOM = (pIndex: number, item: any) => {
       const products = [...getValues('products')];
@@ -692,20 +711,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             </div>
 
                             <div className="space-y-4">
-                                <div className={cn("border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all", isUploading ? "bg-muted/50 border-primary/20" : "hover:border-primary/50 bg-slate-50")} onClick={() => !isUploading && fileInputRef.current?.click()}>
-                                    {isUploading ? (
-                                        <div className="space-y-3">
-                                            <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
-                                            <p className="text-sm font-bold text-primary animate-pulse">Uploading files...</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
-                                            <p className="text-sm font-medium">Click to upload product images</p>
-                                            <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
-                                        </>
-                                    )}
-                                    <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" disabled={isUploading} />
+                                <div className="border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all hover:border-primary/50 bg-slate-50" onClick={() => fileInputRef.current?.click()}>
+                                    <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                                    <p className="text-sm font-medium">Click to upload product images</p>
+                                    <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
+                                    <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
                                 </div>
 
                                 <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
@@ -734,6 +744,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                             <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
                                                 <p className="text-[8px] text-white truncate text-center font-medium">{att.fileName}</p>
                                             </div>
+                                        </div>
+                                    ))}
+                                    {activeUploads.map(task => (
+                                        <div key={task.id} className="aspect-square">
+                                            <UploadingCard name={task.name} progress={uploadProgress[task.progressKey] || 0} />
                                         </div>
                                     ))}
                                 </div>
@@ -914,12 +929,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               <Button variant="outline" type="button" onClick={() => isDirty ? setShowCancelDialog(true) : router.back()}>Cancel</Button>
               <div className="flex items-center gap-2">
                   {currentStep > 1 && (
-                      <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal || isUploading}>
+                      <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)} disabled={isSubmittingFinal || isAnyUploading}>
                         <ArrowLeft className="mr-2 h-4 w-4" /> Back
                       </Button>
                   )}
                   {currentStep < 10 && (
-                      <Button type="button" onClick={nextStep} disabled={isSubmittingFinal || isUploading} className="min-w-[100px]">
+                      <Button type="button" onClick={nextStep} disabled={isSubmittingFinal || isAnyUploading} className="min-w-[100px]">
                         {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <>Next <ArrowRight className="ml-2 h-4 w-4" /></>}
                       </Button>
                   )}
@@ -927,7 +942,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (e) => {
                           const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message || (v as any).productName?.message}`).join(". ");
                           toast({ variant: "destructive", title: "Missing Fields", description: msgs || "Check all steps." });
-                      })} disabled={isSubmittingFinal || isUploading} className="min-w-[120px] bg-primary">
+                      })} disabled={isSubmittingFinal || isAnyUploading} className="min-w-[120px] bg-primary">
                         {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>
                   )}
