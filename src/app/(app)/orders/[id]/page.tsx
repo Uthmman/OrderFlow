@@ -681,7 +681,7 @@ function OrderDetailPageContent() {
         if (!ctx) return;
 
         // 1. Background
-        ctx.fillStyle = '#F8F9FA'; 
+        ctx.fillStyle = '#FFFFFF'; 
         ctx.fillRect(0, 0, width, height);
 
         // 2. QR Code
@@ -691,78 +691,21 @@ function OrderDetailPageContent() {
         ctx.fillRect(padding, padding, qrSize, qrSize);
         ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
 
-        // 3. Project Name and Info (Column 1)
+        // 3. Project Name and Info
         ctx.fillStyle = '#1A1C1E';
-        ctx.font = 'bold 60px sans-serif';
+        ctx.font = 'bold 70px sans-serif';
         const projectName = order.uniqueName || "";
-        ctx.fillText(projectName, padding + qrSize + 60, padding + 80);
-
-        const firstProduct = order.products?.[0];
-        const dims = firstProduct?.dimensions;
-        const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : '';
-        if (dimsText) {
-            ctx.font = '40px sans-serif';
-            ctx.fillText(dimsText, padding + qrSize + 60, padding + 170);
-        }
+        ctx.fillText(projectName, padding + qrSize + 80, padding + 140);
 
         const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : null;
         if (dateObj) {
-            ctx.font = '30px sans-serif';
+            ctx.font = '40px sans-serif';
             ctx.fillStyle = '#666';
             const dateText = `Date: ${dateObj.toLocaleDateString()}`;
-            ctx.fillText(dateText, padding + qrSize + 60, padding + 250);
+            ctx.fillText(dateText, padding + qrSize + 80, padding + 240);
         }
 
-        // 4. Vertical Separator
-        ctx.strokeStyle = '#CCC';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(1150, padding);
-        ctx.lineTo(1150, height - padding);
-        ctx.stroke();
-
-        // 5. Specifications (Column 2)
-        ctx.fillStyle = '#1A1C1E';
-        ctx.font = 'bold 35px sans-serif';
-        ctx.fillText('SPECIFICATIONS', 1200, padding + 50);
-
-        ctx.font = '30px sans-serif';
-        const materials = firstProduct?.material || [];
-        const matText = Array.isArray(materials) ? materials[0] : materials;
-        const finishText = firstProduct?.colors?.[0] || '';
-        const refText = order.id.slice(-8).toUpperCase();
-
-        if (matText) ctx.fillText(`Material: ${matText}`, 1200, padding + 130);
-        if (finishText) ctx.fillText(`Finish: ${finishText}`, 1200, padding + 210);
-        ctx.fillText(`Ref: ${refText}`, 1200, padding + 290);
-
-        // 6. Color Swatches (Column 3)
-        const colors = firstProduct?.colors || [];
-        if (colors.length > 0 && colors[0] !== 'As Attached Picture') {
-            const swatchX = 1650;
-            colors.slice(0, 3).forEach((colorName, i) => {
-                const x = swatchX + (i * 150);
-                const y = padding + 150;
-                
-                const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
-                const colorValue = colorOption?.colorValue || '#FFF';
-
-                ctx.beginPath();
-                ctx.arc(x, y, 40, 0, Math.PI * 2);
-                ctx.fillStyle = colorValue;
-                ctx.fill();
-                ctx.strokeStyle = '#DDD';
-                ctx.lineWidth = 1;
-                ctx.stroke();
-
-                ctx.fillStyle = '#666';
-                ctx.font = '18px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(colorName, x, y + 80);
-            });
-        }
-
-        // 7. Logo (Far Right)
+        // 4. Logo (Far Right)
         if (brandSettings?.logoUrl) {
             const logoImg = new (window as any).Image();
             logoImg.crossOrigin = "anonymous";
@@ -770,9 +713,9 @@ function OrderDetailPageContent() {
             await new Promise((resolve) => {
                 logoImg.onload = () => {
                     const aspect = logoImg.width / logoImg.height;
-                    const h = 250;
+                    const h = 280;
                     const w = h * aspect;
-                    ctx.drawImage(logoImg, width - w - 100, (height - h) / 2, w, h);
+                    ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h);
                     resolve(null);
                 };
                 logoImg.onerror = () => resolve(null);

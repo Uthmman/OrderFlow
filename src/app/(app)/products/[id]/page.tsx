@@ -357,7 +357,7 @@ function ProductDetailContent() {
     if (!ctx) return;
 
     // 1. Background
-    ctx.fillStyle = '#F8F9FA'; 
+    ctx.fillStyle = '#FFFFFF'; 
     ctx.fillRect(0, 0, width, height);
 
     // 2. QR Code
@@ -367,73 +367,17 @@ function ProductDetailContent() {
     ctx.fillRect(padding, padding, qrSize, qrSize);
     ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
 
-    // 3. Project Name and Info
+    // 3. Project Name and Date
     ctx.fillStyle = '#1A1C1E';
-    ctx.font = 'bold 60px sans-serif';
-    ctx.fillText(product.productName || "", padding + qrSize + 60, padding + 80);
+    ctx.font = 'bold 70px sans-serif';
+    ctx.fillText(product.productName || "", padding + qrSize + 80, padding + 140);
 
-    const dims = product.dimensions;
-    const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : '';
-    if (dimsText) {
-        ctx.font = '40px sans-serif';
-        ctx.fillText(dimsText, padding + qrSize + 60, padding + 170);
-    }
+    ctx.font = '40px sans-serif';
+    ctx.fillStyle = '#666';
+    const dateText = `Last Updated: ${new Date().toLocaleDateString()}`;
+    ctx.fillText(dateText, padding + qrSize + 80, padding + 240);
 
-    if (product.category) {
-        ctx.font = '30px sans-serif';
-        ctx.fillStyle = '#666';
-        ctx.fillText(`Catalog: ${product.category}`, padding + qrSize + 60, padding + 250);
-    }
-
-    // 4. Vertical Separator
-    ctx.strokeStyle = '#CCC';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(1150, padding);
-    ctx.lineTo(1150, height - padding);
-    ctx.stroke();
-
-    // 5. Specifications
-    ctx.fillStyle = '#1A1C1E';
-    ctx.font = 'bold 35px sans-serif';
-    ctx.fillText('SPECIFICATIONS', 1200, padding + 50);
-
-    ctx.font = '30px sans-serif';
-    const board = Array.isArray(product.material) ? product.material[0] : product.material;
-    const finish = product.colors?.[0] || '';
-    const refId = product.id.slice(-8).toUpperCase();
-
-    if (board) ctx.fillText(`Material: ${board}`, 1200, padding + 130);
-    if (finish) ctx.fillText(`Finish: ${finish}`, 1200, padding + 210);
-    ctx.fillText(`ID: ${refId}`, 1200, padding + 290);
-
-    // 6. Color Swatches
-    const colors = product.colors || [];
-    if (colors.length > 0) {
-        const swatchX = 1650;
-        colors.slice(0, 3).forEach((colorName, i) => {
-            const x = swatchX + (i * 150);
-            const y = padding + 150;
-            
-            const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
-            const colorValue = colorOption?.colorValue || '#FFF';
-
-            ctx.beginPath();
-            ctx.arc(x, y, 40, 0, Math.PI * 2);
-            ctx.fillStyle = colorValue;
-            ctx.fill();
-            ctx.strokeStyle = '#DDD';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            ctx.fillStyle = '#666';
-            ctx.font = '18px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(colorName, x, y + 80);
-        });
-    }
-
-    // 7. Logo (Far Right)
+    // 4. Logo (Far Right)
     if (brandSettings?.logoUrl) {
         const logoImg = new (window as any).Image();
         logoImg.crossOrigin = "anonymous";
@@ -441,9 +385,9 @@ function ProductDetailContent() {
         await new Promise((resolve) => {
             logoImg.onload = () => {
                 const aspect = logoImg.width / logoImg.height;
-                const h = 250;
+                const h = 280;
                 const w = h * aspect;
-                ctx.drawImage(logoImg, width - w - 100, (height - h) / 2, w, h);
+                ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h);
                 resolve(null);
             };
             logoImg.onerror = () => resolve(null);
