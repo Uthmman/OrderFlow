@@ -681,7 +681,7 @@ function OrderDetailPageContent() {
         if (!ctx) return;
 
         // 1. Background
-        ctx.fillStyle = '#E5E2DD'; // Beige background
+        ctx.fillStyle = '#F8F9FA'; 
         ctx.fillRect(0, 0, width, height);
 
         // 2. QR Code
@@ -691,67 +691,76 @@ function OrderDetailPageContent() {
         ctx.fillRect(padding, padding, qrSize, qrSize);
         ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
 
-        // 3. Project Name and Details
-        ctx.fillStyle = '#1A1C1E'; // Dark text
-        ctx.font = 'bold 70px sans-serif';
-        const projectName = order.uniqueName || "Order Item";
-        ctx.fillText(projectName, padding + qrSize + 60, padding + 100);
+        // 3. Project Name and Info (Column 1)
+        ctx.fillStyle = '#1A1C1E';
+        ctx.font = 'bold 60px sans-serif';
+        const projectName = order.uniqueName || "";
+        ctx.fillText(projectName, padding + qrSize + 60, padding + 80);
 
-        ctx.font = '40px sans-serif';
         const firstProduct = order.products?.[0];
         const dims = firstProduct?.dimensions;
-        const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : 'Dimensions Pending';
-        ctx.fillText(dimsText, padding + qrSize + 60, padding + 180);
+        const dimsText = dims ? `${dims.width}x${dims.height}x${dims.depth} cm` : '';
+        if (dimsText) {
+            ctx.font = '40px sans-serif';
+            ctx.fillText(dimsText, padding + qrSize + 60, padding + 170);
+        }
 
-        ctx.font = '30px sans-serif';
-        const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : new Date();
-        const dateText = `Order Date: ${dateObj.toISOString().split('T')[0]}`;
-        ctx.fillText(dateText, padding + qrSize + 60, padding + 260);
+        const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : null;
+        if (dateObj) {
+            ctx.font = '30px sans-serif';
+            ctx.fillStyle = '#666';
+            const dateText = `Date: ${dateObj.toLocaleDateString()}`;
+            ctx.fillText(dateText, padding + qrSize + 60, padding + 250);
+        }
 
         // 4. Vertical Separator
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#CCC';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(padding + qrSize + 850, padding);
-        ctx.lineTo(padding + qrSize + 850, height - padding);
+        ctx.moveTo(1150, padding);
+        ctx.lineTo(1150, height - padding);
         ctx.stroke();
 
-        // 5. Specifications
-        ctx.font = 'bold 45px sans-serif';
-        ctx.fillText('Specifications', padding + qrSize + 910, padding + 60);
+        // 5. Specifications (Column 2)
+        ctx.fillStyle = '#1A1C1E';
+        ctx.font = 'bold 35px sans-serif';
+        ctx.fillText('SPECIFICATIONS', 1200, padding + 50);
 
-        ctx.font = '35px sans-serif';
+        ctx.font = '30px sans-serif';
         const materials = firstProduct?.material || [];
-        const board = Array.isArray(materials) ? materials[0] : materials;
-        const finishes = firstProduct?.colors?.[0] || 'Standard Finish';
-        
-        ctx.fillText(`Material: ${board || 'Standard'}`, padding + qrSize + 910, padding + 140);
-        ctx.fillText(`Finish: ${finishes}`, padding + qrSize + 910, padding + 220);
-        ctx.fillText(`Ref: ${order.id.slice(-8).toUpperCase()}`, padding + qrSize + 910, padding + 300);
+        const matText = Array.isArray(materials) ? materials[0] : materials;
+        const finishText = firstProduct?.colors?.[0] || '';
+        const refText = order.id.slice(-8).toUpperCase();
 
-        // 6. Color Swatches
-        const swatchStart = width - 1000;
+        if (matText) ctx.fillText(`Material: ${matText}`, 1200, padding + 130);
+        if (finishText) ctx.fillText(`Finish: ${finishText}`, 1200, padding + 210);
+        ctx.fillText(`Ref: ${refText}`, 1200, padding + 290);
+
+        // 6. Color Swatches (Column 3)
         const colors = firstProduct?.colors || [];
-        colors.slice(0, 3).forEach((colorName, i) => {
-            const x = swatchStart + (i * 200);
-            const y = padding + 150;
-            
-            const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
-            const colorValue = colorOption?.colorValue || '#FFFFFF';
+        if (colors.length > 0 && colors[0] !== 'As Attached Picture') {
+            const swatchX = 1650;
+            colors.slice(0, 3).forEach((colorName, i) => {
+                const x = swatchX + (i * 150);
+                const y = padding + 150;
+                
+                const colorOption = colorSettings?.customColors.find(c => c.name === colorName);
+                const colorValue = colorOption?.colorValue || '#FFF';
 
-            ctx.beginPath();
-            ctx.arc(x, y, 50, 0, Math.PI * 2);
-            ctx.fillStyle = colorValue;
-            ctx.fill();
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(x, y, 40, 0, Math.PI * 2);
+                ctx.fillStyle = colorValue;
+                ctx.fill();
+                ctx.strokeStyle = '#DDD';
+                ctx.lineWidth = 1;
+                ctx.stroke();
 
-            ctx.fillStyle = '#000';
-            ctx.font = '25px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(colorName, x, y + 100);
-        });
+                ctx.fillStyle = '#666';
+                ctx.font = '18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(colorName, x, y + 80);
+            });
+        }
 
         // 7. Logo (Far Right)
         if (brandSettings?.logoUrl) {
@@ -774,7 +783,7 @@ function OrderDetailPageContent() {
         const pngUrl = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
         downloadLink.href = pngUrl;
-        downloadLink.download = `order-footer-${order.id}.png`;
+        downloadLink.download = `footer-${order.id}.png`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
