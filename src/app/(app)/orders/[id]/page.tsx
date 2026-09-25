@@ -620,7 +620,6 @@ function OrderDetailPageContent() {
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [finishDesignOpen, setFinishDesignOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'details');
   const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   
@@ -629,10 +628,10 @@ function OrderDetailPageContent() {
   const order = optimisticOrder;
 
   useEffect(() => {
-    if ((activeTab === 'chat' || window.innerWidth >= 1024) && order?.id) {
+    if (order?.id) {
         markOrderNotificationsAsRead(order.id);
     }
-  }, [activeTab, order?.id, markOrderNotificationsAsRead]);
+  }, [order?.id, markOrderNotificationsAsRead]);
 
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
   
@@ -784,45 +783,7 @@ function OrderDetailPageContent() {
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
       <div className="w-full">
-        <div className="sticky top-[-1px] z-[40] bg-background pt-2 pb-2 px-1 flex flex-col gap-2 border-b shadow-sm">
-             <div className="flex justify-center lg:hidden">
-                <div className="grid grid-cols-2 w-full max-w-[400px] bg-muted p-1 rounded-md">
-                    <button 
-                        onClick={() => setActiveTab('details')}
-                        className={cn(
-                            "flex items-center justify-center py-1.5 text-sm font-medium rounded-sm transition-all",
-                            activeTab === 'details' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        <Info className="mr-2 h-4 w-4" /> Details
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('chat')}
-                        className={cn(
-                            "flex items-center justify-center py-1.5 text-sm font-medium rounded-sm transition-all",
-                            activeTab === 'chat' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        <MessageSquare className="mr-2 h-4 w-4" /> Chat
-                    </button>
-                </div>
-             </div>
-             
-             {activeTab === 'chat' && (
-                <div className="lg:hidden flex items-center gap-3 px-1 py-1.5 animate-in fade-in slide-in-from-top-1">
-                    <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden border shadow-sm">
-                        {order.mainImageUrl ? (
-                            <Image src={order.mainImageUrl} alt="Order" width={28} height={28} className="object-cover" />
-                        ) : (
-                            <Package className="h-3 w-3 text-muted-foreground" />
-                        )}
-                    </div>
-                    <h1 className="text-sm font-bold font-headline tracking-tight leading-tight">{order.uniqueName}</h1>
-                </div>
-             )}
-        </div>
-
-        <div className={cn("px-1 py-2 mt-2", activeTab === 'chat' ? "hidden lg:block" : "block")}>
+        <div className="px-1 py-4 mt-2">
             <div className="flex justify-between items-start">
                 <div>
                     <div className="flex items-center gap-3 flex-wrap">
@@ -906,7 +867,7 @@ function OrderDetailPageContent() {
         </div>
 
         <div className="mt-2">
-            <div className={cn("space-y-6", activeTab === 'chat' ? "hidden lg:block" : "block")}>
+            <div className="space-y-6">
                 {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
                     <Card className="border-primary/40 bg-primary/5 mx-1">
                         <CardContent className="flex items-center justify-between p-3 gap-4">
@@ -1029,7 +990,11 @@ function OrderDetailPageContent() {
                 </div>
             </div>
 
-            <div className={cn("mt-0", activeTab === 'chat' ? "block lg:hidden" : "hidden")}>
+            <div className="lg:hidden mt-12 pb-12">
+                 <div className="flex items-center gap-2 px-1 mb-4">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
+                 </div>
                  <ChatInterface order={order} />
             </div>
         </div>
