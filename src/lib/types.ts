@@ -241,6 +241,8 @@ export type Expense = {
   bankAccountId?: string;
   hasReceipt: boolean;
   receiptAttachment?: OrderAttachment;
+  hasWithhold?: boolean;
+  withholdAttachment?: OrderAttachment;
   status: 'Paid' | 'Pending';
   ownerId: string;
 };

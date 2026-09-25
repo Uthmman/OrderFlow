@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2 } from 'lucide-react';
+import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
@@ -44,11 +44,13 @@ export default function ExpensesPage() {
     paidTo: '',
     bankAccountId: 'Cash',
     hasReceipt: true,
+    hasWithhold: false,
     status: 'Paid',
     date: new Date(),
   });
 
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [uploadingWithhold, setUploadingWithhold] = useState(false);
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
@@ -88,6 +90,7 @@ export default function ExpensesPage() {
         paidTo: '',
         bankAccountId: 'Cash',
         hasReceipt: true,
+        hasWithhold: false,
         status: 'Paid',
         date: new Date(),
       });
@@ -104,6 +107,18 @@ export default function ExpensesPage() {
               setNewExpense({ ...newExpense, receiptAttachment: att });
           } finally {
               setUploadingReceipt(false);
+          }
+      }
+  };
+
+  const handleWithholdUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setUploadingWithhold(true);
+          try {
+              const att = await uploadFile(e.target.files[0]);
+              setNewExpense({ ...newExpense, withholdAttachment: att });
+          } finally {
+              setUploadingWithhold(false);
           }
       }
   };
@@ -160,7 +175,7 @@ export default function ExpensesPage() {
                 <TableHead>Paid To</TableHead>
                 <TableHead>Method</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-center">Receipt</TableHead>
+                <TableHead className="text-center">Docs</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -181,15 +196,23 @@ export default function ExpensesPage() {
                   </TableCell>
                   <TableCell className="text-right font-bold text-sm">{formatCurrency(exp.amount)}</TableCell>
                   <TableCell className="text-center">
-                    {exp.receiptAttachment ? (
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                    ) : exp.hasReceipt ? (
-                        <Badge variant="outline" className="text-[9px] opacity-40">Missing Scan</Badge>
-                    ) : (
-                        <span className="text-[10px] text-muted-foreground">No</span>
-                    )}
+                    <div className="flex items-center justify-center gap-2">
+                        {exp.receiptAttachment ? (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')} title="View Standard Receipt">
+                            <FileText className="h-4 w-4" />
+                        </Button>
+                        ) : exp.hasReceipt ? (
+                            <Badge variant="outline" className="text-[9px] opacity-40">Miss Recpt</Badge>
+                        ) : null}
+                        
+                        {exp.withholdAttachment ? (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-600" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')} title="View Withholding Receipt">
+                            <ShieldCheck className="h-4 w-4" />
+                        </Button>
+                        ) : exp.hasWithhold ? (
+                            <Badge variant="outline" className="text-[9px] text-amber-600/50 border-amber-600/20">Miss Withhold</Badge>
+                        ) : null}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteExpense(exp)}>
@@ -266,7 +289,7 @@ export default function ExpensesPage() {
             </div>
 
             <div className="space-y-4 border-t pt-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4">
                     <Label className="flex items-center gap-2 cursor-pointer">
                         <Input 
                             type="checkbox" 
@@ -274,42 +297,80 @@ export default function ExpensesPage() {
                             checked={newExpense.hasReceipt} 
                             onChange={e => setNewExpense({...newExpense, hasReceipt: e.target.checked})}
                         />
-                        Official Receipt Available
+                        Official Purchase Receipt Available
+                    </Label>
+
+                    <Label className="flex items-center gap-2 cursor-pointer">
+                        <Input 
+                            type="checkbox" 
+                            className="h-4 w-4" 
+                            checked={newExpense.hasWithhold} 
+                            onChange={e => setNewExpense({...newExpense, hasWithhold: e.target.checked})}
+                        />
+                        Withholding Tax Applied (2%)
                     </Label>
                 </div>
                 
-                {newExpense.hasReceipt && (
-                    <div className="space-y-3">
-                         <div className="relative">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {newExpense.hasReceipt && (
+                        <div className="space-y-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Standard Receipt</Label>
                             <input type="file" className="hidden" id="receipt-upload" onChange={handleReceiptUpload} />
                             <Button 
                                 variant="outline" 
-                                className="w-full h-20 border-dashed" 
+                                className="w-full h-16 border-dashed" 
                                 type="button"
                                 disabled={uploadingReceipt}
                                 onClick={() => document.getElementById('receipt-upload')?.click()}
                             >
                                 {uploadingReceipt ? (
-                                    <Loader2 className="animate-spin mr-2 h-4 w-4" />
+                                    <Loader2 className="animate-spin h-4 w-4" />
                                 ) : newExpense.receiptAttachment ? (
-                                    <div className="flex items-center gap-2 text-primary font-bold">
-                                        <CheckCircle2 className="h-5 w-5" /> Receipt Attached
+                                    <div className="flex items-center gap-2 text-primary font-bold text-xs">
+                                        <CheckCircle2 className="h-4 w-4" /> Attached
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <UploadCloud className="h-6 w-6 opacity-30" />
-                                        <span className="text-xs">Upload Receipt Scan / Photo</span>
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <UploadCloud className="h-4 w-4 opacity-30" />
+                                        <span className="text-[10px]">Standard Recpt</span>
                                     </div>
                                 )}
                             </Button>
-                         </div>
-                    </div>
-                )}
+                        </div>
+                    )}
+
+                    {newExpense.hasWithhold && (
+                        <div className="space-y-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Withhold Receipt</Label>
+                            <input type="file" className="hidden" id="withhold-upload" onChange={handleWithholdUpload} />
+                            <Button 
+                                variant="outline" 
+                                className="w-full h-16 border-dashed border-amber-200 bg-amber-50/10" 
+                                type="button"
+                                disabled={uploadingWithhold}
+                                onClick={() => document.getElementById('withhold-upload')?.click()}
+                            >
+                                {uploadingWithhold ? (
+                                    <Loader2 className="animate-spin h-4 w-4 text-amber-600" />
+                                ) : newExpense.withholdAttachment ? (
+                                    <div className="flex items-center gap-2 text-amber-600 font-bold text-xs">
+                                        <CheckCircle2 className="h-4 w-4" /> Attached
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <ShieldCheck className="h-4 w-4 text-amber-600/30" />
+                                        <span className="text-[10px]">Withhold Recpt</span>
+                                    </div>
+                                )}
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
-            <Button onClick={handleAddExpense} disabled={isSubmitting}>
+            <Button onClick={handleAddExpense} disabled={isSubmitting || uploadingReceipt || uploadingWithhold}>
                 {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />} Save Entry
             </Button>
           </DialogFooter>
