@@ -24,6 +24,7 @@ import {
   MessageSquare,
   CreditCard,
   Building,
+  Receipt,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -32,6 +33,7 @@ const navItems = [
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
     { href: "/products", icon: Library, label: "Products", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },
+    { href: "/expenses", icon: Receipt, label: "Expenses", roles: ['Admin', 'Manager', 'Sales'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin'] },
     { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer'] },

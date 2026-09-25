@@ -19,6 +19,7 @@ import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { BrandSettingProvider } from "@/hooks/use-brand-settings";
 import { StockProvider } from "@/hooks/use-stock";
+import { ExpenseProvider } from "@/hooks/use-expenses";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 import { Loader2 } from "lucide-react";
 import { requestNotificationPermission } from "@/lib/notifications";
@@ -93,16 +94,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       <OrderProvider>
                       <NotificationProvider>
                           <StockProvider>
-                            <div className="flex h-screen w-full flex-col overflow-hidden">
-                            <AppHeader />
-                            <div className="flex flex-1 overflow-hidden relative">
-                                <AppSidebar />
-                                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
-                                    {children}
-                                </main>
-                                <FloatingBottomNav />
-                            </div>
-                            </div>
+                            <ExpenseProvider>
+                                <div className="flex h-screen w-full flex-col overflow-hidden">
+                                <AppHeader />
+                                <div className="flex flex-1 overflow-hidden relative">
+                                    <AppSidebar />
+                                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
+                                        {children}
+                                    </main>
+                                    <FloatingBottomNav />
+                                </div>
+                                </div>
+                            </ExpenseProvider>
                           </StockProvider>
                       </NotificationProvider>
                       </OrderProvider>

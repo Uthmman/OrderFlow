@@ -230,3 +230,17 @@ export type StockItem = {
 export type StockSettings = {
   categories: string[];
 };
+
+export type Expense = {
+  id: string;
+  description: string;
+  amount: number;
+  date: any;
+  category: string;
+  paidTo: string;
+  bankAccountId?: string;
+  hasReceipt: boolean;
+  receiptAttachment?: OrderAttachment;
+  status: 'Paid' | 'Pending';
+  ownerId: string;
+};
