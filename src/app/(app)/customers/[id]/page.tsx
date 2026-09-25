@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -37,7 +36,7 @@ export default function CustomerDetailPage() {
   const { user, role, loading: userLoading } = useUser();
 
   if (customersLoading || ordersLoading || userLoading) {
-    return <div>Loading...</div>;
+    return <div className="flex items-center justify-center h-96">Loading...</div>;
   }
   
   if (role === 'Manager' || role === 'Designer') {
@@ -45,7 +44,7 @@ export default function CustomerDetailPage() {
       <Card>
         <CardHeader>
             <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You do not have permission to view this page.</CardDescription>
+            <CardDescription>You do not have permission to view customer details.</CardDescription>
         </CardHeader>
           <CardContent>
             <p>Please contact an administrator if you believe this is a mistake.</p>
@@ -63,7 +62,8 @@ export default function CustomerDetailPage() {
   const customerOrders = orders.filter(order => customer.orderIds?.includes(order.id));
   const totalSpent = customerOrders.reduce((acc, order) => acc + (order.incomeAmount || 0), 0);
 
-  const canEdit = user?.role === 'Admin';
+  const canEdit = role === 'Admin';
+  const canViewFinancials = role === 'Admin' || role === 'Sales';
 
 
   return (
@@ -72,7 +72,7 @@ export default function CustomerDetailPage() {
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20 border-2 border-primary">
             <AvatarImage src={customer.avatarUrl} />
-            <AvatarFallback className="text-3xl">
+            <AvatarFallback className="text-3xl font-bold">
               {customer.name.split(" ").map(n => n[0]).join("")}
             </AvatarFallback>
           </Avatar>
@@ -91,10 +91,10 @@ export default function CustomerDetailPage() {
         {canEdit && (
             <div className="flex items-center gap-2">
                 <Button variant="outline">
-                    <Edit className="mr-2" /> Edit
+                    <Edit className="mr-2 h-4 w-4" /> Edit
                 </Button>
                 <Button variant="ghost" size="icon">
-                    <MoreVertical />
+                    <MoreVertical className="h-4 w-4" />
                 </Button>
             </div>
         )}
@@ -159,7 +159,7 @@ export default function CustomerDetailPage() {
                     {customer.location?.mapUrl && (
                         <Button asChild variant="outline" className="w-full">
                             <Link href={customer.location.mapUrl} target="_blank">
-                                <ExternalLink className="mr-2" /> View on Map
+                                <ExternalLink className="mr-2 h-4 w-4" /> View on Map
                             </Link>
                         </Button>
                     )}
@@ -188,10 +188,12 @@ export default function CustomerDetailPage() {
                         <span className="text-muted-foreground">Total Orders</span>
                         <span className="font-bold">{customer.orderIds?.length || 0}</span>
                     </div>
-                    <div className="flex justify-between">
-                        <span className="text-muted-foreground">Total Spent</span>
-                        <span className="font-bold">${totalSpent.toLocaleString()}</span>
-                    </div>
+                    {canViewFinancials && (
+                        <div className="flex justify-between">
+                            <span className="text-muted-foreground">Total Spent</span>
+                            <span className="font-bold text-primary">${totalSpent.toLocaleString()}</span>
+                        </div>
+                    )}
                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Total Reviews</span>
                         <span className="font-bold">{customer.reviews?.length || 0}</span>

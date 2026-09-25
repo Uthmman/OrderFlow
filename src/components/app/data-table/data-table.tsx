@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -58,16 +57,17 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const { role } = useUser();
 
-  const isAdmin = role === 'Admin';
+  // Financial data should only be visible to Admin and Sales
+  const canViewFinancials = role === 'Admin' || role === 'Sales';
 
   React.useEffect(() => {
-    if (!isAdmin) {
+    if (role && !canViewFinancials) {
         setColumnVisibility((prev) => ({
             ...prev,
             incomeAmount: false,
         }));
     }
-  }, [isAdmin]);
+  }, [canViewFinancials, role]);
 
   const internalTable = useReactTable({
     data,
@@ -92,8 +92,6 @@ export function DataTable<TData, TValue>({
   })
 
   // We only use internal state if no external table is provided.
-  // Note: Standard React guidance forbids conditional hooks, 
-  // so internalTable is always computed but ignored if externalTable exists.
   const table = externalTable || internalTable;
 
   return (
