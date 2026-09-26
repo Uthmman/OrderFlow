@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser, BOMItem, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { useFirestore } from "@/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -81,6 +82,113 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+}
+
+function TAPVisualizer({ content }: { content: string }) {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [progress, setProgress] = useState(100);
+    
+    const lines = useMemo(() => {
+        const result: { x: number, y: number, type: 'move' | 'cut' }[] = [];
+        let curX = 0;
+        let curY = 0;
+        
+        content.split('\n').forEach(line => {
+            const cmd = line.trim().toUpperCase();
+            const xMatch = cmd.match(/X([-+]?[0-9]*\.?[0-9]+)/);
+            const yMatch = cmd.match(/Y([-+]?[0-9]*\.?[0-9]+)/);
+            
+            if (xMatch || yMatch) {
+                if (xMatch) curX = parseFloat(xMatch[1]);
+                if (yMatch) curY = parseFloat(yMatch[1]);
+                const type = cmd.includes('G0') ? 'move' : 'cut';
+                result.push({ x: curX, y: curY, type });
+            }
+        });
+        return result;
+    }, [content]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || lines.length === 0) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Clear
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Find Bounds
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        lines.forEach(p => {
+            minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+        });
+
+        const margin = 40;
+        const width = canvas.width - margin * 2;
+        const height = canvas.height - margin * 2;
+        const scale = Math.min(width / (maxX - minX || 1), height / (maxY - minY || 1));
+
+        const getX = (x: number) => margin + (x - minX) * scale;
+        const getY = (y: number) => canvas.height - (margin + (y - minY) * scale); // Flip Y
+
+        // Draw toolpath up to progress
+        const limit = Math.floor((progress / 100) * lines.length);
+        
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let i = 0; i < limit; i++) {
+            const p = lines[i];
+            const px = getX(p.x);
+            const py = getY(p.y);
+            
+            if (i === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.strokeStyle = lines[i].type === 'move' ? '#94a3b8' : '#2563eb';
+                ctx.setLineDash(lines[i].type === 'move' ? [2, 2] : []);
+                ctx.lineTo(px, py);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+            }
+        }
+
+        // Draw tool pointer
+        if (limit > 0) {
+            const current = lines[limit - 1];
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(getX(current.x), getY(current.y), 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+    }, [lines, progress]);
+
+    return (
+        <div className="flex flex-col h-full">
+            <div className="flex-1 relative bg-slate-900 rounded-lg overflow-hidden border">
+                <canvas 
+                    ref={canvasRef} 
+                    width={800} 
+                    height={500} 
+                    className="w-full h-full object-contain"
+                />
+            </div>
+            <div className="p-4 bg-background border-t space-y-3">
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <span>Machining Process</span>
+                    <span className="text-primary">{Math.floor((progress / 100) * lines.length)} / {lines.length} Commands</span>
+                </div>
+                <Slider 
+                    value={[progress]} 
+                    onValueChange={(vals) => setProgress(vals[0])} 
+                    max={100} 
+                    step={1} 
+                />
+            </div>
+        </div>
+    );
 }
 
 function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, onOpenChange: (open: boolean) => void, attachment: OrderAttachment | null }) {
@@ -105,7 +213,7 @@ function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-0 overflow-hidden">
+            <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 overflow-hidden">
                 <DialogHeader className="p-4 border-b">
                     <DialogTitle className="flex items-center gap-2">
                         {isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <Cpu className="h-5 w-5 text-blue-600" />}
@@ -116,15 +224,11 @@ function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, 
                     {isPdf ? (
                         <iframe src={attachment.url} className="w-full h-full border-none" title="PDF Preview" />
                     ) : isCNC ? (
-                        <ScrollArea className="h-full w-full">
-                            {loading ? (
-                                <div className="p-12 flex justify-center"><Loader2 className="animate-spin h-8 w-8 opacity-20" /></div>
-                            ) : (
-                                <pre className="p-6 font-mono text-xs leading-relaxed">
-                                    {content}
-                                </pre>
-                            )}
-                        </ScrollArea>
+                        content ? (
+                            <TAPVisualizer content={content} />
+                        ) : (
+                             <div className="p-12 flex justify-center items-center h-full"><Loader2 className="animate-spin h-8 w-8 opacity-20" /></div>
+                        )
                     ) : (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
                             Preview not available for this file type.
@@ -215,20 +319,38 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
   );
 }
 
-const AttachmentPreview = ({ att, onDelete, onImageClick, onPreview }: { att: OrderAttachment, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void, onPreview: (attachment: OrderAttachment) => void }) => {
+const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview }: { att: OrderAttachment, order: Order, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void, onPreview: (attachment: OrderAttachment) => void }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
     const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
     const isCNC = att.fileName.toLowerCase().endsWith('.tap');
+    const { updateOrder } = useOrders();
+    const { toast } = useToast();
+    
+    const isMain = order.mainImageUrl === att.url;
+
+    const setAsMain = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        updateOrder({ id: order.id, mainImageUrl: att.url });
+        toast({ title: "Main Image Updated", description: "Design thumbnail has been changed." });
+    };
 
     return (
-        <Card className="group relative overflow-hidden">
-            <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted/50">
+        <Card className={cn("group relative overflow-hidden transition-all", isMain && "ring-2 ring-primary shadow-lg")}>
+            <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted/50 relative">
+                {isMain && (
+                    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest shadow-sm">
+                        Thumbnail
+                    </div>
+                )}
                 {isImage ? (
                     <div onClick={() => onImageClick(att)} className="relative w-full h-full cursor-pointer">
                         <Image src={att.url} alt={att.fileName} fill className="object-cover" />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-4">
                             <Eye className="h-8 w-8 text-white" />
+                            {!isMain && (
+                                <Button size="sm" variant="secondary" onClick={setAsMain} className="h-7 text-[9px] font-bold uppercase rounded-full">Set as Main</Button>
+                            )}
                         </div>
                     </div>
                 ) : isAudio ? (
@@ -513,7 +635,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
 
                 {product.attachments && product.attachments.length > 0 && (
                     <Card><CardHeader><CardTitle>Customer Attachments</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)}
+                        {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} order={order} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)}
                     </CardContent></Card>
                 )}
 
@@ -532,7 +654,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                     </CardHeader>
                     <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                         {product.designAttachments && product.designAttachments.length > 0 ? (
-                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)
+                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} order={order} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)
                         ) : (
                             <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
                                 No design files uploaded yet.
@@ -732,6 +854,48 @@ function OrderDetailPageContent() {
         document.body.removeChild(downloadLink);
     };
 
+    const mainContent = (
+        <div className="space-y-6">
+            {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
+                <Card className="border-primary/40 bg-primary/5 mx-1">
+                    <CardContent className="flex items-center justify-between p-3 gap-4">
+                        <div className="flex items-center gap-2">
+                            <Boxes className="h-5 w-5 text-primary" />
+                            <span className="text-sm font-bold uppercase tracking-tight">Design Task</span>
+                        </div>
+                        {order.status === 'In Progress' && (
+                            <Button size="sm" className="font-bold" onClick={startDesign}>
+                                <PlayCircle className="mr-2 h-4 w-4" /> Start
+                            </Button>
+                        )}
+                        {order.status === 'Designing' && (
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setFinishDesignOpen(true)}>
+                                <CheckCircle2 className="mr-2 h-4 w-4" /> Finish
+                            </Button>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
+                {(order.products || []).map((product, index) => (
+                    <ProductDetails 
+                        key={product.id} 
+                        product={product} 
+                        order={order} 
+                        productIndex={index}
+                        onImageClick={handleImageClick} 
+                        onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
+                        onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
+                        isDesigner={isDesigner || role === 'Admin'}
+                        onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                        onFilePreview={handleFilePreview}
+                    />
+                ))}
+            </Accordion>
+        </div>
+    );
+
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
       <div className="w-full">
@@ -819,135 +983,117 @@ function OrderDetailPageContent() {
         </div>
 
         <div className="mt-2">
-            <div className="space-y-6">
-                {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
-                    <Card className="border-primary/40 bg-primary/5 mx-1">
-                        <CardContent className="flex items-center justify-between p-3 gap-4">
-                            <div className="flex items-center gap-2">
-                                <Boxes className="h-5 w-5 text-primary" />
-                                <span className="text-sm font-bold uppercase tracking-tight">Design Task</span>
-                            </div>
-                            {order.status === 'In Progress' && (
-                                <Button size="sm" className="font-bold" onClick={startDesign}>
-                                    <PlayCircle className="mr-2 h-4 w-4" /> Start
-                                </Button>
-                            )}
-                            {order.status === 'Designing' && (
-                                <Button size="sm" className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setFinishDesignOpen(true)}>
-                                    <CheckCircle2 className="mr-2 h-4 w-4" /> Finish
-                                </Button>
+            {/* Desktop Unified View */}
+            <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-8">
+                    {mainContent}
+                </div>
+                <div className="space-y-8">
+                    <Card>
+                        <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                            <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                            <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                            {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+                            {canViewSensitiveData && (
+                            <>
+                                <Separator />
+                                {order.withReceipt && (
+                                    <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
+                                        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                                        <div className="space-y-2">
+                                        {order.products?.map((p, idx) => (
+                                            <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
+                                                <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
+                                                <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
+                                            </div>
+                                        ))}
+                                        <Separator className="bg-primary/10" />
+                                        <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                                        <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                                        <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                        {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
+                                        </div>
+                                    </Card>
+                                )}
+                                <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                                <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
+                                {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
+                                <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                                <Separator />
+                                <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                            </>
                             )}
                         </CardContent>
                     </Card>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-8">
-                        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
-                            {(order.products || []).map((product, index) => (
-                                <ProductDetails 
-                                    key={product.id} 
-                                    product={product} 
-                                    order={order} 
-                                    productIndex={index}
-                                    onImageClick={handleImageClick} 
-                                    onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
-                                    onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
-                                    isDesigner={isDesigner || role === 'Admin'}
-                                    onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
-                                    onFilePreview={handleFilePreview}
-                                />
-                            ))}
-                        </Accordion>
-                    </div>
-                    <div className="space-y-8">
+                    {canViewSensitiveData && customer ? (
                         <Card>
-                            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
-                                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
-                                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
-                                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                                {canViewSensitiveData && (
-                                <>
-                                    <Separator />
-                                    {order.withReceipt && (
-                                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
-                                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                                            <div className="space-y-2">
-                                            {order.products?.map((p, idx) => (
-                                                <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                    <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
-                                                    <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                                </div>
-                                            ))}
-                                            <Separator className="bg-primary/10" />
-                                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                                            <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                            {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
-                                            </div>
-                                        </Card>
-                                    )}
-                                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
-                                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
-                                    <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
-                                    {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
-                                    <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
-                                    <Separator />
-                                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
-                                </>
-                                )}
+                            <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <User className="h-4 w-4 text-muted-foreground"/> 
+                                    <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
+                                </div>
+                                {(customer.phoneNumbers || []).map((p, idx) => (
+                                    <p key={idx} className="text-xs text-muted-foreground">
+                                        <span className="font-bold mr-1 opacity-70">{p.type}:</span>
+                                        {p.number}
+                                    </p>
+                                ))}
                             </CardContent>
                         </Card>
-                        {canViewSensitiveData && customer ? (
-                            <Card>
-                                <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <User className="h-4 w-4 text-muted-foreground"/> 
-                                        <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
-                                    </div>
-                                    {(customer.phoneNumbers || []).map((p, idx) => (
-                                        <p key={idx} className="text-xs text-muted-foreground">
-                                            <span className="font-bold mr-1 opacity-70">{p.type}:</span>
-                                            {p.number}
-                                        </p>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        ) : canViewSensitiveData && !customer ? (
-                            <Card><CardContent className="p-6">Customer not found.</CardContent></Card>
-                        ) : (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <ShieldAlert className="h-4 w-4 text-muted-foreground" /> 
-                                        Restricted
-                                    </CardTitle>
-                                </CardHeader>
-                            </Card>
-                        )}
+                    ) : null}
 
-                        <div className="hidden lg:block space-y-4">
-                             <div className="flex items-center gap-2 px-1">
-                                <MessageSquare className="h-5 w-5 text-primary" />
-                                <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
-                             </div>
-                             <div className="h-[600px] rounded-xl border bg-card overflow-hidden shadow-sm">
-                                <ChatInterface order={order} />
-                             </div>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 px-1">
+                        <MessageSquare className="h-5 w-5 text-primary" />
+                        <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
+                        </div>
+                        <div className="h-[600px] rounded-xl border bg-card overflow-hidden shadow-sm">
+                        <ChatInterface order={order} />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="lg:hidden mt-12 pb-12">
-                 <div className="flex items-center gap-2 px-1 mb-4">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
-                 </div>
-                 <ChatInterface order={order} />
+            {/* Mobile Tabbed View */}
+            <div className="lg:hidden">
+                <Tabs defaultValue="specs" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                        <TabsTrigger value="specs" className="flex items-center gap-2">
+                            <ListChecks className="h-4 w-4" /> Specifications
+                        </TabsTrigger>
+                        <TabsTrigger value="chat" className="flex items-center gap-2 relative">
+                            <MessageSquare className="h-4 w-4" /> Team Chat
+                            {/* We could add a notification dot here if needed */}
+                        </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="specs" className="space-y-6 animate-in slide-in-from-left-2 duration-300">
+                        {mainContent}
+                        
+                        <Card className="mt-8">
+                            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">ID:</span><span className="font-mono">#{order.id.slice(-8).toUpperCase()}</span></div>
+                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Deadline:</span><span className="font-bold">{formatTimestamp(order.deadline)}</span></div>
+                                <Separator />
+                                {canViewSensitiveData && (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between"><span>Total:</span><span className="font-bold">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                        <div className="flex justify-between text-destructive"><span>Balance:</span><span className="font-bold">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    
+                    <TabsContent value="chat" className="animate-in slide-in-from-right-2 duration-300">
+                        <ChatInterface order={order} />
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
       </div>
