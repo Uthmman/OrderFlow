@@ -2,7 +2,7 @@
 
 import { useOrders } from '@/hooks/use-orders';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Box } from 'lucide-react';
 import { Order, OrderChatMessage } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -103,15 +103,17 @@ export default function ChatPage() {
         ) : orderList.map((order) => {
             const lastMessage = getLastMessage(order);
             const orderName = formatOrderUniqueName(order.customerName, order.products, order.id);
+            const productImg = order.mainImageUrl || (order.products?.[0]?.mainImageUrl);
+
             return (
                 <Link
                   key={order.id}
                   href={`/orders/${order.id}?tab=chat`}
                   className="flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-muted/50 transition-colors"
                 >
-                  <Avatar className="h-12 w-12 border shadow-sm">
-                    <AvatarImage src={lastMessage?.user.avatarUrl} />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                  <Avatar className="h-12 w-12 border shadow-sm rounded-lg overflow-hidden">
+                    <AvatarImage src={productImg} className="object-cover" />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold rounded-lg">
                         {order.customerName.split(" ").map(n => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
