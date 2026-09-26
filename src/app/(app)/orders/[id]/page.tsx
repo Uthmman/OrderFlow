@@ -115,14 +115,12 @@ function TAPVisualizer({ content }: { content: string }) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // Clear
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Find Bounds
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         lines.forEach(p => {
             minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.x);
+            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
         });
 
         const margin = 40;
@@ -131,9 +129,8 @@ function TAPVisualizer({ content }: { content: string }) {
         const scale = Math.min(width / (maxX - minX || 1), height / (maxY - minY || 1));
 
         const getX = (x: number) => margin + (x - minX) * scale;
-        const getY = (y: number) => canvas.height - (margin + (y - minY) * scale); // Flip Y
+        const getY = (y: number) => canvas.height - (margin + (y - minY) * scale);
 
-        // Draw toolpath up to progress
         const limit = Math.floor((progress / 100) * lines.length);
         
         ctx.lineWidth = 1;
@@ -155,7 +152,6 @@ function TAPVisualizer({ content }: { content: string }) {
             }
         }
 
-        // Draw tool pointer
         if (limit > 0) {
             const current = lines[limit - 1];
             ctx.fillStyle = '#ef4444';
@@ -504,6 +500,28 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
 
     const canEditBOM = (isDesigner || order.ownerId === order.id) && ['Designing', 'In Progress'].includes(order.status);
 
+    // Grouping logic for attachments
+    const allAttachments = [
+        ...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })),
+        ...(product.designAttachments || []).map(a => ({ ...a, origin: 'design' }))
+    ];
+
+    const imageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+    const pdfAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
+    const cncAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
+    const otherAttachments = allAttachments.filter(att => {
+        const isImg = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+        const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
+        const isCnc = att.fileName.toLowerCase().endsWith('.tap');
+        return !isImg && !isPdf && !isCnc;
+    });
+
+    const getDeleteHandler = (att: any) => {
+        return att.origin === 'customer' 
+            ? () => onAttachmentDelete(att) 
+            : () => onDesignAttachmentDelete(att);
+    };
+
     return (
         <AccordionItem value={product.id}>
             <AccordionTrigger className="font-bold text-lg">{product.productName || "Unnamed Product"}</AccordionTrigger>
@@ -634,15 +652,9 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                     </CardContent>
                 </Card>
 
-                {product.attachments && product.attachments.length > 0 && (
-                    <Card><CardHeader><CardTitle>Customer Attachments</CardTitle></CardHeader><CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {product.attachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} order={order} onDelete={() => onAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)}
-                    </CardContent></Card>
-                )}
-
-                <Card className={cn(isDesigner && "border-primary/40 bg-primary/5")}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Design Attachments</CardTitle>
+                <div className="space-y-6">
+                    <div className="flex justify-between items-center px-1">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
                         {isDesigner && (
                             <div>
                                 <input type="file" ref={designInputRef} onChange={handleFileChange} className="hidden" />
@@ -652,17 +664,106 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                 </Button>
                             </div>
                         )}
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {product.designAttachments && product.designAttachments.length > 0 ? (
-                            product.designAttachments.map((att) => <AttachmentPreview key={att.storagePath} att={att} order={order} onDelete={() => onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} />)
-                        ) : (
-                            <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
-                                No design files uploaded yet.
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                    </div>
+
+                    {/* Visual References Section */}
+                    {imageAttachments.length > 0 && (
+                        <Card>
+                            <CardHeader className="py-4">
+                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
+                                    <ImageIcon className="h-4 w-4" /> Visual References
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {imageAttachments.map((att, i) => (
+                                    <AttachmentPreview 
+                                        key={i} 
+                                        att={att} 
+                                        order={order} 
+                                        onDelete={getDeleteHandler(att)} 
+                                        onImageClick={onImageClick} 
+                                        onPreview={onFilePreview} 
+                                    />
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Technical Drawings Section */}
+                    {pdfAttachments.length > 0 && (
+                        <Card>
+                            <CardHeader className="py-4">
+                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
+                                    <FileText className="h-4 w-4" /> Technical Drawings (PDF)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {pdfAttachments.map((att, i) => (
+                                    <AttachmentPreview 
+                                        key={i} 
+                                        att={att} 
+                                        order={order} 
+                                        onDelete={getDeleteHandler(att)} 
+                                        onImageClick={onImageClick} 
+                                        onPreview={onFilePreview} 
+                                    />
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* CNC Programs Section */}
+                    {cncAttachments.length > 0 && (
+                        <Card>
+                            <CardHeader className="py-4">
+                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
+                                    <Cpu className="h-4 w-4" /> CNC Programs (.TAP)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {cncAttachments.map((att, i) => (
+                                    <AttachmentPreview 
+                                        key={i} 
+                                        att={att} 
+                                        order={order} 
+                                        onDelete={getDeleteHandler(att)} 
+                                        onImageClick={onImageClick} 
+                                        onPreview={onFilePreview} 
+                                    />
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Other Files Section */}
+                    {otherAttachments.length > 0 && (
+                        <Card>
+                            <CardHeader className="py-4">
+                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
+                                    <File className="h-4 w-4" /> Other Attachments
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                {otherAttachments.map((att, i) => (
+                                    <AttachmentPreview 
+                                        key={i} 
+                                        att={att} 
+                                        order={order} 
+                                        onDelete={getDeleteHandler(att)} 
+                                        onImageClick={onImageClick} 
+                                        onPreview={onFilePreview} 
+                                    />
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {allAttachments.length === 0 && (
+                        <div className="py-12 text-center border-2 border-dashed rounded-xl bg-muted/10">
+                            <p className="text-xs text-muted-foreground italic">No documentation uploaded for this product.</p>
+                        </div>
+                    )}
+                </div>
             </AccordionContent>
 
             <Dialog open={isAddingNewCatalogItem} onOpenChange={setIsAddingNewCatalogItem}>
@@ -827,18 +928,15 @@ function OrderDetailPageContent() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        // 1. Background
         ctx.fillStyle = '#FFFFFF'; 
         ctx.fillRect(0, 0, width, height);
 
-        // 2. QR Code
         const qrSize = 320;
         const padding = 40;
         ctx.fillStyle = 'white';
         ctx.fillRect(padding, padding, qrSize, qrSize);
         ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
 
-        // 3. Project Name and Info
         ctx.fillStyle = '#1A1C1E';
         ctx.font = 'bold 70px sans-serif';
         const projectName = order.uniqueName || "";
@@ -852,7 +950,6 @@ function OrderDetailPageContent() {
             ctx.fillText(dateText, padding + qrSize + 80, padding + 240);
         }
 
-        // 4. Logo (Far Right)
         if (brandSettings?.logoUrl) {
             const logoImg = new (window as any).Image();
             logoImg.crossOrigin = "anonymous";
@@ -869,7 +966,6 @@ function OrderDetailPageContent() {
             });
         }
 
-        // Download
         const pngUrl = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");
         downloadLink.href = pngUrl;
@@ -1033,7 +1129,6 @@ function OrderDetailPageContent() {
         </div>
 
         <div className="mt-2">
-            {/* Desktop Unified View */}
             <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {mainContent}
@@ -1108,7 +1203,6 @@ function OrderDetailPageContent() {
                 </div>
             </div>
 
-            {/* Mobile Tabbed View */}
             <div className="lg:hidden">
                 <Tabs defaultValue="specs" className="w-full">
                     <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -1117,7 +1211,6 @@ function OrderDetailPageContent() {
                         </TabsTrigger>
                         <TabsTrigger value="chat" className="flex items-center gap-2 relative">
                             <MessageSquare className="h-4 w-4" /> Team Chat
-                            {/* We could add a notification dot here if needed */}
                         </TabsTrigger>
                     </TabsList>
                     
