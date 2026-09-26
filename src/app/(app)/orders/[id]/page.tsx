@@ -1,14 +1,15 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef } from "react";
+import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
 import { useOrders } from "@/hooks/use-orders";
+import { useStock } from "@/hooks/use-stock";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser, BOMItem, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu, ChevronLeft, ChevronRight, FlaskConical, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,7 @@ function TAPVisualizer({ content }: { content: string }) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         lines.forEach(p => {
             minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.x);
         });
 
         const margin = 40;
@@ -731,10 +732,10 @@ function OrderDetailPageContent() {
   const params = useParams(); const id = params.id as string;
   const router = useRouter(); 
   const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, loading: ordersLoading } = useOrders();
+  const { addStockItem } = useStock();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
   const { markOrderNotificationsAsRead } = useNotifications();
-  const { settings: colorSettings } = useColorSettings();
   const { settings: brandSettings } = useBrandSettings();
   const { user, role } = useUser();
   const searchParams = useSearchParams(); const { toast } = useToast();
@@ -744,6 +745,7 @@ function OrderDetailPageContent() {
   const [finishDesignOpen, setFinishDesignOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -788,6 +790,29 @@ function OrderDetailPageContent() {
         handleStatusChange('Design Ready');
         setFinishDesignOpen(false);
         toast({ title: "Design Finished", description: "Status updated to Design Ready." });
+    };
+
+    const transferToStock = async () => {
+        if (!order.products || order.products.length === 0) return;
+        setIsTransferring(true);
+        try {
+            for (const product of order.products) {
+                await addStockItem({
+                    name: `Sample: ${product.productName}`,
+                    category: 'Finished Samples',
+                    description: product.description || `From sample order ${order.uniqueName}`,
+                    unit: 'pcs',
+                    currentQuantity: product.quantity || 1,
+                    icon: 'FlaskConical'
+                });
+            }
+            await updateOrder({ id: order.id, isTransferredToStock: true });
+            toast({ title: "Inventory Updated", description: "Units added to Finished Samples." });
+        } catch (e) {
+            toast({ variant: "destructive", title: "Transfer Failed" });
+        } finally {
+            setIsTransferring(false);
+        }
     };
 
     const downloadQRCode = async () => {
@@ -856,6 +881,30 @@ function OrderDetailPageContent() {
 
     const mainContent = (
         <div className="space-y-6">
+            {order.isSample && order.status === 'Completed' && !order.isTransferredToStock && (
+                <Card className="border-orange-200 bg-orange-50/30 mx-1">
+                    <CardContent className="flex items-center justify-between p-4 gap-4">
+                        <div className="flex items-center gap-3">
+                            <FlaskConical className="h-6 w-6 text-orange-600" />
+                            <div>
+                                <p className="text-sm font-bold text-orange-900 uppercase tracking-tight">Sample Ready</p>
+                                <p className="text-xs text-orange-700">Add this finished piece to shop inventory.</p>
+                            </div>
+                        </div>
+                        <Button size="sm" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={transferToStock} disabled={isTransferring}>
+                            {isTransferring ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="mr-2 h-4 w-4" />}
+                            Transfer to Stock
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
+            
+            {order.isSample && order.isTransferredToStock && (
+                <div className="mx-1 p-3 bg-green-50 border border-green-100 rounded-lg flex items-center gap-2 text-green-700 text-xs font-bold uppercase tracking-widest">
+                    <CheckCircle2 className="h-4 w-4" /> Units Transferred to Stock
+                </div>
+            )}
+
             {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
                 <Card className="border-primary/40 bg-primary/5 mx-1">
                     <CardContent className="flex items-center justify-between p-3 gap-4">
@@ -924,6 +973,7 @@ function OrderDetailPageContent() {
                                 )}
                             </div>
                         )}
+                        {order.isSample && <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-1"><FlaskConical className="h-3 w-3" /> Sample</Badge>}
                         {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
                     </div>
                 </div>

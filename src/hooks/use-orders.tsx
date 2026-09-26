@@ -266,6 +266,8 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     
     // Add System Message for status changes
     if (originalOrder && orderData.status && originalOrder.status !== orderData.status) {
+        const orderName = dataToUpdate.uniqueName || originalOrder.uniqueName || 'Order';
+        
         newMessages.push({ 
             id: uuidv4(), 
             user: { id: 'system', name: 'System', avatarUrl: '' }, 
@@ -273,6 +275,18 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             timestamp, 
             isSystemMessage: true 
         });
+
+        // Trigger notification for status change
+        const assigned = Array.isArray(originalOrder.assignedTo) ? originalOrder.assignedTo : [];
+        const recipients = new Set([originalOrder.ownerId, ...assigned]);
+        recipients.delete(user.id);
+        if (recipients.size > 0) {
+            triggerNotification(firestore, Array.from(recipients), {
+                type: 'Order Update',
+                message: `${orderName} marked as ${orderData.status}`,
+                orderId: originalOrder.id
+            });
+        }
     }
 
     // Add User Chat Message
@@ -291,7 +305,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
         
         newMessages.push(msg);
 
-        // 4. Trigger Notifications
+        // 4. Trigger Notifications for chat
         if (originalOrder) {
             const assigned = Array.isArray(originalOrder.assignedTo) ? originalOrder.assignedTo : [];
             const recipients = new Set([originalOrder.ownerId, ...assigned]);

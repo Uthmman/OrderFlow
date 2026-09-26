@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/firebase';
+import { useAuth, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Boxes } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 
 export default function LoginPage() {
@@ -27,7 +27,15 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const auth = useAuth();
+  const { user, isUserLoading } = useFirebase();
   const { toast } = useToast();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('rememberedEmail');
@@ -66,13 +74,25 @@ export default function LoginPage() {
     }
   };
 
+  if (isUserLoading) {
+    return (
+        <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-muted/40">
+            <Boxes className="h-12 w-12 text-primary animate-bounce" />
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground animate-pulse">Initializing Session...</p>
+        </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40">
-      <Card className="mx-auto max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
+    <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
+      <Card className="mx-auto w-full max-w-sm shadow-xl">
+        <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-4">
+              <Boxes className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-2xl text-center font-headline">Welcome Back</CardTitle>
+          <CardDescription className="text-center">
+            Log in to manage your workshop orders
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -94,9 +114,9 @@ export default function LoginPage() {
                   <Label htmlFor="password">Password</Label>
                   <Link
                     href="/forgot-password"
-                    className="ml-auto inline-block text-sm underline"
+                    className="ml-auto inline-block text-sm underline text-primary"
                   >
-                    Forgot your password?
+                    Forgot password?
                   </Link>
                 </div>
                 <Input
@@ -107,7 +127,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 py-2">
                 <Checkbox 
                   id="remember-me"
                   checked={rememberMe}
@@ -120,16 +140,15 @@ export default function LoginPage() {
                   Remember me
                 </Label>
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Login
+              <Button type="submit" className="w-full h-11" disabled={loading}>
+                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Login"}
               </Button>
             </div>
           </form>
-          <div className="mt-4 text-center text-sm">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline">
-              Sign up
+          <div className="mt-6 text-center text-sm">
+            New team member?{' '}
+            <Link href="/signup" className="underline font-bold text-primary">
+              Create an account
             </Link>
           </div>
         </CardContent>

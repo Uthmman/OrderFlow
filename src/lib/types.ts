@@ -151,6 +151,8 @@ export type Order = {
   bankAccountNumber?: string;
   receiptAttachment?: OrderAttachment;
   batchReceiptId?: string;
+  isSample?: boolean;
+  isTransferredToStock?: boolean;
 };
 
 export type WoodFinish = {

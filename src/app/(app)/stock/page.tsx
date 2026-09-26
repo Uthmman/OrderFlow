@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, PlusCircle, MinusCircle, History, Package, Search, Settings, Trash2 } from 'lucide-react';
+import { Loader2, PlusCircle, MinusCircle, History, Package, Search, Settings, Trash2, ShoppingCart, FlaskConical } from 'lucide-react';
 import { formatTimestamp, formatOrderId, formatOrderUniqueName, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import type { StockItem, StockUnit, StockTransactionType } from '@/lib/types';
@@ -108,7 +108,7 @@ export default function StockPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline tracking-tight">Inventory</h1>
-          <p className="text-muted-foreground">Track materials, hardware, and shop supplies.</p>
+          <p className="text-muted-foreground">Track materials, hardware, and finished sample pieces.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => setIsManagingCategories(true)}>
@@ -285,7 +285,11 @@ export default function StockPage() {
                             {tx.type === 'In' ? '+' : '-'}{tx.quantity}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate text-sm">
-                            {tx.orderId && tx.orderId !== 'none' ? (
+                            {tx.reason === 'Sold' ? (
+                                <span className="flex items-center gap-1 text-green-600 font-bold uppercase text-[10px]">
+                                    <ShoppingCart className="h-3 w-3" /> Sold
+                                </span>
+                            ) : tx.orderId && tx.orderId !== 'none' ? (
                                <span className="flex items-center gap-1 text-primary font-medium">
                                 <Package className="h-3 w-3" /> {
                                     (() => {
@@ -314,7 +318,7 @@ export default function StockPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>New Stock Item</DialogTitle>
-            <DialogDescription>Add a new material or supply to track.</DialogDescription>
+            <DialogDescription>Add a new material or sample piece to track.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -404,9 +408,9 @@ export default function StockPage() {
       <Dialog open={isAdjusting} onOpenChange={setIsAdjusting}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>{adjustment.type === 'In' ? 'Add Stock' : 'Use Stock'}</DialogTitle>
+            <DialogTitle>{adjustment.type === 'In' ? 'Add Stock' : 'Use/Sell Stock'}</DialogTitle>
             <DialogDescription>
-              {adjustment.type === 'In' ? 'Increase quantity through purchase or restock.' : 'Decrease quantity for production or maintenance.'}
+              {adjustment.type === 'In' ? 'Increase quantity through purchase or restock.' : 'Decrease quantity for production or sales.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
@@ -421,11 +425,26 @@ export default function StockPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="qty">Quantity to {adjustment.type === 'In' ? 'add' : 'use'} ({optimisticItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
+              <Label htmlFor="qty">Quantity to {adjustment.type === 'In' ? 'add' : 'remove'} ({optimisticItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
               <Input id="qty" type="number" min="1" value={adjustment.quantity} onChange={e => setAdjustment({...adjustment, quantity: Number(e.target.value)})} />
             </div>
 
             {adjustment.type === 'Out' && (
+              <div className="grid gap-2">
+                <Label htmlFor="reason-out">Reason for Removal</Label>
+                <Select value={adjustment.reason} onValueChange={v => setAdjustment({...adjustment, reason: v})}>
+                    <SelectTrigger><SelectValue placeholder="Select reason..." /></SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Sold">Product Sold</SelectItem>
+                        <SelectItem value="Used in Production">Used in Production</SelectItem>
+                        <SelectItem value="Damaged/Waste">Damaged / Waste</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {adjustment.type === 'Out' && adjustment.reason !== 'Sold' && (
               <div className="grid gap-2">
                 <Label htmlFor="order">Link to Order (Optional)</Label>
                 <Select value={adjustment.orderId} onValueChange={v => setAdjustment({...adjustment, orderId: v})}>
@@ -441,8 +460,8 @@ export default function StockPage() {
             )}
             
             <div className="grid gap-2">
-              <Label htmlFor="reason">Note / Reason</Label>
-              <Input id="reason" value={adjustment.reason} onChange={e => setAdjustment({...adjustment, reason: e.target.value})} placeholder={adjustment.type === 'In' ? 'Supplier name, PO #...' : 'Specific component, waste...'} />
+              <Label htmlFor="note">Notes</Label>
+              <Input id="note" value={adjustment.reason === 'Sold' ? adjustment.reason : adjustment.reason} onChange={e => setAdjustment({...adjustment, reason: e.target.value})} placeholder={adjustment.type === 'In' ? 'Supplier name, PO #...' : 'Details...'} />
             </div>
           </div>
           <DialogFooter>
