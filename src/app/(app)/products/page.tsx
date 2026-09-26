@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useTransition } from 'react';
 import { useProducts } from '@/hooks/use-products';
 import { useProductSettings } from '@/hooks/use-product-settings';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,13 @@ function ProductCatalog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'standard' | 'orders'>('standard');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const handleTabChange = (val: string) => {
+    startTransition(() => {
+        setActiveTab(val as any);
+    });
+  };
 
   // Filter products based on the active tab
   const filteredProductsByTab = useMemo(() => {
@@ -94,51 +102,57 @@ function ProductCatalog() {
 
 
   if (productsLoading || settingsLoading || ordersLoading) {
-    return <div className="text-center p-8">Loading products...</div>;
+    return (
+        <div className="flex flex-col items-center justify-center p-20 gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground opacity-40">Accessing Catalog...</p>
+        </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
         <div>
-            <h1 className="text-3xl font-bold font-headline tracking-tight">Product Catalog</h1>
+            <h1 className="text-3xl font-bold font-headline tracking-tight text-slate-900">Product Catalog</h1>
+            <p className="text-muted-foreground text-sm">Library of standard designs and custom project pieces.</p>
         </div>
          <div className="flex items-center gap-2 w-full sm:w-auto">
             {role === 'Admin' && (
-                <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="flex-1 sm:flex-initial h-9">
+                <Button variant="outline" size="sm" onClick={handleSync} disabled={isSyncing} className="h-10 flex-1 sm:flex-initial">
                     {isSyncing ? <Loader2 className="mr-2 animate-spin h-4 w-4"/> : <RefreshCw className="mr-2 h-4 w-4"/>}
-                    Sync from Orders
+                    Sync Orders
                 </Button>
             )}
-            <Button onClick={() => router.push('/products/new')} className="flex-1 sm:flex-initial h-9">
+            <Button onClick={() => router.push('/products/new')} className="h-10 flex-1 sm:flex-initial">
                 <PlusCircle className="mr-2 h-4 w-4" /> New Product
             </Button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/30 p-4 rounded-lg">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full sm:w-auto">
-            <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="standard" className="flex items-center gap-2">
-                    <Library className="h-4 w-4" /> Standard Catalog
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/20 p-4 rounded-xl border">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full sm:w-auto">
+            <TabsList className="grid w-full grid-cols-2 bg-background border">
+                <TabsTrigger value="standard" className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
+                    <Library className="h-3.5 w-3.5" /> Catalog
                 </TabsTrigger>
-                <TabsTrigger value="orders" className="flex items-center gap-2">
-                    <Package className="h-4 w-4" /> Order Designs
+                <TabsTrigger value="orders" className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
+                    <Package className="h-3.5 w-3.5" /> Custom
                 </TabsTrigger>
             </TabsList>
         </Tabs>
         <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-                placeholder="Search catalog..."
+                placeholder="Quick search designs..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8 w-full bg-background"
+                className="pl-10 h-10 w-full bg-background"
             />
         </div>
       </div>
 
-       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+       <div className={cn("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-opacity duration-300", isPending ? "opacity-30" : "opacity-100")}>
           {categoryList.map(cat => {
             const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
             const count = categoryCounts[cat.name] || 0;
@@ -151,23 +165,23 @@ function ProductCatalog() {
 
             return (
               <CardComponent key={cat.name} {...cardProps}>
-                <Card className={cn("hover:border-primary transition-colors group h-full relative overflow-hidden", cat.name !== 'All Products' && 'cursor-pointer')}>
-                   <div className="absolute top-0 right-0 h-16 w-16 -mr-8 -mt-8 bg-primary/5 rounded-full transition-all group-hover:bg-primary/10" />
-                  <CardContent className="pt-6 relative">
+                <Card className={cn("hover:border-primary transition-all duration-300 group h-full relative overflow-hidden shadow-sm hover:shadow-md", cat.name !== 'All Products' && 'cursor-pointer active:scale-95')}>
+                   <div className="absolute top-0 right-0 h-20 w-20 -mr-10 -mt-10 bg-primary/5 rounded-full transition-all group-hover:bg-primary/10 group-hover:scale-150" />
+                  <CardContent className="pt-8 relative">
                     <div className="flex justify-between items-start">
-                        <div className="p-2 bg-muted rounded-lg group-hover:bg-primary/10 transition-colors">
+                        <div className="p-3 bg-muted rounded-xl group-hover:bg-primary/10 transition-colors shadow-inner">
                             <IconComponent className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         {count > 0 && (
-                             <div className="bg-primary text-primary-foreground h-7 w-7 rounded-full flex items-center justify-center text-sm font-bold shadow-sm">
+                             <div className="bg-primary text-primary-foreground h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-background">
                                 {count}
                             </div>
                         )}
                     </div>
-                     <div className="mt-4">
-                        <p className="text-lg font-bold font-headline">{cat.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {activeTab === 'standard' ? 'Standard products' : 'Custom order pieces'}
+                     <div className="mt-6">
+                        <p className="text-xl font-bold font-headline tracking-tight text-slate-800">{cat.name}</p>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 opacity-60">
+                            {activeTab === 'standard' ? 'Standard Inventory' : 'Custom Order Piece'}
                         </p>
                     </div>
                   </CardContent>

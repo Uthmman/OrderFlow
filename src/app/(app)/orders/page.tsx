@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useTransition } from "react"
 import { OrderTable } from "@/components/app/order-table"
 import { Card, CardContent } from "@/components/ui/card"
 import { useOrders } from "@/hooks/use-orders"
@@ -10,11 +10,12 @@ import { OrderStatus } from "@/lib/types"
 import { useUser } from "@/hooks/use-user"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Search } from "lucide-react"
+import { PlusCircle, Search, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { cn } from "@/lib/utils"
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
@@ -22,6 +23,7 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [activeTab, setActiveTab] = useState("active");
+  const [isPending, startTransition] = useTransition();
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
@@ -34,6 +36,12 @@ export default function OrdersPage() {
     }
     return null;
   }
+
+  const handleTabChange = (value: string) => {
+    startTransition(() => {
+      setActiveTab(value);
+    });
+  };
 
   // Filter orders by visibility rules:
   // - Pending (Drafts) are ONLY visible to their ownerId
@@ -88,63 +96,64 @@ export default function OrdersPage() {
   })), [getVisibleOrders, searchTerm, dateRange]);
 
   if (loading || userLoading) {
-    return <div className="p-8 text-center text-muted-foreground">Loading orders...</div>;
+    return <div className="p-8 text-center text-muted-foreground flex flex-col items-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin opacity-20" />
+        <p className="text-sm font-bold uppercase tracking-widest opacity-40">Loading workspace...</p>
+    </div>;
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold font-headline tracking-tight">Orders</h1>
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-end gap-4">
+        <div>
+            <h1 className="text-3xl font-bold font-headline tracking-tight">Orders</h1>
+            <p className="text-muted-foreground text-sm">Manage project flow and technical readiness.</p>
+        </div>
+        <Link href="/orders/new" className="w-full sm:w-auto">
+            <Button className="h-10 w-full">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                New Order
+            </Button>
+        </Link>
       </div>
       
-       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <div className="flex-1 flex flex-row gap-2 w-full items-center">
-                <div className="relative flex-1">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Filter by customer, name, or product..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8 w-full"
-                    />
-                </div>
-                <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="w-auto" />
+       <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-muted/20 p-4 rounded-xl border">
+            <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Search by customer, product, or ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-10 w-full bg-background"
+                />
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-                <Link href="/orders/new" className="flex-1 sm:flex-initial">
-                    <Button size="sm" className="h-9 w-full">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        New Order
-                    </Button>
-                </Link>
-            </div>
+            <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="w-full sm:w-auto" />
        </div>
 
-       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="w-full">
-                <TabsList className="flex w-full h-auto flex-wrap justify-start gap-1.5 bg-transparent p-0">
+       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            <div className="w-full overflow-x-auto no-scrollbar">
+                <TabsList className="flex h-auto p-1 bg-muted/30 border w-fit min-w-full sm:min-w-0">
                    {tabs.map(tab => (
                         <TabsTrigger 
                             key={tab.value} 
                             value={tab.value} 
-                            className="whitespace-nowrap data-[state=active]:bg-primary data-[state=active]:text-primary-foreground bg-muted/50 border h-9"
+                            className="whitespace-nowrap px-4 py-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all"
                         >
-                            {tab.label} ({tab.orders.length})
+                            {tab.label} <span className="ml-1.5 opacity-50">{tab.orders.length}</span>
                         </TabsTrigger>
                     ))}
                 </TabsList>
             </div>
-            <Card className="mt-4">
-                <CardContent className="pt-6">
-                    {tabs.map(tab => (
-                        <TabsContent key={tab.value} value={tab.value} className="mt-0">
-                            {activeTab === tab.value && (
-                                <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
-                            )}
-                        </TabsContent>
-                    ))}
-                </CardContent>
-            </Card>
+            
+            <div className={cn("mt-6 transition-opacity duration-200", isPending ? "opacity-40" : "opacity-100")}>
+                {tabs.map(tab => (
+                    <TabsContent key={tab.value} value={tab.value} className="mt-0 outline-none">
+                        {activeTab === tab.value && (
+                            <OrderTable orders={tab.orders} preferenceKey="orderSortPreference" />
+                        )}
+                    </TabsContent>
+                ))}
+            </div>
         </Tabs>
     </div>
   );

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -73,6 +74,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -84,6 +86,47 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+}
+
+function OrderSkeleton() {
+    return (
+        <div className="flex flex-col gap-6 animate-in fade-in duration-500">
+            <div className="flex justify-between items-start px-1 py-4">
+                <div className="space-y-3 flex-1">
+                    <Skeleton className="h-10 w-2/3 md:w-1/2" />
+                    <div className="flex gap-2">
+                        <Skeleton className="h-6 w-24 rounded-full" />
+                        <Skeleton className="h-6 w-32 rounded-full" />
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <Card>
+                        <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
+                        <CardContent className="space-y-4">
+                            <Skeleton className="h-20 w-full" />
+                            <div className="grid grid-cols-3 gap-4">
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Skeleton className="h-[400px] w-full rounded-xl" />
+                </div>
+                <div className="space-y-6">
+                    <Card><CardContent className="pt-6 space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></CardContent></Card>
+                    <Card><CardContent className="pt-6 flex gap-3"><Skeleton className="h-12 w-12 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-1/3" /></div></CardContent></Card>
+                    <Skeleton className="h-[300px] w-full rounded-xl" />
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function UploadingCard({ name, progress }: { name: string, progress: number }) {
@@ -902,7 +945,7 @@ function OrderDetailPageContent() {
     }
   }, [order?.id, markOrderNotificationsAsRead]);
 
-  if (ordersLoading || customersLoading || allUsersLoading || !order) return <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>;
+  if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
   
   const customer = getCustomerById(order.customerId);
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
@@ -1086,7 +1129,7 @@ function OrderDetailPageContent() {
     );
 
   return (
-    <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8">
+    <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
       <div className="w-full">
         <div className="px-1 py-4 mt-2">
             <div className="flex justify-between items-start">
@@ -1384,4 +1427,4 @@ function OrderDetailPageContent() {
   );
 }
 
-export default function OrderDetailPage() { return ( <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 text-primary" /></div>}><OrderDetailPageContent /></Suspense> ); }
+export default function OrderDetailPage() { return ( <Suspense fallback={<OrderSkeleton />}><OrderDetailPageContent /></Suspense> ); }

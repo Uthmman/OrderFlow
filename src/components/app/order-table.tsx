@@ -402,7 +402,7 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
     return (
         <div className="space-y-3 p-2">
             {orders.map(order => (
-                 <Card key={order.id} className="hover:bg-muted/50 transition-colors border-muted-foreground/10 shadow-sm overflow-hidden" onClick={() => router.push(`/orders/${order.id}`)}>
+                 <Card key={order.id} className="hover:bg-muted/50 transition-all active:scale-[0.98] border-muted-foreground/10 shadow-sm overflow-hidden cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
                     <div className="p-3 flex gap-3">
                         <CategoryIcon order={order} />
                         <div className="flex-1 min-w-0 space-y-1">
