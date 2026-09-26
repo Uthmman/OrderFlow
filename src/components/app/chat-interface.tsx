@@ -331,7 +331,7 @@ export function ChatInterface({ order }: { order: Order }) {
 
   return (
     <>
-    <div className="flex flex-col h-[500px] md:h-[600px] lg:h-[650px] border-none md:border md:rounded-xl md:shadow-sm bg-transparent lg:bg-card overflow-hidden relative">
+    <div className="flex flex-col h-full border-none md:border md:rounded-xl md:shadow-sm bg-transparent lg:bg-card overflow-hidden relative">
       <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-6 scroll-smooth bg-muted/5">
          {optimisticMessages.length === 0 ? (
              <div className="h-full flex items-center justify-center text-center p-8">
@@ -347,8 +347,7 @@ export function ChatInterface({ order }: { order: Order }) {
         ))}
       </div>
       
-      {/* Messaging Input Area */}
-      <div className="p-4 bg-background border-t border-border/50 z-30 shrink-0">
+      <div className="p-4 bg-background border-t border-border/50 z-40 shrink-0 shadow-[0_-5px_15px_-10px_rgba(0,0,0,0.1)]">
          {fileToUpload && fileUrl && (
             <div className="w-full mb-3 p-2 border rounded-xl flex items-center justify-between gap-2 bg-muted/40 animate-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-2 truncate">

@@ -848,6 +848,8 @@ function OrderDetailPageContent() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
+  
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
   const order = optimisticOrder;
@@ -1204,7 +1206,7 @@ function OrderDetailPageContent() {
             </div>
 
             <div className="lg:hidden">
-                <Tabs defaultValue="specs" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 mb-6">
                         <TabsTrigger value="specs" className="flex items-center gap-2">
                             <ListChecks className="h-4 w-4" /> Specifications
@@ -1234,7 +1236,9 @@ function OrderDetailPageContent() {
                     </TabsContent>
                     
                     <TabsContent value="chat" className="animate-in slide-in-from-right-2 duration-300">
-                        <ChatInterface order={order} />
+                        <div className="h-[calc(100vh-200px)]">
+                            <ChatInterface order={order} />
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>
