@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,7 +25,7 @@ export default function Dashboard() {
     to: endOfMonth(new Date()),
   });
   
-  const isDesigner = role === 'Designer';
+  const canViewFinancials = role === 'Admin' || role === 'Sales';
 
   const parseOrderDate = (date: any): Date | null => {
     if (!date) return null;
@@ -97,7 +98,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <Card className={cn("border-none shadow-sm bg-white/50 backdrop-blur-sm", isDesigner ? "lg:col-span-3" : "lg:col-span-2")}>
+        <Card className={cn("border-none shadow-sm bg-white/50 backdrop-blur-sm", !canViewFinancials ? "lg:col-span-3" : "lg:col-span-2")}>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
                 <CardTitle className="text-lg font-bold">Order Overview</CardTitle>
@@ -134,7 +135,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {!isDesigner && (
+        {canViewFinancials && (
           <Card className="border-none shadow-sm bg-white/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between">
               <div>

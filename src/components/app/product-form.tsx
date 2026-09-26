@@ -642,7 +642,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                                 {watchedMainImage === att.url ? <CheckCircle2 className="h-3 w-3 mr-1" /> : "Set Main"}
                                             </Button>
                                             <Button type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => removeAttachment(att.url)}>
-                                                <Trash2 className="h-3 w-3" />
+                                                <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
                                     </div>

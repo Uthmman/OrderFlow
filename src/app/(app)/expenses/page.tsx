@@ -123,8 +123,8 @@ export default function ExpensesPage() {
       }
   };
 
-  if (role === 'Designer' || role === 'Pending') {
-      return <div className="p-8 text-center text-muted-foreground">Access Denied. Financial tracking is restricted to Admin, Manager, and Sales.</div>;
+  if (role !== 'Admin' && role !== 'Sales') {
+      return <div className="p-8 text-center text-muted-foreground">Access Denied. Financial tracking is restricted to Admin and Sales roles.</div>;
   }
 
   return (
