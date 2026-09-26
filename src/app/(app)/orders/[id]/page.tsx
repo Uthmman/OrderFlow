@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -72,6 +71,8 @@ import { Label } from "@/components/ui/label";
 import { useFirestore } from "@/firebase";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { Progress } from "@/components/ui/progress";
+import { v4 as uuidv4 } from "uuid";
 
 const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructive" | "outline"> = {
     "Pending": "outline",
@@ -83,6 +84,21 @@ const statusVariantMap: Record<OrderStatus, "default" | "secondary" | "destructi
     "Completed": "default",
     "Shipped": "default",
     "Cancelled": "destructive",
+}
+
+function UploadingCard({ name, progress }: { name: string, progress: number }) {
+    return (
+        <Card className="bg-muted/30 border-dashed border-primary/20 animate-pulse overflow-hidden">
+            <CardContent className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-[10px] font-bold truncate flex-1 uppercase tracking-tighter">{name}</p>
+                    <span className="text-[10px] font-bold text-primary">{progress}%</span>
+                </div>
+                <Progress value={progress} className="h-1" />
+            </CardContent>
+        </Card>
+    );
 }
 
 function TAPVisualizer({ content }: { content: string }) {
@@ -421,28 +437,42 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
-const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File) => void, onFilePreview: (attachment: OrderAttachment) => void }) => {
+const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File, progressKey?: string) => Promise<any>, onFilePreview: (attachment: OrderAttachment) => void }) => {
     const { settings: colorSettings } = useColorSettings();
     const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
+    const { uploadProgress } = useOrders();
     const firestore = useFirestore();
     const { toast } = useToast();
     const allColorOptions = [...(colorSettings?.woodFinishes || []), ...(colorSettings?.customColors || [])];
     const designInputRef = useRef<HTMLInputElement>(null);
-    const [isUploading, setIsUploading] = useState(false);
+    const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; type: string; progressKey: string }[]>([]);
     const [itemSearch, setItemSearch] = useState("");
     const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
     const [isAddingNewCatalogItem, setIsAddingNewCatalogItem] = useState(false);
     const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs' });
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setIsUploading(true);
-            try {
-                await onDesignUpload(e.target.files[0]);
-            } finally {
-                setIsUploading(false);
-                if (designInputRef.current) designInputRef.current.value = "";
+        if (e.target.files && e.target.files.length > 0) {
+            const files = Array.from(e.target.files);
+            
+            for (const file of files) {
+                const taskId = uuidv4();
+                const progressKey = `${file.name}-${taskId}`;
+                let type = 'other';
+                if (file.type.startsWith('image/')) type = 'image';
+                else if (file.name.toLowerCase().endsWith('.pdf')) type = 'pdf';
+                else if (file.name.toLowerCase().endsWith('.tap')) type = 'cnc';
+
+                setActiveUploads(prev => [...prev, { id: taskId, name: file.name, type, progressKey }]);
+
+                try {
+                    await onDesignUpload(file, progressKey);
+                } finally {
+                    setActiveUploads(prev => prev.filter(u => u.id !== taskId));
+                }
             }
+            
+            if (designInputRef.current) designInputRef.current.value = "";
         }
     };
 
@@ -657,9 +687,9 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
                         {isDesigner && (
                             <div>
-                                <input type="file" ref={designInputRef} onChange={handleFileChange} className="hidden" />
-                                <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={isUploading}>
-                                    {isUploading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
+                                <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
+                                <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0 && false}>
+                                    {activeUploads.length > 0 ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                     Upload Technical File
                                 </Button>
                             </div>
@@ -667,7 +697,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                     </div>
 
                     {/* Visual References Section */}
-                    {imageAttachments.length > 0 && (
+                    {(imageAttachments.length > 0 || activeUploads.some(u => u.type === 'image')) && (
                         <Card>
                             <CardHeader className="py-4">
                                 <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
@@ -685,12 +715,15 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
+                                {activeUploads.filter(u => u.type === 'image').map(u => (
+                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
+                                ))}
                             </CardContent>
                         </Card>
                     )}
 
                     {/* Technical Drawings Section */}
-                    {pdfAttachments.length > 0 && (
+                    {(pdfAttachments.length > 0 || activeUploads.some(u => u.type === 'pdf')) && (
                         <Card>
                             <CardHeader className="py-4">
                                 <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
@@ -708,12 +741,15 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
+                                {activeUploads.filter(u => u.type === 'pdf').map(u => (
+                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
+                                ))}
                             </CardContent>
                         </Card>
                     )}
 
                     {/* CNC Programs Section */}
-                    {cncAttachments.length > 0 && (
+                    {(cncAttachments.length > 0 || activeUploads.some(u => u.type === 'cnc')) && (
                         <Card>
                             <CardHeader className="py-4">
                                 <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
@@ -731,12 +767,15 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
+                                {activeUploads.filter(u => u.type === 'cnc').map(u => (
+                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
+                                ))}
                             </CardContent>
                         </Card>
                     )}
 
                     {/* Other Files Section */}
-                    {otherAttachments.length > 0 && (
+                    {(otherAttachments.length > 0 || activeUploads.some(u => u.type === 'other')) && (
                         <Card>
                             <CardHeader className="py-4">
                                 <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
@@ -754,11 +793,14 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
+                                {activeUploads.filter(u => u.type === 'other').map(u => (
+                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
+                                ))}
                             </CardContent>
                         </Card>
                     )}
 
-                    {allAttachments.length === 0 && (
+                    {allAttachments.length === 0 && activeUploads.length === 0 && (
                         <div className="py-12 text-center border-2 border-dashed rounded-xl bg-muted/10">
                             <p className="text-xs text-muted-foreground italic">No documentation uploaded for this product.</p>
                         </div>
@@ -1035,7 +1077,7 @@ function OrderDetailPageContent() {
                         onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
                         onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
                         isDesigner={isDesigner || role === 'Admin'}
-                        onDesignUpload={(file) => addAttachment(order.id, index, file, true)}
+                        onDesignUpload={(file, progressKey) => addAttachment(order.id, index, file, true, progressKey)}
                         onFilePreview={handleFilePreview}
                     />
                 ))}

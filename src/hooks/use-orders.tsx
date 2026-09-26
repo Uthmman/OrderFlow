@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -25,7 +24,7 @@ interface OrderContextType {
   deleteMultipleOrders: (ordersToDelete: Order[]) => Promise<void>;
   getOrderById: (orderId: string) => Order | undefined;
   uploadProgress: Record<string, number>;
-  addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean) => Promise<OrderAttachment | undefined>;
+  addAttachment: (orderId: string, productIndex: number, file: File, isDesignFile?: boolean, progressKey?: string) => Promise<OrderAttachment | undefined>;
   uploadFile: (file: File, progressKey?: string) => Promise<OrderAttachment>;
   removeAttachment: (orderId: string, productIndex: number, attachment: OrderAttachment, isDesignFile?: boolean) => Promise<void>;
 }
@@ -83,11 +82,11 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
   };
   
-  const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false): Promise<OrderAttachment | undefined> => {
+  const addAttachment = async (orderId: string, productIndex: number, file: File, isDesignFile = false, progressKey?: string): Promise<OrderAttachment | undefined> => {
       try {
         const currentOrder = orders?.find(o => o.id === orderId);
         if (!currentOrder) throw new Error("Order not found.");
-        const newAttachment = await uploadFile(file);
+        const newAttachment = await uploadFile(file, progressKey);
         const orderRef = doc(firestore, 'orders', orderId);
         const updatedProducts = [...(currentOrder.products || [])];
         if (updatedProducts[productIndex]) {
