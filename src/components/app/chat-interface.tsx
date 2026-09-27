@@ -332,7 +332,7 @@ export function ChatInterface({ order }: { order: Order }) {
   return (
     <>
     <div className="flex flex-col h-full border-none md:border md:rounded-xl md:shadow-sm bg-transparent lg:bg-card overflow-hidden relative">
-      <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-6 scroll-smooth bg-muted/5">
+      <div className="flex-1 overflow-y-auto space-y-5 p-4 lg:p-6 scroll-smooth bg-muted/5 pb-32 md:pb-6">
          {optimisticMessages.length === 0 ? (
              <div className="h-full flex items-center justify-center text-center p-8">
                  <div className="space-y-3 opacity-30 grayscale">
@@ -347,7 +347,10 @@ export function ChatInterface({ order }: { order: Order }) {
         ))}
       </div>
       
-      <div className="p-4 bg-background border-t border-border/50 z-40 shrink-0 shadow-[0_-5px_15px_-10px_rgba(0,0,0,0.1)]">
+      <div className={cn(
+          "p-4 bg-background border-t border-border/50 z-40 shrink-0 shadow-[0_-5px_15px_-10px_rgba(0,0,0,0.1)]",
+          "md:relative fixed bottom-[90px] left-4 right-4 md:bottom-auto md:left-auto md:right-auto md:rounded-none rounded-2xl md:border-x-0 border-x border-b bg-background/80 backdrop-blur-lg shadow-2xl animate-in slide-in-from-bottom-4 duration-300"
+      )}>
          {fileToUpload && fileUrl && (
             <div className="w-full mb-3 p-2 border rounded-xl flex items-center justify-between gap-2 bg-muted/40 animate-in slide-in-from-bottom-2">
                 <div className="flex items-center gap-2 truncate">
