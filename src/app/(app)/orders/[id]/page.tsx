@@ -573,7 +573,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
 
     const canEditBOM = (isDesigner || order.ownerId === order.id) && ['Designing', 'In Progress'].includes(order.status);
 
-    // Grouping logic for attachments
     const allAttachments = [
         ...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })),
         ...(product.designAttachments || []).map(a => ({ ...a, origin: 'design' }))
@@ -717,11 +716,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                 </div>
                             )}
                         </div>
-                        {product.billOfMaterials && (
-                            <div className="mt-4 bg-background/80 p-4 rounded-md border text-sm whitespace-pre-wrap font-mono leading-relaxed italic">
-                                {product.billOfMaterials}
-                            </div>
-                        )}
                     </CardContent>
                 </Card>
 
@@ -731,7 +725,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         {isDesigner && (
                             <div>
                                 <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
-                                <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0 && false}>
+                                <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0}>
                                     {activeUploads.length > 0 ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                     Upload Technical File
                                 </Button>
@@ -739,7 +733,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         )}
                     </div>
 
-                    {/* Visual References Section */}
                     {(imageAttachments.length > 0 || activeUploads.some(u => u.type === 'image')) && (
                         <Card>
                             <CardHeader className="py-4">
@@ -765,7 +758,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         </Card>
                     )}
 
-                    {/* Technical Drawings Section */}
                     {(pdfAttachments.length > 0 || activeUploads.some(u => u.type === 'pdf')) && (
                         <Card>
                             <CardHeader className="py-4">
@@ -791,7 +783,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         </Card>
                     )}
 
-                    {/* CNC Programs Section */}
                     {(cncAttachments.length > 0 || activeUploads.some(u => u.type === 'cnc')) && (
                         <Card>
                             <CardHeader className="py-4">
@@ -817,7 +808,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         </Card>
                     )}
 
-                    {/* Other Files Section */}
                     {(otherAttachments.length > 0 || activeUploads.some(u => u.type === 'other')) && (
                         <Card>
                             <CardHeader className="py-4">
@@ -932,7 +922,6 @@ function OrderDetailPageContent() {
   const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
-  
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
   
   const orderData = getOrderById(id);
@@ -948,10 +937,7 @@ function OrderDetailPageContent() {
   const simpleName = useMemo(() => {
     if (!order?.uniqueName) return "";
     const parts = order.uniqueName.split(' - ');
-    // Unique name format: Customer - Product - ShortID
-    if (parts.length >= 2) {
-      return `${parts[0]} - ${parts[1]}`;
-    }
+    if (parts.length >= 2) return `${parts[0]} - ${parts[1]}`;
     return order.uniqueName;
   }, [order?.uniqueName]);
 
@@ -968,11 +954,11 @@ function OrderDetailPageContent() {
   const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
 
-    const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" } as any); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); }
+    const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" } as any); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); };
     const handleDelete = () => { if (!orderData) return; const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); deleteOrder(orderData.id, allAttachments); toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); router.push("/orders"); };
     const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
     const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
-    const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } }
+    const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } };
     const handleFilePreview = (att: OrderAttachment) => { setPreviewAttachment(att); setPreviewOpen(true); };
 
     const startDesign = () => {
@@ -1016,60 +1002,17 @@ function OrderDetailPageContent() {
     const downloadQRCode = async () => {
         const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
         if (!qrCanvas) return;
-
-        const width = 2400;
-        const height = 400;
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        ctx.fillStyle = '#FFFFFF'; 
-        ctx.fillRect(0, 0, width, height);
-
-        const qrSize = 320;
-        const padding = 40;
-        ctx.fillStyle = 'white';
-        ctx.fillRect(padding, padding, qrSize, qrSize);
-        ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
-
-        ctx.fillStyle = '#1A1C1E';
-        ctx.font = 'bold 70px sans-serif';
-        const projectName = order.uniqueName || "";
-        ctx.fillText(projectName, padding + qrSize + 80, padding + 140);
-
+        const width = 2400; const height = 400; const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); if (!ctx) return;
+        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, width, height);
+        const qrSize = 320; const padding = 40; ctx.fillStyle = 'white'; ctx.fillRect(padding, padding, qrSize, qrSize); ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
+        ctx.fillStyle = '#1A1C1E'; ctx.font = 'bold 70px sans-serif'; ctx.fillText(order.uniqueName || "", padding + qrSize + 80, padding + 140);
         const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : null;
-        if (dateObj) {
-            ctx.font = '40px sans-serif';
-            ctx.fillStyle = '#666';
-            const dateText = `Date: ${dateObj.toLocaleDateString()}`;
-            ctx.fillText(dateText, padding + qrSize + 80, padding + 240);
-        }
-
+        if (dateObj) { ctx.font = '40px sans-serif'; ctx.fillStyle = '#666'; ctx.fillText(`Date: ${dateObj.toLocaleDateString()}`, padding + qrSize + 80, padding + 240); }
         if (brandSettings?.logoUrl) {
-            const logoImg = new (window as any).Image();
-            logoImg.crossOrigin = "anonymous";
-            logoImg.src = brandSettings.logoUrl;
-            await new Promise((resolve) => {
-                logoImg.onload = () => {
-                    const aspect = logoImg.width / logoImg.height;
-                    const h = 280;
-                    const w = h * aspect;
-                    ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h);
-                    resolve(null);
-                };
-                logoImg.onerror = () => resolve(null);
-            });
+            const logoImg = new (window as any).Image(); logoImg.crossOrigin = "anonymous"; logoImg.src = brandSettings.logoUrl;
+            await new Promise((resolve) => { logoImg.onload = () => { const aspect = logoImg.width / logoImg.height; const h = 280; const w = h * aspect; ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h); resolve(null); }; logoImg.onerror = () => resolve(null); });
         }
-
-        const pngUrl = canvas.toDataURL("image/png");
-        const downloadLink = document.createElement("a");
-        downloadLink.href = pngUrl;
-        downloadLink.download = `footer-${order.id}.png`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
+        const pngUrl = canvas.toDataURL("image/png"); const downloadLink = document.createElement("a"); downloadLink.href = pngUrl; downloadLink.download = `footer-${order.id}.png`; document.body.appendChild(downloadLink); downloadLink.click(); document.body.removeChild(downloadLink);
     };
 
     const mainContent = (
@@ -1091,13 +1034,11 @@ function OrderDetailPageContent() {
                     </CardContent>
                 </Card>
             )}
-            
             {order.isSample && order.isTransferredToStock && (
                 <div className="mx-1 p-3 bg-green-50 border border-green-100 rounded-lg flex items-center gap-2 text-green-700 text-xs font-bold uppercase tracking-widest">
                     <CheckCircle2 className="h-4 w-4" /> Units Transferred to Stock
                 </div>
             )}
-
             {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
                 <Card className="border-primary/40 bg-primary/5 mx-1">
                     <CardContent className="flex items-center justify-between p-3 gap-4">
@@ -1118,7 +1059,6 @@ function OrderDetailPageContent() {
                     </CardContent>
                 </Card>
             )}
-
             <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
                 {(order.products || []).map((product, index) => (
                     <ProductDetails 
@@ -1301,43 +1241,53 @@ function OrderDetailPageContent() {
 
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-4 sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm p-1">
-                        <TabsTrigger value="specs" className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
-                            <ListChecks className="h-4 w-4" /> Specs
-                        </TabsTrigger>
-                        <TabsTrigger value="chat" className="flex items-center gap-2 relative text-xs font-bold uppercase tracking-tight">
-                            <MessageSquare className="h-4 w-4" /> Chat
-                        </TabsTrigger>
-                    </TabsList>
-                    
-                    {/* Floating Sticky Header for Mobile */}
-                    <div className="sticky top-[52px] z-30 bg-background/95 backdrop-blur-sm border-b pb-3 mb-6 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
-                        <div className="flex justify-between items-start gap-4">
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h1 className="text-lg font-bold font-headline tracking-tight truncate leading-tight">
-                                        {activeTab === 'chat' ? simpleName : order.uniqueName}
-                                    </h1>
-                                    
-                                    {/* Only show status/urgent badges in specs tab context */}
-                                    {activeTab === 'specs' && (
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <StatusBadge status={order.status} />
-                                            {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
-                                        </div>
+                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm border-b">
+                        <TabsList className="grid w-full grid-cols-2 p-1 bg-transparent">
+                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-muted/50">
+                                <ListChecks className="h-4 w-4" /> Specs
+                            </TabsTrigger>
+                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-muted/50">
+                                <MessageSquare className="h-4 w-4" /> Chat
+                            </TabsTrigger>
+                        </TabsList>
+                        
+                        <div className="px-2 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                            <div className="flex justify-between items-center gap-3">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    {activeTab === 'chat' && order.mainImageUrl && (
+                                        <Avatar className="h-9 w-9 rounded-lg border shadow-sm shrink-0">
+                                            <AvatarImage src={order.mainImageUrl} className="object-cover" />
+                                            <AvatarFallback className="text-[10px] font-bold">IMG</AvatarFallback>
+                                        </Avatar>
+                                    )}
+                                    <div className="min-w-0">
+                                        <h1 className="text-base font-bold font-headline tracking-tight truncate leading-tight">
+                                            {activeTab === 'chat' ? simpleName : order.uniqueName}
+                                        </h1>
+                                        {activeTab === 'specs' && (
+                                            <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
+                                                <StatusBadge status={order.status} />
+                                                {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
+                                                {order.assignedTo && order.assignedTo.length > 0 && (
+                                                    <div className="flex -space-x-1.5 ml-2">
+                                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
+                                    {canEdit && (
+                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button></Link>
                                     )}
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
-                                {canEdit && (
-                                    <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button></Link>
-                                )}
                             </div>
                         </div>
                     </div>
 
-                    <TabsContent value="specs" className="space-y-6 animate-in slide-in-from-left-2 duration-300 outline-none">
+                    <TabsContent value="specs" className="space-y-6 mt-4 animate-in slide-in-from-left-2 duration-300 outline-none pb-24">
                         {mainContent}
                         
                         <Card className="mt-8">
@@ -1356,8 +1306,8 @@ function OrderDetailPageContent() {
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="chat" className="animate-in slide-in-from-right-2 duration-300 outline-none">
-                        <div className="h-[calc(100vh-250px)]">
+                    <TabsContent value="chat" className="mt-0 animate-in slide-in-from-right-2 duration-300 outline-none">
+                        <div className="h-[calc(100vh-220px)]">
                             <ChatInterface order={order} />
                         </div>
                     </TabsContent>
@@ -1411,7 +1361,7 @@ function OrderDetailPageContent() {
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-green-600" /> Confirm Design Submission
-                </DialogTitle>
+                </DialogHeader>
                 <DialogDescription>
                     Please ensure the following technical requirements are met for production.
                 </DialogDescription>
