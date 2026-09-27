@@ -151,8 +151,8 @@ export default function ExpensesPage() {
           </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border">
-        <div className="relative w-full sm:max-w-xs">
+      <div className="flex flex-row gap-2 items-center justify-between bg-muted/20 p-4 rounded-xl border">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search description, vendor..." 
@@ -161,7 +161,7 @@ export default function ExpensesPage() {
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
+        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="shrink-0" />
       </div>
 
       <Card>
