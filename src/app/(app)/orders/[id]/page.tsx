@@ -945,6 +945,16 @@ function OrderDetailPageContent() {
     }
   }, [order?.id, markOrderNotificationsAsRead]);
 
+  const simpleName = useMemo(() => {
+    if (!order?.uniqueName) return "";
+    const parts = order.uniqueName.split(' - ');
+    // Unique name format: Customer - Product - ShortID
+    if (parts.length >= 2) {
+      return `${parts[0]} - ${parts[1]}`;
+    }
+    return order.uniqueName;
+  }, [order?.uniqueName]);
+
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
   
   const customer = getCustomerById(order.customerId);
@@ -1131,93 +1141,92 @@ function OrderDetailPageContent() {
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
       <div className="w-full">
-        <div className="px-1 py-4 mt-2">
-            <div className="flex justify-between items-start">
-                <div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
-                         {canChangeStatus && (
-                            <div className="flex items-center gap-2">
-                                <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                                {order.assignedTo && order.assignedTo.length > 0 && (
-                                    <div className="flex -space-x-2 ml-1">
-                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                    </div>
-                                )}
-                            </div>
-                         )}
-                        {isDesigner && (
-                            <div className="flex items-center gap-2">
-                                <StatusBadge status={order.status} />
-                                {order.assignedTo && order.assignedTo.length > 0 && (
-                                    <div className="flex -space-x-2 ml-1">
-                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {order.isSample && <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-1"><FlaskConical className="h-3 w-3" /> Sample</Badge>}
-                        {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                    {canEdit && (
-                        <>
-                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="icon" className="h-9 w-9"><MoreVertical className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={handleToggleUrgent}>
-                                    <AlertTriangle className="mr-2 h-4 w-4" />
-                                    <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Back</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                                <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                        <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
-
         <div className="mt-2">
             <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                    <div className="px-1 py-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
+                                    {canChangeStatus && (
+                                        <div className="flex items-center gap-2">
+                                            <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                                            {order.assignedTo && order.assignedTo.length > 0 && (
+                                                <div className="flex -space-x-2 ml-1">
+                                                    {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {isDesigner && (
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={order.status} />
+                                            {order.assignedTo && order.assignedTo.length > 0 && (
+                                                <div className="flex -space-x-2 ml-1">
+                                                    {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {order.isSample && <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-1"><FlaskConical className="h-3 w-3" /> Sample</Badge>}
+                                    {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
+                                {canEdit && (
+                                    <>
+                                    <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="outline" size="icon" className="h-9 w-9"><MoreVertical className="h-4 w-4" /></Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onClick={handleToggleUrgent}>
+                                                <AlertTriangle className="mr-2 h-4 w-4" />
+                                                <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Back</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     {mainContent}
                 </div>
                 <div className="space-y-8">
@@ -1292,16 +1301,43 @@ function OrderDetailPageContent() {
 
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
-                        <TabsTrigger value="specs" className="flex items-center gap-2">
-                            <ListChecks className="h-4 w-4" /> Specifications
+                    <TabsList className="grid w-full grid-cols-2 mb-4 sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm p-1">
+                        <TabsTrigger value="specs" className="flex items-center gap-2 text-xs font-bold uppercase tracking-tight">
+                            <ListChecks className="h-4 w-4" /> Specs
                         </TabsTrigger>
-                        <TabsTrigger value="chat" className="flex items-center gap-2 relative">
-                            <MessageSquare className="h-4 w-4" /> Team Chat
+                        <TabsTrigger value="chat" className="flex items-center gap-2 relative text-xs font-bold uppercase tracking-tight">
+                            <MessageSquare className="h-4 w-4" /> Chat
                         </TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="specs" className="space-y-6 animate-in slide-in-from-left-2 duration-300">
+                    {/* Floating Sticky Header for Mobile */}
+                    <div className="sticky top-[52px] z-30 bg-background/95 backdrop-blur-sm border-b pb-3 mb-6 px-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h1 className="text-lg font-bold font-headline tracking-tight truncate leading-tight">
+                                        {activeTab === 'chat' ? simpleName : order.uniqueName}
+                                    </h1>
+                                    
+                                    {/* Only show status/urgent badges in specs tab context */}
+                                    {activeTab === 'specs' && (
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <StatusBadge status={order.status} />
+                                            {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
+                                {canEdit && (
+                                    <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button></Link>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <TabsContent value="specs" className="space-y-6 animate-in slide-in-from-left-2 duration-300 outline-none">
                         {mainContent}
                         
                         <Card className="mt-8">
@@ -1312,16 +1348,16 @@ function OrderDetailPageContent() {
                                 <Separator />
                                 {canViewSensitiveData && (
                                     <div className="space-y-2">
-                                        <div className="flex justify-between"><span>Total:</span><span className="font-bold">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                        <div className="flex justify-between text-destructive"><span>Balance:</span><span className="font-bold">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                        <div className="flex justify-between text-sm"><span>Total:</span><span className="font-bold">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                        <div className="flex justify-between text-sm text-destructive"><span>Balance:</span><span className="font-bold">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
                     </TabsContent>
                     
-                    <TabsContent value="chat" className="animate-in slide-in-from-right-2 duration-300">
-                        <div className="h-[calc(100vh-200px)]">
+                    <TabsContent value="chat" className="animate-in slide-in-from-right-2 duration-300 outline-none">
+                        <div className="h-[calc(100vh-250px)]">
                             <ChatInterface order={order} />
                         </div>
                     </TabsContent>
