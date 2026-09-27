@@ -1241,24 +1241,23 @@ function OrderDetailPageContent() {
 
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm border-b">
-                        <TabsList className="grid w-full grid-cols-2 p-1 bg-transparent">
-                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-muted/50">
+                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm border-b overflow-hidden">
+                        <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/20 rounded-none border-b border-border/10">
+                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-none">
                                 <ListChecks className="h-4 w-4" /> Specs
                             </TabsTrigger>
-                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-muted/50">
+                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-none">
                                 <MessageSquare className="h-4 w-4" /> Chat
                             </TabsTrigger>
                         </TabsList>
                         
-                        <div className="px-2 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <div className="px-3 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
                             <div className="flex justify-between items-center gap-3">
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     {activeTab === 'chat' && order.mainImageUrl && (
-                                        <Avatar className="h-9 w-9 rounded-lg border shadow-sm shrink-0">
-                                            <AvatarImage src={order.mainImageUrl} className="object-cover" />
-                                            <AvatarFallback className="text-[10px] font-bold">IMG</AvatarFallback>
-                                        </Avatar>
+                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0">
+                                            <Image src={order.mainImageUrl} alt="order" fill className="object-cover" />
+                                        </div>
                                     )}
                                     <div className="min-w-0">
                                         <h1 className="text-base font-bold font-headline tracking-tight truncate leading-tight">
@@ -1277,10 +1276,10 @@ function OrderDetailPageContent() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 flex-shrink-0">
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
                                     {canEdit && (
-                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-8 w-8"><Edit className="h-4 w-4" /></Button></Link>
+                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl"><Edit className="h-4 w-4" /></Button></Link>
                                     )}
                                 </div>
                             </div>
@@ -1290,16 +1289,16 @@ function OrderDetailPageContent() {
                     <TabsContent value="specs" className="space-y-6 mt-4 animate-in slide-in-from-left-2 duration-300 outline-none pb-24">
                         {mainContent}
                         
-                        <Card className="mt-8">
-                            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">ID:</span><span className="font-mono">#{order.id.slice(-8).toUpperCase()}</span></div>
-                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Deadline:</span><span className="font-bold">{formatTimestamp(order.deadline)}</span></div>
+                        <Card className="mx-1 mt-8 overflow-hidden">
+                            <CardHeader className="bg-muted/30 pb-3"><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Order Identity</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 pt-4">
+                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">System ID:</span><span className="font-mono font-bold text-primary">#{order.id.slice(-8).toUpperCase()}</span></div>
+                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Delivery Deadline:</span><span className="font-bold">{formatTimestamp(order.deadline)}</span></div>
                                 <Separator />
                                 {canViewSensitiveData && (
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-sm"><span>Total:</span><span className="font-bold">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                        <div className="flex justify-between text-sm text-destructive"><span>Balance:</span><span className="font-bold">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Project Total:</span><span className="font-bold text-lg">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                                        <div className="flex justify-between items-center text-sm p-2 bg-destructive/5 rounded-lg border border-destructive/10"><span className="text-destructive font-bold text-[10px] uppercase">Balance Remaining:</span><span className="font-bold text-destructive">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
                                     </div>
                                 )}
                             </CardContent>
@@ -1307,7 +1306,7 @@ function OrderDetailPageContent() {
                     </TabsContent>
                     
                     <TabsContent value="chat" className="mt-0 animate-in slide-in-from-right-2 duration-300 outline-none">
-                        <div className="h-[calc(100vh-220px)]">
+                        <div className="h-[calc(100vh-210px)]">
                             <ChatInterface order={order} />
                         </div>
                     </TabsContent>
