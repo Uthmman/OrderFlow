@@ -3,22 +3,23 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock } from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
+import { useExpenses } from "@/hooks/use-expenses"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
+  const { expenses, loading: expensesLoading } = useExpenses();
   const { user, role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -27,7 +28,7 @@ export default function Dashboard() {
   
   const canViewFinancials = role === 'Admin' || role === 'Sales';
 
-  const parseOrderDate = (date: any): Date | null => {
+  const parseDate = (date: any): Date | null => {
     if (!date) return null;
     if (date instanceof Date) return date;
     if (date && typeof date.seconds === 'number') {
@@ -46,13 +47,24 @@ export default function Dashboard() {
   const filteredOrdersByDate = useMemo(() => {
     if (!dateRange?.from) return dashboardOrders;
     return dashboardOrders.filter(order => {
-        const creationDate = parseOrderDate(order.creationDate);
+        const creationDate = parseDate(order.creationDate);
         if (!creationDate) return false;
         const start = startOfDay(dateRange.from!);
         const end = endOfDay(dateRange.to || dateRange.from!);
         return isWithinInterval(creationDate, { start, end });
     });
   }, [dashboardOrders, dateRange]);
+
+  const filteredExpensesByDate = useMemo(() => {
+    if (!dateRange?.from) return expenses;
+    return expenses.filter(exp => {
+        const expDate = parseDate(exp.date);
+        if (!expDate) return false;
+        const start = startOfDay(dateRange.from!);
+        const end = endOfDay(dateRange.to || dateRange.from!);
+        return isWithinInterval(expDate, { start, end });
+    });
+  }, [expenses, dateRange]);
 
   const stats = useMemo(() => {
     const totalOrders = filteredOrdersByDate.length;
@@ -62,18 +74,17 @@ export default function Dashboard() {
     const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length;
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
-    const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.incomeAmount || 0), 0);
-    const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue, prepaid };
-  }, [filteredOrdersByDate]);
+    const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
+    const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
+    const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
+    const profit = revenue - totalExp;
+    const unpaid = revenue - prepaid;
+    
+    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue, prepaid, totalExp, profit, unpaid };
+  }, [filteredOrdersByDate, filteredExpensesByDate]);
 
-  const revenueData = [
-    { name: 'Prepaid', value: stats.prepaid, color: 'hsl(var(--primary))' },
-    { name: 'Balance', value: Math.max(0, stats.revenue - stats.prepaid), color: 'hsl(var(--accent))' },
-  ];
-
-  if (ordersLoading || customersLoading || userLoading) {
+  if (ordersLoading || customersLoading || userLoading || expensesLoading) {
     return (
         <div className="flex h-96 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary opacity-30" />
@@ -151,58 +162,64 @@ export default function Dashboard() {
 
         {canViewFinancials && (
           <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
-                    <Target className="h-5 w-5 text-accent" /> Revenue
+                    <Target className="h-5 w-5 text-accent" /> Financial Health
                 </CardTitle>
-                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Payment Distribution</CardDescription>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Revenue & Expenses</CardDescription>
             </CardHeader>
-            <CardContent className="pt-2">
-              <div className="relative h-56 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                          <Pie
-                              data={revenueData}
-                              cx="50%"
-                              cy="85%"
-                              startAngle={180}
-                              endAngle={0}
-                              innerRadius={70}
-                              outerRadius={95}
-                              paddingAngle={6}
-                              dataKey="value"
-                              stroke="none"
-                          >
-                              {revenueData.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={entry.color} className="outline-none" />
-                              ))}
-                          </Pie>
-                      </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center justify-center">
-                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-[0.2em] mb-1">Projected Total</p>
-                      <p className="text-3xl font-black tracking-tight text-slate-900">{formatCurrency(stats.revenue)}</p>
-                      <div className="flex items-center text-[10px] font-bold text-rose-500 mt-2 bg-rose-50 px-2 py-0.5 rounded-full">
-                          <TrendingDown className="h-2.5 w-2.5 mr-1" />
-                          -7.2%
+            <CardContent className="pt-4">
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+                        <BarChart3 className="h-5 w-5" />
                       </div>
-                  </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4 mt-4 px-2">
-                  <div className="bg-background/40 p-3 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                          <span className="text-[9px] font-black uppercase text-muted-foreground">Prepaid</span>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Sales</p>
+                        <p className="text-xl font-black text-slate-900 leading-tight">{formatCurrency(stats.revenue)}</p>
                       </div>
-                      <span className="text-sm font-bold text-slate-800">{formatCurrency(stats.prepaid)}</span>
+                    </div>
                   </div>
-                  <div className="bg-background/40 p-3 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                      <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 w-1.5 rounded-full bg-accent" />
-                          <span className="text-[9px] font-black uppercase text-muted-foreground">Balance</span>
+
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-rose-100 text-rose-600">
+                        <Wallet className="h-5 w-5" />
                       </div>
-                      <span className="text-sm font-bold text-slate-800">{formatCurrency(Math.max(0, stats.revenue - stats.prepaid))}</span>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Expenses</p>
+                        <p className="text-xl font-black text-rose-600 leading-tight">{formatCurrency(stats.totalExp)}</p>
+                      </div>
+                    </div>
                   </div>
+
+                  <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/10 group transition-all hover:bg-white hover:shadow-md">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                        <ProfitIcon className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-primary tracking-widest">Est. Profit</p>
+                        <p className="text-xl font-black text-primary leading-tight">{formatCurrency(stats.profit)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                      <span className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Unpaid Balance</span>
+                    </div>
+                    <div className="text-3xl font-black text-amber-900 tracking-tighter">
+                      {formatCurrency(stats.unpaid)}
+                    </div>
+                    <p className="text-[9px] text-amber-600 font-bold mt-1 uppercase">Pending Collection</p>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
