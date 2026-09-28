@@ -9,7 +9,49 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { OrderAttachment, OrderStatus, type Order, Product, AppUser, BOMItem, SecondaryItem } from "@/lib/types";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, Hash, Palette, Ruler, Box, User, Image as ImageIcon, AlertTriangle, File, FileText, Edit, MoreVertical, ChevronsUpDown, Download, Trash2, Eye, Boxes, ShieldAlert, MessageSquare, Info, MapPin, Loader2, QrCode, X, Receipt, CreditCard, UploadCloud, CheckCircle2, PlayCircle, ListChecks, AlertCircle, Search, PlusCircle, Package, Plus, Cpu, ChevronLeft, ChevronRight, FlaskConical, ShoppingCart } from "lucide-react";
+import { 
+  Calendar, 
+  Clock, 
+  Hash, 
+  Palette, 
+  Ruler, 
+  Box, 
+  User, 
+  Image as ImageIcon, 
+  AlertTriangle, 
+  File, 
+  FileText, 
+  Edit, 
+  MoreVertical, 
+  ChevronsUpDown, 
+  Download, 
+  Trash2, 
+  Eye, 
+  Boxes, 
+  ShieldAlert, 
+  MessageSquare, 
+  Info, 
+  MapPin, 
+  Loader2, 
+  QrCode, 
+  X, 
+  Receipt, 
+  CreditCard, 
+  UploadCloud, 
+  CheckCircle2, 
+  PlayCircle, 
+  ListChecks, 
+  AlertCircle, 
+  Search, 
+  PlusCircle, 
+  Package, 
+  Plus, 
+  Cpu, 
+  ChevronLeft, 
+  ChevronRight, 
+  FlaskConical, 
+  ShoppingCart 
+} from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
 import { Button } from "@/components/ui/button";
@@ -51,7 +93,7 @@ import { useColorSettings } from "@/hooks/use-color-settings";
 import { useBrandSettings } from "@/hooks/use-brand-settings";
 import { useNotifications } from "@/hooks/use-notifications";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Carousel,
@@ -954,12 +996,52 @@ function OrderDetailPageContent() {
   const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
 
-    const handleCancel = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: "Cancelled" } as any); await updateOrder({ id: orderData.id, status: "Cancelled" }); toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); }); };
-    const handleDelete = () => { if (!orderData) return; const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); deleteOrder(orderData.id, allAttachments); toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); router.push("/orders"); };
-    const handleToggleUrgent = () => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); }); };
-    const handleStatusChange = (newStatus: OrderStatus) => { if (!orderData) return; startTransition(async () => { setOptimisticOrder({ status: newStatus } as any); await updateOrder({ id: orderData.id, status: newStatus }); }); };
-    const handleImageClick = (clickedAttachment: OrderAttachment) => { const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } };
-    const handleFilePreview = (att: OrderAttachment) => { setPreviewAttachment(att); setPreviewOpen(true); };
+    const handleCancel = () => { 
+        if (!orderData) return; 
+        startTransition(async () => { 
+            setOptimisticOrder({ status: "Cancelled" } as any); 
+            await updateOrder({ id: orderData.id, status: "Cancelled" }); 
+            toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); 
+        }); 
+    };
+
+    const handleDelete = () => { 
+        if (!orderData) return; 
+        const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); 
+        if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); 
+        deleteOrder(orderData.id, allAttachments); 
+        toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); 
+        router.push("/orders"); 
+    };
+
+    const handleToggleUrgent = () => { 
+        if (!orderData) return; 
+        startTransition(async () => { 
+            setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); 
+            await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); 
+        }); 
+    };
+
+    const handleStatusChange = (newStatus: OrderStatus) => { 
+        if (!orderData) return; 
+        startTransition(async () => { 
+            setOptimisticOrder({ status: newStatus } as any); 
+            await updateOrder({ id: orderData.id, status: newStatus }); 
+        }); 
+    };
+
+    const handleImageClick = (clickedAttachment: OrderAttachment) => { 
+        const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); 
+        if (imageIndex !== -1) { 
+            setGalleryStartIndex(imageIndex); 
+            setGalleryOpen(true); 
+        } 
+    };
+
+    const handleFilePreview = (att: OrderAttachment) => { 
+        setPreviewAttachment(att); 
+        setPreviewOpen(true); 
+    };
 
     const startDesign = () => {
         if (!user) return;
@@ -1002,17 +1084,57 @@ function OrderDetailPageContent() {
     const downloadQRCode = async () => {
         const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
         if (!qrCanvas) return;
-        const width = 2400; const height = 400; const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); if (!ctx) return;
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, width, height);
-        const qrSize = 320; const padding = 40; ctx.fillStyle = 'white'; ctx.fillRect(padding, padding, qrSize, qrSize); ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
-        ctx.fillStyle = '#1A1C1E'; ctx.font = 'bold 70px sans-serif'; ctx.fillText(order.uniqueName || "", padding + qrSize + 80, padding + 140);
+        const width = 2400; 
+        const height = 400; 
+        const canvas = document.createElement('canvas'); 
+        canvas.width = width; 
+        canvas.height = height; 
+        const ctx = canvas.getContext('2d'); 
+        if (!ctx) return;
+        
+        ctx.fillStyle = '#FFFFFF'; 
+        ctx.fillRect(0, 0, width, height);
+        
+        const qrSize = 320; 
+        const padding = 40; 
+        ctx.fillStyle = 'white'; 
+        ctx.fillRect(padding, padding, qrSize, qrSize); 
+        ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
+        
+        ctx.fillStyle = '#1A1C1E'; 
+        ctx.font = 'bold 70px sans-serif'; 
+        ctx.fillText(order.uniqueName || "", padding + qrSize + 80, padding + 140);
+        
         const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : null;
-        if (dateObj) { ctx.font = '40px sans-serif'; ctx.fillStyle = '#666'; ctx.fillText(`Date: ${dateObj.toLocaleDateString()}`, padding + qrSize + 80, padding + 240); }
-        if (brandSettings?.logoUrl) {
-            const logoImg = new (window as any).Image(); logoImg.crossOrigin = "anonymous"; logoImg.src = brandSettings.logoUrl;
-            await new Promise((resolve) => { logoImg.onload = () => { const aspect = logoImg.width / logoImg.height; const h = 280; const w = h * aspect; ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h); resolve(null); }; logoImg.onerror = () => resolve(null); });
+        if (dateObj) { 
+            ctx.font = '40px sans-serif'; 
+            ctx.fillStyle = '#666'; 
+            ctx.fillText(`Date: ${dateObj.toLocaleDateString()}`, padding + qrSize + 80, padding + 240); 
         }
-        const pngUrl = canvas.toDataURL("image/png"); const downloadLink = document.createElement("a"); downloadLink.href = pngUrl; downloadLink.download = `footer-${order.id}.png`; document.body.appendChild(downloadLink); downloadLink.click(); document.body.removeChild(downloadLink);
+        
+        if (brandSettings?.logoUrl) {
+            const logoImg = new (window as any).Image(); 
+            logoImg.crossOrigin = "anonymous"; 
+            logoImg.src = brandSettings.logoUrl;
+            await new Promise((resolve) => { 
+                logoImg.onload = () => { 
+                    const aspect = logoImg.width / logoImg.height; 
+                    const h = 280; 
+                    const w = h * aspect; 
+                    ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h); 
+                    resolve(null); 
+                }; 
+                logoImg.onerror = () => resolve(null); 
+            });
+        }
+        
+        const pngUrl = canvas.toDataURL("image/png"); 
+        const downloadLink = document.createElement("a"); 
+        downloadLink.href = pngUrl; 
+        downloadLink.download = `footer-${order.id}.png`; 
+        document.body.appendChild(downloadLink); 
+        downloadLink.click(); 
+        document.body.removeChild(downloadLink);
     };
 
     const mainContent = (
