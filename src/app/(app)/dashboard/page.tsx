@@ -106,17 +106,25 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
-            <div className="flex items-end gap-4">
-                <div className="text-4xl font-bold tracking-tighter">{stats.totalOrders.toLocaleString()}</div>
-                <div className="flex items-center text-xs font-bold text-green-500 mb-1">
+            <div className="flex flex-wrap items-baseline gap-x-12 gap-y-4">
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Total Orders</span>
+                    <div className="text-4xl font-bold tracking-tighter">{stats.totalOrders.toLocaleString()}</div>
+                </div>
+                
+                <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-1">Active Projects</span>
+                    <div className="text-4xl font-bold tracking-tighter text-primary">{stats.active.toLocaleString()}</div>
+                </div>
+
+                <div className="flex items-center text-xs font-bold text-green-500 pb-1">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     +10.5%
-                    <span className="text-muted-foreground font-normal ml-1">vs last month</span>
+                    <span className="text-muted-foreground font-normal ml-1 whitespace-nowrap">vs last month</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                <StatusStat label="Active Order" count={stats.active} color="bg-primary" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />
                 <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />
                 <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-400" />
