@@ -102,9 +102,9 @@ export default function Dashboard() {
             <div className="flex justify-between items-start">
                 <div>
                     <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <Layers className="h-5 w-5 text-primary" /> Order Workspace
+                        <Layers className="h-5 w-5 text-primary" /> Operational Metrics
                     </CardTitle>
-                    <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Core Operational Metrics</CardDescription>
+                    <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
                 </div>
                 <div className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
                     <TrendingUp className="h-3 w-3 mr-1" />
@@ -113,24 +113,24 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">
-            <div className="flex flex-wrap items-end gap-x-16 gap-y-6">
+            <div className="flex items-center gap-x-12 gap-y-6">
                 <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">Total Lifecycle</span>
-                    <div className="text-5xl font-black tracking-tighter text-slate-900">{stats.totalOrders.toLocaleString()}</div>
+                    <div className="text-5xl font-black tracking-tighter text-slate-900 leading-none">{stats.totalOrders.toLocaleString()}</div>
                 </div>
                 
                 <div className="space-y-1">
                     <span className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">In Flow (Active)</span>
-                    <div className="text-5xl font-black tracking-tighter text-slate-900">{stats.active.toLocaleString()}</div>
+                    <div className="text-5xl font-black tracking-tighter text-slate-900 leading-none">{stats.active.toLocaleString()}</div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />
-                <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />
-                <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-500" />
-                <StatusStat label="Production" count={stats.onProduction} color="bg-emerald-500" />
-                <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-600" />
+            <div className="flex flex-wrap gap-3">
+                {stats.designing > 0 && <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />}
+                {stats.inProgress > 0 && <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />}
+                {stats.designReady > 0 && <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-500" />}
+                {stats.onProduction > 0 && <StatusStat label="Production" count={stats.onProduction} color="bg-emerald-500" />}
+                {stats.delivered > 0 && <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-600" />}
             </div>
 
             <div className="space-y-3">
@@ -235,7 +235,7 @@ export default function Dashboard() {
 
 function StatusStat({ label, count, color }: { label: string, count: number, color: string }) {
     return (
-        <div className="flex flex-col gap-2 p-4 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
+        <div className="flex flex-col gap-2 p-4 min-w-[120px] rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
             <div className="flex items-center gap-1.5">
                 <div className={cn("h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125", color)} />
                 <span className="text-[9px] uppercase tracking-[0.1em] font-black text-muted-foreground/70">{label}</span>
