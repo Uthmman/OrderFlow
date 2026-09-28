@@ -120,8 +120,8 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-primary">In Flow (Active)</span>
-                    <div className="text-5xl font-black tracking-tighter text-primary">{stats.active.toLocaleString()}</div>
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">In Flow (Active)</span>
+                    <div className="text-5xl font-black tracking-tighter text-slate-900">{stats.active.toLocaleString()}</div>
                 </div>
             </div>
 
@@ -139,7 +139,6 @@ export default function Dashboard() {
                     <span>{stats.totalOrders} Units</span>
                 </div>
                 <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100 ring-1 ring-slate-200/50">
-                    <div style={{ width: `${stats.totalOrders > 0 ? (stats.active / stats.totalOrders) * 100 : 0}%` }} className="bg-primary/80" />
                     <div style={{ width: `${stats.totalOrders > 0 ? (stats.designing / stats.totalOrders) * 100 : 0}%` }} className="bg-orange-400" />
                     <div style={{ width: `${stats.totalOrders > 0 ? (stats.inProgress / stats.totalOrders) * 100 : 0}%` }} className="bg-blue-300" />
                     <div style={{ width: `${stats.totalOrders > 0 ? (stats.designReady / stats.totalOrders) * 100 : 0}%` }} className="bg-purple-500" />
