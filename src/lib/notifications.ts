@@ -13,11 +13,23 @@ type NotificationData = {
 // Function to play a notification sound
 const playNotificationSound = () => {
     if (typeof window !== 'undefined') {
-        const audio = new Audio("https://ensratech.com/api/notification.mp3");
-        audio.volume = 0.5;
-        audio.play().catch(e => {
-            console.warn("Notification sound blocked by browser policy until interaction.");
-        });
+        try {
+            const audio = new Audio("https://ensratech.com/api/notification.mp3");
+            audio.volume = 0.6;
+            
+            // Try playing
+            const playPromise = audio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    console.warn("Notification sound blocked by browser policy. Interaction needed.", error);
+                    // Many browsers require a user interaction (like a click) anywhere on the page 
+                    // before audio can be played programmatically.
+                });
+            }
+        } catch (err) {
+            console.error("Audio playback error:", err);
+        }
     }
 };
 
@@ -27,16 +39,20 @@ const playNotificationSound = () => {
 const showNativeNotification = (data: NotificationData) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
 
-    if (Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+    if (Notification.permission === 'granted') {
+        // We show it if the document is hidden OR if it's a critical update
+        // Browsers handle "silent" vs "alert" based on focus, but we trigger it here.
         const notification = new Notification(`OrderFlow: ${data.type}`, {
             body: data.message,
             icon: 'https://picsum.photos/seed/orderflow/192/192',
             badge: 'https://picsum.photos/seed/orderflow/96/96',
             tag: data.orderId || 'general',
             renotify: true,
+            silent: false, // Ensure it makes a sound if possible
         });
 
-        notification.onclick = () => {
+        notification.onclick = (e) => {
+            e.preventDefault();
             window.focus();
             if (data.orderId) {
                 window.location.href = `/orders/${data.orderId}?tab=chat`;
@@ -83,6 +99,12 @@ export function triggerNotification(
 export async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return false;
     
+    // Always check permission status
+    if (Notification.permission === 'denied') {
+        console.warn("Notification permission was previously denied.");
+        return false;
+    }
+
     if (Notification.permission === 'default') {
         try {
             const permission = await Notification.requestPermission();
