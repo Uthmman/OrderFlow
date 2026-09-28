@@ -1241,13 +1241,13 @@ function OrderDetailPageContent() {
 
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm shadow-sm border-b overflow-hidden">
-                        <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/20 rounded-none border-b border-border/10">
-                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-none">
-                                <ListChecks className="h-4 w-4" /> Specs
+                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md shadow-sm border-b overflow-hidden">
+                        <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/20 rounded-none border-b border-border/5">
+                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-none transition-all">
+                                <ListChecks className="h-3.5 w-3.5" /> Specs
                             </TabsTrigger>
-                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-tight data-[state=active]:bg-background data-[state=active]:shadow-none">
-                                <MessageSquare className="h-4 w-4" /> Chat
+                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-none transition-all">
+                                <MessageSquare className="h-3.5 w-3.5" /> Chat
                             </TabsTrigger>
                         </TabsList>
                         
@@ -1255,7 +1255,7 @@ function OrderDetailPageContent() {
                             <div className="flex justify-between items-center gap-3">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                                     {activeTab === 'chat' && (
-                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0 bg-muted">
+                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0 bg-muted ring-2 ring-primary/5">
                                             {order.mainImageUrl ? (
                                                 <Image src={order.mainImageUrl} alt="order" fill className="object-cover" />
                                             ) : (
@@ -1264,13 +1264,16 @@ function OrderDetailPageContent() {
                                         </div>
                                     )}
                                     <div className="min-w-0">
-                                        <h1 className="text-base font-bold font-headline tracking-tight truncate leading-tight">
+                                        <h1 className={cn(
+                                            "font-bold font-headline tracking-tight truncate leading-tight transition-all",
+                                            activeTab === 'chat' ? "text-sm" : "text-base"
+                                        )}>
                                             {activeTab === 'chat' ? simpleName : order.uniqueName}
                                         </h1>
                                         {activeTab === 'specs' && (
                                             <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
                                                 <StatusBadge status={order.status} />
-                                                {order.isUrgent && <Badge variant="destructive" className="text-[10px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
+                                                {order.isUrgent && <Badge variant="destructive" className="text-[9px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
                                                 {order.assignedTo && order.assignedTo.length > 0 && (
                                                     <div className="flex -space-x-1.5 ml-2">
                                                         {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
@@ -1281,9 +1284,9 @@ function OrderDetailPageContent() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
+                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
                                     {canEdit && (
-                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl"><Edit className="h-4 w-4" /></Button></Link>
+                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
                                     )}
                                 </div>
                             </div>
@@ -1364,7 +1367,7 @@ function OrderDetailPageContent() {
             <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                     <CheckCircle2 className="h-5 w-5 text-green-600" /> Confirm Design Submission
-                </DialogHeader>
+                </DialogTitle>
                 <DialogDescription>
                     Please ensure the following technical requirements are met for production.
                 </DialogDescription>
