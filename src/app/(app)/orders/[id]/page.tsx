@@ -51,7 +51,7 @@ import { useColorSettings } from "@/hooks/use-color-settings";
 import { useBrandSettings } from "@/hooks/use-brand-settings";
 import { useNotifications } from "@/hooks/use-notifications";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/accordion";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Carousel,
