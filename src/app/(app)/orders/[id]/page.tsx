@@ -504,7 +504,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2">
+        <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2 hover:bg-muted/50 transition-colors">
           <StatusBadge status={order.status} />
           <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
         </Button>
@@ -1394,7 +1394,11 @@ function OrderDetailPageContent() {
                                         </h1>
                                         {activeTab === 'specs' && (
                                             <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
-                                                <StatusBadge status={order.status} />
+                                                {canChangeStatus ? (
+                                                    <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                                                ) : (
+                                                    <StatusBadge status={order.status} />
+                                                )}
                                                 {order.isUrgent && <Badge variant="destructive" className="text-[9px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
                                                 {order.assignedTo && order.assignedTo.length > 0 && (
                                                     <div className="flex -space-x-1.5 ml-2">
@@ -1408,7 +1412,57 @@ function OrderDetailPageContent() {
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
                                     {canEdit && (
-                                        <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
+                                        <>
+                                            <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
+                                            {activeTab === 'specs' && (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={handleToggleUrgent}>
+                                                            <AlertTriangle className="mr-2 h-4 w-4" />
+                                                            <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Back</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                        <AlertDialog>
+                                                            <AlertDialogTrigger asChild>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
+                                                            </AlertDialogTrigger>
+                                                            <AlertDialogContent>
+                                                                <AlertDialogHeader>
+                                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                                                </AlertDialogHeader>
+                                                                <AlertDialogFooter>
+                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                                                                </AlertDialogFooter>
+                                                            </AlertDialogContent>
+                                                        </AlertDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
