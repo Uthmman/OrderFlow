@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard, Banknote, Receipt } from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard, Banknote, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -112,14 +112,10 @@ export default function Dashboard() {
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
                 <div>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
                         <Layers className="h-5 w-5 text-primary" /> Operational Metrics
                     </CardTitle>
                     <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
-                </div>
-                <div className="flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                    <TrendingUp className="h-3 w-3 mr-1" />
-                    +10.5%
                 </div>
             </div>
           </CardHeader>
@@ -163,68 +159,60 @@ export default function Dashboard() {
         {canViewFinancials && (
           <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
             <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-2">
-                    <Target className="h-5 w-5 text-accent" /> Financial Health
+                <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+                    <Target className="h-5 w-5 text-primary" /> Financial Overview
                 </CardTitle>
-                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Sales & Profit Overview</CardDescription>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Profitability Performance</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
-                        <BarChart3 className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Total Sales</p>
-                        <p className="text-xl font-black text-slate-900 leading-tight">{formatCurrency(stats.revenue)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-rose-100 text-rose-600">
-                        <Banknote className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Expenses</p>
-                        <p className="text-xl font-black text-rose-600 leading-tight">{formatCurrency(stats.totalExp)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 rounded-2xl bg-primary/5 border border-primary/10 group transition-all hover:bg-white hover:shadow-md">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                        <ProfitIcon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-primary tracking-widest">Est. Profit</p>
-                        <p className="text-xl font-black text-primary leading-tight">{formatCurrency(stats.profit)}</p>
-                      </div>
-                    </div>
-                  </div>
+            <CardContent className="pt-4 space-y-6">
+              {/* Primary Profit Metric */}
+              <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                    <ProfitIcon className="h-20 w-20 text-primary" />
                 </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-200/50 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-4 opacity-5">
-                        <Receipt className="h-16 w-16 text-amber-900" />
-                    </div>
-                    <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CreditCard className="h-3.5 w-3.5 text-amber-600" />
-                          <span className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Unpaid Balance</span>
+                <div className="relative z-10 space-y-1">
+                    <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">Estimated Profit</p>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
+                        <div className="flex items-center text-xs font-bold text-emerald-600 mb-1">
+                            <ArrowUpRight className="h-3 w-3 mr-0.5" />
+                            12%
                         </div>
-                        <div className="text-4xl font-black text-amber-900 tracking-tighter">
-                          {formatCurrency(stats.unpaid)}
-                        </div>
-                        <p className="text-[9px] text-amber-600 font-bold mt-1 uppercase">Pending Collection</p>
                     </div>
-                  </div>
                 </div>
+              </div>
+
+              {/* Sub-Metrics Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-1">
+                    <div className="flex items-center gap-2 text-slate-400">
+                        <BarChart3 className="h-3.5 w-3.5" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Total Sales</span>
+                    </div>
+                    <p className="text-lg font-black text-slate-800">{formatCurrency(stats.revenue)}</p>
+                  </div>
+                  
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-1">
+                    <div className="flex items-center gap-2 text-slate-400">
+                        <Banknote className="h-3.5 w-3.5" />
+                        <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
+                    </div>
+                    <p className="text-lg font-black text-slate-800">{formatCurrency(stats.totalExp)}</p>
+                  </div>
+              </div>
+
+              {/* Secondary Balance Metric */}
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-between px-1">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                        <CreditCard className="h-4 w-4" />
+                    </div>
+                    <div className="space-y-0.5">
+                        <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Unpaid Balance</p>
+                        <p className="text-sm font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
+                    </div>
+                </div>
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending Collection</Badge>
               </div>
             </CardContent>
           </Card>
@@ -235,7 +223,7 @@ export default function Dashboard() {
         <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-slate-400" />
-                <h2 className="text-xl font-bold font-headline tracking-tight">Recent Activity</h2>
+                <h2 className="text-xl font-bold font-headline tracking-tight text-slate-800">Recent Activity</h2>
             </div>
             <Button variant="ghost" size="sm" asChild className="text-primary font-bold text-xs uppercase tracking-widest hover:bg-primary/5">
                 <Link href="/orders">Manage all <ArrowRight className="ml-2 h-3 w-3" /></Link>
