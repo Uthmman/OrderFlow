@@ -1021,7 +1021,7 @@ function OrderDetailPageContent() {
                 <Card className="border-orange-200 bg-orange-50/30 mx-1">
                     <CardContent className="flex items-center justify-between p-4 gap-4">
                         <div className="flex items-center gap-3">
-                            <FlaskConical className="h-6 w-6 text-orange-600" />
+                            <FlaskConical className="h-6 v-6 text-orange-600" />
                             <div>
                                 <p className="text-sm font-bold text-orange-900 uppercase tracking-tight">Sample Ready</p>
                                 <p className="text-xs text-orange-700">Add this finished piece to shop inventory.</p>
@@ -1254,9 +1254,13 @@ function OrderDetailPageContent() {
                         <div className="px-3 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
                             <div className="flex justify-between items-center gap-3">
                                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                    {activeTab === 'chat' && order.mainImageUrl && (
-                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0">
-                                            <Image src={order.mainImageUrl} alt="order" fill className="object-cover" />
+                                    {activeTab === 'chat' && (
+                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0 bg-muted">
+                                            {order.mainImageUrl ? (
+                                                <Image src={order.mainImageUrl} alt="order" fill className="object-cover" />
+                                            ) : (
+                                                <Box className="h-5 w-5 m-auto text-muted-foreground opacity-30" />
+                                            )}
                                         </div>
                                     )}
                                     <div className="min-w-0">
