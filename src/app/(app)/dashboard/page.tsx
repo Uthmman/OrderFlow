@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard } from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard, Banknote, Receipt } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -166,10 +166,10 @@ export default function Dashboard() {
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
                     <Target className="h-5 w-5 text-accent" /> Financial Health
                 </CardTitle>
-                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Revenue & Expenses</CardDescription>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Sales & Profit Overview</CardDescription>
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="space-y-5">
+              <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
                     <div className="flex items-center gap-3">
@@ -186,7 +186,7 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100 group transition-all hover:bg-white hover:shadow-md">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-rose-100 text-rose-600">
-                        <Wallet className="h-5 w-5" />
+                        <Banknote className="h-5 w-5" />
                       </div>
                       <div>
                         <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Expenses</p>
@@ -209,15 +209,20 @@ export default function Dashboard() {
                 </div>
 
                 <div className="pt-4 border-t border-slate-100">
-                  <div className="bg-amber-50/50 p-4 rounded-2xl border border-amber-200/50">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CreditCard className="h-3.5 w-3.5 text-amber-600" />
-                      <span className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Unpaid Balance</span>
+                  <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-200/50 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-5">
+                        <Receipt className="h-16 w-16 text-amber-900" />
                     </div>
-                    <div className="text-3xl font-black text-amber-900 tracking-tighter">
-                      {formatCurrency(stats.unpaid)}
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CreditCard className="h-3.5 w-3.5 text-amber-600" />
+                          <span className="text-[10px] font-black uppercase text-amber-700 tracking-widest">Unpaid Balance</span>
+                        </div>
+                        <div className="text-4xl font-black text-amber-900 tracking-tighter">
+                          {formatCurrency(stats.unpaid)}
+                        </div>
+                        <p className="text-[9px] text-amber-600 font-bold mt-1 uppercase">Pending Collection</p>
                     </div>
-                    <p className="text-[9px] text-amber-600 font-bold mt-1 uppercase">Pending Collection</p>
                   </div>
                 </div>
               </div>
