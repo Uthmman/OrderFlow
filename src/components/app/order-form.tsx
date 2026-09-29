@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
 import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical, Library } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
@@ -894,7 +895,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                           <div key={p.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/10">
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded bg-muted overflow-hidden relative border shadow-sm">
-                                {pri ? <Image src={pri} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
+                                {pri ? <Image src={pri} alt="thumb" fill className="object-cover" /> : <Boxes className="h-6 w-6 m-auto opacity-20" />}
                               </div>
                               <div className="min-w-0">
                                 <span className="font-bold text-sm block truncate">{p.productName || `Product ${i+1}`}</span>
