@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2, ShieldCheck, Database } from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
@@ -185,13 +185,19 @@ export default function ExpensesPage() {
               ) : filteredExpenses.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-12 text-muted-foreground">No expenses found for this period.</TableCell></TableRow>
               ) : filteredExpenses.map(exp => (
-                <TableRow key={exp.id}>
+                <TableRow key={exp.id} className={cn(exp.isSecondary && "bg-muted/10")}>
                   <TableCell className="text-xs whitespace-nowrap">{formatTimestamp(exp.date)}</TableCell>
-                  <TableCell className="font-medium">{exp.description}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                        {exp.isSecondary && <Database className="h-3 w-3 text-muted-foreground" title="From Secondary System" />}
+                        {exp.description}
+                    </div>
+                  </TableCell>
                   <TableCell><Badge variant="secondary" className="text-[10px] uppercase font-bold">{exp.category}</Badge></TableCell>
                   <TableCell className="text-sm">{exp.paidTo}</TableCell>
                   <TableCell className="text-xs">
-                    {exp.bankAccountId === 'Cash' ? 'Cash' : 
+                    {exp.isSecondary ? 'System Payout' : 
+                      exp.bankAccountId === 'Cash' ? 'Cash' : 
                       paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown Bank'}
                   </TableCell>
                   <TableCell className="text-right font-bold text-sm">{formatCurrency(exp.amount)}</TableCell>
@@ -215,9 +221,13 @@ export default function ExpensesPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteExpense(exp)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {exp.isSecondary ? (
+                        <Badge variant="outline" className="text-[8px] font-black uppercase text-muted-foreground/60 border-none bg-muted/30">System</Badge>
+                    ) : (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteExpense(exp)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -250,6 +250,7 @@ export type Expense = {
   withholdAttachment?: OrderAttachment;
   status: 'Paid' | 'Pending';
   ownerId: string;
+  isSecondary?: boolean;
 };
 
 export type SecondaryCategory = {
