@@ -236,6 +236,13 @@ export type StockSettings = {
   categories: string[];
 };
 
+export type ExpenseDetail = {
+  id: string;
+  name: string;
+  amount: number;
+  date: any;
+};
+
 export type Expense = {
   id: string;
   description: string;
@@ -251,6 +258,7 @@ export type Expense = {
   status: 'Paid' | 'Pending';
   ownerId: string;
   isSecondary?: boolean;
+  details?: ExpenseDetail[];
 };
 
 export type SecondaryCategory = {

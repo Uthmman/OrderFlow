@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
 import { collection, doc, deleteDoc, updateDoc, setDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
-import type { Expense, OrderAttachment } from '@/lib/types';
+import type { Expense, OrderAttachment, ExpenseDetail } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
@@ -11,6 +11,7 @@ import { useUser } from './use-user';
 import { v4 as uuidv4 } from 'uuid';
 import { deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
+import { startOfWeek, format } from 'date-fns';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -30,7 +31,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const expensesRef = useMemoFirebase(() => query(collection(firestore, 'expenses'), orderBy('date', 'desc')), [firestore]);
   const { data: primaryExpenses, isLoading: primaryLoading } = useCollection<Expense>(expensesRef);
 
-  const [secondaryExpenses, setSecondaryExpenses] = useState<Expense[]>([]);
+  const [secondaryRecords, setSecondaryRecords] = useState<any[]>([]);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
 
   useEffect(() => {
@@ -43,22 +44,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const q = query(collection(db, 'employeeExpenses'));
         
         unsubscribe = onSnapshot(q, (snapshot) => {
-          const results = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              description: data.category === 'Payroll' ? `Payroll: ${data.employeeName || 'Staff Member'}` : (data.description || data.category || 'Employee Expense'),
-              amount: data.amount || 0,
-              date: data.timestamp || data.date || new Date(),
-              category: data.category || 'Salary',
-              paidTo: data.employeeName || 'Employee',
-              status: 'Paid',
-              hasReceipt: true,
-              ownerId: 'system',
-              isSecondary: true,
-            } as Expense;
-          });
-          setSecondaryExpenses(results);
+          const results = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setSecondaryRecords(results);
           setSecondaryLoading(false);
         }, (error) => {
           console.error("Secondary expenses error:", error);
@@ -75,13 +65,50 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const combinedExpenses = useMemo(() => {
-    const combined = [...(primaryExpenses || []), ...secondaryExpenses];
+    // Group secondary expenses by week
+    const groupedSecondary = secondaryRecords.reduce((acc, curr) => {
+      const date = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
+      const weekStart = startOfWeek(date, { weekStartsOn: 1 }); // Start week on Monday
+      const weekKey = format(weekStart, 'yyyy-MM-dd');
+      const category = curr.category || 'Salary';
+      const groupKey = `grouped-${category}-${weekKey}`;
+      
+      if (!acc[groupKey]) {
+        acc[groupKey] = {
+          id: groupKey,
+          description: `${category} - Week of ${format(weekStart, 'MMM d, yyyy')}`,
+          amount: 0,
+          date: weekStart,
+          category: category,
+          paidTo: 'Multiple Employees',
+          status: 'Paid',
+          hasReceipt: true,
+          ownerId: 'system',
+          isSecondary: true,
+          details: []
+        };
+      }
+      
+      acc[groupKey].amount += curr.amount || 0;
+      acc[groupKey].details?.push({
+        id: curr.id,
+        name: curr.employeeName || 'Staff Member',
+        amount: curr.amount || 0,
+        date: date
+      });
+      
+      return acc;
+    }, {} as Record<string, Expense>);
+
+    const finalSecondary = Object.values(groupedSecondary);
+    const combined = [...(primaryExpenses || []), ...finalSecondary];
+
     return combined.sort((a, b) => {
         const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
         const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
         return dateB - dateA;
     });
-  }, [primaryExpenses, secondaryExpenses]);
+  }, [primaryExpenses, secondaryRecords]);
 
   const addExpense = useCallback(async (expenseData: Omit<Expense, 'id' | 'ownerId'>) => {
     if (!user) return;

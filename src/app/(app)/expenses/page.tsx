@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2, ShieldCheck, Database } from 'lucide-react';
+import { Loader2, PlusCircle, Search, FileText, Trash2, Calendar as CalendarIcon, Wallet, Receipt, User, UploadCloud, Eye, Download, CheckCircle2, ShieldCheck, Database, ListChecks, ChevronRight } from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
@@ -21,6 +21,7 @@ import { useUser } from '@/hooks/use-user';
 import { useOrders } from '@/hooks/use-orders';
 import Image from 'next/image';
 import { Timestamp } from 'firebase/firestore';
+import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
 
@@ -48,6 +49,8 @@ export default function ExpensesPage() {
     status: 'Paid',
     date: new Date(),
   });
+
+  const [selectedGroup, setSelectedGroup] = useState<Expense | null>(null);
 
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [uploadingWithhold, setUploadingWithhold] = useState(false);
@@ -128,13 +131,13 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8">
+    <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground">Track purchases, overheads, and shop expenditures.</p>
+          <p className="text-muted-foreground text-sm">Track purchases, overheads, and shop expenditures.</p>
         </div>
-        <Button onClick={() => setIsAdding(true)}>
+        <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" /> Add Expense
         </Button>
       </div>
@@ -142,29 +145,30 @@ export default function ExpensesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-primary/5 border-primary/10">
               <CardHeader className="py-4">
-                  <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Total Period Expenditure</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Period Expenditure</CardTitle>
               </CardHeader>
               <CardContent>
-                  <div className="text-3xl font-bold text-primary">{formatCurrency(totalSpent)}</div>
+                  <div className="text-4xl font-black text-primary tracking-tighter">{formatCurrency(totalSpent)}</div>
                   <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Transactions Recorded</p>
               </CardContent>
           </Card>
       </div>
 
-      <div className="flex flex-row gap-2 items-center justify-between bg-muted/20 p-4 rounded-xl border">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search description, vendor..." 
-            className="pl-10" 
+            className="pl-10 bg-background" 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="shrink-0" />
+        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="shrink-0 w-full sm:w-auto" />
       </div>
 
-      <Card>
+      {/* Desktop Table */}
+      <Card className="hidden md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -189,8 +193,13 @@ export default function ExpensesPage() {
                   <TableCell className="text-xs whitespace-nowrap">{formatTimestamp(exp.date)}</TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                        {exp.isSecondary && <Database className="h-3 w-3 text-muted-foreground" title="From Secondary System" />}
+                        {exp.isSecondary && <Database className="h-3.5 w-3.5 text-primary/60" title="From Secondary System" />}
                         {exp.description}
+                        {exp.details && exp.details.length > 0 && (
+                            <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] uppercase font-bold bg-primary/10 text-primary hover:bg-primary/20" onClick={() => setSelectedGroup(exp)}>
+                                <ListChecks className="h-3 w-3 mr-1" /> Breakdown
+                            </Button>
+                        )}
                     </div>
                   </TableCell>
                   <TableCell><Badge variant="secondary" className="text-[10px] uppercase font-bold">{exp.category}</Badge></TableCell>
@@ -200,7 +209,7 @@ export default function ExpensesPage() {
                       exp.bankAccountId === 'Cash' ? 'Cash' : 
                       paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown Bank'}
                   </TableCell>
-                  <TableCell className="text-right font-bold text-sm">{formatCurrency(exp.amount)}</TableCell>
+                  <TableCell className="text-right font-black text-sm">{formatCurrency(exp.amount)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-2">
                         {exp.receiptAttachment ? (
@@ -222,7 +231,7 @@ export default function ExpensesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     {exp.isSecondary ? (
-                        <Badge variant="outline" className="text-[8px] font-black uppercase text-muted-foreground/60 border-none bg-muted/30">System</Badge>
+                        <Badge variant="outline" className="text-[8px] font-black uppercase text-muted-foreground/60 border-none bg-muted/30">System Group</Badge>
                     ) : (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteExpense(exp)}>
                             <Trash2 className="h-4 w-4" />
@@ -235,6 +244,49 @@ export default function ExpensesPage() {
           </Table>
         </div>
       </Card>
+
+      {/* Mobile Grid */}
+      <div className="md:hidden space-y-4">
+          {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="animate-spin h-8 w-8 opacity-20" /></div>
+          ) : filteredExpenses.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm italic">No expenses found.</div>
+          ) : filteredExpenses.map(exp => (
+              <Card key={exp.id} className={cn("overflow-hidden", exp.isSecondary && "border-primary/20 bg-primary/[0.02]")}>
+                  <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start space-y-0">
+                      <div className="space-y-1 min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                             {exp.isSecondary && <Database className="h-3 w-3 text-primary/60 shrink-0" />}
+                             <Badge variant="secondary" className="text-[8px] uppercase font-black px-1.5 py-0">{exp.category}</Badge>
+                             <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
+                          </div>
+                          <CardTitle className="text-sm font-bold truncate">{exp.description}</CardTitle>
+                      </div>
+                      <div className="text-right">
+                          <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
+                      </div>
+                  </CardHeader>
+                  <CardFooter className="p-4 pt-2 flex items-center justify-between border-t border-slate-100 bg-muted/10">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground truncate">{exp.paidTo}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          {exp.details && exp.details.length > 0 && (
+                              <Button variant="outline" size="sm" className="h-8 text-[10px] uppercase font-bold" onClick={() => setSelectedGroup(exp)}>
+                                  Breakdown
+                              </Button>
+                          )}
+                          {!exp.isSecondary && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteExpense(exp)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                      </div>
+                  </CardFooter>
+              </Card>
+          ))}
+      </div>
 
       <Dialog open={isAdding} onOpenChange={setIsAdding}>
         <DialogContent className="sm:max-w-[500px]">
@@ -385,6 +437,51 @@ export default function ExpensesPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
+      </Dialog>
+
+      {/* Breakdown Dialog */}
+      <Dialog open={!!selectedGroup} onOpenChange={o => !o && setSelectedGroup(null)}>
+          <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+              <DialogHeader>
+                  <div className="flex items-center gap-2 mb-1">
+                      <Database className="h-5 w-5 text-primary" />
+                      <DialogTitle>System Group Breakdown</DialogTitle>
+                  </div>
+                  <DialogDescription>Detailed payroll list for this period from the HR system.</DialogDescription>
+              </DialogHeader>
+              
+              <div className="flex-1 overflow-y-auto mt-4 space-y-4">
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 flex justify-between items-center">
+                      <div>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Total Expenditure</p>
+                          <p className="text-2xl font-black text-primary">{formatCurrency(selectedGroup?.amount || 0)}</p>
+                      </div>
+                      <Badge variant="outline" className="h-fit bg-background font-bold">{selectedGroup?.category}</Badge>
+                  </div>
+
+                  <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1 mb-2">Employee Records</p>
+                      {selectedGroup?.details?.map(item => (
+                          <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                              <div className="flex items-center gap-3">
+                                  <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                      <User className="h-4 w-4 text-slate-500" />
+                                  </div>
+                                  <div>
+                                      <p className="text-sm font-bold">{item.name}</p>
+                                      <p className="text-[10px] text-muted-foreground uppercase">{formatTimestamp(item.date)}</p>
+                                  </div>
+                              </div>
+                              <p className="text-sm font-black text-slate-900">{formatCurrency(item.amount)}</p>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
+              <DialogFooter className="mt-6">
+                  <Button variant="outline" onClick={() => setSelectedGroup(null)} className="w-full">Close Breakdown</Button>
+              </DialogFooter>
+          </DialogContent>
       </Dialog>
     </div>
   );
