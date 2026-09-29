@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -135,24 +136,36 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const syncProductsFromOrders = useCallback(async (orders: Order[]): Promise<number> => {
     if (!orders || orders.length === 0) return 0;
 
-    const existingProductNames = new Set(products?.map(p => p.productName) || []);
+    // Build a map of lowercase trimmed names to avoid shell entries
+    const existingProductNames = new Set(
+        products?.map(p => p.productName?.toLowerCase().trim()).filter(Boolean) || []
+    );
+    
     const batch = writeBatch(firestore);
     let newProductsCount = 0;
 
     for (const order of orders) {
       for (const orderProduct of (order.products || [])) {
-        if (orderProduct.productName && !existingProductNames.has(orderProduct.productName)) {
+        const rawName = orderProduct.productName?.trim();
+        if (!rawName) continue; // Skip items without names
+        
+        const normalizedName = rawName.toLowerCase();
+        
+        if (!existingProductNames.has(normalizedName)) {
           const newProductRef = doc(collection(firestore, "products"));
           const newProduct: Product = {
             ...orderProduct,
             id: newProductRef.id,
+            productName: rawName,
             orderIds: [order.id],
             isStandard: false, 
           };
           
           batch.set(newProductRef, removeUndefined(newProduct));
-          existingProductNames.add(orderProduct.productName);
+          existingProductNames.add(normalizedName);
           newProductsCount++;
+        } else {
+            // Logic to link existing product to this order could go here
         }
       }
     }

@@ -31,14 +31,14 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical } from "lucide-react"
+import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical, Library } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
 import { Order, OrderStatus, Product, OrderAttachment, BOMItem } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import Image from "next/image"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -404,6 +404,16 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const isDesigning = watchedStatus === 'Designing';
 
+  // Derived filtered catalog products for search
+  const filteredCatalogProducts = useMemo(() => {
+    const selectedCategory = getValues(`products.${currentProductIndex}.category`);
+    return catalogProducts
+      .filter(p => p.productName && p.productName.trim() !== "") // Require name
+      .filter(p => !p.category || p.category === selectedCategory) // Filter by category
+      .filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())) // Filter by search term
+      .sort((a, b) => (a.isStandard === b.isStandard ? 0 : a.isStandard ? -1 : 1)); // Prioritize standard products
+  }, [catalogProducts, currentProductIndex, catalogSearchTerm, getValues]);
+
   return (
     <div className="w-full max-w-4xl mx-auto">
       <div className="mb-8 space-y-4">
@@ -591,34 +601,64 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
           {currentStep === 4 && (
               <Card>
-                <CardHeader><CardTitle>Search catalog</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <div>
+                        <CardTitle>Catalog Design</CardTitle>
+                        <CardDescription>Select an existing design or create a new one.</CardDescription>
+                    </div>
+                </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-40" />
-                        <Input placeholder="Type to filter catalog..." className="pl-9" value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
+                        <Input placeholder="Search catalog by design name..." className="pl-9" value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
                     </div>
-                    <ScrollArea className="h-[300px]">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {catalogProducts.filter(p => !p.category || p.category === getValues(`products.${currentProductIndex}.category`)).filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())).map(p => {
-                                const catalogThumb = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
-                                return (
-                                    <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-lg text-left hover:bg-accent" onClick={() => { 
-                                        const up = [...getValues('products')];
-                                        up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };
-                                        setValue('products', up, { shouldDirty: true });
-                                        setCurrentStep(8);
-                                    }}>
-                                        <div className="h-10 w-10 bg-muted rounded shrink-0 relative overflow-hidden border">
-                                            {catalogThumb ? <Image src={catalogThumb} alt="thumb" fill className="object-cover" /> : <Boxes className="h-5 w-5 m-auto opacity-20" />}
-                                        </div>
-                                        <span className="text-sm font-bold truncate">{p.productName}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    <ScrollArea className="h-[400px] pr-2">
+                        {filteredCatalogProducts.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {filteredCatalogProducts.map(p => {
+                                    const catalogThumb = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
+                                    return (
+                                        <button key={p.id} type="button" className="flex items-center gap-3 p-3 border rounded-xl text-left hover:bg-accent group transition-all" onClick={() => { 
+                                            const up = [...getValues('products')];
+                                            up[currentProductIndex] = { ...p, id: uuidv4(), quantity: 1 };
+                                            setValue('products', up, { shouldDirty: true });
+                                            setCurrentStep(8);
+                                        }}>
+                                            <div className="h-12 w-12 bg-muted rounded-lg shrink-0 relative overflow-hidden border shadow-sm group-hover:scale-105 transition-transform">
+                                                {catalogThumb ? <Image src={catalogThumb} alt="thumb" fill className="object-cover" /> : <Boxes className="h-6 w-6 m-auto opacity-20" />}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <span className="text-sm font-bold truncate block">{p.productName}</span>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    {p.isStandard ? (
+                                                        <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-primary/5 text-primary border-primary/10 font-black uppercase">Standard</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-muted text-muted-foreground uppercase font-bold">Custom</Badge>
+                                                    )}
+                                                    <span className="text-[10px] text-muted-foreground">{p.category}</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-muted/20 rounded-xl border-2 border-dashed">
+                                <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
+                                    <Library className="h-8 w-8 text-muted-foreground opacity-30" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-muted-foreground">No matching designs found</p>
+                                    <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto mt-1">Try a different search term or create a new manual design.</p>
+                                </div>
+                            </div>
+                        )}
                     </ScrollArea>
                     <Separator />
-                    <Button variant="outline" className="w-full" onClick={() => setCurrentStep(5)}>Add manually (New design)</Button>
+                    <Button variant="outline" className="w-full h-12 rounded-xl border-dashed hover:bg-primary/5 hover:border-primary/50 group" onClick={() => setCurrentStep(5)}>
+                        <Plus className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" /> 
+                        Create a New Design Piece
+                    </Button>
                 </CardContent>
               </Card>
           )}
@@ -721,9 +761,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredItems.length === 0 ? (
+                                            ) : filteredSecondaryItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredItems.map(item => (
+                                            ) : filteredSecondaryItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 
