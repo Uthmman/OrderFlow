@@ -132,7 +132,7 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 md:gap-3">
                 {stats.designing > 0 && <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />}
                 {stats.inProgress > 0 && <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />}
                 {stats.designReady > 0 && <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-500" />}
@@ -245,12 +245,12 @@ export default function Dashboard() {
 
 function StatusStat({ label, count, color }: { label: string, count: number, color: string }) {
     return (
-        <div className="flex flex-col gap-2 p-4 min-w-[120px] rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
-            <div className="flex items-center gap-1.5">
-                <div className={cn("h-1.5 w-1.5 rounded-full transition-transform group-hover:scale-125", color)} />
-                <span className="text-[9px] uppercase tracking-[0.1em] font-black text-muted-foreground/70">{label}</span>
+        <div className="flex flex-col gap-2 p-3 md:p-4 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
+            <div className="flex items-center gap-1.5 overflow-hidden">
+                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125", color)} />
+                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] md:tracking-[0.1em] font-black text-muted-foreground/70 truncate">{label}</span>
             </div>
-            <span className="text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
+            <span className="text-xl md:text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
         </div>
     )
 }
