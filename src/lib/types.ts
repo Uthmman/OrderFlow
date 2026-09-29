@@ -115,6 +115,7 @@ export type Product = {
   price: number;
   priceHistory?: PriceEntry[];
   quantity?: number;
+  prepaidAmount?: number;
   orderIds?: string[];
   billOfMaterials?: string; // Legacy text BOM
   bomItems?: BOMItem[]; // Structured BOM linked to stock

@@ -32,6 +32,8 @@ interface OrderContextType {
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
+const VAT_RATE = 0.15;
+
 const getInitialMainImage = (product: Product) => {
   if (!product) return undefined;
   const allAtts = [...(product.attachments || []), ...(product.designAttachments || [])];
@@ -121,7 +123,6 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("User must be logged in.");
     const products = orderData.products || [];
     const totalIncome = orderData.incomeAmount || 0;
-    const totalPrepaid = orderData.prepaidAmount || 0;
     const existingOrderId = (orderData as any).id;
     const finalStatus = orderData.status === 'Pending' ? 'In Progress' : orderData.status;
 
@@ -143,8 +144,15 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             if (i === 0) firstOrderId = currentOrderId;
 
             const productTotalPrice = (Number(product.price) || 0) * (Number(product.quantity) || 1);
-            const priceProportion = totalIncome > 0 ? (productTotalPrice / totalIncome) : (1 / products.length);
-            const productPrepaid = totalPrepaid * priceProportion;
+            const productPrepaid = Number(product.prepaidAmount) || 0;
+
+            let productVat = 0;
+            let productTotalWithVat = productTotalPrice;
+            
+            if (orderData.withReceipt) {
+                productVat = Math.round(productTotalPrice * VAT_RATE);
+                productTotalWithVat = productTotalPrice + productVat;
+            }
 
             const splitOrder: any = {
                 ...orderData,
@@ -152,8 +160,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 products: [product], 
                 uniqueName: formatOrderUniqueName(orderData.isSample ? "Workshop Sample" : orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
-                incomeAmount: productTotalPrice > 0 ? productTotalPrice : (totalIncome / products.length),
-                prepaidAmount: Math.round(productPrepaid),
+                incomeAmount: productTotalPrice,
+                prepaidAmount: productPrepaid,
+                vatAmount: productVat,
+                totalWithVat: productTotalWithVat,
                 status: finalStatus,
                 ownerId: user.id,
                 batchReceiptId,

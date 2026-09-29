@@ -93,6 +93,7 @@ const productSchema = z.object({
   quantity: z.coerce.number().min(1).default(1),
   colorAsAttachment: z.boolean().default(false),
   price: z.coerce.number().min(0).default(0),
+  prepaidAmount: z.coerce.number().min(0).default(0),
   mainImageUrl: z.string().optional(),
   bomItems: z.array(bomItemSchema).optional(),
 })
@@ -196,10 +197,19 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { toast } = useToast();
   
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
-    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1, bomItems: [] };
-    const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash', isSample: false };
+    const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1, bomItems: [], prepaidAmount: 0 };
+    const defaultValues = { products: [defaultProduct], isUrgent: false, status: "Pending" as OrderStatus, incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash', isSample: false, prepaidAmount: 0 };
     if (!orderToMap) return defaultValues as OrderFormValues;
-    const products = orderToMap.products?.map(p => ({ ...p, colorAsAttachment: p.colors?.includes("As Attached Picture"), width: p.dimensions?.width, height: p.dimensions?.height, depth: p.dimensions?.depth, quantity: p.quantity || 1, bomItems: p.bomItems || [] })) || [defaultProduct];
+    const products = orderToMap.products?.map(p => ({ 
+        ...p, 
+        colorAsAttachment: p.colors?.includes("As Attached Picture"), 
+        width: p.dimensions?.width, 
+        height: p.dimensions?.height, 
+        depth: p.dimensions?.depth, 
+        quantity: p.quantity || 1, 
+        bomItems: p.bomItems || [],
+        prepaidAmount: p.prepaidAmount || orderToMap.prepaidAmount || 0 
+    })) || [defaultProduct];
     return { ...defaultValues, ...orderToMap, creationDate: toDate(orderToMap.creationDate) || new Date(), deadline: toDate(orderToMap.deadline) || new Date(), location: orderToMap.location || { town: '' }, products } as OrderFormValues;
   }, []);
 
@@ -212,7 +222,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedStatus = watch("status");
   const watchedIsSample = watch("isSample");
 
-  // Track the category for the product currently being set up
   const currentCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
@@ -238,13 +247,13 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }, [setValue]);
 
   const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.quantity) || 1), 0);
+  const totalPrepaidValue = watchedProducts.reduce((sum, p) => sum + (Number(p.prepaidAmount) || 0), 0);
   
   useEffect(() => { 
-    if (currentStep < 9) {
-      setValue('incomeAmount', totalIncomeValue);
-      updateCalculations(totalIncomeValue, watchedWithReceipt);
-    }
-  }, [totalIncomeValue, currentStep, setValue, updateCalculations, watchedWithReceipt]);
+    setValue('incomeAmount', totalIncomeValue);
+    setValue('prepaidAmount', totalPrepaidValue);
+    updateCalculations(totalIncomeValue, watchedWithReceipt);
+  }, [totalIncomeValue, totalPrepaidValue, setValue, updateCalculations, watchedWithReceipt]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -408,19 +417,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   const isDesigning = watchedStatus === 'Designing';
 
-  // Derived filtered catalog products for search
   const filteredCatalogProducts = useMemo(() => {
     if (!catalogProducts) return [];
     
     return catalogProducts
-      .filter(p => p.productName && p.productName.trim() !== "") // Require name
+      .filter(p => p.productName && p.productName.trim() !== "") 
       .filter(p => {
-          // If a category was selected in step 3, only show matches or items with no category.
           if (!currentCategory) return true;
           return p.category === currentCategory || !p.category;
       })
-      .filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())) // Filter by search term
-      .sort((a, b) => (a.isStandard === b.isStandard ? 0 : a.isStandard ? -1 : 1)); // Prioritize standard products
+      .filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())) 
+      .sort((a, b) => (a.isStandard === b.isStandard ? 0 : a.isStandard ? -1 : 1)); 
   }, [catalogProducts, currentCategory, catalogSearchTerm]);
 
   return (
@@ -912,7 +919,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         )
                       })}
                       <Button variant="outline" className="w-full mt-4 border-dashed" onClick={() => {
-                          const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', billOfMaterials: '', attachments: [], quantity: 1, price: 0 }];
+                          const up = [...getValues('products'), { id: uuidv4(), productName: '', category: '', billOfMaterials: '', attachments: [], quantity: 1, price: 0, prepaidAmount: 0 }];
                           setValue('products', up, { shouldDirty: true });
                           setCurrentProductIndex(up.length - 1);
                           setCurrentStep(3);
@@ -924,36 +931,99 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           {currentStep === 9 && (
               <div className="space-y-6">
                 <Card>
-                    <CardHeader><CardTitle>Pricing & Receipt</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Pricing & Advance Payments</CardTitle>
+                        <CardDescription>Enter values for each product item in this order.</CardDescription>
+                    </CardHeader>
                     <CardContent className="space-y-6">
-                        <FormField control={form.control} name="incomeAmount" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Base Price (Before VAT)</FormLabel>
-                                <div className="relative">
-                                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                    <Input type="number" className="pl-8" {...field} value={field.value ?? ""} onChange={(e) => { const b = parseFloat(e.target.value) || 0; field.onChange(b); updateCalculations(b, watchedWithReceipt); }} />
+                        <div className="space-y-4">
+                            {watchedProducts.map((p, i) => (
+                                <div key={p.id || i} className="p-4 border rounded-xl bg-muted/10 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <p className="font-bold text-sm truncate max-w-[200px]">{p.productName || `Item ${i+1}`}</p>
+                                        <Badge variant="outline" className="text-[10px] uppercase font-black">{p.category}</Badge>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <FormField
+                                            control={form.control}
+                                            name={`products.${i}.price`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs">Base Unit Price</FormLabel>
+                                                    <div className="relative">
+                                                        <DollarSign className="absolute left-2.5 top-2.5 h-3.5 w-3.5 opacity-50" />
+                                                        <Input 
+                                                            type="number" 
+                                                            className="pl-8 h-9 text-sm" 
+                                                            {...field} 
+                                                        />
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name={`products.${i}.prepaidAmount`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-xs text-primary">Advance Payment</FormLabel>
+                                                    <div className="relative">
+                                                        <DollarSign className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-primary/50" />
+                                                        <Input 
+                                                            type="number" 
+                                                            className="pl-8 h-9 text-sm border-primary/20 bg-primary/5" 
+                                                            {...field} 
+                                                        />
+                                                    </div>
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+
+                                    <div className="flex justify-between items-center pt-2 border-t border-dashed">
+                                        <div className="text-[10px] uppercase font-bold text-muted-foreground">Item Total: {formatCurrency((p.price || 0) * (p.quantity || 1))}</div>
+                                        <div className="text-[10px] uppercase font-bold text-destructive">
+                                            Balance: {formatCurrency(((p.price || 0) * (p.quantity || 1)) - (p.prepaidAmount || 0))}
+                                        </div>
+                                    </div>
                                 </div>
-                            </FormItem>
-                        )} />
+                            ))}
+                        </div>
+
+                        <Separator />
+
                         <FormField control={form.control} name="withReceipt" render={({ field }) => (
                             <FormItem className="flex items-center justify-between border p-4 rounded-lg bg-primary/5">
                                 <div><FormLabel>Official Receipt</FormLabel><FormDescription>Includes 15% VAT.</FormDescription></div>
                                 <FormControl><Switch checked={field.value} onCheckedChange={(v) => { field.onChange(v); updateCalculations(watchedIncome || 0, v); }} /></FormControl>
                             </FormItem>
                         )} />
-                        {watchedWithReceipt && (
-                            <div className="space-y-4 p-4 border rounded-lg bg-accent/10">
-                                <div className="space-y-1">{watchedProducts.map((p, i) => (
-                                    <div key={p.id} className="flex justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                                        <span>{p.productName || `Item ${i+1}`} ({p.quantity || 1} pcs)</span>
-                                        <span>{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                    </div>
-                                ))}</div>
-                                <Separator className="bg-primary/20" />
-                                <div className="flex justify-between text-sm"><span>VAT (15%):</span><span>+{formatCurrency(form.watch('vatAmount'))}</span></div>
-                                <div className="flex justify-between font-bold border-t border-primary/40 pt-2 text-lg"><span>Total Payable:</span><span>{formatCurrency(form.watch('totalWithVat'))}</span></div>
+
+                        <div className="p-4 rounded-xl bg-slate-900 text-white space-y-3 shadow-lg">
+                            <div className="flex justify-between text-xs opacity-70">
+                                <span>Total Items Value:</span>
+                                <span>{formatCurrency(totalIncomeValue)}</span>
                             </div>
-                        )}
+                            {watchedWithReceipt && (
+                                <div className="flex justify-between text-xs opacity-70">
+                                    <span>VAT (15%):</span>
+                                    <span>+{formatCurrency(form.watch('vatAmount'))}</span>
+                                </div>
+                            )}
+                            <div className="flex justify-between text-base font-bold pt-2 border-t border-white/10">
+                                <span>Grand Total:</span>
+                                <span className="text-primary-foreground">{formatCurrency(watchedWithReceipt ? form.watch('totalWithVat') : totalIncomeValue)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-primary-foreground/80">
+                                <span>Total Prepaid:</span>
+                                <span>-{formatCurrency(totalPrepaidValue)}</span>
+                            </div>
+                            <div className="flex justify-between text-lg font-black pt-1 text-emerald-400">
+                                <span>Net Balance Due:</span>
+                                <span>{formatCurrency((watchedWithReceipt ? form.watch('totalWithVat') : totalIncomeValue) - totalPrepaidValue)}</span>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
               </div>
@@ -976,7 +1046,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Advance Payment</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? ""} /></div></FormControl></FormItem>} />
                         <FormField control={form.control} name="paymentMethod" render={({ field }) => (
                             <FormItem><FormLabel>Payment Method</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
