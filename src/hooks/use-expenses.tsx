@@ -11,7 +11,40 @@ import { useUser } from './use-user';
 import { v4 as uuidv4 } from 'uuid';
 import { deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
-import { startOfWeek, format } from 'date-fns';
+
+/**
+ * Simplified Ethiopian Month Calculation for grouping.
+ * Meskerem 1 usually falls on Sept 11 (or 12 in leap years).
+ */
+const ETHIOPIAN_MONTHS = [
+  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yakatit',
+  'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
+];
+
+function getEthiopianPeriod(date: Date) {
+  const month = date.getMonth();
+  const day = date.getDate();
+  let year = date.getFullYear() - 8;
+  let ethMonthIndex = 0;
+
+  // Rough estimation of Ethiopian months for grouping purposes
+  if (month === 8) ethMonthIndex = day >= 11 ? 0 : 11;
+  else if (month === 9) ethMonthIndex = day >= 11 ? 1 : 0;
+  else if (month === 10) ethMonthIndex = day >= 10 ? 2 : 1;
+  else if (month === 11) ethMonthIndex = day >= 10 ? 3 : 2;
+  else if (month === 0) ethMonthIndex = day >= 9 ? 4 : 3;
+  else if (month === 1) ethMonthIndex = day >= 8 ? 5 : 4;
+  else if (month === 2) ethMonthIndex = day >= 10 ? 6 : 5;
+  else if (month === 3) ethMonthIndex = day >= 9 ? 7 : 6;
+  else if (month === 4) ethMonthIndex = day >= 9 ? 8 : 7;
+  else if (month === 5) ethMonthIndex = day >= 8 ? 9 : 8;
+  else if (month === 6) ethMonthIndex = day >= 8 ? 10 : 9;
+  else if (month === 7) ethMonthIndex = day >= 7 ? 11 : 10;
+  
+  if (month > 8 || (month === 8 && day >= 11)) year = date.getFullYear() - 7;
+  
+  return `${ETHIOPIAN_MONTHS[ethMonthIndex]} ${year}`;
+}
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -65,20 +98,19 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const combinedExpenses = useMemo(() => {
-    // Group secondary expenses by week
+    // Group secondary expenses by Ethiopian Month + Year
     const groupedSecondary = secondaryRecords.reduce((acc, curr) => {
       const date = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
-      const weekStart = startOfWeek(date, { weekStartsOn: 1 }); // Start week on Monday
-      const weekKey = format(weekStart, 'yyyy-MM-dd');
+      const periodLabel = getEthiopianPeriod(date);
       const category = curr.category || 'Salary';
-      const groupKey = `grouped-${category}-${weekKey}`;
+      const groupKey = `grouped-${category}-${periodLabel}`;
       
       if (!acc[groupKey]) {
         acc[groupKey] = {
           id: groupKey,
-          description: `${category} - Week of ${format(weekStart, 'MMM d, yyyy')}`,
+          description: `${category} Group - ${periodLabel}`,
           amount: 0,
-          date: weekStart,
+          date: date, // Representative date
           category: category,
           paidTo: 'Multiple Employees',
           status: 'Paid',
