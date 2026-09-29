@@ -50,7 +50,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   FlaskConical, 
-  ShoppingCart 
+  ShoppingCart,
+  Phone
 } from "lucide-react";
 import Image from "next/image";
 import { ChatInterface } from "@/components/app/chat-interface";
@@ -1011,7 +1012,7 @@ function OrderDetailPageContent() {
 
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
   
-  const customer = getCustomerById(order.customerId);
+  const customer = getCustomerById(order.customerId || "");
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
   const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
   const isDesigner = role === 'Designer';
@@ -1162,6 +1163,74 @@ function OrderDetailPageContent() {
         downloadLink.click(); 
         document.body.removeChild(downloadLink);
     };
+
+    const OrderInfoCard = (
+        <Card>
+            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
+                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
+                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
+                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
+                {canViewSensitiveData && (
+                <>
+                    <Separator />
+                    {order.withReceipt && (
+                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
+                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
+                            <div className="space-y-2">
+                            {order.products?.map((p, idx) => (
+                                <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
+                                    <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
+                                    <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
+                                </div>
+                            ))}
+                            <Separator className="bg-primary/10" />
+                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
+                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
+                            <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
+                            {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
+                            </div>
+                        </Card>
+                    )}
+                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
+                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
+                    <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
+                    {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
+                    <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
+                    <Separator />
+                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
+                </>
+                )}
+            </CardContent>
+        </Card>
+    );
+
+    const CustomerCard = customer ? (
+        <Card>
+            <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                    <User className="h-4 w-4 text-muted-foreground"/> 
+                    <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
+                </div>
+                <div className="space-y-2">
+                    {(customer.phoneNumbers || []).map((p, idx) => (
+                        <a key={idx} href={`tel:${p.number}`} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors group">
+                            <div className="flex items-center gap-2">
+                                <Phone className="h-3.5 w-3.5 text-primary" />
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-bold text-muted-foreground uppercase leading-none">{p.type}</span>
+                                    <span className="text-sm font-medium">{p.number}</span>
+                                </div>
+                            </div>
+                            <Badge variant="outline" className="text-[8px] font-bold uppercase py-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">Call</Badge>
+                        </a>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    ) : null;
 
     const mainContent = (
         <div className="space-y-6">
@@ -1319,62 +1388,8 @@ function OrderDetailPageContent() {
                     {mainContent}
                 </div>
                 <div className="space-y-8">
-                    <Card>
-                        <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
-                            <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
-                            <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
-                            {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                            {canViewSensitiveData && (
-                            <>
-                                <Separator />
-                                {order.withReceipt && (
-                                    <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
-                                        <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                                        <div className="space-y-2">
-                                        {order.products?.map((p, idx) => (
-                                            <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                                <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
-                                                <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                            </div>
-                                        ))}
-                                        <Separator className="bg-primary/10" />
-                                        <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                                        <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                                        <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                        {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
-                                        </div>
-                                    </Card>
-                                )}
-                                <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
-                                <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
-                                <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
-                                {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
-                                <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
-                                <Separator />
-                                <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
-                            </>
-                            )}
-                        </CardContent>
-                    </Card>
-                    {canViewSensitiveData && customer ? (
-                        <Card>
-                            <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <User className="h-4 w-4 text-muted-foreground"/> 
-                                    <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
-                                </div>
-                                {(customer.phoneNumbers || []).map((p, idx) => (
-                                    <p key={idx} className="text-xs text-muted-foreground">
-                                        <span className="font-bold mr-1 opacity-70">{p.type}:</span>
-                                        {p.number}
-                                    </p>
-                                ))}
-                            </CardContent>
-                        </Card>
-                    ) : null}
+                    {OrderInfoCard}
+                    {CustomerCard}
 
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 px-1">
@@ -1505,40 +1520,10 @@ function OrderDetailPageContent() {
                     <TabsContent value="specs" className="space-y-6 mt-4 animate-in slide-in-from-left-2 duration-300 outline-none pb-24">
                         {mainContent}
                         
-                        <Card className="mx-1 mt-8 overflow-hidden">
-                            <CardHeader className="bg-muted/30 pb-3"><CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Order Identity</CardTitle></CardHeader>
-                            <CardContent className="space-y-4 pt-4">
-                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">System ID:</span><span className="font-mono font-bold text-primary">#{order.id.slice(-8).toUpperCase()}</span></div>
-                                <div className="flex items-center justify-between text-sm"><span className="text-muted-foreground">Delivery Deadline:</span><span className="font-bold">{formatTimestamp(order.deadline)}</span></div>
-                                <Separator />
-                                {canViewSensitiveData && (
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center text-sm"><span className="text-muted-foreground">Project Total:</span><span className="font-bold text-lg">{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                                        <div className="flex justify-between items-center text-sm p-2 bg-destructive/5 rounded-lg border border-destructive/10"><span className="text-destructive font-bold text-[10px] uppercase">Balance Remaining:</span><span className="font-bold text-destructive">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {canViewSensitiveData && customer && (
-                            <Card className="mx-1 overflow-hidden">
-                                <CardHeader className="bg-muted/30 pb-3">
-                                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Customer Details</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-4">
-                                    <div className="flex items-center gap-3">
-                                        <User className="h-4 w-4 text-muted-foreground"/> 
-                                        <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
-                                    </div>
-                                    {(customer.phoneNumbers || []).map((p, idx) => (
-                                        <p key={idx} className="text-xs text-muted-foreground">
-                                            <span className="font-bold mr-1 opacity-70">{p.type}:</span>
-                                            {p.number}
-                                        </p>
-                                    ))}
-                                </CardContent>
-                            </Card>
-                        )}
+                        <div className="px-1 space-y-6">
+                            {OrderInfoCard}
+                            {CustomerCard}
+                        </div>
                     </TabsContent>
                     
                     <TabsContent value="chat" className="mt-0 animate-in slide-in-from-right-2 duration-300 outline-none">
