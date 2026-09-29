@@ -209,6 +209,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const watchedIncome = watch("incomeAmount");
   const selectedCustomerId = watch("customerId");
   const watchedStatus = watch("status");
+  const watchedIsSample = watch("isSample");
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -299,7 +300,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const nextStep = async () => {
     if (isExternallySubmitting || isManualSaving) return;
     let fields: any = [];
-    if(currentStep === 1) fields = ['customerId', 'location.town'];
+    if(currentStep === 1) fields = watchedIsSample ? ['location.town'] : ['customerId', 'location.town'];
     if(currentStep === 5) fields = [`products.${currentProductIndex}.productName`];
     
     const isValid = fields.length > 0 ? await trigger(fields) : true;
@@ -315,7 +316,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         setIsManualSaving(true);
         try {
             const vals = getValues();
-            const id = await onSave({ ...vals, customerName: customers.find(c => c.id === vals.customerId)?.name || "Unknown", status: 'Pending' } as any, true);
+            const id = await onSave({ ...vals, customerName: vals.isSample ? "Workshop Sample" : (customers.find(c => c.id === vals.customerId)?.name || "Unknown"), status: 'Pending' } as any, true);
             if (id) { router.replace(`/orders/${id}/edit?step=3`); return; }
         } catch (e) { setIsManualSaving(false); }
         return;
@@ -338,7 +339,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             } : undefined 
         }));
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
-        const payload: any = { ...values, products: updated, status: values.status === 'Pending' ? 'In Progress' : values.status, customerName: customers.find(c => c.id === values.customerId)?.name || "Unknown", bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
+        const payload: any = { ...values, products: updated, status: values.status === 'Pending' ? 'In Progress' : values.status, customerName: values.isSample ? "Workshop Sample" : (customers.find(c => c.id === values.customerId)?.name || "Unknown"), bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
         await onSave(payload as any, !initialOrder); 
     } catch(e) { 
         toast({ variant: "destructive", title: "Save Failed", description: "Please verify all steps." });
@@ -417,18 +418,29 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
         <form onSubmit={e => e.preventDefault()} className="space-y-8">
           {currentStep === 1 && (
               <Card>
-                <CardHeader>
+                <CardHeader className="pb-3 border-b mb-6">
                     <div className="flex justify-between items-center">
-                        <CardTitle>Customer & Location</CardTitle>
-                        {!isCreatingNewCustomer && !selectedCustomer && (
-                            <Button variant="outline" size="sm" onClick={() => setIsCreatingNewCustomer(true)}>
-                                <PlusCircle className="mr-2 h-4 w-4" /> New Customer
-                            </Button>
-                        )}
+                        <div>
+                            <CardTitle>Project Foundation</CardTitle>
+                            <CardDescription>Define if this is a customer project or workshop sample.</CardDescription>
+                        </div>
+                        <FormField control={form.control} name="isSample" render={({ field }) => (
+                            <FormItem className="flex items-center gap-2 space-y-0 bg-orange-50 px-3 py-1.5 rounded-full border border-orange-200">
+                                <FlaskConical className="h-4 w-4 text-orange-600" />
+                                <FormLabel className="text-[10px] font-black uppercase tracking-widest text-orange-700 cursor-pointer">Sample Mode</FormLabel>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} className="scale-75 data-[state=checked]:bg-orange-600" /></FormControl>
+                            </FormItem>
+                        )} />
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                    {isCreatingNewCustomer ? (
+                <CardContent className="space-y-6 pt-0">
+                    {watchedIsSample ? (
+                        <div className="p-8 text-center border-2 border-dashed rounded-xl bg-orange-50/20 animate-in fade-in zoom-in-95 duration-200">
+                            <FlaskConical className="h-10 w-10 mx-auto mb-3 text-orange-400 opacity-50" />
+                            <p className="text-sm font-bold text-orange-900">Workshop Sample Mode Active</p>
+                            <p className="text-xs text-muted-foreground mt-1">This project is for internal inventory and display. No customer required.</p>
+                        </div>
+                    ) : isCreatingNewCustomer ? (
                         <div className="p-4 border rounded-lg bg-muted/20 animate-in fade-in zoom-in-95 duration-200">
                              <div className="flex justify-between items-center mb-4 border-b pb-2">
                                 <h3 className="font-bold text-sm">Create New Customer</h3>
@@ -440,7 +452,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <div className="space-y-6">
                             <FormField control={form.control} name="customerId" render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Customer Name</FormLabel>
+                                  <div className="flex justify-between items-center mb-2">
+                                    <FormLabel>Customer Name</FormLabel>
+                                    {!selectedCustomer && (
+                                        <Button variant="outline" size="sm" className="h-7 text-[10px] uppercase font-bold" onClick={() => setIsCreatingNewCustomer(true)}>
+                                            <PlusCircle className="mr-1 h-3 w-3" /> New Customer
+                                        </Button>
+                                    )}
+                                  </div>
                                   {selectedCustomer ? (
                                       <div className="flex items-center justify-between p-3 border rounded-lg bg-primary/5 border-primary/20 animate-in fade-in slide-in-from-top-1">
                                           <div className="flex items-center gap-3">
@@ -511,11 +530,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                   <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={form.control} name="location.town" render={({ field }) => (
-                                <FormItem><FormLabel>Order Location (City/Town)</FormLabel><FormControl><Input placeholder="e.g. Addis Ababa" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
-                            )} />
                         </div>
                     )}
+                    <FormField control={form.control} name="location.town" render={({ field }) => (
+                        <FormItem><FormLabel>Order Location (City/Town)</FormLabel><FormControl><Input placeholder="e.g. Addis Ababa" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                    )} />
                 </CardContent>
               </Card>
           )}
@@ -902,19 +921,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         )} />
                     </div>
                     
-                    <FormField control={form.control} name="isSample" render={({ field }) => (
-                        <FormItem className="flex items-center justify-between border p-3 rounded-lg bg-orange-50/50 border-orange-100">
-                            <div className="flex items-center gap-2">
-                                <FlaskConical className="h-4 w-4 text-orange-600" />
-                                <div>
-                                    <FormLabel>Sample Order</FormLabel>
-                                    <p className="text-[10px] text-muted-foreground">Keep in workshop for display or future sale.</p>
-                                </div>
-                            </div>
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        </FormItem>
-                    )} />
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField control={form.control} name="prepaidAmount" render={({ field }) => <FormItem><FormLabel>Advance Payment</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? ""} /></div></FormControl></FormItem>} />
                         <FormField control={form.control} name="paymentMethod" render={({ field }) => (

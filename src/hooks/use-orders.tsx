@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, ReactNode, useState, useMemo, useCallback } from 'react';
@@ -149,7 +150,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
                 ...orderData,
                 id: currentOrderId,
                 products: [product], 
-                uniqueName: formatOrderUniqueName(orderData.customerName, [product], currentOrderId),
+                uniqueName: formatOrderUniqueName(orderData.isSample ? "Workshop Sample" : orderData.customerName, [product], currentOrderId),
                 mainImageUrl: getInitialMainImage(product),
                 incomeAmount: productTotalPrice > 0 ? productTotalPrice : (totalIncome / products.length),
                 prepaidAmount: Math.round(productPrepaid),
@@ -163,7 +164,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
             delete splitOrder.file;
             delete (splitOrder as any).receiptFile;
             batch.set(currentOrderRef, removeUndefined(splitOrder));
-            if (!isFirst) addOrderToCustomer(orderData.customerId, currentOrderId);
+            if (!isFirst && orderData.customerId) addOrderToCustomer(orderData.customerId, currentOrderId);
         }
         await batch.commit();
         toast({ title: "Order Finalized", description: `Distinct products split into ${products.length} orders.` });
@@ -173,7 +174,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     if (isNew) {
         const newOrderRef = doc(collection(firestore, "orders"));
         const newId = newOrderRef.id;
-        const newOrderName = formatOrderUniqueName(orderData.customerName, products, newId);
+        const newOrderName = formatOrderUniqueName(orderData.isSample ? "Workshop Sample" : orderData.customerName, products, newId);
         const newOrder: Order = {
             ...orderData,
             id: newId,
@@ -199,7 +200,7 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     }
 
     const orderRef = doc(firestore, 'orders', existingOrderId);
-    const updatedName = formatOrderUniqueName(orderData.customerName, products, existingOrderId);
+    const updatedName = formatOrderUniqueName(orderData.isSample ? "Workshop Sample" : orderData.customerName, products, existingOrderId);
     const finalData: any = {
         ...orderData,
         uniqueName: updatedName,
@@ -243,9 +244,10 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     delete dataToUpdate.chatMessages;
 
     // Only recalculate name and image if customer or products changed explicitly in this call
-    if (orderData.customerName || orderData.products) {
+    if (orderData.customerName || orderData.products || orderData.isSample !== undefined) {
         const finalProducts = orderData.products || originalOrder?.products || [];
-        dataToUpdate.uniqueName = formatOrderUniqueName(orderData.customerName || originalOrder?.customerName, finalProducts, orderData.id);
+        const isSample = orderData.isSample !== undefined ? orderData.isSample : originalOrder?.isSample;
+        dataToUpdate.uniqueName = formatOrderUniqueName(isSample ? "Workshop Sample" : (orderData.customerName || originalOrder?.customerName), finalProducts, orderData.id);
         if (finalProducts.length === 1) {
             dataToUpdate.mainImageUrl = getInitialMainImage(finalProducts[0]);
         }

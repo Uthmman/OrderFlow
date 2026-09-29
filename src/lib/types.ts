@@ -128,7 +128,7 @@ export type Order = {
   uniqueName?: string;
   mainImageUrl?: string; 
   customerName: string;
-  customerId: string;
+  customerId?: string;
   products: Product[];
   status: OrderStatus;
   paymentStatus?: PaymentStatus;
