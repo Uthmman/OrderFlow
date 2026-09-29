@@ -94,6 +94,7 @@ export type BOMItem = {
   name: string;
   quantity: number;
   unit: string;
+  imageUrl?: string;
 };
 
 export type PriceEntry = {
@@ -228,6 +229,7 @@ export type StockItem = {
   unit: StockUnit;
   minQuantity?: number;
   lastUpdated: any;
+  imageUrl?: string;
 };
 
 export type StockSettings = {
@@ -249,3 +251,16 @@ export type Expense = {
   status: 'Paid' | 'Pending';
   ownerId: string;
 };
+
+export type SecondaryCategory = {
+  id: string;
+  name: string;
+}
+
+export type SecondaryItem = {
+  id: string;
+  name: string;
+  unit: string;
+  category: string;
+  imageUrl?: string;
+}

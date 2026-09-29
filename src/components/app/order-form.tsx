@@ -75,6 +75,7 @@ const bomItemSchema = z.object({
   name: z.string(),
   quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
   unit: z.string(),
+  imageUrl: z.string().optional(),
 });
 
 const productSchema = z.object({
@@ -387,7 +388,8 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
           itemId: item.id,
           name: item.name,
           quantity: 1,
-          unit: item.unit
+          unit: item.unit,
+          imageUrl: item.imageUrl
       }];
       setValue('products', products, { shouldDirty: true });
       setIsItemPopoverOpen(false);
@@ -668,10 +670,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
                                     <Library className="h-8 w-8 text-muted-foreground opacity-30" />
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold text-muted-foreground">No matching designs found</p>
-                                    <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto mt-1">Try a different search term or create a new manual design.</p>
-                                </div>
+                                {currentCategory ? (
+                                    <div>
+                                        <p className="text-sm font-bold text-muted-foreground">No matching designs found for {currentCategory}</p>
+                                        <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto mt-1">Try a different search term or create a new manual design.</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        <p className="text-sm font-bold text-muted-foreground">No matching designs found</p>
+                                        <p className="text-xs text-muted-foreground/60 max-w-[200px] mx-auto mt-1">Try a different search term or create a new manual design.</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </ScrollArea>
@@ -690,7 +699,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="md:col-span-2">
-                            <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
+                            <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g. Wardrobe - Sliding Door" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
                         </div>
                         <div className="md:col-span-1">
                              <FormField control={form.control} name={`products.${currentProductIndex}.price`} render={({ field }) => <FormItem><FormLabel>Base Price</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? 0} /></div></FormControl><FormMessage /></FormItem>} />
@@ -782,17 +791,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredItems.length === 0 ? (
+                                            ) : filteredSecondaryItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredItems.map(item => (
+                                            ) : filteredSecondaryItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 
                                                     className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
                                                     onClick={() => addItemToBOM(currentProductIndex, item)}
                                                 >
-                                                    <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                                        <Package className="h-4 w-4 opacity-60" />
+                                                    <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0 relative overflow-hidden border">
+                                                        {item.imageUrl ? (
+                                                            <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                                        ) : (
+                                                            <Package className="h-5 w-5 opacity-60" />
+                                                        )}
                                                     </div>
                                                     <div className="min-w-0">
                                                         <p className="text-xs font-bold truncate">{item.name}</p>
@@ -808,9 +821,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <div className="space-y-2">
                                 {watchedProducts[currentProductIndex]?.bomItems?.map((item: BOMItem, bIdx: number) => (
                                     <div key={bIdx} className="flex items-center gap-3 p-2 border rounded-lg bg-muted/20 group">
-                                        <div className="flex-grow min-w-0">
-                                            <p className="text-xs font-bold truncate">{item.name}</p>
-                                            <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                        <div className="flex-grow min-w-0 flex items-center gap-2">
+                                            <div className="h-8 w-8 rounded bg-muted shrink-0 relative overflow-hidden border">
+                                                {item.imageUrl ? (
+                                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                                ) : (
+                                                    <Package className="h-4 w-4 m-auto opacity-20" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold truncate">{item.name}</p>
+                                                <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Input 

@@ -526,16 +526,18 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
 const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File, progressKey?: string) => Promise<any>, onFilePreview: (attachment: OrderAttachment) => void }) => {
     const { settings: colorSettings } = useColorSettings();
     const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
-    const { uploadProgress } = useOrders();
+    const { uploadFile, uploadProgress } = useOrders();
     const firestore = useFirestore();
     const { toast } = useToast();
     const allColorOptions = [...(colorSettings?.woodFinishes || []), ...(colorSettings?.customColors || [])];
     const designInputRef = useRef<HTMLInputElement>(null);
+    const catalogImageRef = useRef<HTMLInputElement>(null);
     const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; type: string; progressKey: string }[]>([]);
     const [itemSearch, setItemSearch] = useState("");
     const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
     const [isAddingNewCatalogItem, setIsAddingNewCatalogItem] = useState(false);
-    const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs' });
+    const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs', imageUrl: '' });
+    const [isUploadingCatalogImage, setIsUploadingCatalogImage] = useState(false);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -562,6 +564,18 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         }
     };
 
+    const handleCatalogImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setIsUploadingCatalogImage(true);
+            try {
+                const att = await uploadFile(e.target.files[0]);
+                setNewItem(prev => ({ ...prev, imageUrl: att.url }));
+            } finally {
+                setIsUploadingCatalogImage(false);
+            }
+        }
+    };
+
     const updateProductBOM = async (newBOM: BOMItem[]) => {
         const orderRef = doc(firestore, 'orders', order.id);
         const updatedProducts = [...(order.products || [])];
@@ -579,7 +593,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
             toast({ variant: "destructive", title: "Already added" });
             return;
         }
-        const updated = [...currentBOM, { itemId: item.id, name: item.name, quantity: 1, unit: item.unit }];
+        const updated = [...currentBOM, { itemId: item.id, name: item.name, quantity: 1, unit: item.unit, imageUrl: item.imageUrl }];
         updateProductBOM(updated);
         setIsItemPopoverOpen(false);
     };
@@ -589,12 +603,13 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         const success = await addSecondaryItem({
             name: newItem.name,
             category: newItem.category,
-            unit: newItem.unit
+            unit: newItem.unit,
+            imageUrl: newItem.imageUrl
         });
         if (success) {
             toast({ title: "Item Added to Catalog" });
             setIsAddingNewCatalogItem(false);
-            setNewItem({ name: '', category: '', unit: 'pcs' });
+            setNewItem({ name: '', category: '', unit: 'pcs', imageUrl: '' });
         }
     };
 
@@ -702,8 +717,12 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                                         className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
                                                         onClick={() => handleAddItem(item)}
                                                     >
-                                                        <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
-                                                            <Package className="h-4 w-4 opacity-60" />
+                                                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0 relative overflow-hidden">
+                                                            {item.imageUrl ? (
+                                                                <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                                            ) : (
+                                                                <Package className="h-4 w-4 opacity-60" />
+                                                            )}
                                                         </div>
                                                         <div className="min-w-0">
                                                             <p className="text-xs font-bold truncate">{item.name}</p>
@@ -728,9 +747,18 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                             {product.bomItems && product.bomItems.length > 0 ? (
                                 product.bomItems.map((item, i) => (
                                     <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm group">
-                                        <div className="min-w-0 flex-grow">
-                                            <p className="text-xs font-bold truncate">{item.name}</p>
-                                            <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                        <div className="flex items-center gap-3 min-w-0 flex-grow">
+                                            <div className="h-10 w-10 rounded bg-muted shrink-0 relative overflow-hidden border">
+                                                {item.imageUrl ? (
+                                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                                                ) : (
+                                                    <Package className="h-5 w-5 m-auto opacity-20" />
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold truncate">{item.name}</p>
+                                                <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {canEditBOM ? (
@@ -917,6 +945,23 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         <SelectItem value="set">set</SelectItem>
                                     </SelectContent>
                                 </Select>
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Item Image (Thumbnail)</Label>
+                            <div className="flex items-center gap-4">
+                                <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center overflow-hidden shrink-0 relative">
+                                    {newItem.imageUrl ? (
+                                        <Image src={newItem.imageUrl} alt="preview" fill className="object-cover" />
+                                    ) : (
+                                        <ImageIcon className="h-6 w-6 opacity-20" />
+                                    )}
+                                    {isUploadingCatalogImage && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-white" /></div>}
+                                </div>
+                                <input type="file" ref={catalogImageRef} className="hidden" accept="image/*" onChange={handleCatalogImageUpload} />
+                                <Button type="button" variant="outline" size="sm" onClick={() => catalogImageRef.current?.click()}>
+                                    {newItem.imageUrl ? "Change Image" : "Upload Thumbnail"}
+                                </Button>
                             </div>
                         </div>
                     </div>
