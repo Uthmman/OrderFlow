@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -95,6 +96,16 @@ export default function Dashboard() {
     return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue, prepaid, totalExp, profit, unpaid };
   }, [filteredOrdersByDate, filteredExpensesByDate]);
 
+  const activeStatuses = useMemo(() => {
+    return [
+      { label: "Designing", count: stats.designing, color: "bg-orange-400" },
+      { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
+      { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
+      { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
+      { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
+    ].filter(s => s.count > 0);
+  }, [stats]);
+
   if (ordersLoading || customersLoading || userLoading || expensesLoading) {
     return (
         <div className="flex h-96 items-center justify-center">
@@ -151,12 +162,13 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 md:gap-3">
-                {stats.designing > 0 && <StatusStat label="Designing" count={stats.designing} color="bg-orange-400" />}
-                {stats.inProgress > 0 && <StatusStat label="In Progress" count={stats.inProgress} color="bg-blue-300" />}
-                {stats.designReady > 0 && <StatusStat label="Design Ready" count={stats.designReady} color="bg-purple-500" />}
-                {stats.onProduction > 0 && <StatusStat label="Production" count={stats.onProduction} color="bg-emerald-500" />}
-                {stats.delivered > 0 && <StatusStat label="Delivered" count={stats.delivered} color="bg-blue-600" />}
+            <div className={cn(
+                "grid gap-2 md:gap-3",
+                activeStatuses.length === 4 ? "grid-cols-2" : "grid-cols-3"
+            )}>
+                {activeStatuses.map((status) => (
+                    <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
+                ))}
             </div>
 
             <div className="space-y-3">
