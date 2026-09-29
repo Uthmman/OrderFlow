@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -130,8 +129,8 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-6 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 sm:p-6 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
                     <Layers className="h-20 w-20 text-slate-900" />
                 </div>
@@ -141,7 +140,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
+              <div className="p-4 sm:p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
                     <Activity className="h-20 w-20 text-primary" />
                 </div>
