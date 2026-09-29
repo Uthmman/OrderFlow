@@ -965,6 +965,32 @@ function OrderDetailPageContent() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
+
+  // Scroll logic for mobile sub-header
+  const [showHeader, setShowHeader] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const currentScrollY = target.scrollTop;
+        
+        // Hide if scrolling down and scrolled more than 100px
+        if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+            setShowHeader(false);
+        } else {
+            // Show if scrolling up
+            setShowHeader(true);
+        }
+        lastScrollY.current = currentScrollY;
+    };
+
+    const mainElement = document.querySelector('main');
+    if (mainElement) {
+        mainElement.addEventListener('scroll', handleScroll);
+        return () => mainElement.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -1363,7 +1389,10 @@ function OrderDetailPageContent() {
 
             <div className="lg:hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-md shadow-sm border-b overflow-hidden">
+                    <div className={cn(
+                        "sticky top-[-16px] z-40 bg-background/95 backdrop-blur-md shadow-sm border-b overflow-hidden transition-transform duration-300 ease-in-out",
+                        !showHeader && "translate-y-[-100%]"
+                    )}>
                         <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/20 rounded-none border-b border-border/5">
                             <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-none transition-all">
                                 <ListChecks className="h-3.5 w-3.5" /> Specs
