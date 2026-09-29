@@ -13,7 +13,7 @@ import {
   Table as TableInstance,
   VisibilityState,
 } from "@tanstack/react-table"
-import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Loader2 } from "lucide-react"
+import { MoreHorizontal, AlertTriangle, Trash2, ChevronDown, Loader2, Receipt } from "lucide-react"
 import { differenceInDays } from 'date-fns'
 
 import { Button } from "@/components/ui/button"
@@ -173,6 +173,7 @@ function OrderActions({ order }: { order: Order }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                  <span className="sr-only">Open menu</span>
                   <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
@@ -266,9 +267,12 @@ export const columns: ColumnDef<Order>[] = [
             <div className="flex items-center gap-3">
                  <CategoryIcon order={order} />
                  <div className="flex flex-col min-w-0">
-                    <Link href={`/orders/${order.id}`} className="font-bold text-sm text-primary hover:underline truncate">
-                        {displayName}
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                        <Link href={`/orders/${order.id}`} className="font-bold text-sm text-primary hover:underline truncate">
+                            {displayName}
+                        </Link>
+                        {order.withReceipt && <Receipt className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                    </div>
                     <span className="text-[10px] text-muted-foreground font-mono">#{order.id.slice(-6).toUpperCase()}</span>
                  </div>
             </div>
@@ -407,8 +411,11 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
                         <CategoryIcon order={order} />
                         <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex justify-between items-start">
-                                <h3 className="text-sm font-bold pr-6 leading-tight">{order.uniqueName}</h3>
-                                <div onClick={e => e.stopPropagation()} className="shrink-0 -mt-1"><OrderActions order={order} /></div>
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <h3 className="text-sm font-bold truncate leading-tight">{order.uniqueName}</h3>
+                                    {order.withReceipt && <Receipt className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                                </div>
+                                <div onClick={e => e.stopPropagation()} className="shrink-0 -mt-1 ml-2"><OrderActions order={order} /></div>
                             </div>
                             <div className="flex items-center justify-between">
                                 <StatusCell order={order} />

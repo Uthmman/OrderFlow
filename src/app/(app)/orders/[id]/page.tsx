@@ -1237,6 +1237,7 @@ function OrderDetailPageContent() {
                             <div>
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
+                                    {order.withReceipt && <Receipt className="h-6 w-6 text-muted-foreground/60" />}
                                     {canChangeStatus && (
                                         <div className="flex items-center gap-2">
                                             <StatusChanger order={order} onStatusChange={handleStatusChange} />
@@ -1415,12 +1416,15 @@ function OrderDetailPageContent() {
                                         </div>
                                     )}
                                     <div className="min-w-0">
-                                        <h1 className={cn(
-                                            "font-bold font-headline tracking-tight truncate leading-tight transition-all",
-                                            activeTab === 'chat' ? "text-sm" : "text-base"
-                                        )}>
-                                            {activeTab === 'chat' ? simpleName : order.uniqueName}
-                                        </h1>
+                                        <div className="flex items-center gap-1.5">
+                                            <h1 className={cn(
+                                                "font-bold font-headline tracking-tight truncate leading-tight transition-all",
+                                                activeTab === 'chat' ? "text-sm" : "text-base"
+                                            )}>
+                                                {activeTab === 'chat' ? simpleName : order.uniqueName}
+                                            </h1>
+                                            {order.withReceipt && <Receipt className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />}
+                                        </div>
                                         {activeTab === 'specs' && (
                                             <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
                                                 {canChangeStatus ? (
@@ -1515,6 +1519,26 @@ function OrderDetailPageContent() {
                                 )}
                             </CardContent>
                         </Card>
+
+                        {canViewSensitiveData && customer && (
+                            <Card className="mx-1 overflow-hidden">
+                                <CardHeader className="bg-muted/30 pb-3">
+                                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Customer Details</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3 pt-4">
+                                    <div className="flex items-center gap-3">
+                                        <User className="h-4 w-4 text-muted-foreground"/> 
+                                        <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
+                                    </div>
+                                    {(customer.phoneNumbers || []).map((p, idx) => (
+                                        <p key={idx} className="text-xs text-muted-foreground">
+                                            <span className="font-bold mr-1 opacity-70">{p.type}:</span>
+                                            {p.number}
+                                        </p>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        )}
                     </TabsContent>
                     
                     <TabsContent value="chat" className="mt-0 animate-in slide-in-from-right-2 duration-300 outline-none">
