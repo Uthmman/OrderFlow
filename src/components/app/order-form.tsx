@@ -170,7 +170,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customers, addCustomer } = useCustomers();
-  const { products: catalogProducts } = useProducts();
+  const { products: catalogProducts, loading: catalogLoading } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
   const { settings: paymentSettings } = usePaymentSettings();
@@ -210,6 +210,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const selectedCustomerId = watch("customerId");
   const watchedStatus = watch("status");
   const watchedIsSample = watch("isSample");
+
+  // Track the category for the product currently being set up
+  const currentCategory = watch(`products.${currentProductIndex}.category`);
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -406,13 +409,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
 
   // Derived filtered catalog products for search
   const filteredCatalogProducts = useMemo(() => {
-    const selectedCategory = getValues(`products.${currentProductIndex}.category`);
+    if (!catalogProducts) return [];
+    
     return catalogProducts
       .filter(p => p.productName && p.productName.trim() !== "") // Require name
-      .filter(p => !p.category || p.category === selectedCategory) // Filter by category
+      .filter(p => {
+          // If a category was selected in step 3, only show matches or items with no category.
+          if (!currentCategory) return true;
+          return p.category === currentCategory || !p.category;
+      })
       .filter(p => (p.productName || "").toLowerCase().includes((catalogSearchTerm || "").toLowerCase())) // Filter by search term
       .sort((a, b) => (a.isStandard === b.isStandard ? 0 : a.isStandard ? -1 : 1)); // Prioritize standard products
-  }, [catalogProducts, currentProductIndex, catalogSearchTerm, getValues]);
+  }, [catalogProducts, currentCategory, catalogSearchTerm]);
 
   return (
     <div className="w-full max-w-4xl mx-auto">
@@ -613,7 +621,12 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <Input placeholder="Search catalog by design name..." className="pl-9" value={catalogSearchTerm} onChange={e => setCatalogSearchTerm(e.target.value)} />
                     </div>
                     <ScrollArea className="h-[400px] pr-2">
-                        {filteredCatalogProducts.length > 0 ? (
+                        {catalogLoading ? (
+                            <div className="flex flex-col items-center justify-center h-full gap-2">
+                                <Loader2 className="h-8 w-8 animate-spin opacity-20" />
+                                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground opacity-40">Loading designs...</p>
+                            </div>
+                        ) : filteredCatalogProducts.length > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {filteredCatalogProducts.map(p => {
                                     const catalogThumb = p.mainImageUrl || p.attachments?.[0]?.url || p.designAttachments?.[0]?.url;
@@ -761,9 +774,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredSecondaryItems.length === 0 ? (
+                                            ) : filteredItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredSecondaryItems.map(item => (
+                                            ) : filteredItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 
