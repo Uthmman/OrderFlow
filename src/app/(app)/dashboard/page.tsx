@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -120,16 +121,28 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">
-            <div className="flex items-center gap-x-12 gap-y-6">
-                <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">Total Lifecycle</span>
-                    <div className="text-5xl font-black tracking-tighter text-slate-900 leading-none">{stats.totalOrders.toLocaleString()}</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Total Lifecycle Card */}
+              <div className="p-6 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                    <Layers className="h-20 w-20 text-slate-900" />
                 </div>
-                
-                <div className="space-y-1">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">In Flow (Active)</span>
-                    <div className="text-5xl font-black tracking-tighter text-slate-900 leading-none">{stats.active.toLocaleString()}</div>
+                <div className="relative z-10 space-y-1">
+                    <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Total Lifecycle</p>
+                    <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
                 </div>
+              </div>
+
+              {/* Active Flow Card */}
+              <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
+                    <Activity className="h-20 w-20 text-primary" />
+                </div>
+                <div className="relative z-10 space-y-1">
+                    <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">In Flow (Active)</p>
+                    <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-2 md:gap-3">
@@ -161,7 +174,7 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
                     <Target className="h-5 w-5 text-primary" /> Financial Overview
-                </CardTitle>
+                </Target>
                 <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Profitability Performance</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-6">
