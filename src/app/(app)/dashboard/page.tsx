@@ -3,7 +3,18 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OrderTable } from "@/components/app/order-table"
-import { TrendingUp, TrendingDown, ArrowRight, Loader2, Activity, Layers, Target, CheckCircle2, Clock, Wallet, BarChart3, TrendingUp as ProfitIcon, CreditCard, Banknote, Receipt, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { 
+  TrendingUp, 
+  ArrowRight, 
+  Loader2, 
+  Activity, 
+  Layers, 
+  Target, 
+  Clock, 
+  BarChart3, 
+  CreditCard, 
+  Banknote 
+} from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
 import { formatCurrency, cn } from "@/lib/utils"
@@ -111,18 +122,15 @@ export default function Dashboard() {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         <Card className={cn("border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50", !canViewFinancials ? "lg:col-span-3" : "lg:col-span-2")}>
           <CardHeader className="pb-2">
-            <div className="flex justify-between items-start">
-                <div>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
-                        <Layers className="h-5 w-5 text-primary" /> Operational Metrics
-                    </CardTitle>
-                    <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
-                </div>
+            <div>
+                <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+                    <Layers className="h-5 w-5 text-primary" /> Operational Metrics
+                </CardTitle>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Total Lifecycle Card */}
               <div className="p-6 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
                     <Layers className="h-20 w-20 text-slate-900" />
@@ -133,7 +141,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Active Flow Card */}
               <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
                     <Activity className="h-20 w-20 text-primary" />
@@ -174,47 +181,37 @@ export default function Dashboard() {
             <CardHeader className="pb-2">
                 <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
                     <Target className="h-5 w-5 text-primary" /> Financial Overview
-                </Target>
+                </CardTitle>
                 <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Profitability Performance</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-6">
-              {/* Primary Profit Metric */}
-              <div className="p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                    <ProfitIcon className="h-20 w-20 text-primary" />
+              <div className="p-6 rounded-3xl bg-slate-900 text-white relative overflow-hidden group shadow-lg shadow-slate-900/20">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                    <TrendingUp className="h-20 w-20" />
                 </div>
                 <div className="relative z-10 space-y-1">
-                    <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">Estimated Profit</p>
-                    <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
-                        <div className="flex items-center text-xs font-bold text-emerald-600 mb-1">
-                            <ArrowUpRight className="h-3 w-3 mr-0.5" />
-                            12%
-                        </div>
-                    </div>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Estimated Profit</p>
+                    <p className="text-4xl font-black tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
                 </div>
               </div>
 
-              {/* Sub-Metrics Grid */}
               <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-1">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
                     <div className="flex items-center gap-2 text-slate-400">
                         <BarChart3 className="h-3.5 w-3.5" />
                         <span className="text-[9px] font-black uppercase tracking-widest">Total Sales</span>
                     </div>
-                    <p className="text-lg font-black text-slate-800">{formatCurrency(stats.revenue)}</p>
+                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.revenue)}</p>
                   </div>
-                  
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-1">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
                     <div className="flex items-center gap-2 text-slate-400">
                         <Banknote className="h-3.5 w-3.5" />
                         <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
                     </div>
-                    <p className="text-lg font-black text-slate-800">{formatCurrency(stats.totalExp)}</p>
+                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.totalExp)}</p>
                   </div>
               </div>
 
-              {/* Secondary Balance Metric */}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between px-1">
                 <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
@@ -225,7 +222,9 @@ export default function Dashboard() {
                         <p className="text-sm font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
                     </div>
                 </div>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending Collection</Badge>
+                {stats.unpaid > 0 && (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
+                )}
               </div>
             </CardContent>
           </Card>
