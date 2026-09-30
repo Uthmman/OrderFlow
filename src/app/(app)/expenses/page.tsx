@@ -18,7 +18,7 @@ import { useOrders } from '@/hooks/use-orders';
 import { Timestamp } from 'firebase/firestore';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { isWithinInterval, startOfDay, endOfDay, isValid } from 'date-fns';
 import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
@@ -60,9 +60,14 @@ export default function ExpensesPage() {
       let matchesDate = true;
       if (dateRange?.from) {
           const expDate = exp.date instanceof Date ? exp.date : (exp.date?.seconds ? new Date(exp.date.seconds * 1000) : new Date(exp.date));
-          const start = startOfDay(dateRange.from);
-          const end = endOfDay(dateRange.to || dateRange.from);
-          matchesDate = isWithinInterval(expDate, { start, end });
+          
+          if (!isValid(expDate) || expDate.getTime() === 0) {
+              matchesDate = false;
+          } else {
+              const start = startOfDay(dateRange.from);
+              const end = endOfDay(dateRange.to || dateRange.from);
+              matchesDate = isWithinInterval(expDate, { start, end });
+          }
       }
 
       return matchesSearch && matchesDate;
@@ -83,7 +88,7 @@ export default function ExpensesPage() {
     });
 
     return Object.values(groups).sort((a, b) => {
-        // Sort by the latest date found in the group
+        // Sort by the latest date found in the group for consistent chronological order
         const dateA = a.items[0].date instanceof Date ? a.items[0].date.getTime() : 0;
         const dateB = b.items[0].date instanceof Date ? b.items[0].date.getTime() : 0;
         return dateB - dateA;

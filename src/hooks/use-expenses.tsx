@@ -13,10 +13,22 @@ import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary
 
 /**
  * Robust Ethiopian Month Calculation for shop expenses.
+ * Includes aliases for common spellings found in payroll records.
  */
 const ETHIOPIAN_MONTHS = [
-  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yakatit',
-  'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
+  ['Meskerem'], 
+  ['Tikimt', 'Tekemt'], 
+  ['Hidar'], 
+  ['Tahsas', 'Tasas'], 
+  ['Tir', 'Ter'], 
+  ['Yakatit', 'Yekatit'],
+  ['Megabit'], 
+  ['Miyazia', 'Miazia'], 
+  ['Ginbot', 'Genbot'], 
+  ['Sene'], 
+  ['Hamle'], 
+  ['Nehase', 'Nehasse'], 
+  ['Pagume', 'Pagumene']
 ];
 
 export function getEthiopianPeriod(date: Date | any) {
@@ -43,22 +55,25 @@ export function getEthiopianPeriod(date: Date | any) {
   
   if (month > 8 || (month === 8 && day >= 11)) year = d.getFullYear() - 7;
   
-  return `${ETHIOPIAN_MONTHS[ethMonthIndex]} ${year}`;
+  return `${ETHIOPIAN_MONTHS[ethMonthIndex][0]} ${year}`;
 }
 
 /**
  * Converts an Ethiopian date to Gregorian.
- * Ref: 1/1/2017 EC = 11/9/2024 GC
  */
 export function ethToGregorian(monthName: string, day: number, ethYear: number): Date {
-  const monthIdx = ETHIOPIAN_MONTHS.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
-  if (monthIdx === -1) return new Date();
+  const monthIdx = ETHIOPIAN_MONTHS.findIndex(aliases => 
+    aliases.some(a => a.toLowerCase() === monthName.toLowerCase())
+  );
+  
+  if (monthIdx === -1) return new Date(0); // Return epoch for unparseable months
 
   // Reference point: Meskerem 1, 2017 EC = Sept 11, 2024 GC
   const baseGreg = new Date(2024, 8, 11); 
   const yearsDiff = ethYear - 2017;
   
   // Calculate total days elapsed in EC from reference
+  // This is a simplified linear mapping that works well for the 2016-2018 EC range
   let totalDays = yearsDiff * 365 + Math.floor((yearsDiff + 1) / 4);
   totalDays += monthIdx * 30;
   totalDays += (day - 1);
@@ -76,19 +91,20 @@ function parseFilterDateFromLabel(label: string, fallback: Date): Date {
 
     try {
         // Match weekly format: "Meskerem 17 - Meskerem 23, 2019"
-        const weeklyMatch = label.match(/-\s+(\w+)\s+(\d+),\s+(\d+)/);
+        const weeklyMatch = label.match(/-\s+([a-zA-Z]+)\s+(\d+),\s+(\d+)/);
         if (weeklyMatch) {
             const [_, month, day, year] = weeklyMatch;
-            return ethToGregorian(month, parseInt(day), parseInt(year));
+            const parsed = ethToGregorian(month, parseInt(day), parseInt(year));
+            if (parsed.getTime() !== 0) return parsed;
         }
 
-        // Match monthly format: "Ter 2017" or "ter 2017"
-        const monthlyMatch = label.match(/^(\w+)\s+(\d+)$/);
+        // Match monthly format: "Ter 2017"
+        const monthlyMatch = label.match(/^([a-zA-Z]+)\s+(\d+)$/);
         if (monthlyMatch) {
             const [_, month, year] = monthlyMatch;
-            // Use day 30 (or 5/6 for Pagume) as the end of the month
-            const day = month.toLowerCase() === 'pagume' ? 5 : 30;
-            return ethToGregorian(month, day, parseInt(year));
+            const day = month.toLowerCase().includes('pagume') ? 5 : 30;
+            const parsed = ethToGregorian(month, day, parseInt(year));
+            if (parsed.getTime() !== 0) return parsed;
         }
     } catch (e) {
         console.warn("Failed to parse period label for filtering:", label);
@@ -153,14 +169,15 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         const rawDate = exp.date?.seconds ? new Date(exp.date.seconds * 1000) : new Date(exp.date);
         return {
             ...exp,
-            date: rawDate, // Ensure it's a JS Date for filtering
+            date: rawDate,
             periodLabel: getEthiopianPeriod(rawDate),
             isSecondary: false
         }
     });
 
     const processedSecondary = secondaryRecords.map(curr => {
-        const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
+        // Use an actual provided date if available, otherwise default to a safe past date to avoid false matches on "Today"
+        const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
         
         // Parse the period label to get the "Last Day" Gregorian date for filtering
         const filterDate = parseFilterDateFromLabel(curr.periodLabel, fallbackDate);
@@ -169,7 +186,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             id: curr.id,
             description: `Payroll: ${curr.employeeName || 'Staff'}`,
             amount: curr.totalPay || curr.amount || 0,
-            date: filterDate, // Use the end-of-period date for filtering
+            date: filterDate, 
             category: 'Salary',
             paidTo: curr.employeeName || 'Staff Member',
             status: curr.paymentStatus || 'Paid',
