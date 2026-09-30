@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
@@ -13,21 +12,22 @@ import { deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
 
 /**
- * Simplified Ethiopian Month Calculation for grouping.
- * Meskerem 1 usually falls on Sept 11 (or 12 in leap years).
+ * Robust Ethiopian Month Calculation for shop expenses.
  */
 const ETHIOPIAN_MONTHS = [
   'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yakatit',
   'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
 ];
 
-function getEthiopianPeriod(date: Date) {
-  const month = date.getMonth();
-  const day = date.getDate();
-  let year = date.getFullYear() - 8;
+export function getEthiopianPeriod(date: Date | any) {
+  const d = date?.seconds ? new Date(date.seconds * 1000) : new Date(date);
+  if (isNaN(d.getTime())) return 'Unknown Period';
+
+  const month = d.getMonth();
+  const day = d.getDate();
+  let year = d.getFullYear() - 8;
   let ethMonthIndex = 0;
 
-  // Rough estimation of Ethiopian months for grouping purposes
   if (month === 8) ethMonthIndex = day >= 11 ? 0 : 11;
   else if (month === 9) ethMonthIndex = day >= 11 ? 1 : 0;
   else if (month === 10) ethMonthIndex = day >= 10 ? 2 : 1;
@@ -41,7 +41,7 @@ function getEthiopianPeriod(date: Date) {
   else if (month === 6) ethMonthIndex = day >= 8 ? 10 : 9;
   else if (month === 7) ethMonthIndex = day >= 7 ? 11 : 10;
   
-  if (month > 8 || (month === 8 && day >= 11)) year = date.getFullYear() - 7;
+  if (month > 8 || (month === 8 && day >= 11)) year = d.getFullYear() - 7;
   
   return `${ETHIOPIAN_MONTHS[ethMonthIndex]} ${year}`;
 }
@@ -74,6 +74,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       try {
         await ensureSecondaryAuth();
         const db = getSecondaryFirestore();
+        // Fetch employee payouts from secondary DB
         const q = query(collection(db, 'employeeExpenses'));
         
         unsubscribe = onSnapshot(q, (snapshot) => {
@@ -98,42 +99,33 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const combinedExpenses = useMemo(() => {
-    // Group secondary expenses by Ethiopian Month + Year
-    const groupedSecondary = secondaryRecords.reduce((acc, curr) => {
-      const date = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
-      const periodLabel = getEthiopianPeriod(date);
-      const category = curr.category || 'Salary';
-      const groupKey = `grouped-${category}-${periodLabel}`;
-      
-      if (!acc[groupKey]) {
-        acc[groupKey] = {
-          id: groupKey,
-          description: `${category} Group - ${periodLabel}`,
-          amount: 0,
-          date: date, // Representative date
-          category: category,
-          paidTo: 'Multiple Employees',
-          status: 'Paid',
-          hasReceipt: true,
-          ownerId: 'system',
-          isSecondary: true,
-          details: []
-        };
-      }
-      
-      acc[groupKey].amount += curr.amount || 0;
-      acc[groupKey].details?.push({
-        id: curr.id,
-        name: curr.employeeName || 'Staff Member',
-        amount: curr.amount || 0,
-        date: date
-      });
-      
-      return acc;
-    }, {} as Record<string, Expense>);
+    // 1. Process primary (shop) expenses - Add a periodLabel based on Ethiopian calculation
+    const processedPrimary = (primaryExpenses || []).map(exp => ({
+        ...exp,
+        periodLabel: getEthiopianPeriod(exp.date),
+        isSecondary: false
+    }));
 
-    const finalSecondary = Object.values(groupedSecondary);
-    const combined = [...(primaryExpenses || []), ...finalSecondary];
+    // 2. Process secondary (payroll) expenses - Use their native periodLabel or calculate if missing
+    const processedSecondary = secondaryRecords.map(curr => {
+        const date = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
+        return {
+            id: curr.id,
+            description: `Payroll: ${curr.employeeName || 'Staff'}`,
+            amount: curr.totalPay || curr.amount || 0,
+            date: date,
+            category: 'Salary',
+            paidTo: curr.employeeName || 'Staff Member',
+            status: curr.paymentStatus || 'Paid',
+            hasReceipt: true,
+            ownerId: 'system',
+            isSecondary: true,
+            periodLabel: curr.periodLabel || getEthiopianPeriod(date),
+            type: curr.type || 'Monthly' // Weekly or Monthly
+        };
+    });
+
+    const combined = [...processedPrimary, ...processedSecondary];
 
     return combined.sort((a, b) => {
         const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
@@ -204,7 +196,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 export function useExpenses() {
   const context = useContext(ExpenseContext);
   if (context === undefined) {
-    throw new Error('useExpenses must be used within an ExpenseProvider');
+    throw new Error('useExpenses must be used within a ExpenseProvider');
   }
   return context;
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -12,44 +11,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, PlusCircle, Search, FileText, Trash2, Wallet, User, UploadCloud, CheckCircle2, ShieldCheck, Database, ListChecks, ChevronDown } from 'lucide-react';
+import { Loader2, PlusCircle, Search, FileText, Trash2, Wallet, User, UploadCloud, CheckCircle2, ShieldCheck, Database, ShoppingCart, Calendar } from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { useUser } from '@/hooks/use-user';
 import { useOrders } from '@/hooks/use-orders';
 import { Timestamp } from 'firebase/firestore';
-import type { Expense, ExpenseDetail } from '@/lib/types';
+import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
-
-const ETHIOPIAN_MONTHS = [
-  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yakatit',
-  'Megabit', 'Miyazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'
-];
-
-function getEthiopianPeriod(date: Date | any) {
-  const d = date?.seconds ? new Date(date.seconds * 1000) : new Date(date);
-  const month = d.getMonth();
-  const day = d.getDate();
-  let year = d.getFullYear() - 8;
-  let ethMonthIndex = 0;
-
-  if (month === 8) ethMonthIndex = day >= 11 ? 0 : 11;
-  else if (month === 9) ethMonthIndex = day >= 11 ? 1 : 0;
-  else if (month === 10) ethMonthIndex = day >= 10 ? 2 : 1;
-  else if (month === 11) ethMonthIndex = day >= 10 ? 3 : 2;
-  else if (month === 0) ethMonthIndex = day >= 9 ? 4 : 3;
-  else if (month === 1) ethMonthIndex = day >= 8 ? 5 : 4;
-  else if (month === 2) ethMonthIndex = day >= 10 ? 6 : 5;
-  else if (month === 3) ethMonthIndex = day >= 9 ? 7 : 6;
-  else if (month === 4) ethMonthIndex = day >= 9 ? 8 : 7;
-  else if (month === 5) ethMonthIndex = day >= 8 ? 9 : 8;
-  else if (month === 6) ethMonthIndex = day >= 8 ? 10 : 9;
-  else if (month === 7) ethMonthIndex = day >= 7 ? 11 : 10;
-  
-  if (month > 8 || (month === 8 && day >= 11)) year = d.getFullYear() - 7;
-  
-  return `${ETHIOPIAN_MONTHS[ethMonthIndex]} ${year}`;
-}
 
 export default function ExpensesPage() {
   const { expenses, loading, addExpense, deleteExpense } = useExpenses();
@@ -77,17 +46,21 @@ export default function ExpensesPage() {
 
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
-      const matchesSearch = exp.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           exp.paidTo.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
+      const search = searchTerm.toLowerCase();
+      return (
+          exp.description.toLowerCase().includes(search) || 
+          exp.paidTo.toLowerCase().includes(search) ||
+          exp.periodLabel?.toLowerCase().includes(search)
+      );
     });
   }, [expenses, searchTerm]);
 
+  // Group by exact Ethiopian periodLabel
   const expensesByPeriod = useMemo(() => {
     const groups: Record<string, { period: string, total: number, items: Expense[] }> = {};
     
     filteredExpenses.forEach(exp => {
-      const period = getEthiopianPeriod(exp.date);
+      const period = exp.periodLabel || 'Other';
       if (!groups[period]) {
         groups[period] = { period, total: 0, items: [] };
       }
@@ -96,7 +69,7 @@ export default function ExpensesPage() {
     });
 
     return Object.values(groups).sort((a, b) => {
-        // Sort periods roughly by looking at the representative date of the first item
+        // Sort by the latest date found in the group
         const dateA = a.items[0].date?.seconds ? a.items[0].date.seconds : new Date(a.items[0].date).getTime();
         const dateB = b.items[0].date?.seconds ? b.items[0].date.seconds : new Date(b.items[0].date).getTime();
         return dateB - dateA;
@@ -165,31 +138,31 @@ export default function ExpensesPage() {
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">Expenses</h1>
-          <p className="text-muted-foreground text-sm">Track purchases and payroll grouped by Ethiopian calendar periods.</p>
+          <h1 className="text-3xl font-bold font-headline tracking-tight">Financial Ledger</h1>
+          <p className="text-muted-foreground text-sm">Expenses and payroll grouped by Ethiopian calendar periods.</p>
         </div>
         <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Expense
+          <PlusCircle className="mr-2 h-4 w-4" /> Record Purchase
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-primary/5 border-primary/10">
               <CardHeader className="py-4">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Filtered Expenditure</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Filtered Outflow</CardTitle>
               </CardHeader>
               <CardContent>
                   <div className="text-4xl font-black text-primary tracking-tighter">{formatCurrency(totalSpentAllTime)}</div>
-                  <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Records Found</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Transactions</p>
               </CardContent>
           </Card>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border">
-        <div className="relative flex-1 w-full">
+      <div className="bg-muted/20 p-4 rounded-xl border">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search description, vendor, or period..." 
+            placeholder="Search by period label, vendor, or description..." 
             className="pl-10 bg-background" 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -202,7 +175,7 @@ export default function ExpensesPage() {
         
         {!loading && expensesByPeriod.length === 0 && (
             <div className="text-center py-20 text-muted-foreground bg-muted/5 rounded-xl border-2 border-dashed">
-                No expenses found matching your search.
+                No records found for the current filter.
             </div>
         )}
 
@@ -213,9 +186,9 @@ export default function ExpensesPage() {
                         <div className="flex flex-1 items-center justify-between gap-4 text-left">
                             <div className="space-y-0.5">
                                 <h2 className="text-xl font-black text-slate-900 tracking-tight">{group.period}</h2>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                    {group.items.length} Transactions
-                                </p>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[9px] font-bold h-4">{group.items.length} Items</Badge>
+                                </div>
                             </div>
                             <div className="text-right mr-4">
                                 <p className="text-lg font-black text-primary">{formatCurrency(group.total)}</p>
@@ -225,17 +198,25 @@ export default function ExpensesPage() {
                     <AccordionContent className="p-0 border-t">
                         <div className="divide-y">
                             {group.items.map(exp => (
-                                <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-primary/[0.02]")}>
+                                <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-blue-50/20")}>
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
-                                                {exp.isSecondary && <Database className="h-3.5 w-3.5 text-primary/60" />}
-                                                <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
-                                                    {exp.category}
-                                                </Badge>
+                                                {exp.isSecondary ? (
+                                                    <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none">
+                                                        Official Payroll
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
+                                                        {exp.category}
+                                                    </Badge>
+                                                )}
                                                 <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
                                             </div>
-                                            <h3 className="text-sm font-bold text-slate-800">{exp.description}</h3>
+                                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                {exp.isSecondary && <Database className="h-3.5 w-3.5 text-blue-500" />}
+                                                {exp.description}
+                                            </h3>
                                             <div className="flex items-center gap-3 mt-1.5">
                                                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                                                     <User className="h-3 w-3" />
@@ -249,50 +230,24 @@ export default function ExpensesPage() {
                                                 <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
                                                 <p className="text-[9px] text-muted-foreground uppercase font-medium">
                                                     {exp.bankAccountId === 'Cash' ? 'Cash' : 
-                                                     paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Payout'}
+                                                     paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || (exp.isSecondary ? 'Payroll Payout' : 'Unknown')}
                                                 </p>
                                             </div>
                                             
                                             <div className="flex items-center gap-1">
-                                                {!exp.isSecondary && (
+                                                {!exp.isSecondary ? (
                                                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
+                                                ) : (
+                                                    <div className="h-8 w-8 flex items-center justify-center">
+                                                        <ShieldCheck className="h-4 w-4 text-blue-400" />
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
                                     </div>
 
-                                    {/* Nested Employee Breakdown for System Groups */}
-                                    {exp.isSecondary && exp.details && exp.details.length > 0 && (
-                                        <Accordion type="single" collapsible className="mt-3 w-full border-t border-primary/10 pt-2">
-                                            <AccordionItem value="breakdown" className="border-none">
-                                                <AccordionTrigger className="py-2 text-[10px] font-black uppercase tracking-widest text-primary hover:no-underline">
-                                                    View Employee Details ({exp.details.length})
-                                                </AccordionTrigger>
-                                                <AccordionContent className="pt-2">
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                                        {exp.details.map((detail: ExpenseDetail) => (
-                                                            <div key={detail.id} className="flex items-center justify-between p-2.5 rounded-lg bg-white border border-primary/10 shadow-sm">
-                                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                                    <div className="h-7 w-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                                                                        <User className="h-3 w-3 text-slate-400" />
-                                                                    </div>
-                                                                    <div className="truncate">
-                                                                        <p className="text-[11px] font-bold text-slate-800 truncate">{detail.name}</p>
-                                                                        <p className="text-[8px] text-muted-foreground uppercase">{formatTimestamp(detail.date)}</p>
-                                                                    </div>
-                                                                </div>
-                                                                <p className="text-[11px] font-black text-slate-900 ml-2">{formatCurrency(detail.amount)}</p>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </AccordionContent>
-                                            </AccordionItem>
-                                        </Accordion>
-                                    )}
-
-                                    {/* Doc Badges for Standard Expenses */}
                                     {!exp.isSecondary && (
                                         <div className="flex gap-2 mt-3">
                                             {exp.receiptAttachment && (
@@ -319,8 +274,8 @@ export default function ExpensesPage() {
       <Dialog open={isAdding} onOpenChange={setIsAdding}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Record Expense</DialogTitle>
-            <DialogDescription>Enter the details for a new shop expenditure.</DialogDescription>
+            <DialogTitle>Record Purchase</DialogTitle>
+            <DialogDescription>Enter the details for a manual workshop expenditure.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
@@ -358,7 +313,7 @@ export default function ExpensesPage() {
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Paid To (Vendor/Person)</Label>
+                  <Label>Vendor / Recipient</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                     <Input className="pl-10" value={newExpense.paidTo} onChange={e => setNewExpense({...newExpense, paidTo: e.target.value})} />
@@ -422,7 +377,7 @@ export default function ExpensesPage() {
                                 ) : (
                                     <div className="flex flex-col items-center gap-0.5">
                                         <UploadCloud className="h-4 w-4 opacity-30" />
-                                        <span className="text-[10px]">Standard Recpt</span>
+                                        <span className="text-[10px]">Upload Recpt</span>
                                     </div>
                                 )}
                             </Button>
