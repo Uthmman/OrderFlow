@@ -16,6 +16,9 @@ import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { useUser } from '@/hooks/use-user';
 import { useOrders } from '@/hooks/use-orders';
 import { Timestamp } from 'firebase/firestore';
+import { DateRangePicker } from '@/components/ui/date-range-picker';
+import { DateRange } from 'react-day-picker';
+import { isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
@@ -26,6 +29,7 @@ export default function ExpensesPage() {
   const { uploadFile } = useOrders();
   const { role } = useUser();
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,13 +51,23 @@ export default function ExpensesPage() {
   const filteredExpenses = useMemo(() => {
     return expenses.filter(exp => {
       const search = searchTerm.toLowerCase();
-      return (
+      const matchesSearch = (
           exp.description.toLowerCase().includes(search) || 
           exp.paidTo.toLowerCase().includes(search) ||
           exp.periodLabel?.toLowerCase().includes(search)
       );
+
+      let matchesDate = true;
+      if (dateRange?.from) {
+          const expDate = exp.date instanceof Date ? exp.date : (exp.date?.seconds ? new Date(exp.date.seconds * 1000) : new Date(exp.date));
+          const start = startOfDay(dateRange.from);
+          const end = endOfDay(dateRange.to || dateRange.from);
+          matchesDate = isWithinInterval(expDate, { start, end });
+      }
+
+      return matchesSearch && matchesDate;
     });
-  }, [expenses, searchTerm]);
+  }, [expenses, searchTerm, dateRange]);
 
   // Group by exact Ethiopian periodLabel
   const expensesByPeriod = useMemo(() => {
@@ -70,8 +84,8 @@ export default function ExpensesPage() {
 
     return Object.values(groups).sort((a, b) => {
         // Sort by the latest date found in the group
-        const dateA = a.items[0].date?.seconds ? a.items[0].date.seconds : new Date(a.items[0].date).getTime();
-        const dateB = b.items[0].date?.seconds ? b.items[0].date.seconds : new Date(b.items[0].date).getTime();
+        const dateA = a.items[0].date instanceof Date ? a.items[0].date.getTime() : 0;
+        const dateB = b.items[0].date instanceof Date ? b.items[0].date.getTime() : 0;
         return dateB - dateA;
     });
   }, [filteredExpenses]);
@@ -158,16 +172,17 @@ export default function ExpensesPage() {
           </Card>
       </div>
 
-      <div className="bg-muted/20 p-4 rounded-xl border">
-        <div className="relative w-full">
+      <div className="bg-muted/20 p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-center">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Search by period label, vendor, or description..." 
+            placeholder="Search vendor, description or label..." 
             className="pl-10 bg-background" 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
+        <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} className="shrink-0" />
       </div>
 
       <div className="space-y-6">
@@ -179,7 +194,7 @@ export default function ExpensesPage() {
             </div>
         )}
 
-        <Accordion type="multiple" className="space-y-4" defaultValue={[expensesByPeriod[0]?.period]}>
+        <Accordion type="multiple" className="space-y-4" defaultValue={expensesByPeriod.length > 0 ? [expensesByPeriod[0].period] : []}>
             {expensesByPeriod.map(group => (
                 <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
                     <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">

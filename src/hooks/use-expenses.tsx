@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
-import { collection, doc, deleteDoc, updateDoc, setDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc, setDoc, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import type { Expense, OrderAttachment, ExpenseDetail } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
@@ -46,6 +46,57 @@ export function getEthiopianPeriod(date: Date | any) {
   return `${ETHIOPIAN_MONTHS[ethMonthIndex]} ${year}`;
 }
 
+/**
+ * Converts an Ethiopian date to Gregorian.
+ * Ref: 1/1/2017 EC = 11/9/2024 GC
+ */
+export function ethToGregorian(monthName: string, day: number, ethYear: number): Date {
+  const monthIdx = ETHIOPIAN_MONTHS.findIndex(m => m.toLowerCase() === monthName.toLowerCase());
+  if (monthIdx === -1) return new Date();
+
+  // Reference point: Meskerem 1, 2017 EC = Sept 11, 2024 GC
+  const baseGreg = new Date(2024, 8, 11); 
+  const yearsDiff = ethYear - 2017;
+  
+  // Calculate total days elapsed in EC from reference
+  let totalDays = yearsDiff * 365 + Math.floor((yearsDiff + 1) / 4);
+  totalDays += monthIdx * 30;
+  totalDays += (day - 1);
+  
+  const target = new Date(baseGreg.getTime());
+  target.setDate(target.getDate() + totalDays);
+  return target;
+}
+
+/**
+ * Extracts the last day Gregorian date from an Ethiopian period label.
+ */
+function parseFilterDateFromLabel(label: string, fallback: Date): Date {
+    if (!label) return fallback;
+
+    try {
+        // Match weekly format: "Meskerem 17 - Meskerem 23, 2019"
+        const weeklyMatch = label.match(/-\s+(\w+)\s+(\d+),\s+(\d+)/);
+        if (weeklyMatch) {
+            const [_, month, day, year] = weeklyMatch;
+            return ethToGregorian(month, parseInt(day), parseInt(year));
+        }
+
+        // Match monthly format: "Ter 2017" or "ter 2017"
+        const monthlyMatch = label.match(/^(\w+)\s+(\d+)$/);
+        if (monthlyMatch) {
+            const [_, month, year] = monthlyMatch;
+            // Use day 30 (or 5/6 for Pagume) as the end of the month
+            const day = month.toLowerCase() === 'pagume' ? 5 : 30;
+            return ethToGregorian(month, day, parseInt(year));
+        }
+    } catch (e) {
+        console.warn("Failed to parse period label for filtering:", label);
+    }
+
+    return fallback;
+}
+
 interface ExpenseContextType {
   expenses: Expense[];
   loading: boolean;
@@ -74,7 +125,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
       try {
         await ensureSecondaryAuth();
         const db = getSecondaryFirestore();
-        // Fetch employee payouts from secondary DB
         const q = query(collection(db, 'employeeExpenses'));
         
         unsubscribe = onSnapshot(q, (snapshot) => {
@@ -99,37 +149,43 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const combinedExpenses = useMemo(() => {
-    // 1. Process primary (shop) expenses - Add a periodLabel based on Ethiopian calculation
-    const processedPrimary = (primaryExpenses || []).map(exp => ({
-        ...exp,
-        periodLabel: getEthiopianPeriod(exp.date),
-        isSecondary: false
-    }));
+    const processedPrimary = (primaryExpenses || []).map(exp => {
+        const rawDate = exp.date?.seconds ? new Date(exp.date.seconds * 1000) : new Date(exp.date);
+        return {
+            ...exp,
+            date: rawDate, // Ensure it's a JS Date for filtering
+            periodLabel: getEthiopianPeriod(rawDate),
+            isSecondary: false
+        }
+    });
 
-    // 2. Process secondary (payroll) expenses - Use their native periodLabel or calculate if missing
     const processedSecondary = secondaryRecords.map(curr => {
-        const date = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
+        const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date());
+        
+        // Parse the period label to get the "Last Day" Gregorian date for filtering
+        const filterDate = parseFilterDateFromLabel(curr.periodLabel, fallbackDate);
+
         return {
             id: curr.id,
             description: `Payroll: ${curr.employeeName || 'Staff'}`,
             amount: curr.totalPay || curr.amount || 0,
-            date: date,
+            date: filterDate, // Use the end-of-period date for filtering
             category: 'Salary',
             paidTo: curr.employeeName || 'Staff Member',
             status: curr.paymentStatus || 'Paid',
             hasReceipt: true,
             ownerId: 'system',
             isSecondary: true,
-            periodLabel: curr.periodLabel || getEthiopianPeriod(date),
-            type: curr.type || 'Monthly' // Weekly or Monthly
+            periodLabel: curr.periodLabel || getEthiopianPeriod(filterDate),
+            type: curr.type || 'Monthly'
         };
     });
 
     const combined = [...processedPrimary, ...processedSecondary];
 
     return combined.sort((a, b) => {
-        const dateA = a.date?.seconds ? a.date.seconds * 1000 : new Date(a.date).getTime();
-        const dateB = b.date?.seconds ? b.date.seconds * 1000 : new Date(b.date).getTime();
+        const dateA = a.date instanceof Date ? a.date.getTime() : 0;
+        const dateB = b.date instanceof Date ? b.date.getTime() : 0;
         return dateB - dateA;
     });
   }, [primaryExpenses, secondaryRecords]);
