@@ -18,7 +18,7 @@ import { useOrders } from '@/hooks/use-orders';
 import { Timestamp } from 'firebase/firestore';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { isWithinInterval, startOfDay, endOfDay, isValid } from 'date-fns';
+import { isWithinInterval, startOfDay, endOfDay, isValid, startOfMonth, endOfMonth } from 'date-fns';
 import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
@@ -29,7 +29,10 @@ export default function ExpensesPage() {
   const { uploadFile } = useOrders();
   const { role } = useUser();
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
 
   const [isAdding, setIsAdding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

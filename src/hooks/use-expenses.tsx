@@ -149,7 +149,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             ...doc.data()
           }));
           setSecondaryRecords(results);
-          setSecondaryLoading(false);
+          secondaryLoading && setSecondaryLoading(false);
         }, (error) => {
           console.error("Secondary expenses error:", error);
           setSecondaryLoading(false);
@@ -175,28 +175,33 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    const processedSecondary = secondaryRecords.map(curr => {
-        // Use an actual provided date if available, otherwise default to a safe past date to avoid false matches on "Today"
-        const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
-        
-        // Parse the period label to get the "Last Day" Gregorian date for filtering
-        const filterDate = parseFilterDateFromLabel(curr.periodLabel, fallbackDate);
+    const processedSecondary = secondaryRecords
+        .filter(curr => {
+            const amount = curr.totalPay || curr.amount || 0;
+            return amount > 0;
+        })
+        .map(curr => {
+            // Use an actual provided date if available, otherwise default to a safe past date to avoid false matches on "Today"
+            const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
+            
+            // Parse the period label to get the "Last Day" Gregorian date for filtering
+            const filterDate = parseFilterDateFromLabel(curr.periodLabel, fallbackDate);
 
-        return {
-            id: curr.id,
-            description: `Payroll: ${curr.employeeName || 'Staff'}`,
-            amount: curr.totalPay || curr.amount || 0,
-            date: filterDate, 
-            category: 'Salary',
-            paidTo: curr.employeeName || 'Staff Member',
-            status: curr.paymentStatus || 'Paid',
-            hasReceipt: true,
-            ownerId: 'system',
-            isSecondary: true,
-            periodLabel: curr.periodLabel || getEthiopianPeriod(filterDate),
-            type: curr.type || 'Monthly'
-        };
-    });
+            return {
+                id: curr.id,
+                description: `Payroll: ${curr.employeeName || 'Staff'}`,
+                amount: curr.totalPay || curr.amount || 0,
+                date: filterDate, 
+                category: 'Salary',
+                paidTo: curr.employeeName || 'Staff Member',
+                status: curr.paymentStatus || 'Paid',
+                hasReceipt: true,
+                ownerId: 'system',
+                isSecondary: true,
+                periodLabel: curr.periodLabel || getEthiopianPeriod(filterDate),
+                type: curr.type || 'Monthly'
+            };
+        });
 
     const combined = [...processedPrimary, ...processedSecondary];
 
