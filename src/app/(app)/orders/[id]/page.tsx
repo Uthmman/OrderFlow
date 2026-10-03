@@ -632,6 +632,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         i.category.toLowerCase().includes(itemSearch.toLowerCase())
     );
 
+    const { user } = useUser();
     const canEditBOM = (isDesigner || order.ownerId === user?.id || canEdit) && ['Designing', 'In Progress'].includes(order.status);
 
     const allAttachments = [
@@ -821,7 +822,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={handleImageClick} 
+                                        onImageClick={onImageClick} 
                                         onPreview={onFilePreview} 
                                         canDelete={canEdit}
                                     />
@@ -847,7 +848,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={handleImageClick} 
+                                        onImageClick={onImageClick} 
                                         onPreview={onFilePreview} 
                                         canDelete={canEdit}
                                     />
@@ -873,7 +874,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={handleImageClick} 
+                                        onImageClick={onImageClick} 
                                         onPreview={onFilePreview} 
                                         canDelete={canEdit}
                                     />
@@ -899,7 +900,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={handleImageClick} 
+                                        onImageClick={onImageClick} 
                                         onPreview={onFilePreview} 
                                         canDelete={canEdit}
                                     />
