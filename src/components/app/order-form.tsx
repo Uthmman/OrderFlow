@@ -791,9 +791,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredItems.length === 0 ? (
+                                            ) : filteredSecondaryItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredItems.map(item => (
+                                            ) : filteredSecondaryItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 
@@ -838,7 +838,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                             <Input 
                                                 type="number" 
                                                 step="0.01" 
-                                                className="h-8 w-16 text-xs text-right font-bold" 
+                                                className="h-8 w-20 text-xs text-right font-bold" 
                                                 value={item.quantity}
                                                 onChange={(e) => updateBOMQuantity(currentProductIndex, bIdx, e.target.value)}
                                             />

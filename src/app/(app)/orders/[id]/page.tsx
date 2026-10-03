@@ -1031,7 +1031,7 @@ function OrderDetailPageContent() {
         if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
             setShowHeader(false);
         } else {
-            showHeader(true);
+            setShowHeader(true);
         }
         lastScrollY.current = currentScrollY;
     };
@@ -1063,8 +1063,9 @@ function OrderDetailPageContent() {
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
   
   const customer = getCustomerById(order.customerId || "");
-  const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
-  const canChangeStatus = (role === 'Admin' || role === 'Manager');
+  const isAdminView = role === 'AdminView';
+  const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && !isAdminView;
+  const canChangeStatus = (role === 'Admin' || role === 'Manager') && !isAdminView;
   const isDesigner = role === 'Designer';
   const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
   const prepaid = order.prepaidAmount || 0;
@@ -1294,7 +1295,7 @@ function OrderDetailPageContent() {
                                 <p className="text-xs text-orange-700">Add this finished piece to shop inventory.</p>
                             </div>
                         </div>
-                        {(canEdit || role === 'Admin') && (
+                        {(canEdit || role === 'Admin') && !isAdminView && (
                             <Button size="sm" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={transferToStock} disabled={isTransferring}>
                                 {isTransferring ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="mr-2 h-4 w-4" />}
                                 Transfer to Stock
@@ -1308,7 +1309,7 @@ function OrderDetailPageContent() {
                     <CheckCircle2 className="h-4 w-4" /> Units Transferred to Stock
                 </div>
             )}
-            {(isDesigner || canEdit) && (order.status === 'In Progress' || order.status === 'Designing') && (
+            {(isDesigner || canEdit) && !isAdminView && (order.status === 'In Progress' || order.status === 'Designing') && (
                 <Card className="border-primary/40 bg-primary/5 mx-1">
                     <CardContent className="flex items-center justify-between p-3 gap-4">
                         <div className="flex items-center gap-2">
@@ -1341,7 +1342,7 @@ function OrderDetailPageContent() {
                         isDesigner={isDesigner || role === 'Admin'}
                         onDesignUpload={(file, progressKey) => addAttachment(order.id, index, file, true, progressKey)}
                         onFilePreview={handleFilePreview}
-                        canEdit={canEdit}
+                        canEdit={canEdit && !isAdminView}
                     />
                 ))}
             </Accordion>
@@ -1360,7 +1361,7 @@ function OrderDetailPageContent() {
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
                                     {order.withReceipt && <Receipt className="h-6 w-6 text-muted-foreground/60" />}
-                                    {canChangeStatus && (
+                                    {canChangeStatus && !isAdminView ? (
                                         <div className="flex items-center gap-2">
                                             <StatusChanger order={order} onStatusChange={handleStatusChange} />
                                             {order.assignedTo && order.assignedTo.length > 0 && (
@@ -1369,8 +1370,7 @@ function OrderDetailPageContent() {
                                                 </div>
                                             )}
                                         </div>
-                                    )}
-                                    {(isDesigner || role === 'AdminView') && (
+                                    ) : (
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={order.status} />
                                             {order.assignedTo && order.assignedTo.length > 0 && (
@@ -1386,7 +1386,7 @@ function OrderDetailPageContent() {
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                                {canEdit && (
+                                {canEdit && !isAdminView && (
                                     <>
                                     <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
                                     <DropdownMenu>
@@ -1495,7 +1495,7 @@ function OrderDetailPageContent() {
                                         </div>
                                         {activeTab === 'specs' && (
                                             <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
-                                                {canChangeStatus ? (
+                                                {canChangeStatus && !isAdminView ? (
                                                     <StatusChanger order={order} onStatusChange={handleStatusChange} />
                                                 ) : (
                                                     <StatusBadge status={order.status} />
@@ -1512,7 +1512,7 @@ function OrderDetailPageContent() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
-                                    {canEdit && (
+                                    {canEdit && !isAdminView && (
                                         <>
                                             <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
                                             {activeTab === 'specs' && (

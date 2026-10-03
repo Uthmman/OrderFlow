@@ -154,20 +154,7 @@ function OrderActions({ order }: { order: Order }) {
     const { user, role } = useUser();
     const [dialogAction, setDialogAction] = React.useState<'cancel' | 'delete' | null>(null);
     
-    const canModify = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
-
-    const handleAction = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
-        if (dialogAction === 'cancel') {
-            updateOrder({ id: order.id, status: "Cancelled" });
-            toast({ title: "Order Cancelled", description: `${orderName} has been cancelled.` });
-        } else if (dialogAction === 'delete') {
-            const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
-            deleteOrder(order.id, allAttachments);
-            toast({ title: "Order Deleted", description: `${orderName} has been permanently deleted.` });
-        }
-    };
+    const canModify = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && role !== 'AdminView';
 
     return (
         <AlertDialog>
@@ -210,7 +197,18 @@ function OrderActions({ order }: { order: Order }) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleAction} className={cn(dialogAction === 'delete' && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
+                    <AlertDialogAction onClick={(e) => {
+                        e.stopPropagation();
+                        const orderName = order.uniqueName || formatOrderUniqueName(order.customerName, order.products, order.id);
+                        if (dialogAction === 'cancel') {
+                            updateOrder({ id: order.id, status: "Cancelled" });
+                            toast({ title: "Order Cancelled", description: `${orderName} has been cancelled.` });
+                        } else if (dialogAction === 'delete') {
+                            const allAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]);
+                            deleteOrder(order.id, allAttachments);
+                            toast({ title: "Order Deleted", description: `${orderName} has been permanently deleted.` });
+                        }
+                    }} className={cn(dialogAction === 'delete' && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}>
                         {dialogAction === 'cancel' ? 'Cancel Order' : 'Delete Order'}
                     </AlertDialogAction>
                 </AlertDialogFooter>
@@ -339,7 +337,7 @@ function OrderTableToolbar({ table }: { table: TableInstance<Order> }) {
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
 
-  const canModify = role === 'Admin' || role === 'Sales';
+  const canModify = (role === 'Admin' || role === 'Sales') && role !== 'AdminView';
 
   return (
     <div className="flex items-center justify-between p-4 bg-muted/20 border-b">
@@ -414,7 +412,7 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
                  <Card key={order.id} className="hover:bg-muted/50 transition-all active:scale-[0.98] border-muted-foreground/10 shadow-sm overflow-hidden cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
                     <div className="p-3 flex gap-3">
                         <CategoryIcon order={order} />
-                        <div className="flex-1 min-w-0 space-y-1">
+                        <div className="1 min-w-0 space-y-1">
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                     <h3 className="text-sm font-bold truncate leading-tight">{order.uniqueName}</h3>

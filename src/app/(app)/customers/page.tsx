@@ -36,7 +36,7 @@ import { useUser } from "@/hooks/use-user"
 function CustomerActions({ customer }: { customer: Customer }) {
     const router = useRouter();
     const { role } = useUser();
-    const canModify = role === 'Admin' || role === 'Sales';
+    const canModify = (role === 'Admin' || role === 'Sales') && role !== 'AdminView';
 
     return (
         <DropdownMenu>
