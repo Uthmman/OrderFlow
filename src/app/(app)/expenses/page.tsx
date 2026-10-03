@@ -41,7 +41,7 @@ import { useOrders } from '@/hooks/use-orders';
 import { Timestamp } from 'firebase/firestore';
 import { DateRangePicker } from '@/components/ui/date-range-picker';
 import { DateRange } from 'react-day-picker';
-import { isWithinInterval, startOfDay, endOfDay, isValid, startOfMonth, endOfMonth } from 'date-fns';
+import { isWithinInterval, parseISO, startOfDay, endOfDay, isValid, startOfMonth, endOfMonth } from 'date-fns';
 import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
@@ -297,18 +297,18 @@ export default function ExpensesPage() {
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                                         <IconComp className="h-5 w-5 text-muted-foreground" />
                                     </div>
-                                    <div className="space-y-0.5">
-                                        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 leading-none mb-0.5">
-                                            {containsPayroll ? "Personnel" : firstCategory}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                                                {mainHeaderText}
-                                            </h2>
+                                    <div className="space-y-0.5 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 leading-none">
+                                                {containsPayroll ? "Personnel" : firstCategory}
+                                            </p>
                                             <Badge variant="outline" className="text-[8px] font-black uppercase h-3.5 px-1.5 py-0 bg-slate-100 text-slate-600 border-none shrink-0">
                                                 {group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}
                                             </Badge>
                                         </div>
+                                        <h2 className="text-base font-bold text-slate-900 tracking-tight truncate">
+                                            {mainHeaderText}
+                                        </h2>
                                         <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">
                                             {group.period}
                                         </div>
