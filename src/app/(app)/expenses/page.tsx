@@ -254,12 +254,19 @@ export default function ExpensesPage() {
                                         <IconComp className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <div className="space-y-0.5">
-                                        <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                                            {mainHeaderText}
-                                        </h2>
+                                        <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 leading-none mb-0.5">
+                                            {containsPayroll ? "Personnel" : firstCategory}
+                                        </p>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
-                                            <Badge variant="outline" className="text-[8px] font-bold h-3.5 px-1">{group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}</Badge>
+                                            <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                                                {mainHeaderText}
+                                            </h2>
+                                            <Badge variant="outline" className="text-[8px] font-black uppercase h-3.5 px-1.5 py-0 bg-slate-100 text-slate-600 border-none shrink-0">
+                                                {group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}
+                                            </Badge>
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">
+                                            {group.period}
                                         </div>
                                     </div>
                                 </div>
@@ -490,7 +497,7 @@ export default function ExpensesPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
             <Button onClick={handleAddExpense} disabled={isSubmitting || uploadingReceipt || uploadingWithhold}>
-                {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />} Save Entry
+                {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4 animate-spin" />} Save Entry
             </Button>
           </DialogFooter>
         </DialogContent>
