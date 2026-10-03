@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -203,13 +204,19 @@ export default function ExpensesPage() {
         <Accordion type="multiple" className="space-y-4" defaultValue={expensesByPeriod.length > 0 ? [expensesByPeriod[0].period] : []}>
             {expensesByPeriod.map(group => {
                 const containsPayroll = group.items.some(i => i.isSecondary);
+                const mainHeaderText = containsPayroll 
+                    ? group.period 
+                    : (group.items.length === 1 ? group.items[0].description : group.period);
+
                 return (
                     <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
                         <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">
                             <div className="flex flex-1 items-center justify-between gap-4 text-left">
                                 <div className="space-y-0.5">
                                     <div className="flex items-center gap-3">
-                                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{group.period}</h2>
+                                        <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                                            {mainHeaderText}
+                                        </h2>
                                         {containsPayroll && (
                                             <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
                                                 Employee Expense
@@ -218,6 +225,9 @@ export default function ExpensesPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Badge variant="outline" className="text-[9px] font-bold h-4">{group.items.length} Items</Badge>
+                                        {!containsPayroll && group.items.length === 1 && (
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="text-right mr-4">
