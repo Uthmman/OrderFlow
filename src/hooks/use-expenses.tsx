@@ -60,11 +60,12 @@ export function getEthiopianPeriod(date: Date | any) {
 
 /**
  * Clean redundant text from period labels.
+ * Aggressively removes "Week", "Week :", "Week -" prefixes.
  */
 function sanitizePeriodLabel(label: string): string {
     if (!label) return 'Unknown Period';
     return label
-        .replace(/^Week\s+/i, '')
+        .replace(/^Week\s*[:\-]?\s*/i, '') // Removes "Week", "Week :", "Week -" etc
         .replace(/\s+am$/i, '')
         .trim();
 }
@@ -201,7 +202,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
                 description: `Payroll: ${curr.employeeName || 'Staff'}`,
                 amount: curr.totalPay || curr.amount || 0,
                 date: filterDate, 
-                category: 'Salary',
+                category: 'Employee Expense', // Corrected category mapping
                 paidTo: curr.employeeName || 'Staff Member',
                 status: curr.paymentStatus || 'Paid',
                 hasReceipt: true,
