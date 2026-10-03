@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -136,7 +136,7 @@ export const columns: ColumnDef<Customer>[] = [
   },
 ]
 
-function CustomerTableToolbar({ table }: { table: ReturnType<typeof useReactTable<Customer>> }) {
+function CustomerTableToolbar({ table }: { table: any }) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
@@ -235,7 +235,7 @@ export default function CustomersPage() {
         return <div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>
     }
     
-    if (role === 'Designer' || role === 'Manager') {
+    if (role === 'Designer' || role === 'Manager' || role === 'Pending') {
         return (
              <Card>
                 <CardHeader>

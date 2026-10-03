@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -63,7 +64,7 @@ export default function CustomerDetailPage() {
   const totalSpent = customerOrders.reduce((acc, order) => acc + (order.totalWithVat || order.incomeAmount || 0), 0);
 
   const canEdit = role === 'Admin';
-  const canViewFinancials = role === 'Admin' || role === 'Sales';
+  const canViewFinancials = role === 'Admin' || role === 'Sales' || role === 'AdminView';
 
 
   return (

@@ -30,12 +30,25 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
+function StatusStat({ label, count, color }: { label: string, count: number, color: string }) {
+    return (
+        <div className="flex flex-col gap-2 p-3 md:p-4 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
+            <div className="flex items-center gap-1.5 overflow-hidden">
+                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125", color)} />
+                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] md:tracking-[0.1em] font-black text-muted-foreground/70 truncate">{label}</span>
+            </div>
+            <span className="text-xl md:text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
+        </div>
+    )
+}
+
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
   const { expenses, loading: expensesLoading } = useExpenses();
   const { settings: finSettings, loading: financialLoading } = useFinancialSettings();
   const { role, loading: userLoading } = useUser();
+  
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -50,7 +63,12 @@ export default function Dashboard() {
       return new Date(date.seconds * 1000);
     }
     if (typeof date === 'string') {
-      return parseISO(date);
+      try {
+        const d = parseISO(date);
+        return isNaN(d.getTime()) ? null : d;
+      } catch (e) {
+        return null;
+      }
     }
     return null;
   }
@@ -90,14 +108,11 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    // Realized Revenue Logic: 
-    // - If Delivered or Paid: Full Amount
-    // - If Active: Only Prepayment
+    // Realized Revenue Logic: Only count prepayments for active items; full total for completed/paid.
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
         const total = order.totalWithVat || order.incomeAmount || 0;
         const prepaid = order.prepaidAmount || 0;
         const isFullIncome = ['Completed', 'Shipped'].includes(order.status) || order.paymentStatus === 'Paid';
-        
         return sum + (isFullIncome ? total : prepaid);
     }, 0);
 
@@ -317,16 +332,4 @@ export default function Dashboard() {
       </div>
     </div>
   )
-}
-
-function StatusStat({ label, count, color }: { label: string, count: number, color: string }) {
-    return (
-        <div className="flex flex-col gap-2 p-3 md:p-4 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
-            <div className="flex items-center gap-1.5 overflow-hidden">
-                <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125", color)} />
-                <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] md:tracking-[0.1em] font-black text-muted-foreground/70 truncate">{label}</span>
-            </div>
-            <span className="text-xl md:text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
-        </div>
-    )
 }

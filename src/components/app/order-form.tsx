@@ -798,7 +798,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                     key={item.id} 
                                                     type="button" 
                                                     className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
-                                                    onClick={() => addItemToBOM(currentProductIndex, item)}
+                                                    onClick={() => addItemToBOM(item)}
                                                 >
                                                     <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0 relative overflow-hidden border">
                                                         {item.imageUrl ? (
@@ -888,7 +888,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
                         <FormItem className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
                             <div><FormLabel>Color as attached picture</FormLabel></div>
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>
                         </FormItem>
                     )} />
                     {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
