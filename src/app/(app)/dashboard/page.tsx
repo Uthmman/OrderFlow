@@ -114,6 +114,9 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length
     
+    // Realized Revenue Logic:
+    // Only count prepaidAmount for active orders. 
+    // Count full total for Completed/Shipped/Paid orders.
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
       const total = order.totalWithVat || order.incomeAmount || 0
       const prepaid = order.prepaidAmount || 0
@@ -128,7 +131,20 @@ export default function Dashboard() {
     const profit = realizedRevenue - totalExp
     const unpaid = totalPotentialSales - totalCollectedPrepayments
     
-    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue: realizedRevenue, prepaid: totalCollectedPrepayments, totalExp, profit, unpaid }
+    return { 
+      totalOrders, 
+      active, 
+      designing, 
+      inProgress, 
+      designReady, 
+      onProduction, 
+      delivered, 
+      revenue: realizedRevenue, 
+      prepaid: totalCollectedPrepayments, 
+      totalExp, 
+      profit, 
+      unpaid 
+    }
   }, [filteredOrdersByDate, filteredExpensesByDate])
 
   const shareholderBreakdown = useMemo(() => {
@@ -242,7 +258,7 @@ export default function Dashboard() {
                     <TrendingUp className="h-20 w-20" />
                   </div>
                   <div className="relative z-10 space-y-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Estimated Profit</p>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Realized Profit</p>
                     <p className="text-4xl font-black tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
                   </div>
                 </div>

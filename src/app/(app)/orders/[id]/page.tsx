@@ -632,7 +632,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         i.category.toLowerCase().includes(itemSearch.toLowerCase())
     );
 
-    const canEditBOM = (isDesigner || order.ownerId === order.id || canEdit) && ['Designing', 'In Progress'].includes(order.status);
+    const canEditBOM = (isDesigner || order.ownerId === user?.id || canEdit) && ['Designing', 'In Progress'].includes(order.status);
 
     const allAttachments = [
         ...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })),

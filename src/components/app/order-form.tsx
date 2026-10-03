@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { CustomerForm } from "./customer-form"
-import { Timestamp } from "firebase/firestore"
+import { Timestamp, serverTimestamp } from "firebase/firestore"
 import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "@/components/ui/progress"
@@ -353,7 +353,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
             } : undefined 
         }));
         const selectedBank = paymentSettings?.banks.find(b => b.id === values.bankId);
-        const payload: any = { ...values, products: updated, status: values.status === 'Pending' ? 'In Progress' : values.status, customerName: values.isSample ? "Workshop Sample" : (customers.find(c => c.id === values.customerId)?.name || "Unknown"), bankName: selectedBank?.bankName, bankAccountNumber: selectedBank?.accountNumber };
+        const payload: any = { 
+          ...values, 
+          products: updated, 
+          status: values.status === 'Pending' ? 'In Progress' : values.status, 
+          customerName: values.isSample ? "Workshop Sample" : (customers.find(c => c.id === values.customerId)?.name || "Unknown"), 
+          bankName: selectedBank?.bankName, 
+          bankAccountNumber: selectedBank?.accountNumber,
+          creationDate: values.creationDate ? Timestamp.fromDate(values.creationDate) : serverTimestamp()
+        };
         await onSave(payload as any, !initialOrder); 
     } catch(e) { 
         toast({ variant: "destructive", title: "Save Failed", description: "Please verify all steps." });
@@ -380,9 +388,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const productCategories = productSettings?.productCategories || [];
   const isAnyUploading = activeUploads.length > 0;
 
-  const addItemToBOM = (pIndex: number, item: any) => {
+  const addItemToBOM = (item: any) => {
       const products = [...getValues('products')];
-      const p = products[pIndex];
+      const p = products[currentProductIndex];
       if (!p) return;
       p.bomItems = [...(p.bomItems || []), {
           itemId: item.id,
@@ -791,9 +799,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredSecondaryItems.length === 0 ? (
+                                            ) : filteredItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredSecondaryItems.map(item => (
+                                            ) : filteredItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 
@@ -846,7 +854,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                 variant="ghost" 
                                                 size="icon" 
                                                 type="button" 
-                                                className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100"
+                                                className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                                                 onClick={() => removeBOMItem(currentProductIndex, bIdx)}
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1058,7 +1066,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField control={form.control} name="creationDate" render={({ field }) => (
                             <FormItem className="flex flex-col">
-                                <FormLabel>Order Placed Date</FormLabel>
+                                <FormLabel>Ordered Date (Creation Date)</FormLabel>
                                 <Popover>
                                     <PopoverTrigger asChild>
                                         <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
@@ -1070,7 +1078,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} initialFocus />
                                     </PopoverContent>
                                 </Popover>
-                                <FormDescription className="text-[10px]">Backdate this order if necessary.</FormDescription>
+                                <FormDescription className="text-[10px]">Adjust this if the order was placed historically.</FormDescription>
                             </FormItem>
                         )} />
                         <FormField control={form.control} name="deadline" render={({ field }) => (
