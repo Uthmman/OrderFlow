@@ -82,7 +82,7 @@ export default function ShareholderSettingsPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-3-xl">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 max-w-3xl">
           <Card className="border-none shadow-xl">
             <CardHeader className="border-b pb-6 bg-slate-50/50">
               <div className="flex justify-between items-center">
