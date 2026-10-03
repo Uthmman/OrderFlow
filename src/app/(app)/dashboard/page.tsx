@@ -1,9 +1,9 @@
 
-"use client"
+"use client";
 
-import React, { useMemo, useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { OrderTable } from "@/components/app/order-table"
+import React, { useMemo, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { OrderTable } from "@/components/app/order-table";
 import { 
   TrendingUp, 
   ArrowRight, 
@@ -16,24 +16,24 @@ import {
   Banknote,
   PieChart,
   CreditCard
-} from "lucide-react"
-import { useOrders } from "@/hooks/use-orders"
-import { formatCurrency, cn } from "@/lib/utils"
-import { useCustomers } from "@/hooks/use-customers"
-import { useUser } from "@/hooks/use-user"
-import { useExpenses } from "@/hooks/use-expenses"
-import { useFinancialSettings } from "@/hooks/use-financial-settings"
-import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { DateRange } from "react-day-picker"
-import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+} from "lucide-react";
+import { useOrders } from "@/hooks/use-orders";
+import { formatCurrency, cn } from "@/lib/utils";
+import { useCustomers } from "@/hooks/use-customers";
+import { useUser } from "@/hooks/use-user";
+import { useExpenses } from "@/hooks/use-expenses";
+import { useFinancialSettings } from "@/hooks/use-financial-settings";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 interface StatusStatProps {
-  label: string
-  count: number
-  color: string
+  label: string;
+  count: number;
+  color: string;
 }
 
 function StatusStat({ label, count, color }: StatusStatProps) {
@@ -45,91 +45,89 @@ function StatusStat({ label, count, color }: StatusStatProps) {
       </div>
       <span className="text-xl md:text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
     </div>
-  )
+  );
 }
 
 export default function Dashboard() {
-  const { orders, loading: ordersLoading } = useOrders()
-  const { customers, loading: customersLoading } = useCustomers()
-  const { expenses, loading: expensesLoading } = useExpenses()
-  const { settings: finSettings, loading: financialLoading } = useFinancialSettings()
-  const { role, loading: userLoading } = useUser()
+  const { orders, loading: ordersLoading } = useOrders();
+  const { customers, loading: customersLoading } = useCustomers();
+  const { expenses, loading: expensesLoading } = useExpenses();
+  const { settings: finSettings, loading: financialLoading } = useFinancialSettings();
+  const { role, loading: userLoading } = useUser();
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
-  })
+  });
   
-  const canViewFinancials = role === 'Admin' || role === 'Sales' || role === 'AdminView'
+  const canViewFinancials = role === 'Admin' || role === 'Sales' || role === 'AdminView';
 
   const parseDate = (date: any): Date | null => {
-    if (!date) return null
-    if (date instanceof Date) return date
+    if (!date) return null;
+    if (date instanceof Date) return date;
     if (date && typeof date.seconds === 'number') {
-      return new Date(date.seconds * 1000)
+      return new Date(date.seconds * 1000);
     }
     if (typeof date === 'string') {
       try {
-        const d = parseISO(date)
-        return isNaN(d.getTime()) ? null : d
+        const d = parseISO(date);
+        return isNaN(d.getTime()) ? null : d;
       } catch (e) {
-        return null
+        return null;
       }
     }
-    return null
-  }
+    return null;
+  };
 
   const dashboardOrders = useMemo(() => {
-    return orders.filter(o => o.status !== 'Pending' || role === 'Admin' || role === 'AdminView')
-  }, [orders, role])
+    return orders.filter(o => o.status !== 'Pending' || role === 'Admin' || role === 'AdminView');
+  }, [orders, role]);
 
   const filteredOrdersByDate = useMemo(() => {
-    if (!dateRange?.from) return dashboardOrders
+    if (!dateRange?.from) return dashboardOrders;
     return dashboardOrders.filter(order => {
-      const creationDate = parseDate(order.creationDate)
-      if (!creationDate) return false
-      const start = startOfDay(dateRange.from!)
-      const end = endOfDay(dateRange.to || dateRange.from!)
-      return isWithinInterval(creationDate, { start, end })
-    })
-  }, [dashboardOrders, dateRange])
+      const creationDate = parseDate(order.creationDate);
+      if (!creationDate) return false;
+      const start = startOfDay(dateRange.from!);
+      const end = endOfDay(dateRange.to || dateRange.from!);
+      return isWithinInterval(creationDate, { start, end });
+    });
+  }, [dashboardOrders, dateRange]);
 
   const filteredExpensesByDate = useMemo(() => {
-    if (!dateRange?.from) return expenses
+    if (!dateRange?.from) return expenses;
     return expenses.filter(exp => {
-      const expDate = parseDate(exp.date)
-      if (!expDate) return false
-      const start = startOfDay(dateRange.from!)
-      const end = endOfDay(dateRange.to || dateRange.from!)
-      return isWithinInterval(expDate, { start, end })
-    })
-  }, [expenses, dateRange])
+      const expDate = parseDate(exp.date);
+      if (!expDate) return false;
+      const start = startOfDay(dateRange.from!);
+      const end = endOfDay(dateRange.to || dateRange.from!);
+      return isWithinInterval(expDate, { start, end });
+    });
+  }, [expenses, dateRange]);
 
   const stats = useMemo(() => {
-    const totalOrders = filteredOrdersByDate.length
-    const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled', 'Pending'].includes(o.status)).length
-    const designing = filteredOrdersByDate.filter(o => o.status === 'Designing').length
-    const inProgress = filteredOrdersByDate.filter(o => o.status === 'In Progress').length
-    const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length
-    const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length
-    const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length
+    const totalOrders = filteredOrdersByDate.length;
+    const active = filteredOrdersByDate.filter(o => !['Completed', 'Shipped', 'Cancelled', 'Pending'].includes(o.status)).length;
+    const designing = filteredOrdersByDate.filter(o => o.status === 'Designing').length;
+    const inProgress = filteredOrdersByDate.filter(o => o.status === 'In Progress').length;
+    const designReady = filteredOrdersByDate.filter(o => o.status === 'Design Ready').length;
+    const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
+    const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    // Realized Revenue Logic:
-    // Only count prepaidAmount for active orders. 
-    // Count full total for Completed/Shipped/Paid orders.
+    // Realized Revenue Logic: Cash Flow based
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
-      const total = order.totalWithVat || order.incomeAmount || 0
-      const prepaid = order.prepaidAmount || 0
-      const isFullIncome = ['Completed', 'Shipped'].includes(order.status) || order.paymentStatus === 'Paid'
-      return sum + (isFullIncome ? total : prepaid)
-    }, 0)
+      const total = order.totalWithVat || order.incomeAmount || 0;
+      const prepaid = order.prepaidAmount || 0;
+      const isFullIncome = ['Completed', 'Shipped'].includes(order.status) || order.paymentStatus === 'Paid';
+      return sum + (isFullIncome ? total : prepaid);
+    }, 0);
 
-    const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0)
-    const totalCollectedPrepayments = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0)
+    const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
+    const totalCollectedPrepayments = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0)
-    const profit = realizedRevenue - totalExp
-    const unpaid = totalPotentialSales - totalCollectedPrepayments
+    const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
+    const profit = realizedRevenue - totalExp;
+    const unpaid = totalPotentialSales - totalCollectedPrepayments;
     
     return { 
       totalOrders, 
@@ -144,16 +142,16 @@ export default function Dashboard() {
       totalExp, 
       profit, 
       unpaid 
-    }
-  }, [filteredOrdersByDate, filteredExpensesByDate])
+    };
+  }, [filteredOrdersByDate, filteredExpensesByDate]);
 
   const shareholderBreakdown = useMemo(() => {
-    if (!finSettings?.shareholders || stats.profit <= 0) return []
+    if (!finSettings?.shareholders || stats.profit <= 0) return [];
     return finSettings.shareholders.map(sh => ({
       ...sh,
       profitShare: (stats.profit * sh.percentage) / 100
-    }))
-  }, [finSettings, stats.profit])
+    }));
+  }, [finSettings, stats.profit]);
 
   const activeStatuses = useMemo(() => {
     return [
@@ -162,15 +160,15 @@ export default function Dashboard() {
       { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
       { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
       { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
-    ].filter(s => s.count > 0)
-  }, [stats])
+    ].filter(s => s.count > 0);
+  }, [stats]);
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary opacity-30" />
       </div>
-    )
+    );
   }
 
   return (
@@ -311,7 +309,7 @@ export default function Dashboard() {
                         <div className="flex justify-between items-end">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-700">{sh.name}</span>
-                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[8px] font-black border-slate-200 text-slate-400 uppercase tracking-tighter">{sh.percentage}%</span>
+                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[8px] font-black border-slate-200 text-slate-400 uppercase tracking-tighter">{sh.percentage}%</Badge>
                           </div>
                           <span className="text-xs font-black text-primary">{formatCurrency(sh.profitShare)}</span>
                         </div>
@@ -352,5 +350,5 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
-  )
+  );
 }
