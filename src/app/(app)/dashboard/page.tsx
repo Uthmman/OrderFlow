@@ -13,7 +13,6 @@ import {
   Clock, 
   BarChart3, 
   Banknote,
-  Users,
   PieChart,
   CreditCard
 } from "lucide-react"
@@ -57,8 +56,8 @@ export default function Dashboard() {
   }
 
   const dashboardOrders = useMemo(() => {
-    return orders.filter(o => o.status !== 'Pending');
-  }, [orders]);
+    return orders.filter(o => o.status !== 'Pending' || role === 'Admin' || role === 'AdminView');
+  }, [orders, role]);
 
   const filteredOrdersByDate = useMemo(() => {
     if (!dateRange?.from) return dashboardOrders;

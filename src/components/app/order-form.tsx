@@ -748,7 +748,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                             const up = [...getValues('products')];
                                             up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
                                             if (up[currentProductIndex].mainImageUrl === att.url) up[currentProductIndex].mainImageUrl = up[currentProductIndex].attachments[0]?.url;
-                                            setValue('products', up, { shouldDirty: true });
+                                            setValue('products', updated, { shouldDirty: true });
                                         }}><Trash2 className="h-3 w-3 mr-1" /> Remove</Button>
                                     </div>
                                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
