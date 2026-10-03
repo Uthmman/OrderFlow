@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -12,7 +11,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Loader2, PlusCircle, Search, FileText, Trash2, Wallet, User, UploadCloud, CheckCircle2, ShieldCheck, Database, ShoppingCart, Calendar } from 'lucide-react';
+import { 
+    Loader2, 
+    PlusCircle, 
+    Search, 
+    FileText, 
+    Trash2, 
+    Wallet, 
+    User, 
+    UploadCloud, 
+    CheckCircle2, 
+    ShieldCheck, 
+    Database, 
+    ShoppingCart, 
+    Calendar,
+    Users,
+    Building,
+    Zap,
+    Wrench,
+    Truck,
+    Megaphone,
+    Package,
+    Banknote
+} from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { useUser } from '@/hooks/use-user';
 import { useOrders } from '@/hooks/use-orders';
@@ -23,6 +44,19 @@ import { isWithinInterval, startOfDay, endOfDay, isValid, startOfMonth, endOfMon
 import type { Expense } from '@/lib/types';
 
 const CATEGORIES = ['Materials', 'Hardware', 'Salary', 'Rent', 'Utilities', 'Maintenance', 'Transport', 'Marketing', 'Other'];
+
+const CATEGORY_ICONS: Record<string, any> = {
+  'Materials': Database,
+  'Hardware': ShoppingCart,
+  'Salary': Users,
+  'Employee Expense': Users,
+  'Rent': Building,
+  'Utilities': Zap,
+  'Maintenance': Wrench,
+  'Transport': Truck,
+  'Marketing': Megaphone,
+  'Other': Package,
+};
 
 export default function ExpensesPage() {
   const { expenses, loading, addExpense, deleteExpense } = useExpenses();
@@ -208,24 +242,25 @@ export default function ExpensesPage() {
                     ? "Employee Payout" 
                     : (group.items.length === 1 ? group.items[0].description : "Batch Expense");
 
+                const firstCategory = group.items[0].category;
+                const IconComp = containsPayroll ? Users : (CATEGORY_ICONS[firstCategory] || Package);
+
                 return (
                     <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
                         <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">
                             <div className="flex flex-1 items-center justify-between gap-4 text-left">
-                                <div className="space-y-0.5">
-                                    <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                        <IconComp className="h-5 w-5 text-muted-foreground" />
+                                    </div>
+                                    <div className="space-y-0.5">
                                         <h2 className="text-base font-bold text-slate-900 tracking-tight">
                                             {mainHeaderText}
                                         </h2>
-                                        {containsPayroll && (
-                                            <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
-                                                System Record
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
-                                        <Badge variant="outline" className="text-[8px] font-bold h-3.5 px-1">{group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}</Badge>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
+                                            <Badge variant="outline" className="text-[8px] font-bold h-3.5 px-1">{group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}</Badge>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="text-right mr-4">
@@ -330,7 +365,7 @@ export default function ExpensesPage() {
                <div className="grid gap-2">
                   <Label>Amount</Label>
                   <div className="relative">
-                    <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                     <Input 
                         type="number" 
                         className="pl-10" 

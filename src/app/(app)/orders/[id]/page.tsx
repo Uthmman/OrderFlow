@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -36,6 +35,7 @@ import {
   QrCode, 
   X, 
   Receipt, 
+  Banknote, 
   CreditCard, 
   UploadCloud, 
   CheckCircle2, 
@@ -818,7 +818,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
+                                        onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
@@ -843,7 +843,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
+                                        onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
@@ -868,7 +868,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
+                                        onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
@@ -893,7 +893,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         att={att} 
                                         order={order} 
                                         onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
+                                        onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
                                     />
                                 ))}
@@ -1026,7 +1026,7 @@ function OrderDetailPageContent() {
             setShowHeader(false);
         } else {
             // Show if scrolling up
-            setShowHeader(true);
+            showHeader(true);
         }
         lastScrollY.current = currentScrollY;
     };

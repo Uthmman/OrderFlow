@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
@@ -23,7 +22,7 @@ import {
     Loader2, 
     UploadCloud, 
     Trash2, 
-    DollarSign, 
+    Banknote, 
     ListChecks, 
     Ruler, 
     Boxes, 
@@ -97,7 +96,7 @@ function UploadingCard({ name, progress }: { name: string, progress: number }) {
                     <p className="text-[10px] font-bold truncate flex-1 uppercase tracking-tighter">{name}</p>
                     <span className="text-[10px] font-bold text-primary">{progress}%</span>
                 </div>
-                <Progress value={progress} className="h-1 bg-primary/10" />
+                <Progress value={progress} className="h-1" />
             </CardContent>
         </Card>
     );
@@ -338,7 +337,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
                                 <CardTitle className="text-lg flex items-center gap-2">
-                                    <DollarSign className="h-5 w-5 text-primary" /> Financials
+                                    <Banknote className="h-5 w-5 text-primary" /> Financials
                                 </CardTitle>
                             </div>
                             {initialData?.priceHistory && initialData.priceHistory.length > 0 && (
@@ -357,7 +356,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                         <FormLabel>Base Unit Price</FormLabel>
                                         <FormControl>
                                             <div className="relative max-w-[200px]">
-                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                                <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                                                 <Input type="number" className="pl-9 text-lg font-bold" {...field} />
                                             </div>
                                         </FormControl>
@@ -573,7 +572,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                     </div>
                                 ))}
                                 {uploadingPdfs.map(task => (
-                                    <UploadingCard key={task.id} name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                    <div key={task.id} className="h-12">
+                                        <UploadingCard name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                    </div>
                                 ))}
                                 {pdfAttachments.length === 0 && uploadingPdfs.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No drawings uploaded.</p>}
                             </div>
@@ -602,7 +603,9 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                     </div>
                                 ))}
                                 {uploadingCnc.map(task => (
-                                    <UploadingCard key={task.id} name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                    <div key={task.id} className="h-12">
+                                        <UploadingCard name={task.name} progress={uploadProgress[task.progressKey] || 0} />
+                                    </div>
                                 ))}
                                 {cncAttachments.length === 0 && uploadingCnc.length === 0 && <p className="text-[10px] text-muted-foreground italic py-2">No machine files uploaded.</p>}
                             </div>
@@ -641,7 +644,7 @@ export function ProductForm({ initialData, onSubmit, isSubmitting, title }: Prod
                                             <Button type="button" variant="secondary" size="sm" className="h-7 text-[10px] rounded-full" onClick={() => setValue("mainImageUrl", att.url)}>
                                                 {watchedMainImage === att.url ? <CheckCircle2 className="h-3 w-3 mr-1" /> : "Set Main"}
                                             </Button>
-                                            <Button type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => removeAttachment(att.url)}>
+                                            <Button type="button" variant="destructive" size="icon" className="h-7 h-7 rounded-full" onClick={() => removeAttachment(att.url)}>
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>

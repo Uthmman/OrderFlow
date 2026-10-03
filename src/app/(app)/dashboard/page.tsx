@@ -1,4 +1,3 @@
-
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -106,6 +105,13 @@ export default function Dashboard() {
     ].filter(s => s.count > 0);
   }, [stats]);
 
+  const statusGridCols = useMemo(() => {
+    const count = activeStatuses.length;
+    if (count === 3) return "grid-cols-3";
+    if (count === 4) return "grid-cols-2";
+    return "grid-cols-3"; // Fallback for 5 or other counts
+  }, [activeStatuses]);
+
   if (ordersLoading || customersLoading || userLoading || expensesLoading) {
     return (
         <div className="flex h-96 items-center justify-center">
@@ -162,10 +168,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className={cn(
-                "grid gap-2 md:gap-3",
-                activeStatuses.length === 4 ? "grid-cols-2" : "grid-cols-3"
-            )}>
+            <div className={cn("grid gap-2 md:gap-3", statusGridCols)}>
                 {activeStatuses.map((status) => (
                     <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
                 ))}

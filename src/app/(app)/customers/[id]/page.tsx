@@ -60,7 +60,7 @@ export default function CustomerDetailPage() {
   }
   
   const customerOrders = orders.filter(order => customer.orderIds?.includes(order.id));
-  const totalSpent = customerOrders.reduce((acc, order) => acc + (order.incomeAmount || 0), 0);
+  const totalSpent = customerOrders.reduce((acc, order) => acc + (order.totalWithVat || order.incomeAmount || 0), 0);
 
   const canEdit = role === 'Admin';
   const canViewFinancials = role === 'Admin' || role === 'Sales';
@@ -191,7 +191,7 @@ export default function CustomerDetailPage() {
                     {canViewFinancials && (
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">Total Spent</span>
-                            <span className="font-bold text-primary">${totalSpent.toLocaleString()}</span>
+                            <span className="font-bold text-primary">Br {totalSpent.toLocaleString()}</span>
                         </div>
                     )}
                      <div className="flex justify-between">

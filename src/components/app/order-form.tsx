@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -32,7 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { DollarSign, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical, Library } from "lucide-react"
+import { Banknote, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical, Library } from "lucide-react"
 import { cn, formatCurrency } from "@/lib/utils"
 import { format } from "date-fns"
 import { Switch } from "@/components/ui/switch"
@@ -702,7 +701,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormField control={form.control} name={`products.${currentProductIndex}.productName`} render={({ field }) => <FormItem><FormLabel>Product Name</FormLabel><FormControl><Input placeholder="e.g. Wardrobe - Sliding Door" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>} />
                         </div>
                         <div className="md:col-span-1">
-                             <FormField control={form.control} name={`products.${currentProductIndex}.price`} render={({ field }) => <FormItem><FormLabel>Base Price</FormLabel><FormControl><div className="relative"><DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? 0} /></div></FormControl><FormMessage /></FormItem>} />
+                             <FormField control={form.control} name={`products.${currentProductIndex}.price`} render={({ field }) => <FormItem><FormLabel>Base Price</FormLabel><FormControl><div className="relative"><Banknote className="absolute left-2.5 top-2.5 h-4 w-4 opacity-50" /><Input type="number" className="pl-8" {...field} value={field.value ?? 0} /></div></FormControl><FormMessage /></FormItem>} />
                         </div>
                         <div className="md:col-span-1">
                             <FormField control={form.control} name={`products.${currentProductIndex}.quantity`} render={({ field }) => <FormItem><FormLabel>Quantity (pcs)</FormLabel><FormControl><Input type="number" min="1" {...field} value={field.value ?? 1} /></FormControl><FormMessage /></FormItem>} />
@@ -974,7 +973,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                 <FormItem>
                                                     <FormLabel className="text-xs">Base Unit Price</FormLabel>
                                                     <div className="relative">
-                                                        <DollarSign className="absolute left-2.5 top-2.5 h-3.5 w-3.5 opacity-50" />
+                                                        <Banknote className="absolute left-2.5 top-2.5 h-3.5 w-3.5 opacity-50" />
                                                         <Input 
                                                             type="number" 
                                                             className="pl-8 h-9 text-sm" 
@@ -991,7 +990,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                 <FormItem>
                                                     <FormLabel className="text-xs text-primary">Advance Payment</FormLabel>
                                                     <div className="relative">
-                                                        <DollarSign className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-primary/50" />
+                                                        <Banknote className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-primary/50" />
                                                         <Input 
                                                             type="number" 
                                                             className="pl-8 h-9 text-sm border-primary/20 bg-primary/5" 
@@ -1082,7 +1081,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <FormItem><FormLabel>Target Bank Account</FormLabel>
                                 <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select account..." /></SelectTrigger></FormControl>
-                                    <SelectContent>{paymentSettings?.banks.map(b => <SelectItem key={b.id} value={b.id}>{b.bankName}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{paymentSettings?.banks.map(b => (
+                                        <SelectItem key={b.id} value={b.id}>{b.bankName}</SelectItem>
+                                    ))}</SelectContent>
                                 </Select>
                             </FormItem>
                         )} />
