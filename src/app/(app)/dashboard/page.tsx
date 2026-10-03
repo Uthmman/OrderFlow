@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -86,13 +87,23 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    const revenue = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
-    const prepaid = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
-    const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
-    const profit = revenue - totalExp;
-    const unpaid = revenue - prepaid;
+    // Revenue Logic: Prepaid amount for active orders, Full amount for delivered/paid orders
+    const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
+        const total = order.totalWithVat || order.incomeAmount || 0;
+        const prepaid = order.prepaidAmount || 0;
+        const isFullIncome = ['Completed', 'Shipped'].includes(order.status) || order.paymentStatus === 'Paid';
+        
+        return sum + (isFullIncome ? total : prepaid);
+    }, 0);
+
+    const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
+    const totalCollectedPrepayments = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
     
-    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue, prepaid, totalExp, profit, unpaid };
+    const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
+    const profit = realizedRevenue - totalExp;
+    const unpaid = totalPotentialSales - totalCollectedPrepayments;
+    
+    return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue: realizedRevenue, prepaid: totalCollectedPrepayments, totalExp, profit, unpaid };
   }, [filteredOrdersByDate, filteredExpensesByDate]);
 
   const activeStatuses = useMemo(() => {
@@ -196,7 +207,7 @@ export default function Dashboard() {
                 <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
                     <Target className="h-5 w-5 text-primary" /> Financial Overview
                 </CardTitle>
-                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Profitability Performance</CardDescription>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Realized Profitability</CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-6">
               <div className="p-6 rounded-3xl bg-slate-900 text-white relative overflow-hidden group shadow-lg shadow-slate-900/20">
@@ -213,7 +224,7 @@ export default function Dashboard() {
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
                     <div className="flex items-center gap-2 text-slate-400">
                         <BarChart3 className="h-3.5 w-3.5" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Total Sales</span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">Realized Sales</span>
                     </div>
                     <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.revenue)}</p>
                   </div>

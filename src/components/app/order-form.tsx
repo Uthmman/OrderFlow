@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -790,7 +791,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredSecondaryItems.length === 0 ? (
+                                            ) : filteredItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
                                             ) : filteredSecondaryItems.map(item => (
                                                 <button 
@@ -1055,14 +1056,38 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardHeader><CardTitle>Finalize Order</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField control={form.control} name="deadline" render={({ field }) => (
-                            <FormItem className="flex flex-col"><FormLabel>Delivery Deadline</FormLabel>
-                                <Popover><PopoverTrigger asChild><Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>{field.value ? format(field.value, "PPP") : "Pick a date"}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></Button></PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus /></PopoverContent></Popover>
+                        <FormField control={form.control} name="creationDate" render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Order Placed Date</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : "Pick a date"}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date()} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                                <FormDescription className="text-[10px]">Backdate this order if necessary.</FormDescription>
                             </FormItem>
                         )} />
-                        <FormField control={form.control} name="isUrgent" render={({ field }) => (
-                            <FormItem className="flex items-center justify-between border p-3 rounded-lg"><FormLabel>Mark as Urgent</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                        <FormField control={form.control} name="deadline" render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Delivery Deadline</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                                            {field.value ? format(field.value, "PPP") : "Pick a date"}
+                                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date()} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                            </FormItem>
                         )} />
                     </div>
                     
@@ -1073,6 +1098,15 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                     <SelectContent>{paymentSettings?.methods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                                 </Select>
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="isUrgent" render={({ field }) => (
+                            <FormItem className="flex items-center justify-between border p-3 rounded-lg">
+                                <div>
+                                    <FormLabel>Mark as Urgent</FormLabel>
+                                    <FormDescription className="text-[10px]">Highlights this for the workshop team.</FormDescription>
+                                </div>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
                         )} />
                     </div>
