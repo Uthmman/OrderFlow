@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -68,6 +69,7 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="AdminView">Admin View</SelectItem>
                     <SelectItem value="Manager">Manager</SelectItem>
                     <SelectItem value="Sales">Sales</SelectItem>
                     <SelectItem value="Designer">Designer</SelectItem>
@@ -92,6 +94,7 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
 
 const roleVariantMap: Record<Role, "default" | "secondary" | "destructive" | "outline"> = {
     "Admin": "default",
+    "AdminView": "secondary",
     "Manager": "secondary",
     "Sales": "secondary",
     "Designer": "secondary",
@@ -231,7 +234,7 @@ export default function UsersPage() {
         )
     }
 
-    if (currentUser?.role !== 'Admin') {
+    if (currentUser?.role !== 'Admin' && currentUser?.role !== 'AdminView') {
         return (
              <Card>
                 <CardHeader>
@@ -259,7 +262,7 @@ export default function UsersPage() {
                         <UserTableToolbar table={table} />
                     </DataTable>
                 </CardContent>
-            </Card>
+            </div>
         </div>
     )
 }

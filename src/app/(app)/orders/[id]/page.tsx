@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -418,7 +419,7 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
   );
 }
 
-const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview }: { att: OrderAttachment, order: Order, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void, onPreview: (attachment: OrderAttachment) => void }) => {
+const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview, canDelete }: { att: OrderAttachment, order: Order, onDelete: () => void, onImageClick: (attachment: OrderAttachment) => void, onPreview: (attachment: OrderAttachment) => void, canDelete: boolean }) => {
     const isImage = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
     const isAudio = att.fileName.match(/\.(mp3|wav|ogg|webm)$/i);
     const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
@@ -447,7 +448,7 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview }: { 
                         <Image src={att.url} alt={att.fileName} fill className="object-cover" />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-4">
                             <Eye className="h-8 w-8 text-white" />
-                            {!isMain && (
+                            {!isMain && canDelete && (
                                 <Button size="sm" variant="secondary" onClick={setAsMain} className="h-7 text-[9px] font-bold uppercase rounded-full">Set as Main</Button>
                             )}
                         </div>
@@ -472,21 +473,23 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview }: { 
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
                  <p className="text-[10px] text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
                  <div className="flex items-center gap-1">
-                     <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 v-6 text-destructive/80 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Attachment?</AlertDialogTitle>
-                                <AlertDialogDescription>This will permanently delete '{att.fileName}'.</AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                    {canDelete && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-6 v-6 text-destructive/80 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Attachment?</AlertDialogTitle>
+                                    <AlertDialogDescription>This will permanently delete '{att.fileName}'.</AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                  </div>
             </CardFooter>
         </Card>
@@ -523,7 +526,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
   );
 }
 
-const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File, progressKey?: string) => Promise<any>, onFilePreview: (attachment: OrderAttachment) => void }) => {
+const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview, canEdit }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File, progressKey?: string) => Promise<any>, onFilePreview: (attachment: OrderAttachment) => void, canEdit: boolean }) => {
     const { settings: colorSettings } = useColorSettings();
     const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
     const { uploadFile, uploadProgress } = useOrders();
@@ -629,7 +632,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
         i.category.toLowerCase().includes(itemSearch.toLowerCase())
     );
 
-    const canEditBOM = (isDesigner || order.ownerId === order.id) && ['Designing', 'In Progress'].includes(order.status);
+    const canEditBOM = (isDesigner || order.ownerId === order.id || canEdit) && ['Designing', 'In Progress'].includes(order.status);
 
     const allAttachments = [
         ...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })),
@@ -793,7 +796,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                 <div className="space-y-6">
                     <div className="flex justify-between items-center px-1">
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
-                        {isDesigner && (
+                        {(isDesigner || canEdit) && (
                             <div>
                                 <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
                                 <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0}>
@@ -820,6 +823,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onDelete={getDeleteHandler(att)} 
                                         onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
+                                        canDelete={canEdit}
                                     />
                                 ))}
                                 {activeUploads.filter(u => u.type === 'image').map(u => (
@@ -845,6 +849,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onDelete={getDeleteHandler(att)} 
                                         onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
+                                        canDelete={canEdit}
                                     />
                                 ))}
                                 {activeUploads.filter(u => u.type === 'pdf').map(u => (
@@ -870,6 +875,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onDelete={getDeleteHandler(att)} 
                                         onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
+                                        canDelete={canEdit}
                                     />
                                 ))}
                                 {activeUploads.filter(u => u.type === 'cnc').map(u => (
@@ -895,6 +901,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         onDelete={getDeleteHandler(att)} 
                                         onImageClick={handleImageClick} 
                                         onPreview={onFilePreview} 
+                                        canDelete={canEdit}
                                     />
                                 ))}
                                 {activeUploads.filter(u => u.type === 'other').map(u => (
@@ -1021,11 +1028,9 @@ function OrderDetailPageContent() {
         const target = e.target as HTMLElement;
         const currentScrollY = target.scrollTop;
         
-        // Hide if scrolling down and scrolled more than 100px
         if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
             setShowHeader(false);
         } else {
-            // Show if scrolling up
             showHeader(true);
         }
         lastScrollY.current = currentScrollY;
@@ -1061,7 +1066,7 @@ function OrderDetailPageContent() {
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
   const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
   const isDesigner = role === 'Designer';
-  const canViewSensitiveData = role === 'Admin' || role === 'Sales';
+  const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
   const prepaid = order.prepaidAmount || 0;
   const isPaid = order.paymentStatus === 'Paid';
 
@@ -1289,10 +1294,12 @@ function OrderDetailPageContent() {
                                 <p className="text-xs text-orange-700">Add this finished piece to shop inventory.</p>
                             </div>
                         </div>
-                        <Button size="sm" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={transferToStock} disabled={isTransferring}>
-                            {isTransferring ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="mr-2 h-4 w-4" />}
-                            Transfer to Stock
-                        </Button>
+                        {(canEdit || role === 'Admin') && (
+                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={transferToStock} disabled={isTransferring}>
+                                {isTransferring ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="mr-2 h-4 w-4" />}
+                                Transfer to Stock
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
             )}
@@ -1301,7 +1308,7 @@ function OrderDetailPageContent() {
                     <CheckCircle2 className="h-4 w-4" /> Units Transferred to Stock
                 </div>
             )}
-            {isDesigner && (order.status === 'In Progress' || order.status === 'Designing') && (
+            {(isDesigner || canEdit) && (order.status === 'In Progress' || order.status === 'Designing') && (
                 <Card className="border-primary/40 bg-primary/5 mx-1">
                     <CardContent className="flex items-center justify-between p-3 gap-4">
                         <div className="flex items-center gap-2">
@@ -1334,6 +1341,7 @@ function OrderDetailPageContent() {
                         isDesigner={isDesigner || role === 'Admin'}
                         onDesignUpload={(file, progressKey) => addAttachment(order.id, index, file, true, progressKey)}
                         onFilePreview={handleFilePreview}
+                        canEdit={canEdit}
                     />
                 ))}
             </Accordion>
@@ -1362,7 +1370,7 @@ function OrderDetailPageContent() {
                                             )}
                                         </div>
                                     )}
-                                    {isDesigner && (
+                                    {(isDesigner || role === 'AdminView') && (
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={order.status} />
                                             {order.assignedTo && order.assignedTo.length > 0 && (

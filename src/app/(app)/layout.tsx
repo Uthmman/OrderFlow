@@ -18,13 +18,14 @@ import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { BrandSettingProvider } from "@/hooks/use-brand-settings";
+import { FinancialSettingProvider } from "@/hooks/use-financial-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { ExpenseProvider } from "@/hooks/use-expenses";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 import { Loader2 } from "lucide-react";
 import { requestNotificationPermission } from "@/lib/notifications";
 
-const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer'];
+const ALLOWED_ROLES = ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'];
 const PRIMARY_ADMIN_EMAIL = 'zenbabfurniture@gmail.com';
 
 function AuthGuard({ children }: { children: ReactNode }) {
@@ -90,6 +91,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
               <ProductSettingProvider>
                 <PaymentSettingProvider>
                   <BrandSettingProvider>
+                  <FinancialSettingProvider>
                   <ProductProvider>
                       <OrderProvider>
                       <NotificationProvider>
@@ -110,6 +112,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       </NotificationProvider>
                       </OrderProvider>
                   </ProductProvider>
+                  </FinancialSettingProvider>
                   </BrandSettingProvider>
                 </PaymentSettingProvider>
               </ProductSettingProvider>

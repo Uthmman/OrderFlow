@@ -1,7 +1,7 @@
 
 import { Timestamp } from "firebase/firestore";
 
-export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending';
+export type Role = 'Admin' | 'Manager' | 'Sales' | 'Designer' | 'Pending' | 'AdminView';
 
 export type OrderSortPreference = {
   field: 'creationDate' | 'deadline';
@@ -201,6 +201,16 @@ export type PaymentSettings = {
 export type BrandSettings = {
     logoUrl?: string;
     companyName?: string;
+};
+
+export type Shareholder = {
+  id: string;
+  name: string;
+  percentage: number;
+};
+
+export type FinancialSettings = {
+  shareholders: Shareholder[];
 };
 
 export type StockUnit = 'pcs' | 'kg' | 'liter' | 'meters' | 'set' | 'box' | 'sheets' | 'liters' | 'grams';

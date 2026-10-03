@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -139,7 +140,6 @@ export default function ExpensesPage() {
   const categoryStats = useMemo(() => {
     const stats: Record<string, number> = {};
     filteredExpenses.forEach(exp => {
-      // Group secondary payroll under "Employee" as requested
       const catName = exp.category === 'Employee Expense' ? 'Employee' : exp.category || 'Other';
       stats[catName] = (stats[catName] || 0) + exp.amount;
     });
@@ -203,8 +203,11 @@ export default function ExpensesPage() {
       }
   };
 
-  if (role !== 'Admin' && role !== 'Sales') {
-      return <div className="p-8 text-center text-muted-foreground">Access Denied. Financial tracking is restricted to Admin and Sales roles.</div>;
+  const canEdit = role === 'Admin' || role === 'Sales';
+  const canView = role === 'Admin' || role === 'Sales' || role === 'AdminView';
+
+  if (!canView) {
+      return <div className="p-8 text-center text-muted-foreground">Access Denied. Financial tracking is restricted.</div>;
   }
 
   return (
@@ -214,9 +217,11 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-bold font-headline tracking-tight">Financial Ledger</h1>
           <p className="text-muted-foreground text-sm">Expenses and payroll grouped by Ethiopian calendar periods.</p>
         </div>
-        <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" /> Record Purchase
-        </Button>
+        {canEdit && (
+            <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" /> Record Purchase
+            </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -364,11 +369,13 @@ export default function ExpensesPage() {
                                                             </p>
                                                         </div>
                                                         
-                                                        <div className="flex items-center gap-1">
-                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
+                                                        {canEdit && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
 

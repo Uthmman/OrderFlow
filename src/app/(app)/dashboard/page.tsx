@@ -13,7 +13,9 @@ import {
   Clock, 
   BarChart3, 
   CreditCard, 
-  Banknote 
+  Banknote,
+  Users2,
+  PieChart
 } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
@@ -21,24 +23,27 @@ import { formatCurrency, cn } from "@/lib/utils"
 import { useCustomers } from "@/hooks/use-customers"
 import { useUser } from "@/hooks/use-user"
 import { useExpenses } from "@/hooks/use-expenses"
+import { useFinancialSettings } from "@/hooks/use-financial-settings"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from "date-fns"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
   const { expenses, loading: expensesLoading } = useExpenses();
+  const { settings: finSettings, loading: financialLoading } = useFinancialSettings();
   const { user, role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
   
-  const canViewFinancials = role === 'Admin' || role === 'Sales';
+  const canViewFinancials = role === 'Admin' || role === 'Sales' || role === 'AdminView';
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -106,6 +111,14 @@ export default function Dashboard() {
     return { totalOrders, active, designing, inProgress, designReady, onProduction, delivered, revenue: realizedRevenue, prepaid: totalCollectedPrepayments, totalExp, profit, unpaid };
   }, [filteredOrdersByDate, filteredExpensesByDate]);
 
+  const shareholderBreakdown = useMemo(() => {
+    if (!finSettings?.shareholders || stats.profit <= 0) return [];
+    return finSettings.shareholders.map(sh => ({
+      ...sh,
+      profitShare: (stats.profit * sh.percentage) / 100
+    }));
+  }, [finSettings, stats.profit]);
+
   const activeStatuses = useMemo(() => {
     return [
       { label: "Designing", count: stats.designing, color: "bg-orange-400" },
@@ -120,10 +133,10 @@ export default function Dashboard() {
     const count = activeStatuses.length;
     if (count === 3) return "grid-cols-3";
     if (count === 4) return "grid-cols-2";
-    return "grid-cols-3"; // Fallback for 5 or other counts
+    return "grid-cols-3"; 
   }, [activeStatuses]);
 
-  if (ordersLoading || customersLoading || userLoading || expensesLoading) {
+  if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
         <div className="flex h-96 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary opacity-30" />
@@ -202,57 +215,90 @@ export default function Dashboard() {
         </Card>
 
         {canViewFinancials && (
-          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
-            <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
-                    <Target className="h-5 w-5 text-primary" /> Financial Overview
-                </CardTitle>
-                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Realized Profitability</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-6">
-              <div className="p-6 rounded-3xl bg-slate-900 text-white relative overflow-hidden group shadow-lg shadow-slate-900/20">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                    <TrendingUp className="h-20 w-20" />
+          <div className="space-y-6">
+            <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+                        <Target className="h-5 w-5 text-primary" /> Financial Overview
+                    </CardTitle>
+                    <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Realized Profitability</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-4 space-y-6">
+                <div className="p-6 rounded-3xl bg-slate-900 text-white relative overflow-hidden group shadow-lg shadow-slate-900/20">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <TrendingUp className="h-20 w-20" />
+                    </div>
+                    <div className="relative z-10 space-y-1">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Estimated Profit</p>
+                        <p className="text-4xl font-black tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
+                    </div>
                 </div>
-                <div className="relative z-10 space-y-1">
-                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Estimated Profit</p>
-                    <p className="text-4xl font-black tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <BarChart3 className="h-3.5 w-3.5" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Realized Sales</span>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
+                        <div className="flex items-center gap-2 text-slate-400">
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Realized Sales</span>
+                        </div>
+                        <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.revenue)}</p>
                     </div>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.revenue)}</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
-                    <div className="flex items-center gap-2 text-slate-400">
-                        <Banknote className="h-3.5 w-3.5" />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.totalExp)}</p>
-                  </div>
-              </div>
-
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between px-1">
-                <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                        <CreditCard className="h-4 w-4" />
-                    </div>
-                    <div className="space-y-0.5">
-                        <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Unpaid Balance</p>
-                        <p className="text-sm font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
+                        <div className="flex items-center gap-2 text-slate-400">
+                            <Banknote className="h-3.5 w-3.5" />
+                            <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
+                        </div>
+                        <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.totalExp)}</p>
                     </div>
                 </div>
-                {stats.unpaid > 0 && (
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between px-1">
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                            <CreditCard className="h-4 w-4" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Unpaid Balance</p>
+                            <p className="text-sm font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
+                        </div>
+                    </div>
+                    {stats.unpaid > 0 && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
+                    )}
+                </div>
+                </CardContent>
+            </Card>
+
+            {shareholderBreakdown.length > 0 && stats.profit > 0 && (
+                <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-bold uppercase tracking-widest flex items-center gap-2 text-slate-700">
+                            <PieChart className="h-4 w-4 text-primary" /> Shareholder Payouts
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-2 pb-6 px-6">
+                        <div className="space-y-4">
+                            {shareholderBreakdown.map(sh => (
+                                <div key={sh.id} className="space-y-1.5">
+                                    <div className="flex justify-between items-end">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-slate-700">{sh.name}</span>
+                                            <Badge variant="outline" className="h-4 px-1.5 py-0 text-[8px] font-black border-slate-200 text-slate-400 uppercase tracking-tighter">{sh.percentage}%</span>
+                                        </div>
+                                        <span className="text-xs font-black text-primary">{formatCurrency(sh.profitShare)}</span>
+                                    </div>
+                                    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-primary/40 rounded-full" 
+                                            style={{ width: `${sh.percentage}%` }} 
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+          </div>
         )}
       </div>
       

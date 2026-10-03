@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
@@ -369,6 +370,7 @@ export default function ProfilePage() {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="Admin">Admin</SelectItem>
+                                        <SelectItem value="AdminView">Admin View</SelectItem>
                                         <SelectItem value="Manager">Manager</SelectItem>
                                         <SelectItem value="Sales">Sales</SelectItem>
                                         <SelectItem value="Designer">Designer</SelectItem>
