@@ -59,6 +59,17 @@ export function getEthiopianPeriod(date: Date | any) {
 }
 
 /**
+ * Clean redundant text from period labels.
+ */
+function sanitizePeriodLabel(label: string): string {
+    if (!label) return 'Unknown Period';
+    return label
+        .replace(/^Week\s+/i, '')
+        .replace(/\s+am$/i, '')
+        .trim();
+}
+
+/**
  * Converts an Ethiopian date to Gregorian.
  */
 export function ethToGregorian(monthName: string, day: number, ethYear: number): Date {
@@ -73,7 +84,6 @@ export function ethToGregorian(monthName: string, day: number, ethYear: number):
   const yearsDiff = ethYear - 2017;
   
   // Calculate total days elapsed in EC from reference
-  // This is a simplified linear mapping that works well for the 2016-2018 EC range
   let totalDays = yearsDiff * 365 + Math.floor((yearsDiff + 1) / 4);
   totalDays += monthIdx * 30;
   totalDays += (day - 1);
@@ -181,11 +191,10 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             return amount > 0;
         })
         .map(curr => {
-            // Use an actual provided date if available, otherwise default to a safe past date to avoid false matches on "Today"
             const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
-            
-            // Parse the period label to get the "Last Day" Gregorian date for filtering
-            const filterDate = parseFilterDateFromLabel(curr.periodLabel, fallbackDate);
+            const rawLabel = curr.periodLabel || getEthiopianPeriod(fallbackDate);
+            const sanitizedLabel = sanitizePeriodLabel(rawLabel);
+            const filterDate = parseFilterDateFromLabel(sanitizedLabel, fallbackDate);
 
             return {
                 id: curr.id,
@@ -198,7 +207,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
                 hasReceipt: true,
                 ownerId: 'system',
                 isSecondary: true,
-                periodLabel: curr.periodLabel || getEthiopianPeriod(filterDate),
+                periodLabel: sanitizedLabel,
                 type: curr.type || 'Monthly'
             };
         });

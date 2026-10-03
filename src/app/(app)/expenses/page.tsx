@@ -77,7 +77,6 @@ export default function ExpensesPage() {
     });
   }, [expenses, searchTerm, dateRange]);
 
-  // Group by exact Ethiopian periodLabel
   const expensesByPeriod = useMemo(() => {
     const groups: Record<string, { period: string, total: number, items: Expense[] }> = {};
     
@@ -91,7 +90,6 @@ export default function ExpensesPage() {
     });
 
     return Object.values(groups).sort((a, b) => {
-        // Sort by the latest date found in the group for consistent chronological order
         const dateA = a.items[0].date instanceof Date ? a.items[0].date.getTime() : 0;
         const dateB = b.items[0].date instanceof Date ? b.items[0].date.getTime() : 0;
         return dateB - dateA;
@@ -222,68 +220,71 @@ export default function ExpensesPage() {
                         <div className="divide-y">
                             {group.items.map(exp => (
                                 <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-blue-50/20")}>
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                {exp.isSecondary ? (
-                                                    <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none">
-                                                        Official Payroll
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
-                                                        {exp.category}
-                                                    </Badge>
-                                                )}
-                                                <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
-                                            </div>
-                                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                                {exp.isSecondary && <Database className="h-3.5 w-3.5 text-blue-500" />}
-                                                {exp.description}
-                                            </h3>
-                                            <div className="flex items-center gap-3 mt-1.5">
-                                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                    <User className="h-3 w-3" />
-                                                    {exp.paidTo}
+                                    {exp.isSecondary ? (
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
+                                                    Employee Expense
+                                                </Badge>
+                                                <div className="min-w-0">
+                                                    <h3 className="text-sm font-bold text-slate-800 truncate">{exp.paidTo}</h3>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0">
                                                 <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
-                                                <p className="text-[9px] text-muted-foreground uppercase font-medium">
-                                                    {exp.bankAccountId === 'Cash' ? 'Cash' : 
-                                                     paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || (exp.isSecondary ? 'Payroll Payout' : 'Unknown')}
-                                                </p>
                                             </div>
-                                            
-                                            <div className="flex items-center gap-1">
-                                                {!exp.isSecondary ? (
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                ) : (
-                                                    <div className="h-8 w-8 flex items-center justify-center">
-                                                        <ShieldCheck className="h-4 w-4 text-blue-400" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
+                                                            {exp.category}
+                                                        </Badge>
+                                                        <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
                                                     </div>
+                                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                        {exp.description}
+                                                    </h3>
+                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                            <User className="h-3 w-3" />
+                                                            {exp.paidTo}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
+                                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">
+                                                            {exp.bankAccountId === 'Cash' ? 'Cash' : 
+                                                            paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-1">
+                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2 mt-3">
+                                                {exp.receiptAttachment && (
+                                                    <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
+                                                        <FileText className="h-3 w-3" /> Receipt
+                                                    </Button>
+                                                )}
+                                                {exp.withholdAttachment && (
+                                                    <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1 border-amber-200 text-amber-700 bg-amber-50" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
+                                                        <ShieldCheck className="h-3 w-3" /> Withhold 2%
+                                                    </Button>
                                                 )}
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    {!exp.isSecondary && (
-                                        <div className="flex gap-2 mt-3">
-                                            {exp.receiptAttachment && (
-                                                <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
-                                                    <FileText className="h-3 w-3" /> Receipt
-                                                </Button>
-                                            )}
-                                            {exp.withholdAttachment && (
-                                                <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1 border-amber-200 text-amber-700 bg-amber-50" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
-                                                    <ShieldCheck className="h-3 w-3" /> Withhold 2%
-                                                </Button>
-                                            )}
-                                        </div>
+                                        </>
                                     )}
                                 </div>
                             ))}
