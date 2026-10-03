@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, UserPlus, Briefcase } from "lucide-react"
+import { MoreHorizontal, UserPlus, Briefcase, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -157,7 +157,7 @@ export const columns: ColumnDef<AppUser>[] = [
   },
 ]
 
-function UserTableToolbar({ table }: { table: ReturnType<typeof useReactTable<AppUser>> }) {
+function UserTableToolbar({ table }: { table: any }) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
@@ -262,7 +262,7 @@ export default function UsersPage() {
                         <UserTableToolbar table={table} />
                     </DataTable>
                 </CardContent>
-            </div>
+            </Card>
         </div>
     )
 }
