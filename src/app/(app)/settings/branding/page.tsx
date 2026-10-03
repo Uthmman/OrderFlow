@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { useUser } from "@/hooks/use-user";
 
 const brandingSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal("")),
@@ -25,10 +26,13 @@ type BrandingFormValues = z.infer<typeof brandingSchema>;
 
 export default function BrandingSettingsPage() {
   const { settings, loading, updateSettings } = useBrandSettings();
+  const { role } = useUser();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canEdit = role === 'Admin';
 
   const form = useForm<BrandingFormValues>({
     resolver: zodResolver(brandingSchema),
@@ -50,7 +54,7 @@ export default function BrandingSettingsPage() {
   };
 
   const handleLogoUpload = async (file: File) => {
-    if (!file) return;
+    if (!file || !canEdit) return;
     setIsUploading(true);
     try {
         const base64 = await fileToBase64(file);
@@ -69,6 +73,7 @@ export default function BrandingSettingsPage() {
   };
 
   const onSubmit = async (data: BrandingFormValues) => {
+    if (!canEdit) return;
     setIsSubmitting(true);
     await updateSettings(data);
     setIsSubmitting(false);
@@ -108,13 +113,17 @@ export default function BrandingSettingsPage() {
                   </div>
                   <div className="flex flex-col gap-2">
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => e.target.files && handleLogoUpload(e.target.files[0])} />
-                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                      {logoUrl ? "Change Logo" : "Upload Logo"}
-                    </Button>
-                    {logoUrl && (
-                      <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => form.setValue('logoUrl', '', { shouldDirty: true })}>
-                        <Trash2 className="h-3 w-3 mr-2" /> Remove
-                      </Button>
+                    {canEdit && (
+                      <>
+                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                          {logoUrl ? "Change Logo" : "Upload Logo"}
+                        </Button>
+                        {logoUrl && (
+                          <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => form.setValue('logoUrl', '', { shouldDirty: true })}>
+                            <Trash2 className="h-3 w-3 mr-2" /> Remove
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -126,7 +135,7 @@ export default function BrandingSettingsPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
-                    <FormControl><Input {...field} placeholder="e.g. Zenbab Furniture" /></FormControl>
+                    <FormControl><Input {...field} placeholder="e.g. Zenbab Furniture" disabled={!canEdit} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -134,12 +143,14 @@ export default function BrandingSettingsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting || !form.formState.isDirty}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Branding
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end">
+              <Button type="submit" disabled={isSubmitting || !form.formState.isDirty}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Branding
+              </Button>
+            </div>
+          )}
         </form>
       </Form>
     </div>

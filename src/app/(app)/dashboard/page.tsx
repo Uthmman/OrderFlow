@@ -12,10 +12,10 @@ import {
   Target, 
   Clock, 
   BarChart3, 
-  CreditCard, 
   Banknote,
-  Users2,
-  PieChart
+  Users,
+  PieChart,
+  CreditCard
 } from "lucide-react"
 import { useOrders } from "@/hooks/use-orders"
 import { useMemo, useState } from "react"
@@ -30,14 +30,13 @@ import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMo
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 
 export default function Dashboard() {
   const { orders, loading: ordersLoading } = useOrders();
   const { customers, loading: customersLoading } = useCustomers();
   const { expenses, loading: expensesLoading } = useExpenses();
   const { settings: finSettings, loading: financialLoading } = useFinancialSettings();
-  const { user, role, loading: userLoading } = useUser();
+  const { role, loading: userLoading } = useUser();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
@@ -92,7 +91,9 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    // Revenue Logic: Prepaid amount for active orders, Full amount for delivered/paid orders
+    // Realized Revenue Logic: 
+    // - If Delivered or Paid: Full Amount
+    // - If Active: Only Prepayment
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
         const total = order.totalWithVat || order.incomeAmount || 0;
         const prepaid = order.prepaidAmount || 0;
@@ -128,13 +129,6 @@ export default function Dashboard() {
       { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
     ].filter(s => s.count > 0);
   }, [stats]);
-
-  const statusGridCols = useMemo(() => {
-    const count = activeStatuses.length;
-    if (count === 3) return "grid-cols-3";
-    if (count === 4) return "grid-cols-2";
-    return "grid-cols-3"; 
-  }, [activeStatuses]);
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
@@ -192,7 +186,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className={cn("grid gap-2 md:gap-3", statusGridCols)}>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
                 {activeStatuses.map((status) => (
                     <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
                 ))}

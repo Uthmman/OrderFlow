@@ -153,7 +153,9 @@ function OrderActions({ order }: { order: Order }) {
     const { toast } = useToast();
     const { user, role } = useUser();
     const [dialogAction, setDialogAction] = React.useState<'cancel' | 'delete' | null>(null);
-    const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
+    
+    // Admin View cannot edit, delete, or cancel
+    const canModify = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
     const handleAction = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -181,13 +183,14 @@ function OrderActions({ order }: { order: Order }) {
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}`)}>View Details</DropdownMenuItem>
-                {canEdit && <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>Edit Order</DropdownMenuItem>}
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateOrder({ id: order.id, isUrgent: !order.isUrgent }); }}>
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
-                </DropdownMenuItem>
-                {canEdit && (
+                
+                {canModify && (
                     <>
+                        <DropdownMenuItem onClick={() => router.push(`/orders/${order.id}/edit`)}>Edit Order</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateOrder({ id: order.id, isUrgent: !order.isUrgent }); }}>
+                            <AlertTriangle className="mr-2 h-4 w-4" />
+                            <span>{order.isUrgent ? "Remove Urgency" : "Make Urgent"}</span>
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <AlertDialogTrigger asChild>
                              <DropdownMenuItem className="text-destructive" onSelect={() => setDialogAction('cancel')}>Cancel Order</DropdownMenuItem>
@@ -285,7 +288,7 @@ export const columns: ColumnDef<Order>[] = [
     cell: ({ row }) => {
         const order = row.original;
         const { role } = (row as any).tableContext || { role: 'Pending' };
-        const canViewCustomer = role === 'Admin' || role === 'Sales';
+        const canViewCustomer = role === 'Admin' || role === 'Sales' || role === 'AdminView';
         return (
             <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
@@ -333,13 +336,16 @@ export const columns: ColumnDef<Order>[] = [
 
 function OrderTableToolbar({ table }: { table: TableInstance<Order> }) {
   const { deleteMultipleOrders, updateMultipleOrdersStatus } = useOrders();
+  const { role } = useUser();
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
   const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
+
+  const canModify = role === 'Admin' || role === 'Sales';
 
   return (
     <div className="flex items-center justify-between p-4 bg-muted/20 border-b">
        <div className="flex items-center gap-2 flex-wrap">
-          {numSelected > 0 ? (
+          {numSelected > 0 && canModify ? (
               <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -386,7 +392,7 @@ function OrderTableToolbar({ table }: { table: TableInstance<Order> }) {
           ) : (
              <div className="flex items-center gap-2">
                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
-                     Manage
+                     {numSelected > 0 && !canModify ? `Selected (${numSelected})` : "Manage"}
                  </Button>
                  <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-muted-foreground uppercase tracking-wider px-3" disabled>
                      Export
@@ -421,7 +427,7 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
                                 <StatusCell order={order} />
                                 <DeadlineDisplay deadline={order.deadline} />
                             </div>
-                             {(role === 'Admin' || role === 'Sales') && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
+                             {(role === 'Admin' || role === 'Sales' || role === 'AdminView') && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
                         </div>
                     </div>
                  </Card>

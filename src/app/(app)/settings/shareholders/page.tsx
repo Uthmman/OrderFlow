@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useUser } from "@/hooks/use-user";
+import { cn } from "@/lib/utils";
 
 const shareholderSchema = z.object({
   id: z.string(),
@@ -30,8 +32,11 @@ type FinancialFormValues = z.infer<typeof financialFormSchema>;
 
 export default function ShareholderSettingsPage() {
   const { settings, loading, updateShareholders } = useFinancialSettings();
+  const { role } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const canEdit = role === 'Admin';
 
   const form = useForm<FinancialFormValues>({
     resolver: zodResolver(financialFormSchema),
@@ -53,6 +58,7 @@ export default function ShareholderSettingsPage() {
   const isOverLimit = totalPercentage > 100;
 
   const onSubmit = async (data: FinancialFormValues) => {
+    if (!canEdit) return;
     if (totalPercentage > 100) {
       toast({ 
         variant: "destructive", 
@@ -86,15 +92,17 @@ export default function ShareholderSettingsPage() {
                   </CardTitle>
                   <CardDescription>Allocate net profit shares among company owners.</CardDescription>
                 </div>
-                <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => append({ id: uuidv4(), name: "", percentage: 0 })}
-                    className="h-9 font-bold"
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Shareholder
-                </Button>
+                {canEdit && (
+                    <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => append({ id: uuidv4(), name: "", percentage: 0 })}
+                        className="h-9 font-bold"
+                    >
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add Shareholder
+                    </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-8 space-y-6">
@@ -107,7 +115,7 @@ export default function ShareholderSettingsPage() {
                                 render={({ field }) => (
                                     <FormItem className="flex-grow">
                                         <FormLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Shareholder Name</FormLabel>
-                                        <FormControl><Input {...field} placeholder="Full Name" className="h-11" /></FormControl>
+                                        <FormControl><Input {...field} placeholder="Full Name" className="h-11" disabled={!canEdit} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -119,22 +127,24 @@ export default function ShareholderSettingsPage() {
                                     <FormItem className="w-32">
                                         <FormLabel className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Share %</FormLabel>
                                         <div className="relative">
-                                            <FormControl><Input type="number" {...field} className="h-11 pr-8 font-bold" /></FormControl>
+                                            <FormControl><Input type="number" {...field} className="h-11 pr-8 font-bold" disabled={!canEdit} /></FormControl>
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">%</span>
                                         </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-11 w-11 text-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-colors" 
-                                onClick={() => remove(index)}
-                            >
-                                <Trash2 className="h-5 w-5" />
-                            </Button>
+                            {canEdit && (
+                                <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-11 w-11 text-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-colors" 
+                                    onClick={() => remove(index)}
+                                >
+                                    <Trash2 className="h-5 w-5" />
+                                </Button>
+                            )}
                         </div>
                     ))}
 
@@ -173,12 +183,14 @@ export default function ShareholderSettingsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end sticky bottom-6 z-10">
-            <Button type="submit" disabled={isSubmitting || !form.formState.isDirty || isOverLimit} className="px-10 h-12 rounded-full shadow-xl shadow-primary/20">
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Profit Distribution
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="flex justify-end sticky bottom-6 z-10">
+                <Button type="submit" disabled={isSubmitting || !form.formState.isDirty || isOverLimit} className="px-10 h-12 rounded-full shadow-xl shadow-primary/20">
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Profit Distribution
+                </Button>
+            </div>
+          )}
         </form>
       </Form>
     </div>

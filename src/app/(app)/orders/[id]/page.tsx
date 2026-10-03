@@ -1064,7 +1064,7 @@ function OrderDetailPageContent() {
   
   const customer = getCustomerById(order.customerId || "");
   const canEdit = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
-  const canChangeStatus = ['Admin', 'Manager'].includes(role || '');
+  const canChangeStatus = (role === 'Admin' || role === 'Manager');
   const isDesigner = role === 'Designer';
   const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
   const prepaid = order.prepaidAmount || 0;
