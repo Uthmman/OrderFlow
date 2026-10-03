@@ -791,9 +791,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredSecondaryItems.length === 0 ? (
+                                            ) : filteredItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
-                                            ) : filteredSecondaryItems.map(item => (
+                                            ) : filteredItems.map(item => (
                                                 <button 
                                                     key={item.id} 
                                                     type="button" 

@@ -154,7 +154,6 @@ function OrderActions({ order }: { order: Order }) {
     const { user, role } = useUser();
     const [dialogAction, setDialogAction] = React.useState<'cancel' | 'delete' | null>(null);
     
-    // Admin View and other non-admin/sales-owners cannot modify
     const canModify = role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id);
 
     const handleAction = (e: React.MouseEvent) => {

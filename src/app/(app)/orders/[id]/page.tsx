@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -17,7 +16,7 @@ import {
   Ruler, 
   Box, 
   User, 
-  Image as ImageIcon, 
+  ImageIcon, 
   AlertTriangle, 
   File, 
   FileText, 

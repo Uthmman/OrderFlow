@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -34,6 +35,9 @@ import { useUser } from "@/hooks/use-user"
 
 function CustomerActions({ customer }: { customer: Customer }) {
     const router = useRouter();
+    const { role } = useUser();
+    const canModify = role === 'Admin' || role === 'Sales';
+
     return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -47,8 +51,12 @@ function CustomerActions({ customer }: { customer: Customer }) {
             <DropdownMenuItem onClick={() => router.push(`/customers/${customer.id}`)}>
               View Customer
             </DropdownMenuItem>
-            <DropdownMenuItem>Edit</DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+            {canModify && (
+                <>
+                    <DropdownMenuItem>Edit</DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
     )
@@ -155,8 +163,6 @@ function CustomerTableToolbar({ table }: { table: ReturnType<typeof useReactTabl
 }
 
 function MobileCustomerList({ customers }: { customers: Customer[] }) {
-    const { orders } = useOrders();
-
     const getCustomerOrderCount = (customerId: string) => {
         const customer = customers.find(c => c.id === customerId);
         return customer?.orderIds?.length || 0;
@@ -215,7 +221,6 @@ export default function CustomersPage() {
     const { customers, loading } = useCustomers();
     const { role, loading: userLoading } = useUser();
     const data = React.useMemo(() => customers, [customers]);
-    const router = useRouter();
 
     const table = useReactTable({
         data,
@@ -227,7 +232,7 @@ export default function CustomersPage() {
     })
 
     if (loading || userLoading) {
-        return <div>Loading...</div>
+        return <div className="flex h-96 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin opacity-20" /></div>
     }
     
     if (role === 'Designer' || role === 'Manager') {
