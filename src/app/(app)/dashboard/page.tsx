@@ -114,7 +114,6 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    // Realized Revenue Logic: Cash Flow based
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
       const total = order.totalWithVat || order.incomeAmount || 0;
       const prepaid = order.prepaidAmount || 0;
@@ -123,7 +122,7 @@ export default function Dashboard() {
     }, 0);
 
     const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
-    const totalCollectedPrepayments = filteredOrdersByDate.reduce((sum, order) => sum + (order.prepaidAmount || 0), 0);
+    const totalCollectedPrepayments = realizedRevenue; 
     
     const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
     const profit = realizedRevenue - totalExp;
@@ -138,7 +137,6 @@ export default function Dashboard() {
       onProduction, 
       delivered, 
       revenue: realizedRevenue, 
-      prepaid: totalCollectedPrepayments, 
       totalExp, 
       profit, 
       unpaid 
@@ -160,7 +158,7 @@ export default function Dashboard() {
       { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
       { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
       { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
-    ].filter(s => s.count > 0);
+    ].filter(s => s.count > 0 || ['Designing', 'In Progress', 'Production'].includes(s.label));
   }, [stats]);
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {

@@ -1019,7 +1019,6 @@ function OrderDetailPageContent() {
   const [isTransferring, setIsTransferring] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
 
-  // Scroll logic for mobile sub-header
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
 
@@ -1361,7 +1360,7 @@ function OrderDetailPageContent() {
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
                                     {order.withReceipt && <Receipt className="h-6 w-6 text-muted-foreground/60" />}
-                                    {canChangeStatus && !isAdminView ? (
+                                    {canChangeStatus ? (
                                         <div className="flex items-center gap-2">
                                             <StatusChanger order={order} onStatusChange={handleStatusChange} />
                                             {order.assignedTo && order.assignedTo.length > 0 && (
@@ -1386,7 +1385,7 @@ function OrderDetailPageContent() {
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
                                 <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                                {canEdit && !isAdminView && (
+                                {canEdit && (
                                     <>
                                     <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
                                     <DropdownMenu>
@@ -1495,7 +1494,7 @@ function OrderDetailPageContent() {
                                         </div>
                                         {activeTab === 'specs' && (
                                             <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
-                                                {canChangeStatus && !isAdminView ? (
+                                                {canChangeStatus ? (
                                                     <StatusChanger order={order} onStatusChange={handleStatusChange} />
                                                 ) : (
                                                     <StatusBadge status={order.status} />
@@ -1512,7 +1511,7 @@ function OrderDetailPageContent() {
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
-                                    {canEdit && !isAdminView && (
+                                    {canEdit && (
                                         <>
                                             <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
                                             {activeTab === 'specs' && (
