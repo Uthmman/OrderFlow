@@ -205,8 +205,8 @@ export default function ExpensesPage() {
             {expensesByPeriod.map(group => {
                 const containsPayroll = group.items.some(i => i.isSecondary);
                 const mainHeaderText = containsPayroll 
-                    ? group.period 
-                    : (group.items.length === 1 ? group.items[0].description : group.period);
+                    ? "Employee Payout" 
+                    : (group.items.length === 1 ? group.items[0].description : "Batch Expense");
 
                 return (
                     <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
@@ -219,15 +219,13 @@ export default function ExpensesPage() {
                                         </h2>
                                         {containsPayroll && (
                                             <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
-                                                Employee Expense
+                                                System Record
                                             </Badge>
                                         )}
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <Badge variant="outline" className="text-[9px] font-bold h-4">{group.items.length} Items</Badge>
-                                        {!containsPayroll && group.items.length === 1 && (
-                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
-                                        )}
+                                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{group.period}</span>
+                                        <Badge variant="outline" className="text-[8px] font-bold h-3.5 px-1">{group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}</Badge>
                                     </div>
                                 </div>
                                 <div className="text-right mr-4">
