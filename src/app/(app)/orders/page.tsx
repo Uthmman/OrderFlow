@@ -43,9 +43,6 @@ export default function OrdersPage() {
     });
   };
 
-  // Filter orders by visibility rules:
-  // - Admin and AdminView see EVERYTHING.
-  // - Others see all non-drafts, but drafts only if they own them.
   const getVisibleOrders = useMemo(() => {
       if (!userProfile) return [];
       const isAdminType = userProfile.role === 'Admin' || userProfile.role === 'AdminView';
@@ -54,7 +51,7 @@ export default function OrdersPage() {
           if (order.status === 'Pending') {
               return order.ownerId === userProfile.id || isAdminType;
           }
-          return true; // Everyone with app access can see non-drafts
+          return true;
       });
   }, [orders, userProfile]);
 
