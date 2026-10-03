@@ -140,7 +140,7 @@ const STEPS = [
   { id: 7, title: 'Color', fields: [] },
   { id: 8, title: 'Review', fields: [] },
   { id: 9, title: 'Pricing & Receipt', fields: ['incomeAmount'] },
-  { id: 10, title: 'Finalize', fields: ['deadline'] }
+  { id: 10, title: 'Finalize', fields: ['deadline', 'creationDate'] }
 ];
 
 const toDate = (timestamp: any): Date | undefined => {
@@ -748,7 +748,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                             const up = [...getValues('products')];
                                             up[currentProductIndex].attachments = (up[currentProductIndex].attachments || []).filter((a: any) => a.url !== att.url);
                                             if (up[currentProductIndex].mainImageUrl === att.url) up[currentProductIndex].mainImageUrl = up[currentProductIndex].attachments[0]?.url;
-                                            setValue('products', updated, { shouldDirty: true });
+                                            setValue('products', up, { shouldDirty: true });
                                         }}><Trash2 className="h-3 w-3 mr-1" /> Remove</Button>
                                     </div>
                                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-1">
@@ -791,7 +791,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                         <ScrollArea className="h-64">
                                             {secondaryLoading ? (
                                                 <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                            ) : filteredItems.length === 0 ? (
+                                            ) : filteredSecondaryItems.length === 0 ? (
                                                 <p className="p-4 text-center text-xs text-muted-foreground">No catalog items found.</p>
                                             ) : filteredSecondaryItems.map(item => (
                                                 <button 
