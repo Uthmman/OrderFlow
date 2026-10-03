@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Progress } from '@/components/ui/progress';
 import { 
     Loader2, 
     PlusCircle, 
@@ -135,6 +136,23 @@ export default function ExpensesPage() {
     return filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
   }, [filteredExpenses]);
 
+  const categoryStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    filteredExpenses.forEach(exp => {
+      // Group secondary payroll under "Employee" as requested
+      const catName = exp.category === 'Employee Expense' ? 'Employee' : exp.category || 'Other';
+      stats[catName] = (stats[catName] || 0) + exp.amount;
+    });
+
+    return Object.entries(stats)
+      .map(([name, amount]) => ({
+        name,
+        amount,
+        percentage: totalSpentAllTime > 0 ? (amount / totalSpentAllTime) * 100 : 0
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [filteredExpenses, totalSpentAllTime]);
+
   const handleAddExpense = async () => {
     if (!newExpense.description || newExpense.amount <= 0) return;
     setIsSubmitting(true);
@@ -190,7 +208,7 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-700">
+    <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-700 pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold font-headline tracking-tight">Financial Ledger</h1>
@@ -201,14 +219,40 @@ export default function ExpensesPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-primary/5 border-primary/10">
-              <CardHeader className="py-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="bg-primary/5 border-primary/10 lg:col-span-1">
+              <CardHeader className="py-4 pb-2">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Filtered Outflow</CardTitle>
               </CardHeader>
+              <CardContent className="space-y-4">
+                  <div>
+                    <div className="text-4xl font-black text-primary tracking-tighter">{formatCurrency(totalSpentAllTime)}</div>
+                    <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Transactions</p>
+                  </div>
+              </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-2 border-dashed bg-muted/5 overflow-hidden">
+              <CardHeader className="py-4 pb-2">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Allocation by Category</CardTitle>
+              </CardHeader>
               <CardContent>
-                  <div className="text-4xl font-black text-primary tracking-tighter">{formatCurrency(totalSpentAllTime)}</div>
-                  <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Transactions</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+                      {categoryStats.length === 0 ? (
+                          <p className="text-[11px] text-muted-foreground italic col-span-full">No distribution data available for current filter.</p>
+                      ) : categoryStats.map(stat => (
+                          <div key={stat.name} className="space-y-2">
+                              <div className="flex justify-between items-end">
+                                  <span className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">{stat.name}</span>
+                                  <div className="text-right">
+                                      <span className="text-[11px] font-black text-primary block">{formatCurrency(stat.amount)}</span>
+                                      <span className="text-[9px] font-bold text-muted-foreground uppercase">{stat.percentage.toFixed(1)}%</span>
+                                  </div>
+                              </div>
+                              <Progress value={stat.percentage} className="h-1.5" />
+                          </div>
+                      ))}
+                  </div>
               </CardContent>
           </Card>
       </div>
@@ -218,7 +262,7 @@ export default function ExpensesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input 
             placeholder="Search vendor, description or label..." 
-            className="pl-10 bg-background" 
+            className="pl-10 bg-background h-10" 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
