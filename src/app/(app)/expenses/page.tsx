@@ -201,97 +201,104 @@ export default function ExpensesPage() {
         )}
 
         <Accordion type="multiple" className="space-y-4" defaultValue={expensesByPeriod.length > 0 ? [expensesByPeriod[0].period] : []}>
-            {expensesByPeriod.map(group => (
-                <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
-                    <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">
-                        <div className="flex flex-1 items-center justify-between gap-4 text-left">
-                            <div className="space-y-0.5">
-                                <h2 className="text-xl font-black text-slate-900 tracking-tight">{group.period}</h2>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="text-[9px] font-bold h-4">{group.items.length} Items</Badge>
+            {expensesByPeriod.map(group => {
+                const containsPayroll = group.items.some(i => i.isSecondary);
+                return (
+                    <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
+                        <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">
+                            <div className="flex flex-1 items-center justify-between gap-4 text-left">
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-3">
+                                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{group.period}</h2>
+                                        {containsPayroll && (
+                                            <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
+                                                Employee Expense
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline" className="text-[9px] font-bold h-4">{group.items.length} Items</Badge>
+                                    </div>
+                                </div>
+                                <div className="text-right mr-4">
+                                    <p className="text-lg font-black text-primary">{formatCurrency(group.total)}</p>
                                 </div>
                             </div>
-                            <div className="text-right mr-4">
-                                <p className="text-lg font-black text-primary">{formatCurrency(group.total)}</p>
-                            </div>
-                        </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="p-0 border-t">
-                        <div className="divide-y">
-                            {group.items.map(exp => (
-                                <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-blue-50/20")}>
-                                    {exp.isSecondary ? (
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex items-center gap-3">
-                                                <Badge className="text-[8px] font-black uppercase px-1.5 py-0 bg-blue-600 text-white h-4 border-none shrink-0">
-                                                    Employee Expense
-                                                </Badge>
-                                                <div className="min-w-0">
-                                                    <h3 className="text-sm font-bold text-slate-800 truncate">{exp.paidTo}</h3>
+                        </AccordionTrigger>
+                        <AccordionContent className="p-0 border-t">
+                            <div className="divide-y">
+                                {group.items.map(exp => (
+                                    <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-blue-50/20")}>
+                                        {exp.isSecondary ? (
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="min-w-0">
+                                                        <h3 className="text-sm font-bold text-slate-800 truncate">{exp.paidTo}</h3>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
                                                 </div>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
-                                                            {exp.category}
-                                                        </Badge>
-                                                        <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
+                                        ) : (
+                                            <>
+                                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
+                                                                {exp.category}
+                                                            </Badge>
+                                                            <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
+                                                        </div>
+                                                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                            {exp.description}
+                                                        </h3>
+                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                                <User className="h-3 w-3" />
+                                                                {exp.paidTo}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                                        {exp.description}
-                                                    </h3>
-                                                    <div className="flex items-center gap-3 mt-1.5">
-                                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                            <User className="h-3 w-3" />
-                                                            {exp.paidTo}
+
+                                                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                                        <div className="text-right">
+                                                            <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
+                                                            <p className="text-[9px] text-muted-foreground uppercase font-medium">
+                                                                {exp.bankAccountId === 'Cash' ? 'Cash' : 
+                                                                paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown'}
+                                                            </p>
+                                                        </div>
+                                                        
+                                                        <div className="flex items-center gap-1">
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                                                    <div className="text-right">
-                                                        <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
-                                                        <p className="text-[9px] text-muted-foreground uppercase font-medium">
-                                                            {exp.bankAccountId === 'Cash' ? 'Cash' : 
-                                                            paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown'}
-                                                        </p>
-                                                    </div>
-                                                    
-                                                    <div className="flex items-center gap-1">
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
-                                                            <Trash2 className="h-4 w-4" />
+                                                <div className="flex gap-2 mt-3">
+                                                    {exp.receiptAttachment && (
+                                                        <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
+                                                            <FileText className="h-3 w-3" /> Receipt
                                                         </Button>
-                                                    </div>
+                                                    )}
+                                                    {exp.withholdAttachment && (
+                                                        <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1 border-amber-200 text-amber-700 bg-amber-50" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
+                                                            <ShieldCheck className="h-3 w-3" /> Withhold 2%
+                                                        </Button>
+                                                    )}
                                                 </div>
-                                            </div>
-
-                                            <div className="flex gap-2 mt-3">
-                                                {exp.receiptAttachment && (
-                                                    <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
-                                                        <FileText className="h-3 w-3" /> Receipt
-                                                    </Button>
-                                                )}
-                                                {exp.withholdAttachment && (
-                                                    <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1 border-amber-200 text-amber-700 bg-amber-50" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
-                                                        <ShieldCheck className="h-3 w-3" /> Withhold 2%
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </AccordionContent>
-                </AccordionItem>
-            ))}
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                );
+            })}
         </Accordion>
       </div>
 
