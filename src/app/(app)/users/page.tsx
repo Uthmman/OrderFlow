@@ -47,11 +47,11 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
 
     const handleRoleChange = (role: Role) => {
         updateUserRole(targetUser.id, role);
-    }
+    };
 
     const handleWorkerTypeChange = (type: 'Monthly' | 'Daily') => {
         updateUserProfile(targetUser.id, { workerType: type });
-    }
+    };
     
     return (
         <DropdownMenu>
@@ -89,7 +89,7 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
             </Select>
           </DropdownMenuContent>
         </DropdownMenu>
-    )
+    );
 }
 
 const roleVariantMap: Record<Role, "default" | "secondary" | "destructive" | "outline"> = {
@@ -264,5 +264,5 @@ export default function UsersPage() {
                 </CardContent>
             </Card>
         </div>
-    )
+    );
 }

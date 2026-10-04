@@ -896,7 +896,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <FormField control={form.control} name={`products.${currentProductIndex}.colorAsAttachment`} render={({ field }) => (
                         <FormItem className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
                             <div><FormLabel>Color as attached picture</FormLabel></div>
-                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormItem>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                         </FormItem>
                     )} />
                     {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
