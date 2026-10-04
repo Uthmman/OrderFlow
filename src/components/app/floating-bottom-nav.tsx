@@ -4,27 +4,34 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, MessageSquare, Library } from "lucide-react";
+import { LayoutDashboard, Package, MessageSquare, Library, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/hooks/use-user";
 import { useNotifications } from "@/hooks/use-notifications";
 
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/orders", icon: Package, label: "Orders" },
-  { href: "/chat", icon: MessageSquare, label: "Chat" },
-  { href: "/products", icon: Library, label: "Products" },
-];
-
 export function FloatingBottomNav() {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { user, role } = useUser();
   const { notifications } = useNotifications();
 
   // Filter for unread messages specifically for the Chat badge
   const chatUnreadCount = notifications.filter(n => !n.isRead && (n.type === 'New Message' || n.type === 'chat')).length;
 
   if (!user) return null;
+
+  // shared base items
+  const navItems = [
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/orders", icon: Package, label: "Orders" },
+    { href: "/chat", icon: MessageSquare, label: "Chat" },
+  ];
+
+  // Role based items
+  if (role === 'Sales' || role === 'Designer') {
+    navItems.push({ href: "/products", icon: Library, label: "Products" });
+  } else if (role === 'Admin' || role === 'Manager' || role === 'AdminView') {
+    navItems.push({ href: "/expenses", icon: Receipt, label: "Expenses" });
+  }
 
   return (
     <div className="fixed bottom-6 left-1/2 z-50 w-[calc(100%-28px)] max-w-md -translate-x-1/2 md:hidden">

@@ -49,7 +49,7 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
-        <link rel="apple-touch-icon" href="https://picsum.photos/seed/orderflow/192/192" />
+        <link rel="apple-touch-icon" href="https://picsum.photos/seed/zenbab-furniture-icon/192/192" data-ai-hint="furniture dresser" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="font-body antialiased">
