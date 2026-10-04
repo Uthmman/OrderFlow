@@ -1060,26 +1060,12 @@ function OrderDetailPageContent() {
     return order.uniqueName;
   }, [order?.uniqueName]);
 
-  if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
-  
-  const customer = getCustomerById(order.customerId || "");
-  const isAdminView = role === 'AdminView';
-  const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && !isAdminView;
-  const canChangeStatus = (role === 'Admin' || role === 'Manager') && !isAdminView;
-  const isDesigner = role === 'Designer';
-  const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
-  const prepaid = order.prepaidAmount || 0;
-  const isPaid = order.paymentStatus === 'Paid';
-
-  const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-  const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
-
-    const handleCancel = () => { 
+  const handleCancel = () => { 
         if (!orderData) return; 
         startTransition(async () => { 
             setOptimisticOrder({ status: "Cancelled" } as any); 
             await updateOrder({ id: orderData.id, status: "Cancelled" }); 
-            toast({ title: "Order Cancelled", description: `Order ${order.uniqueName} cancelled.` }); 
+            toast({ title: "Order Cancelled", description: `Order ${order?.uniqueName} cancelled.` }); 
         }); 
     };
 
@@ -1088,7 +1074,7 @@ function OrderDetailPageContent() {
         const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); 
         if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); 
         deleteOrder(orderData.id, allAttachments); 
-        toast({ title: "Order Deleted", description: `${order.uniqueName} deleted.` }); 
+        toast({ title: "Order Deleted", description: `${order?.uniqueName} deleted.` }); 
         router.push("/orders"); 
     };
 
@@ -1109,6 +1095,8 @@ function OrderDetailPageContent() {
     };
 
     const handleImageClick = (clickedAttachment: OrderAttachment) => { 
+        const rawImageAttachments = (order?.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+        const allImageAttachments = order?.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
         const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); 
         if (imageIndex !== -1) { 
             setGalleryStartIndex(imageIndex); 
@@ -1122,7 +1110,7 @@ function OrderDetailPageContent() {
     };
 
     const startDesign = () => {
-        if (!user) return;
+        if (!user || !order) return;
         handleStatusChange('Designing');
         if (!order.assignedTo?.includes(user.id)) {
             updateOrder({ id: order.id, assignedTo: arrayUnion(user.id) as any });
@@ -1137,7 +1125,7 @@ function OrderDetailPageContent() {
     };
 
     const transferToStock = async () => {
-        if (!order.products || order.products.length === 0) return;
+        if (!order || !order.products || order.products.length === 0) return;
         setIsTransferring(true);
         try {
             for (const product of order.products) {
@@ -1160,6 +1148,7 @@ function OrderDetailPageContent() {
     };
 
     const downloadQRCode = async () => {
+        if (!order) return;
         const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
         if (!qrCanvas) return;
         const width = 2400; 
@@ -1214,6 +1203,20 @@ function OrderDetailPageContent() {
         downloadLink.click(); 
         document.body.removeChild(downloadLink);
     };
+
+  if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
+  
+  const customer = getCustomerById(order.customerId || "");
+  const isAdminView = role === 'AdminView';
+  const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && !isAdminView;
+  const canChangeStatus = (role === 'Admin' || role === 'Manager') && !isAdminView;
+  const isDesigner = role === 'Designer';
+  const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
+  const prepaid = order.prepaidAmount || 0;
+  const isPaid = order.paymentStatus === 'Paid';
+
+  const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
 
     const OrderInfoCard = (
         <Card>

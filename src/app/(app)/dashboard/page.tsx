@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -158,7 +157,7 @@ export default function Dashboard() {
       { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
       { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
       { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
-    ].filter(s => s.count > 0 || ['Designing', 'In Progress', 'Production'].includes(s.label));
+    ].filter(s => s.count > 0);
   }, [stats]);
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
@@ -168,6 +167,8 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const gridColsClass = activeStatuses.length === 3 ? "grid-cols-3" : (activeStatuses.length === 1 ? "grid-cols-1" : "grid-cols-2");
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto">
@@ -217,7 +218,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
+            <div className={cn("grid gap-2 md:gap-3", gridColsClass)}>
               {activeStatuses.map((status) => (
                 <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
               ))}
