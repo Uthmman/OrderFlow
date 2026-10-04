@@ -733,7 +733,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                             <UploadCloud className="h-10 w-10 mx-auto mb-3 text-muted-foreground opacity-50" />
                             <p className="text-sm font-medium">Click to upload product images</p>
                             <p className="text-[10px] text-muted-foreground mt-1">Supports JPG, PNG, WEBP</p>
-                            <input ref={fileInputRef} type="file" multiple onChange={handleFileUpload} className="hidden" />
+                            <input ref={fileInputRef} type="file" multiple className="hidden" />
                         </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
@@ -812,7 +812,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                                         {item.imageUrl ? (
                                                             <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                                                         ) : (
-                                                            <Package className="h-5 w-5 opacity-60" />
+                                                            <Package className="h-4 w-4 opacity-60" />
                                                         )}
                                                     </div>
                                                     <div className="min-w-0">
