@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -121,11 +122,10 @@ export default function Dashboard() {
     }, 0);
 
     const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
-    const totalCollectedPrepayments = realizedRevenue; 
     
     const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
     const profit = realizedRevenue - totalExp;
-    const unpaid = totalPotentialSales - totalCollectedPrepayments;
+    const unpaid = totalPotentialSales - realizedRevenue;
     
     return { 
       totalOrders, 
@@ -162,13 +162,13 @@ export default function Dashboard() {
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
-      <div className="flex h-96 items-center justify-center">
+      <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary opacity-30" />
       </div>
     );
   }
 
-  const gridColsClass = activeStatuses.length === 3 ? "grid-cols-3" : (activeStatuses.length === 1 ? "grid-cols-1" : "grid-cols-2");
+  const gridColsClass = activeStatuses.length <= 3 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2";
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto">

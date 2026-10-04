@@ -93,8 +93,8 @@ const DeadlineDisplay = ({ deadline }: { deadline: any }) => {
     }
 
     return (
-        <div className="flex flex-col">
-            <span className="text-xs font-semibold">{formatTimestamp(deadline)}</span>
+        <div className="flex flex-col text-right">
+            <span className="text-xs font-semibold tabular-nums">{formatTimestamp(deadline)}</span>
             <span className={cn("text-[10px] uppercase font-bold tracking-tight", colorClass)}>{text}</span>
         </div>
     )
@@ -410,21 +410,29 @@ function MobileOrderList({ table }: { table: TableInstance<Order> }) {
         <div className="space-y-3 p-2">
             {orders.map(order => (
                  <Card key={order.id} className="hover:bg-muted/50 transition-all active:scale-[0.98] border-muted-foreground/10 shadow-sm overflow-hidden cursor-pointer" onClick={() => router.push(`/orders/${order.id}`)}>
-                    <div className="p-3 flex gap-3">
+                    <div className="p-3 flex gap-3 items-start">
                         <CategoryIcon order={order} />
-                        <div className="1 min-w-0 space-y-1">
-                            <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                    <h3 className="text-sm font-bold truncate leading-tight">{order.uniqueName}</h3>
-                                    {order.withReceipt && <Receipt className="h-3 w-3 text-muted-foreground/60 shrink-0" />}
+                        <div className="flex-1 min-w-0 flex justify-between gap-2">
+                            <div className="space-y-2 min-w-0">
+                                <div className="flex items-start gap-1.5">
+                                    <h3 className="text-sm font-bold leading-tight break-words">
+                                        {order.uniqueName}
+                                    </h3>
+                                    {order.withReceipt && <Receipt className="h-3 w-3 text-muted-foreground/60 shrink-0 mt-0.5" />}
                                 </div>
-                                <div onClick={e => e.stopPropagation()} className="shrink-0 -mt-1 ml-2"><OrderActions order={order} /></div>
-                            </div>
-                            <div className="flex items-center justify-between">
                                 <StatusCell order={order} />
-                                <DeadlineDisplay deadline={order.deadline} />
                             </div>
-                             {(role === 'Admin' || role === 'Sales' || role === 'AdminView') && <div className="text-right text-xs font-bold text-primary">{formatCurrency(order.incomeAmount)}</div>}
+                            <div className="flex flex-col items-end text-right shrink-0 gap-1">
+                                <div onClick={e => e.stopPropagation()} className="relative -mt-1 -mr-1">
+                                    <OrderActions order={order} />
+                                </div>
+                                <DeadlineDisplay deadline={order.deadline} />
+                                {(role === 'Admin' || role === 'Sales' || role === 'AdminView') && (
+                                    <div className="text-[11px] font-black text-primary tracking-tighter mt-1">
+                                        {formatCurrency(order.incomeAmount)}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                  </Card>

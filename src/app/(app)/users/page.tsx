@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { MoreHorizontal, UserPlus, Briefcase, Loader2 } from "lucide-react"
+import { MoreHorizontal, Briefcase, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -26,7 +26,6 @@ import { DataTableColumnHeader } from "@/components/app/data-table/data-table-co
 import { DataTableViewOptions } from "@/components/app/data-table/data-table-view-options"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useRouter } from "next/navigation"
 import { useUser, useUsers } from "@/hooks/use-user"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -39,9 +38,10 @@ import {
 import { AppUser, Role } from "@/lib/types"
 
 function UserActions({ user: targetUser }: { user: AppUser }) {
-    const { user, updateUserRole, updateUserProfile } = useUsers();
+    const { updateUserRole, updateUserProfile } = useUsers();
+    const { user: currentUser } = useUser();
 
-    if (user?.role !== 'Admin' || targetUser.email === 'zenbabfurniture@gmail.com') {
+    if (currentUser?.role !== 'Admin' || targetUser.email === 'zenbabfurniture@gmail.com') {
         return null;
     }
 
@@ -58,7 +58,7 @@ function UserActions({ user: targetUser }: { user: AppUser }) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
               <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
+              <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -213,9 +213,9 @@ function MobileUserList({ users }: { users: AppUser[] }) {
     )
 }
 
-
 export default function UsersPage() {
-    const { users, loading, user: currentUser } = useUsers();
+    const { users, loading } = useUsers();
+    const { user: currentUser } = useUser();
 
     const table = useReactTable({
         data: users,
