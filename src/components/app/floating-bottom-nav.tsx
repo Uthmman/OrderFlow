@@ -26,10 +26,13 @@ export function FloatingBottomNav() {
     { href: "/chat", icon: MessageSquare, label: "Chat" },
   ];
 
-  // Role based items
-  if (role === 'Sales' || role === 'Designer') {
+  // Role based items: Sales and Designers see Products
+  if (role === 'Sales' || role === 'Designer' || role === 'Admin') {
     navItems.push({ href: "/products", icon: Library, label: "Products" });
-  } else if (role === 'Admin' || role === 'Manager' || role === 'AdminView') {
+  }
+
+  // Role based items: Admin, Manager and AdminView see Expenses
+  if (role === 'Admin' || role === 'Manager' || role === 'AdminView') {
     navItems.push({ href: "/expenses", icon: Receipt, label: "Expenses" });
   }
 
