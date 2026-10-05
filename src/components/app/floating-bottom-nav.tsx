@@ -28,12 +28,12 @@ export function FloatingBottomNav() {
   // Role based items: Sales and Designers see Products
   // Admin sees both
   if (role === 'Sales' || role === 'Designer' || role === 'Admin') {
-    navItems.push({ href: "/products", icon: Library, label: "Catalog" });
+    navItems.push({ href: "/products", icon: Library, label: "Product" });
   }
 
   // Role based items: Admin, Manager and AdminView see Expenses
   if (role === 'Admin' || role === 'Manager' || role === 'AdminView') {
-    navItems.push({ href: "/expenses", icon: Receipt, label: "Ledger" });
+    navItems.push({ href: "/expenses", icon: Receipt, label: "Expense" });
   }
 
   return (

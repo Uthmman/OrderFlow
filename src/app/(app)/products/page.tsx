@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useMemo, useTransition } from 'react';
@@ -152,7 +151,7 @@ function ProductCatalog() {
         </div>
       </div>
 
-       <div className={cn("grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 transition-opacity duration-300", isPending ? "opacity-30" : "opacity-100")}>
+       <div className={cn("grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 transition-opacity duration-300", isPending ? "opacity-30" : "opacity-100")}>
           {categoryList.map(cat => {
             const IconComponent = (LucideIcons as any)[cat.icon] || LucideIcons.Box;
             const count = categoryCounts[cat.name] || 0;
@@ -166,22 +165,22 @@ function ProductCatalog() {
             return (
               <CardComponent key={cat.name} {...cardProps}>
                 <Card className={cn("hover:border-primary transition-all duration-300 group h-full relative overflow-hidden shadow-sm hover:shadow-md", cat.name !== 'All Products' && 'cursor-pointer active:scale-95')}>
-                   <div className="absolute top-0 right-0 h-20 w-20 -mr-10 -mt-10 bg-primary/5 rounded-full transition-all group-hover:bg-primary/10 group-hover:scale-150" />
-                  <CardContent className="pt-8 relative">
+                   <div className="absolute top-0 right-0 h-16 w-16 -mr-8 -mt-8 bg-primary/5 rounded-full transition-all group-hover:bg-primary/10 group-hover:scale-150" />
+                  <CardContent className="pt-6 sm:pt-8 relative">
                     <div className="flex justify-between items-start">
-                        <div className="p-3 bg-muted rounded-xl group-hover:bg-primary/10 transition-colors shadow-inner">
-                            <IconComponent className="h-8 w-8 text-muted-foreground group-hover:text-primary transition-colors" />
+                        <div className="p-2 sm:p-3 bg-muted rounded-xl group-hover:bg-primary/10 transition-colors shadow-inner">
+                            <IconComponent className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                         {count > 0 && (
-                             <div className="bg-primary text-primary-foreground h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-background">
+                             <div className="bg-primary text-primary-foreground h-6 w-6 sm:h-7 sm:w-7 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-md ring-2 ring-background">
                                 {count}
                             </div>
                         )}
                     </div>
-                     <div className="mt-6">
-                        <p className="text-xl font-bold font-headline tracking-tight text-slate-800">{cat.name}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 opacity-60">
-                            {activeTab === 'standard' ? 'Standard Inventory' : 'Custom Order Piece'}
+                     <div className="mt-4 sm:mt-6">
+                        <p className="text-sm sm:text-xl font-bold font-headline tracking-tight text-slate-800 leading-tight">{cat.name}</p>
+                        <p className="text-[8px] sm:text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-1 opacity-60">
+                            {activeTab === 'standard' ? 'Standard' : 'Custom'}
                         </p>
                     </div>
                   </CardContent>
