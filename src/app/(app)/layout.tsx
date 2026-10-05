@@ -90,7 +90,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <ColorSettingProvider>
               <ProductSettingProvider>
                 <PaymentSettingProvider>
-                  <BrandSettingProvider>
                   <FinancialSettingProvider>
                   <ProductProvider>
                       <OrderProvider>
@@ -113,7 +112,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       </OrderProvider>
                   </ProductProvider>
                   </FinancialSettingProvider>
-                  </BrandSettingProvider>
                 </PaymentSettingProvider>
               </ProductSettingProvider>
             </ColorSettingProvider>

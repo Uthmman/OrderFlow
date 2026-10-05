@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirebase } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -19,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Boxes } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useBrandSettings } from '@/hooks/use-brand-settings';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useFirebase();
+  const { settings: brandSettings } = useBrandSettings();
   const { toast } = useToast();
 
   // Redirect if already logged in
@@ -88,11 +91,22 @@ export default function LoginPage() {
       <Card className="mx-auto w-full max-w-sm shadow-xl">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
-              <Boxes className="h-10 w-10 text-primary" />
+              {brandSettings?.logoUrl ? (
+                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border bg-white shadow-sm">
+                  <Image 
+                    src={brandSettings.logoUrl} 
+                    alt={brandSettings.companyName || "Logo"} 
+                    fill 
+                    className="object-contain p-2"
+                  />
+                </div>
+              ) : (
+                <Boxes className="h-12 w-12 text-primary" />
+              )}
           </div>
           <CardTitle className="text-2xl text-center font-headline">Welcome Back</CardTitle>
           <CardDescription className="text-center">
-            Log in to manage your workshop orders
+            {brandSettings?.companyName ? `Log in to ${brandSettings.companyName}` : "Log in to manage your workshop orders"}
           </CardDescription>
         </CardHeader>
         <CardContent>

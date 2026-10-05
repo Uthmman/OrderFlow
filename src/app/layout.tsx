@@ -4,6 +4,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/hooks/use-user';
+import { BrandSettingProvider } from '@/hooks/use-brand-settings';
 
 export const metadata: Metadata = {
   title: 'Zenbab Furniture OrderFlow',
@@ -55,7 +56,9 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <UserProvider>
-            {children}
+            <BrandSettingProvider>
+                {children}
+            </BrandSettingProvider>
           </UserProvider>
         </FirebaseClientProvider>
         <Toaster />

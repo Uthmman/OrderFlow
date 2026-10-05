@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   Sidebar,
   SidebarHeader,
@@ -28,6 +29,7 @@ import {
   PieChart,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
+import { useBrandSettings } from "@/hooks/use-brand-settings";
 
 const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
@@ -51,6 +53,7 @@ const settingsNavItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, role } = useUser();
+  const { settings: brandSettings } = useBrandSettings();
 
   if (!user) return null;
 
@@ -61,10 +64,21 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 p-2">
-          <Boxes className="h-8 w-8 text-primary" />
+          {brandSettings?.logoUrl ? (
+            <div className="relative h-8 w-8 overflow-hidden rounded-lg border bg-white shadow-sm">
+              <Image 
+                src={brandSettings.logoUrl} 
+                alt={brandSettings.companyName || "Logo"} 
+                fill 
+                className="object-contain p-1"
+              />
+            </div>
+          ) : (
+            <Boxes className="h-8 w-8 text-primary" />
+          )}
           <div className="flex flex-col">
-            <h2 className="font-headline text-lg font-semibold text-sidebar-foreground">
-              OrderFlow
+            <h2 className="font-headline text-lg font-semibold text-sidebar-foreground truncate max-w-[140px]">
+              {brandSettings?.companyName || "OrderFlow"}
             </h2>
           </div>
         </div>
