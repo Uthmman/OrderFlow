@@ -1,10 +1,10 @@
-
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/hooks/use-user';
 import { BrandSettingProvider } from '@/hooks/use-brand-settings';
+import { DynamicFavicon } from '@/components/app/dynamic-favicon';
 
 export const metadata: Metadata = {
   title: 'Zenbab Furniture OrderFlow',
@@ -50,13 +50,13 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
-        <link rel="apple-touch-icon" href="https://picsum.photos/seed/zenbab-furniture-icon/192/192" data-ai-hint="furniture dresser" />
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <UserProvider>
             <BrandSettingProvider>
+                <DynamicFavicon />
                 {children}
             </BrandSettingProvider>
           </UserProvider>

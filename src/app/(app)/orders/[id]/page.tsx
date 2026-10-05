@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -799,7 +798,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
                         {(isDesigner || canEdit) && (
                             <div>
-                                <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
+                                <input type="file" min="1" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
                                 <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0}>
                                     {activeUploads.length > 0 ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                     Upload Technical File
@@ -966,7 +965,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                     )}
                                     {isUploadingCatalogImage && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-white" /></div>}
                                 </div>
-                                <input type="file" ref={catalogImageRef} className="hidden" accept="image/*" onChange={handleCatalogImageUpload} />
+                                <input type="file" min="1" ref={catalogImageRef} className="hidden" accept="image/*" onChange={handleCatalogImageUpload} />
                                 <Button type="button" variant="outline" size="sm" onClick={() => catalogImageRef.current?.click()}>
                                     {newItem.imageUrl ? "Change Image" : "Upload Thumbnail"}
                                 </Button>

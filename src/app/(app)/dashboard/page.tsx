@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -114,6 +113,8 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
+    // Revenue is only full price if completed, shipped or explicitly paid. 
+    // Otherwise it is just the prepayment.
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
       const total = order.totalWithVat || order.incomeAmount || 0;
       const prepaid = order.prepaidAmount || 0;
@@ -168,7 +169,7 @@ export default function Dashboard() {
     );
   }
 
-  const gridColsClass = activeStatuses.length <= 3 ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2";
+  const gridColsClass = activeStatuses.length <= 3 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "grid-cols-2";
 
   return (
     <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto">

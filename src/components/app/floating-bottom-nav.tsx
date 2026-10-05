@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from "react";
@@ -27,6 +26,7 @@ export function FloatingBottomNav() {
   ];
 
   // Role based items: Sales and Designers see Products
+  // Admin sees both
   if (role === 'Sales' || role === 'Designer' || role === 'Admin') {
     navItems.push({ href: "/products", icon: Library, label: "Catalog" });
   }
