@@ -860,7 +860,14 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                                 ))}
                             </div>
 
-                            <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => <FormItem><FormLabel className="text-xs text-muted-foreground">Manual Technical Notes</FormLabel><FormControl><Textarea rows={3} placeholder="Special assembly instructions..." className="font-mono text-xs" {...field} value={field.value ?? ""} /></FormControl></FormItem>} />
+                            <FormField control={form.control} name={`products.${currentProductIndex}.billOfMaterials`} render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs text-muted-foreground">Manual Technical Notes</FormLabel>
+                                    <FormControl>
+                                        <Textarea rows={3} placeholder="Special assembly instructions..." className="font-mono text-xs" {...field} value={field.value ?? ""} />
+                                    </FormControl>
+                                </FormItem>
+                            )} />
                         </div>
                     )}
                 </CardContent>

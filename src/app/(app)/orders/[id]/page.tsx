@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -826,7 +827,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         canDelete={canEdit}
                                     />
                                 ))}
-                                {activeUploads.filter(u => u.type === 'image').map(u => (
+                                {uploadingImages.map(u => (
                                     <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
                                 ))}
                             </CardContent>
@@ -852,7 +853,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         canDelete={canEdit}
                                     />
                                 ))}
-                                {activeUploads.filter(u => u.type === 'pdf').map(u => (
+                                {uploadingPdfs.map(u => (
                                     <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
                                 ))}
                             </CardContent>
@@ -878,7 +879,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                         canDelete={canEdit}
                                     />
                                 ))}
-                                {activeUploads.filter(u => u.type === 'cnc').map(u => (
+                                {uploadingCnc.map(u => (
                                     <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
                                 ))}
                             </CardContent>

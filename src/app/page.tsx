@@ -33,7 +33,7 @@ export default function LoginPage() {
   const { settings: brandSettings } = useBrandSettings();
   const { toast } = useToast();
 
-  // Redirect if already logged in
+  // Immediate redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && user) {
       router.replace('/dashboard');
@@ -52,6 +52,8 @@ export default function LoginPage() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -64,15 +66,15 @@ export default function LoginPage() {
         localStorage.removeItem('rememberedPassword');
       }
 
+      // Transition is handled by AuthGuard and useEffect, but push here for speed
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: error.message || 'Please check your credentials and try again.',
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -88,11 +90,11 @@ export default function LoginPage() {
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="mx-auto w-full max-w-sm shadow-xl">
+      <Card className="mx-auto w-full max-w-sm shadow-xl border-none">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
               {brandSettings?.logoUrl ? (
-                <div className="relative h-16 w-16 overflow-hidden rounded-2xl border bg-white shadow-sm">
+                <div className="relative h-20 w-20 overflow-hidden rounded-2xl border bg-white shadow-sm ring-4 ring-white">
                   <Image 
                     src={brandSettings.logoUrl} 
                     alt={brandSettings.companyName || "Logo"} 
@@ -104,65 +106,66 @@ export default function LoginPage() {
                 <Boxes className="h-12 w-12 text-primary" />
               )}
           </div>
-          <CardTitle className="text-2xl text-center font-headline">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl text-center font-headline font-bold">Welcome Back</CardTitle>
           <CardDescription className="text-center">
-            {brandSettings?.companyName ? `Log in to ${brandSettings.companyName}` : "Log in to manage your workshop orders"}
+            {brandSettings?.companyName ? `Sign in to ${brandSettings.companyName}` : "Sign in to manage your workshop"}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSignIn}>
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/forgot-password"
-                    className="ml-auto inline-block text-sm underline text-primary"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center space-x-2 py-2">
-                <Checkbox 
-                  id="remember-me"
-                  checked={rememberMe}
-                  onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                />
-                <Label
-                  htmlFor="remember-me"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Remember me
-                </Label>
-              </div>
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Login"}
-              </Button>
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="m@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+              />
             </div>
+            <div className="grid gap-2">
+              <div className="flex items-center">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="ml-auto inline-block text-xs underline text-primary"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="flex items-center space-x-2 py-1">
+              <Checkbox 
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                disabled={loading}
+              />
+              <Label
+                htmlFor="remember-me"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Remember me
+              </Label>
+            </div>
+            <Button type="submit" className="w-full h-11 text-base font-bold shadow-lg shadow-primary/20" disabled={loading}>
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
+            </Button>
           </form>
           <div className="mt-6 text-center text-sm">
-            New team member?{' '}
+            Need an account?{' '}
             <Link href="/signup" className="underline font-bold text-primary">
-              Create an account
+              Register here
             </Link>
           </div>
         </CardContent>
