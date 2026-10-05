@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -6,14 +5,13 @@ import { doc, setDoc } from 'firebase/firestore';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { ColorSettings } from '@/lib/types';
 
 
 interface ColorSettingsContextType {
   settings: ColorSettings | null;
   loading: boolean;
-  updateSettings: (newSettings: ColorSettings) => void;
+  updateSettings: (newSettings: ColorSettings) => Promise<void>;
 }
 
 const ColorSettingsContext = createContext<ColorSettingsContextType | undefined>(undefined);
@@ -25,12 +23,20 @@ export function ColorSettingProvider({ children }: { children: ReactNode }) {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'colors'), [firestore]);
   const { data: settings, isLoading: loading } = useDoc<ColorSettings>(settingsDocRef);
 
-  const updateSettings = useCallback((newSettings: ColorSettings) => {
-    setDocumentNonBlocking(settingsDocRef, newSettings, { merge: true });
-    toast({
-      title: "Settings Updated",
-      description: "Your color palette has been saved.",
-    });
+  const updateSettings = useCallback(async (newSettings: ColorSettings) => {
+    try {
+        await setDoc(settingsDocRef, newSettings, { merge: true });
+        toast({
+            title: "Settings Updated",
+            description: "Your color palette has been saved.",
+        });
+    } catch (error) {
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: "Could not save color settings.",
+        });
+    }
   }, [settingsDocRef, toast]);
   
   // Seed initial data if it doesn't exist

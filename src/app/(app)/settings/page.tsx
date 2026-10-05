@@ -14,11 +14,11 @@ import { Loader2, Trash2, PlusCircle, UploadCloud } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const woodFinishSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  imageUrl: z.string().url("A valid image URL is required"),
+  imageUrl: z.string().min(1, "Image is required"),
 });
 
 const customColorSchema = z.object({
@@ -55,15 +55,13 @@ function ColorSettingsForm() {
   const { settings, loading, updateSettings } = useColorSettings();
   const { toast } = useToast();
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [uploadingIndices, setUploadingIndices] = useState<number[]>([]);
   
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     values: {
         woodFinishes: settings?.woodFinishes || [],
         customColors: settings?.customColors || [],
-    },
-    resetOptions: {
-        keepDirtyValues: false,
     }
   });
 
@@ -77,14 +75,14 @@ function ColorSettingsForm() {
     name: "customColors",
   });
 
-  const onSubmit = (data: SettingsFormValues) => {
-    updateSettings(data);
+  const onSubmit = async (data: SettingsFormValues) => {
+    await updateSettings(data);
   };
   
   const handleImageUpload = async (file: File, index: number) => {
     if (!file) return;
 
-    form.setValue(`woodFinishes.${index}.imageUrl`, 'uploading', { shouldDirty: true });
+    setUploadingIndices(prev => [...prev, index]);
 
     try {
         const fileContent = await fileToBase64(file);
@@ -100,7 +98,8 @@ function ColorSettingsForm() {
             title: "Upload Failed",
             description: (e as Error).message || "Could not upload image.",
         })
-        form.setValue(`woodFinishes.${index}.imageUrl`, '', { shouldDirty: true });
+    } finally {
+        setUploadingIndices(prev => prev.filter(i => i !== index));
     }
   }
 
@@ -112,6 +111,8 @@ function ColorSettingsForm() {
           </div>
       )
   }
+
+  const isUploading = uploadingIndices.length > 0;
 
   return (
     <Form {...form}>
@@ -137,7 +138,7 @@ function ColorSettingsForm() {
           <CardContent className="space-y-4">
             {woodFields.map((field, index) => {
                 const imageUrl = form.watch(`woodFinishes.${index}.imageUrl`);
-                const isUploading = imageUrl === 'uploading';
+                const isItemUploading = uploadingIndices.includes(index);
 
                 return (
                     <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg">
@@ -145,18 +146,17 @@ function ColorSettingsForm() {
                             <Label>Preview</Label>
                              <input
                                 type="file"
-                                opacity="0"
                                 className="hidden"
                                 ref={(el) => (fileInputRefs.current[index] = el)}
                                 onChange={(e) => e.target.files && handleImageUpload(e.target.files[0], index)}
                             />
                             <div 
-                                className="h-24 w-24 bg-muted rounded-md mt-2 flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors"
+                                className="h-24 w-24 bg-muted rounded-md mt-2 flex items-center justify-center cursor-pointer hover:bg-muted/80 transition-colors relative overflow-hidden"
                                 onClick={() => fileInputRefs.current[index]?.click()}
                             >
-                                {isUploading ? (
+                                {isItemUploading ? (
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                ) : imageUrl && imageUrl !== 'uploading' ? (
+                                ) : imageUrl ? (
                                     <Image
                                         src={imageUrl}
                                         alt="Preview"
@@ -181,16 +181,6 @@ function ColorSettingsForm() {
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name={`woodFinishes.${index}.imageUrl`}
-                            render={({ field }) => (
-                                <FormItem className="hidden">
-                                    <FormControl><Input {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
                             )}
                         />
                         </div>
@@ -277,10 +267,10 @@ function ColorSettingsForm() {
           </CardContent>
         </Card>
         
-        <div className="flex justify-end sticky bottom-0 bg-background/95 py-4">
-            <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty}>
+        <div className="flex justify-end sticky bottom-0 bg-background/95 py-4 border-t z-10">
+            <Button type="submit" disabled={form.formState.isSubmitting || !form.formState.isDirty || isUploading}>
                 {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Changes
+                {isUploading ? "Uploading..." : "Save All Changes"}
             </Button>
         </div>
       </form>

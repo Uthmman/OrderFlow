@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback } from 'react';
@@ -48,9 +47,9 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
   }, [settingsDocRef, toast]);
 
   const addCategory = useCallback(async (newCategory: ProductCategory) => {
-    if (!productSettings) return;
-    const updatedCategories = [...productSettings.productCategories, newCategory];
-    await updateProductSettings({ ...productSettings, productCategories: updatedCategories });
+    const current = productSettings || { productCategories: [], materials: [] };
+    const updatedCategories = [...(current.productCategories || []), newCategory];
+    await updateProductSettings({ ...current, productCategories: updatedCategories });
   }, [productSettings, updateProductSettings]);
 
   const updateCategory = useCallback(async (index: number, updatedCategory: ProductCategory) => {
@@ -67,9 +66,9 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
   }, [productSettings, updateProductSettings]);
   
   const addMaterial = useCallback(async (newMaterial: Material) => {
-    if (!productSettings) return;
-    const updatedMaterials = [...productSettings.materials, newMaterial];
-    await updateProductSettings({ ...productSettings, materials: updatedMaterials });
+    const current = productSettings || { productCategories: [], materials: [] };
+    const updatedMaterials = [...(current.materials || []), newMaterial];
+    await updateProductSettings({ ...current, materials: updatedMaterials });
   }, [productSettings, updateProductSettings]);
 
   const updateMaterial = useCallback(async (index: number, updatedMaterial: Material) => {
@@ -151,5 +150,3 @@ export function useProductSettings() {
   }
   return context;
 }
-
-    
