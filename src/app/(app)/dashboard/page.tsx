@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -141,13 +140,14 @@ export default function Dashboard() {
   }, [finSettings, stats.profit]);
 
   const activeStatuses = useMemo(() => {
-    return [
+    const items = [
       { label: "Designing", count: stats.designing, color: "bg-orange-400" },
       { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
       { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
       { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
       { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
     ].filter(s => s.count > 0);
+    return items;
   }, [stats]);
 
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
@@ -158,10 +158,10 @@ export default function Dashboard() {
     );
   }
 
-  const gridColsClass = activeStatuses.length <= 3 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "grid-cols-2";
+  const gridColsClass = activeStatuses.length === 4 ? "grid-cols-2" : (activeStatuses.length <= 3 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3");
 
   return (
-    <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto">
+    <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 px-1">
         <div className="space-y-1">
           <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">Dashboard</h1>

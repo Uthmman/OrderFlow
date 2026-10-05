@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -143,29 +142,12 @@ function OrderSkeleton() {
                         <Skeleton className="h-6 w-32 rounded-full" />
                     </div>
                 </div>
-                <div className="flex gap-2">
-                    <Skeleton className="h-9 w-9 rounded-md" />
-                    <Skeleton className="h-9 w-9 rounded-md" />
-                </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <Card>
-                        <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
-                        <CardContent className="space-y-4">
-                            <Skeleton className="h-20 w-full" />
-                            <div className="grid grid-cols-3 gap-4">
-                                <Skeleton className="h-12 w-full" />
-                                <Skeleton className="h-12 w-full" />
-                                <Skeleton className="h-12 w-full" />
-                            </div>
-                        </CardContent>
-                    </Card>
                     <Skeleton className="h-[400px] w-full rounded-xl" />
                 </div>
                 <div className="space-y-6">
-                    <Card><CardContent className="pt-6 space-y-4"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-2/3" /></CardContent></Card>
-                    <Card><CardContent className="pt-6 flex gap-3"><Skeleton className="h-12 w-12 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-3 w-1/3" /></div></CardContent></Card>
                     <Skeleton className="h-[300px] w-full rounded-xl" />
                 </div>
             </div>
@@ -254,38 +236,19 @@ function TAPVisualizer({ content }: { content: string }) {
                 ctx.moveTo(px, py);
             }
         }
-
-        if (limit > 0) {
-            const current = lines[limit - 1];
-            ctx.fillStyle = '#ef4444';
-            ctx.beginPath();
-            ctx.arc(getX(current.x), getY(current.y), 4, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
     }, [lines, progress]);
 
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1 relative bg-slate-900 rounded-lg overflow-hidden border">
-                <canvas 
-                    ref={canvasRef} 
-                    width={800} 
-                    height={500} 
-                    className="w-full h-full object-contain"
-                />
+                <canvas ref={canvasRef} width={800} height={500} className="w-full h-full object-contain" />
             </div>
             <div className="p-4 bg-background border-t space-y-3">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     <span>Machining Process</span>
                     <span className="text-primary">{Math.floor((progress / 100) * lines.length)} / {lines.length} Commands</span>
                 </div>
-                <Slider 
-                    value={[progress]} 
-                    onValueChange={(vals) => setProgress(vals[0])} 
-                    max={100} 
-                    step={1} 
-                />
+                <Slider value={[progress]} onValueChange={(vals) => setProgress(vals[0])} max={100} step={1} />
             </div>
         </div>
     );
@@ -383,37 +346,13 @@ function ImageGallery({ open, onOpenChange, images, startIndex = 0 }: { open: bo
               {images.map((image, index) => (
                 <CarouselItem key={image.url} className="h-screen p-0 flex items-center justify-center">
                     <div className="relative w-full h-full">
-                        <Image
-                        src={image.url}
-                        alt={image.fileName}
-                        fill
-                        className="object-contain"
-                        priority={index === startIndex}
-                        sizes="100vw"
-                        />
+                        <Image src={image.url} alt={image.fileName} fill className="object-contain" priority={index === startIndex} sizes="100vw" />
                     </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
-            {images.length > 1 && (
-                <>
-                    <CarouselPrevious className="left-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
-                    <CarouselNext className="right-4 bg-black/20 hover:bg-black/40 text-white border-none h-12 w-12 hidden md:flex" />
-                </>
-            )}
           </Carousel>
         </div>
-
-        <footer className="absolute bottom-0 left-0 right-0 p-6 flex items-center justify-end bg-gradient-to-t from-black/80 to-transparent gap-4 pointer-events-none z-[110]">
-           <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20 pointer-events-auto rounded-full px-6"
-            onClick={() => downloadFile(images[current - 1].url, images[current - 1].fileName)}
-           >
-             <Download className="mr-2 h-4 w-4" /> Download
-           </Button>
-        </footer>
       </DialogContent>
     </Dialog>
   );
@@ -432,17 +371,13 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview, canD
     const setAsMain = (e: React.MouseEvent) => {
         e.stopPropagation();
         updateOrder({ id: order.id, mainImageUrl: att.url });
-        toast({ title: "Main Image Updated", description: "Design thumbnail has been changed." });
+        toast({ title: "Main Image Updated" });
     };
 
     return (
         <Card className={cn("group relative overflow-hidden transition-all", isMain && "ring-2 ring-primary shadow-lg")}>
             <CardContent className="p-0 aspect-video flex items-center justify-center bg-muted/50 relative">
-                {isMain && (
-                    <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest shadow-sm">
-                        Thumbnail
-                    </div>
-                )}
+                {isMain && <div className="absolute top-2 left-2 z-10 bg-primary text-primary-foreground px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest">Thumbnail</div>}
                 {isImage ? (
                     <div onClick={() => onImageClick(att)} className="relative w-full h-full cursor-pointer">
                         <Image src={att.url} alt={att.fileName} fill className="object-cover" />
@@ -460,46 +395,30 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview, canD
                         {isPdf ? <FileText className="h-10 w-10 text-red-600" /> : isCNC ? <Cpu className="h-10 w-10 text-blue-600" /> : <File className="h-10 w-10 text-muted-foreground" />}
                         <p className="text-xs text-center text-muted-foreground truncate w-full px-2">{att.fileName}</p>
                         <div className="flex flex-wrap items-center justify-center gap-1.5 w-full mt-2">
-                             {(isPdf || isCNC) && (
-                                <Button size="sm" variant="outline" onClick={() => onPreview(att)} className="h-7 text-[10px] px-2 flex-1">
-                                    <Eye className="h-3 w-3 mr-1" /> Preview
-                                </Button>
-                             )}
+                             {(isPdf || isCNC) && <Button size="sm" variant="outline" onClick={() => onPreview(att)} className="h-7 text-[10px] px-2 flex-1"><Eye className="h-3 w-3 mr-1" /> Preview</Button>}
                              <Button size="sm" variant="outline" onClick={() => downloadFile(att.url, att.fileName)} className="h-7 text-[10px] px-2 flex-1"><Download className="h-3 w-3 mr-1" /> Download</Button>
                         </div>
                     </div>
                 )}
             </CardContent>
             <CardFooter className="p-2 bg-background/95 flex justify-between items-center">
-                 <p className="text-[10px] text-muted-foreground truncate flex-1" title={att.fileName}>{att.fileName}</p>
-                 <div className="flex items-center gap-1">
-                    {canDelete && (
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 v-6 text-destructive/80 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                                <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Attachment?</AlertDialogTitle>
-                                    <AlertDialogDescription>This will permanently delete '{att.fileName}'.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    )}
-                 </div>
+                 <p className="text-[10px] text-muted-foreground truncate flex-1">{att.fileName}</p>
+                 {canDelete && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-6 v-6 text-destructive/80"><Trash2 className="h-3.5 w-3.5" /></Button></AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete Attachment?</AlertDialogTitle><AlertDialogDescription>This will permanently delete '{att.fileName}'.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction></AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                 )}
             </CardFooter>
         </Card>
     );
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-    if (status === 'Pending') {
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Draft</Badge>;
-    }
+    if (status === 'Pending') return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Draft</Badge>;
     return <Badge variant={statusVariantMap[status]}>{status}</Badge>;
 }
 
@@ -517,9 +436,7 @@ function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange
         <DropdownMenuLabel>Change Status</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {statuses.map(status => (
-          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>
-              {status === 'Pending' ? 'Draft' : status}
-          </DropdownMenuItem>
+          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>{status === 'Pending' ? 'Draft' : status}</DropdownMenuItem>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -545,7 +462,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const files = Array.from(e.target.files);
-            
             for (const file of files) {
                 const taskId = uuidv4();
                 const progressKey = `${file.name}-${taskId}`;
@@ -553,16 +469,9 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                 if (file.type.startsWith('image/')) type = 'image';
                 else if (file.name.toLowerCase().endsWith('.pdf')) type = 'pdf';
                 else if (file.name.toLowerCase().endsWith('.tap')) type = 'cnc';
-
                 setActiveUploads(prev => [...prev, { id: taskId, name: file.name, type, progressKey }]);
-
-                try {
-                    await onDesignUpload(file, progressKey);
-                } finally {
-                    setActiveUploads(prev => prev.filter(u => u.id !== taskId));
-                }
+                try { await onDesignUpload(file, progressKey); } finally { setActiveUploads(prev => prev.filter(u => u.id !== taskId)); }
             }
-            
             if (designInputRef.current) designInputRef.current.value = "";
         }
     };
@@ -573,96 +482,62 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
             try {
                 const att = await uploadFile(e.target.files[0]);
                 setNewItem(prev => ({ ...prev, imageUrl: att.url }));
-            } finally {
-                setIsUploadingCatalogImage(false);
-            }
+            } finally { setIsUploadingCatalogImage(false); }
         }
     };
 
-    const updateProductBOM = async (newBOM: BOMItem[]) => {
+    const handleAddItem = async (item: SecondaryItem) => {
+        const currentBOM = product.bomItems || [];
+        if (currentBOM.find(i => i.itemId === item.id)) { toast({ variant: "destructive", title: "Already added" }); return; }
+        const updated = [...currentBOM, { itemId: item.id, name: item.name, quantity: 1, unit: item.unit, imageUrl: item.imageUrl }];
         const orderRef = doc(firestore, 'orders', order.id);
         const updatedProducts = [...(order.products || [])];
         if (updatedProducts[productIndex]) {
-            updatedProducts[productIndex].bomItems = newBOM;
+            updatedProducts[productIndex].bomItems = updated;
             await updateDoc(orderRef, { products: updatedProducts });
             toast({ title: "BOM Saved" });
         }
-    };
-
-    const handleAddItem = (item: SecondaryItem) => {
-        const currentBOM = product.bomItems || [];
-        const exists = currentBOM.find(i => i.itemId === item.id);
-        if (exists) {
-            toast({ variant: "destructive", title: "Already added" });
-            return;
-        }
-        const updated = [...currentBOM, { itemId: item.id, name: item.name, quantity: 1, unit: item.unit, imageUrl: item.imageUrl }];
-        updateProductBOM(updated);
         setIsItemPopoverOpen(false);
     };
 
-    const handleCreateNewCatalogItem = async () => {
-        if (!newItem.name || !newItem.category) return;
-        const success = await addSecondaryItem({
-            name: newItem.name,
-            category: newItem.category,
-            unit: newItem.unit,
-            imageUrl: newItem.imageUrl
-        });
-        if (success) {
-            toast({ title: "Item Added to Catalog" });
-            setIsAddingNewCatalogItem(false);
-            setNewItem({ name: '', category: '', unit: 'pcs', imageUrl: '' });
+    const handleRemoveBOMItem = async (idx: number) => {
+        const updated = (product.bomItems || []).filter((_, i) => i !== idx);
+        const orderRef = doc(firestore, 'orders', order.id);
+        const updatedProducts = [...(order.products || [])];
+        if (updatedProducts[productIndex]) {
+            updatedProducts[productIndex].bomItems = updated;
+            await updateDoc(orderRef, { products: updatedProducts });
+            toast({ title: "Item Removed" });
         }
     };
 
-    const handleRemoveBOMItem = (idx: number) => {
-        const updated = (product.bomItems || []).filter((_, i) => i !== idx);
-        updateProductBOM(updated);
-    };
-
-    const handleUpdateQty = (idx: number, qty: number) => {
+    const handleUpdateQty = async (idx: number, qty: number) => {
         const updated = [...(product.bomItems || [])];
         updated[idx].quantity = qty;
-        updateProductBOM(updated);
+        const orderRef = doc(firestore, 'orders', order.id);
+        const updatedProducts = [...(order.products || [])];
+        if (updatedProducts[productIndex]) {
+            updatedProducts[productIndex].bomItems = updated;
+            await updateDoc(orderRef, { products: updatedProducts });
+        }
     };
 
-    const filteredSecondaryItems = secondaryItems.filter(i => 
-        i.name.toLowerCase().includes(itemSearch.toLowerCase()) || 
-        i.category.toLowerCase().includes(itemSearch.toLowerCase())
-    );
-
+    const filteredSecondaryItems = secondaryItems.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase()) || i.category.toLowerCase().includes(itemSearch.toLowerCase()));
     const { user } = useUser();
     const canEditBOM = (isDesigner || order.ownerId === user?.id || canEdit) && ['Designing', 'In Progress'].includes(order.status);
-
-    const allAttachments = [
-        ...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })),
-        ...(product.designAttachments || []).map(a => ({ ...a, origin: 'design' }))
-    ];
-
+    const allAttachments = [...(product.attachments || []).map(a => ({ ...a, origin: 'customer' })), ...(product.designAttachments || []).map(a => ({ ...a, origin: 'design' }))];
     const imageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
     const pdfAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
     const cncAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
-    const otherAttachments = allAttachments.filter(att => {
-        const isImg = att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-        const isPdf = att.fileName.toLowerCase().endsWith('.pdf');
-        const isCnc = att.fileName.toLowerCase().endsWith('.tap');
-        return !isImg && !isPdf && !isCnc;
-    });
-
-    const getDeleteHandler = (att: any) => {
-        return att.origin === 'customer' 
-            ? () => onAttachmentDelete(att) 
-            : () => onDesignAttachmentDelete(att);
-    };
+    const otherAttachments = allAttachments.filter(att => !att.fileName.match(/\.(jpeg|jpg|gif|png|webp|pdf|tap)$/i));
 
     return (
         <AccordionItem value={product.id}>
             <AccordionTrigger className="font-bold text-lg">{product.productName || "Unnamed Product"}</AccordionTrigger>
             <AccordionContent className="space-y-8 pl-2">
-                 <Card><CardHeader><CardTitle>Description</CardTitle></CardHeader><CardContent><p className="text-muted-foreground">{product.description}</p></CardContent></Card>
+                <Card><CardHeader><CardTitle>Description</CardTitle></CardHeader><CardContent><p className="text-muted-foreground">{product.description}</p></CardContent></Card>
                 <Card><CardHeader><CardTitle>Specifications</CardTitle></CardHeader><CardContent className="space-y-4">
-                       {product.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Materials: {Array.isArray(product.material) ? product.material.join(', ') : product.material}</span></div>}
+                        {product.material && <div className="flex items-center gap-3"><Box className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Materials: {Array.isArray(product.material) ? product.material.join(', ') : product.material}</span></div>}
                         {product.colors && product.colors.length > 0 && product.colors[0] !== 'As Attached Picture' && (
                             <div className="flex items-start gap-3"><Palette className="h-4 w-4 text-muted-foreground mt-1"/><div className="w-full"><span className="text-sm">Colors:</span><ScrollArea className="w-full mt-2 whitespace-nowrap"><div className="flex gap-4 pb-4">{product.colors.map(colorName => {
                                 const colorOption = allColorOptions.find(c => c.name === colorName);
@@ -672,75 +547,23 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                                 return null;
                             })}</div></ScrollArea></div></div>
                         )}
-                        {product.colors?.includes("As Attached Picture") && <div className="flex items-center gap-3"><ImageIcon className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Color as attached picture.</span></div>}
                         {product.dimensions && <div className="flex items-center gap-3"><Ruler className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Dims: {product.dimensions.width}x{product.dimensions.height}x{product.dimensions.depth}cm</span></div>}
                     </CardContent></Card>
-                
                 <Card className={cn(canEditBOM && "border-primary/20 bg-primary/5")}>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="flex items-center gap-2">
-                                <ListChecks className="h-5 w-5 text-primary" /> Bill of Materials
-                            </CardTitle>
-                        </div>
+                        <div><CardTitle className="flex items-center gap-2"><ListChecks className="h-5 w-5 text-primary" /> Bill of Materials</CardTitle></div>
                         {canEditBOM && (
                             <Popover open={isItemPopoverOpen} onOpenChange={setIsItemPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <Button size="sm" className="h-8">
-                                        <PlusCircle className="h-4 w-4 mr-2" /> Add Item
-                                    </Button>
-                                </PopoverTrigger>
+                                <PopoverTrigger asChild><Button size="sm" className="h-8"><PlusCircle className="h-4 w-4 mr-2" /> Add Item</Button></PopoverTrigger>
                                 <PopoverContent className="w-80 p-0" align="end">
-                                    <div className="p-2 border-b bg-muted/20">
-                                        <div className="relative">
-                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                                            <Input 
-                                                placeholder="Search materials..." 
-                                                className="h-8 pl-8 text-xs" 
-                                                value={itemSearch}
-                                                onChange={e => setItemSearch(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
+                                    <div className="p-2 border-b bg-muted/20"><div className="relative"><Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" /><Input placeholder="Search materials..." className="h-8 pl-8 text-xs" value={itemSearch} onChange={e => setItemSearch(e.target.value)}/></div></div>
                                     <ScrollArea className="h-64">
-                                        {secondaryLoading ? (
-                                            <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div>
-                                        ) : filteredSecondaryItems.length === 0 ? (
-                                            <div className="p-4 text-center">
-                                                <p className="text-xs text-muted-foreground mb-4">No catalog items found.</p>
-                                                <Button size="sm" variant="outline" className="w-full text-[10px]" onClick={() => setIsAddingNewCatalogItem(true)}>
-                                                    <Package className="h-3 w-3 mr-1" /> Create New Catalog Item
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {filteredSecondaryItems.map(item => (
-                                                    <button 
-                                                        key={item.id} 
-                                                        type="button" 
-                                                        className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3"
-                                                        onClick={() => handleAddItem(item)}
-                                                    >
-                                                        <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0 relative overflow-hidden border">
-                                                            {item.imageUrl ? (
-                                                                <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                                            ) : (
-                                                                <Package className="h-4 w-4 opacity-60" />
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-xs font-bold truncate">{item.name}</p>
-                                                            <p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                                <div className="p-2">
-                                                    <Button size="sm" variant="ghost" className="w-full text-[10px] border-t" onClick={() => setIsAddingNewCatalogItem(true)}>
-                                                        <Plus className="h-3 w-3 mr-1" /> New Item to Catalog
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        )}
+                                        {secondaryLoading ? <div className="p-8 flex justify-center"><Loader2 className="animate-spin h-5 w-5" /></div> : filteredSecondaryItems.map(item => (
+                                            <button key={item.id} type="button" className="w-full text-left p-3 hover:bg-muted border-b last:border-0 flex items-center gap-3" onClick={() => handleAddItem(item)}>
+                                                <div className="h-10 w-10 rounded-md bg-muted shrink-0 relative overflow-hidden border">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill className="object-cover" /> : <Package className="h-4 w-4 opacity-60" />}</div>
+                                                <div className="min-w-0"><p className="text-xs font-bold truncate">{item.name}</p><p className="text-[10px] text-muted-foreground">{item.category} • {item.unit}</p></div>
+                                            </button>
+                                        ))}
                                     </ScrollArea>
                                 </PopoverContent>
                             </Popover>
@@ -748,48 +571,18 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {product.bomItems && product.bomItems.length > 0 ? (
-                                product.bomItems.map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm group">
-                                        <div className="flex items-center gap-3 min-w-0 flex-grow">
-                                            <div className="h-10 w-10 rounded bg-muted shrink-0 relative overflow-hidden border">
-                                                {item.imageUrl ? (
-                                                    <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
-                                                ) : (
-                                                    <Package className="h-5 w-5 m-auto opacity-20" />
-                                                )}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-xs font-bold truncate">{item.name}</p>
-                                                <p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            {canEditBOM ? (
-                                                <Input 
-                                                    type="number" 
-                                                    className="h-7 w-16 text-right text-xs font-bold" 
-                                                    defaultValue={item.quantity} 
-                                                    onBlur={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)}
-                                                />
-                                            ) : (
-                                                <div className="text-sm font-bold text-primary">
-                                                    {item.quantity} {item.unit}
-                                                </div>
-                                            )}
-                                            {canEditBOM && (
-                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleRemoveBOMItem(i)}>
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </Button>
-                                            )}
-                                        </div>
+                            {product.bomItems?.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between p-3 border rounded-lg bg-background/80 shadow-sm group">
+                                    <div className="flex items-center gap-3 min-w-0 flex-grow">
+                                        <div className="h-10 w-10 rounded bg-muted shrink-0 relative overflow-hidden border">{item.imageUrl ? <Image src={item.imageUrl} alt={item.name} fill className="object-cover" /> : <Package className="h-5 w-5 m-auto opacity-20" />}</div>
+                                        <div className="min-w-0"><p className="text-xs font-bold truncate">{item.name}</p><p className="text-[9px] text-muted-foreground uppercase">{item.unit}</p></div>
                                     </div>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">
-                                    No material items defined yet.
+                                    <div className="flex items-center gap-2">
+                                        {canEditBOM ? <Input type="number" className="h-7 w-16 text-right text-xs font-bold" defaultValue={item.quantity} onBlur={e => handleUpdateQty(i, parseFloat(e.target.value) || 0)} /> : <div className="text-sm font-bold text-primary">{item.quantity} {item.unit}</div>}
+                                        {canEditBOM && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100" onClick={() => handleRemoveBOMItem(i)}><Trash2 className="h-3.5 w-3.5" /></Button>}
+                                    </div>
                                 </div>
-                            )}
+                            )) || <div className="col-span-full py-8 text-center text-xs text-muted-foreground italic border-2 border-dashed rounded-lg">No material items defined yet.</div>}
                         </div>
                     </CardContent>
                 </Card>
@@ -799,7 +592,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
                         {(isDesigner || canEdit) && (
                             <div>
-                                <input type="file" min="1" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
+                                <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
                                 <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0}>
                                     {activeUploads.length > 0 ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                     Upload Technical File
@@ -807,178 +600,26 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                             </div>
                         )}
                     </div>
-
-                    {(imageAttachments.length > 0 || activeUploads.some(u => u.type === 'image')) && (
-                        <Card>
-                            <CardHeader className="py-4">
-                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
-                                    <ImageIcon className="h-4 w-4" /> Visual References
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {imageAttachments.map((att, i) => (
-                                    <AttachmentPreview 
-                                        key={i} 
-                                        att={att} 
-                                        order={order} 
-                                        onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
-                                        onPreview={onFilePreview} 
-                                        canDelete={canEdit}
-                                    />
-                                ))}
-                                {uploadingImages.map(u => (
-                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
-                                ))}
-                            </CardContent>
-                        </Card>
+                    {imageAttachments.length > 0 && (
+                        <Card><CardHeader className="py-4"><CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Visual References</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{imageAttachments.map((att, i) => (
+                            <AttachmentPreview key={i} att={att} order={order} onDelete={() => att.origin === 'customer' ? onAttachmentDelete(att) : onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} canDelete={canEdit}/>
+                        ))}</CardContent></Card>
                     )}
-
-                    {(pdfAttachments.length > 0 || activeUploads.some(u => u.type === 'pdf')) && (
-                        <Card>
-                            <CardHeader className="py-4">
-                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
-                                    <FileText className="h-4 w-4" /> Technical Drawings (PDF)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {pdfAttachments.map((att, i) => (
-                                    <AttachmentPreview 
-                                        key={i} 
-                                        att={att} 
-                                        order={order} 
-                                        onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
-                                        onPreview={onFilePreview} 
-                                        canDelete={canEdit}
-                                    />
-                                ))}
-                                {uploadingPdfs.map(u => (
-                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
-                                ))}
-                            </CardContent>
-                        </Card>
+                    {pdfAttachments.length > 0 && (
+                        <Card><CardHeader className="py-4"><CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2"><FileText className="h-4 w-4" /> Technical Drawings (PDF)</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{pdfAttachments.map((att, i) => (
+                            <AttachmentPreview key={i} att={att} order={order} onDelete={() => att.origin === 'customer' ? onAttachmentDelete(att) : onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} canDelete={canEdit}/>
+                        ))}</CardContent></Card>
                     )}
-
-                    {(cncAttachments.length > 0 || activeUploads.some(u => u.type === 'cnc')) && (
-                        <Card>
-                            <CardHeader className="py-4">
-                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
-                                    <Cpu className="h-4 w-4" /> CNC Programs (.TAP)
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {cncAttachments.map((att, i) => (
-                                    <AttachmentPreview 
-                                        key={i} 
-                                        att={att} 
-                                        order={order} 
-                                        onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
-                                        onPreview={onFilePreview} 
-                                        canDelete={canEdit}
-                                    />
-                                ))}
-                                {uploadingCnc.map(u => (
-                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {(otherAttachments.length > 0 || activeUploads.some(u => u.type === 'other')) && (
-                        <Card>
-                            <CardHeader className="py-4">
-                                <CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2">
-                                    <File className="h-4 w-4" /> Other Attachments
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                {otherAttachments.map((att, i) => (
-                                    <AttachmentPreview 
-                                        key={i} 
-                                        att={att} 
-                                        order={order} 
-                                        onDelete={getDeleteHandler(att)} 
-                                        onImageClick={onImageClick} 
-                                        onPreview={onFilePreview} 
-                                        canDelete={canEdit}
-                                    />
-                                ))}
-                                {activeUploads.filter(u => u.type === 'other').map(u => (
-                                    <UploadingCard key={u.id} name={u.name} progress={uploadProgress[u.progressKey] || 0} />
-                                ))}
-                            </CardContent>
-                        </Card>
-                    )}
-
-                    {allAttachments.length === 0 && activeUploads.length === 0 && (
-                        <div className="py-12 text-center border-2 border-dashed rounded-xl bg-muted/10">
-                            <p className="text-xs text-muted-foreground italic">No documentation uploaded for this product.</p>
-                        </div>
+                    {cncAttachments.length > 0 && (
+                        <Card><CardHeader className="py-4"><CardTitle className="text-xs uppercase font-bold text-muted-foreground flex items-center gap-2"><Cpu className="h-4 w-4" /> CNC Programs (.TAP)</CardTitle></CardHeader>
+                        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">{cncAttachments.map((att, i) => (
+                            <AttachmentPreview key={i} att={att} order={order} onDelete={() => att.origin === 'customer' ? onAttachmentDelete(att) : onDesignAttachmentDelete(att)} onImageClick={onImageClick} onPreview={onFilePreview} canDelete={canEdit}/>
+                        ))}</CardContent></Card>
                     )}
                 </div>
             </AccordionContent>
-
-            <Dialog open={isAddingNewCatalogItem} onOpenChange={setIsAddingNewCatalogItem}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>New Catalog Material</DialogTitle>
-                        <DialogDescription>Add a new item to the organization-wide material catalog.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="name">Item Name</Label>
-                            <Input id="name" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} placeholder="e.g. Hettich Soft Close Hinge" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="category">Category</Label>
-                                <Select value={newItem.category} onValueChange={v => setNewItem({...newItem, category: v})}>
-                                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                                    <SelectContent>
-                                        {secondaryCategories.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="unit">Unit</Label>
-                                <Select value={newItem.unit} onValueChange={v => setNewItem({...newItem, unit: v})}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="pcs">pcs</SelectItem>
-                                        <SelectItem value="kg">kg</SelectItem>
-                                        <SelectItem value="liter">liter</SelectItem>
-                                        <SelectItem value="meters">meters</SelectItem>
-                                        <SelectItem value="set">set</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Item Image (Thumbnail)</Label>
-                            <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-md border bg-muted flex items-center justify-center overflow-hidden shrink-0 relative">
-                                    {newItem.imageUrl ? (
-                                        <Image src={newItem.imageUrl} alt="preview" fill className="object-cover" />
-                                    ) : (
-                                        <ImageIcon className="h-6 w-6 opacity-20" />
-                                    )}
-                                    {isUploadingCatalogImage && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-white" /></div>}
-                                </div>
-                                <input type="file" min="1" ref={catalogImageRef} className="hidden" accept="image/*" onChange={handleCatalogImageUpload} />
-                                <Button type="button" variant="outline" size="sm" onClick={() => catalogImageRef.current?.click()}>
-                                    {newItem.imageUrl ? "Change Image" : "Upload Thumbnail"}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddingNewCatalogItem(false)}>Cancel</Button>
-                        <Button onClick={handleCreateNewCatalogItem}>Create Item</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </AccordionItem>
     );
 };
@@ -986,17 +627,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
 function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
     const profile = users.find(u => u.id === userId); if (!profile) return null;
     return ( 
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Avatar className="h-6 w-6 ring-2 ring-background shrink-0">
-                        <AvatarImage src={profile.avatarUrl} />
-                        <AvatarFallback className="text-[8px]">{profile.name?.split(" ").map(n => n[0]).join("") || '?'}</AvatarFallback>
-                    </Avatar>
-                </TooltipTrigger>
-                <TooltipContent><p className="text-xs">{profile.name}</p></TooltipContent>
-            </Tooltip>
-        </TooltipProvider> 
+        <TooltipProvider><Tooltip><TooltipTrigger asChild><Avatar className="h-6 w-6 ring-2 ring-background shrink-0"><AvatarImage src={profile.avatarUrl} /><AvatarFallback className="text-[8px]">{profile.name?.split(" ").map(n => n[0]).join("") || '?'}</AvatarFallback></Avatar></TooltipTrigger><TooltipContent><p className="text-xs">{profile.name}</p></TooltipContent></Tooltip></TooltipProvider> 
     );
 }
 
@@ -1011,7 +642,6 @@ function OrderDetailPageContent() {
   const { settings: brandSettings } = useBrandSettings();
   const { user, role } = useUser();
   const searchParams = useSearchParams(); const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [finishDesignOpen, setFinishDesignOpen] = useState(false);
@@ -1019,25 +649,18 @@ function OrderDetailPageContent() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
-
   const [showHeader, setShowHeader] = useState(true);
   const lastScrollY = useRef(0);
 
   useEffect(() => {
-    const handleScroll = (e: Event) => {
-        const target = e.target as HTMLElement;
-        const currentScrollY = target.scrollTop;
-        
-        if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-            setShowHeader(false);
-        } else {
-            setShowHeader(true);
-        }
-        lastScrollY.current = currentScrollY;
-    };
-
     const mainElement = document.querySelector('main');
     if (mainElement) {
+        const handleScroll = (e: any) => {
+            const currentScrollY = e.target.scrollTop;
+            if (currentScrollY > lastScrollY.current && currentScrollY > 100) setShowHeader(false);
+            else setShowHeader(true);
+            lastScrollY.current = currentScrollY;
+        };
         mainElement.addEventListener('scroll', handleScroll);
         return () => mainElement.removeEventListener('scroll', handleScroll);
     }
@@ -1047,644 +670,54 @@ function OrderDetailPageContent() {
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
   const order = optimisticOrder;
 
-  useEffect(() => {
-    if (order?.id) {
-        markOrderNotificationsAsRead(order.id);
-    }
-  }, [order?.id, markOrderNotificationsAsRead]);
+  useEffect(() => { if (order?.id) markOrderNotificationsAsRead(order.id); }, [order?.id, markOrderNotificationsAsRead]);
 
-  const simpleName = useMemo(() => {
-    if (!order?.uniqueName) return "";
-    const parts = order.uniqueName.split(' - ');
-    if (parts.length >= 2) return `${parts[0]} - ${parts[1]}`;
-    return order.uniqueName;
-  }, [order?.uniqueName]);
-
-  const handleCancel = () => { 
-        if (!orderData) return; 
-        startTransition(async () => { 
-            setOptimisticOrder({ status: "Cancelled" } as any); 
-            await updateOrder({ id: orderData.id, status: "Cancelled" }); 
-            toast({ title: "Order Cancelled", description: `Order ${order?.uniqueName} cancelled.` }); 
-        }); 
-    };
-
-    const handleDelete = () => { 
-        if (!orderData) return; 
-        const allAttachments = (orderData.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]); 
-        if(orderData.receiptAttachment) allAttachments.push(orderData.receiptAttachment); 
-        deleteOrder(orderData.id, allAttachments); 
-        toast({ title: "Order Deleted", description: `${order?.uniqueName} deleted.` }); 
-        router.push("/orders"); 
-    };
-
-    const handleToggleUrgent = () => { 
-        if (!orderData) return; 
-        startTransition(async () => { 
-            setOptimisticOrder({ isUrgent: !orderData.isUrgent } as any); 
-            await updateOrder({ id: orderData.id, isUrgent: !orderData.isUrgent }); 
-        }); 
-    };
-
-    const handleStatusChange = (newStatus: OrderStatus) => { 
-        if (!orderData) return; 
-        startTransition(async () => { 
-            setOptimisticOrder({ status: newStatus } as any); 
-            await updateOrder({ id: orderData.id, status: newStatus }); 
-        }); 
-    };
-
-    const handleImageClick = (clickedAttachment: OrderAttachment) => { 
-        const rawImageAttachments = (order?.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-        const allImageAttachments = order?.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
-        const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); 
-        if (imageIndex !== -1) { 
-            setGalleryStartIndex(imageIndex); 
-            setGalleryOpen(true); 
-        } 
-    };
-
-    const handleFilePreview = (att: OrderAttachment) => { 
-        setPreviewAttachment(att); 
-        setPreviewOpen(true); 
-    };
-
-    const startDesign = () => {
-        if (!user || !order) return;
-        handleStatusChange('Designing');
-        if (!order.assignedTo?.includes(user.id)) {
-            updateOrder({ id: order.id, assignedTo: arrayUnion(user.id) as any });
-        }
-        toast({ title: "Design Started", description: "Status updated to Designing." });
-    };
-
-    const confirmFinishDesign = () => {
-        handleStatusChange('Design Ready');
-        setFinishDesignOpen(false);
-        toast({ title: "Design Finished", description: "Status updated to Design Ready." });
-    };
-
-    const transferToStock = async () => {
-        if (!order || !order.products || order.products.length === 0) return;
-        setIsTransferring(true);
-        try {
-            for (const product of order.products) {
-                await addStockItem({
-                    name: `Sample: ${product.productName}`,
-                    category: 'Finished Samples',
-                    description: product.description || `From sample order ${order.uniqueName}`,
-                    unit: 'pcs',
-                    currentQuantity: product.quantity || 1,
-                    icon: 'FlaskConical'
-                });
-            }
-            await updateOrder({ id: order.id, isTransferredToStock: true });
-            toast({ title: "Inventory Updated", description: "Units added to Finished Samples." });
-        } catch (e) {
-            toast({ variant: "destructive", title: "Transfer Failed" });
-        } finally {
-            setIsTransferring(false);
-        }
-    };
-
-    const downloadQRCode = async () => {
-        if (!order) return;
-        const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
-        if (!qrCanvas) return;
-        const width = 2400; 
-        const height = 400; 
-        const canvas = document.createElement('canvas'); 
-        canvas.width = width; 
-        canvas.height = height; 
-        const ctx = canvas.getContext('2d'); 
-        if (!ctx) return;
-        
-        ctx.fillStyle = '#FFFFFF'; 
-        ctx.fillRect(0, 0, width, height);
-        
-        const qrSize = 320; 
-        const padding = 40; 
-        ctx.fillStyle = 'white'; 
-        ctx.fillRect(padding, padding, qrSize, qrSize); 
-        ctx.drawImage(qrCanvas, padding + 10, padding + 10, qrSize - 20, qrSize - 20);
-        
-        ctx.fillStyle = '#1A1C1E'; 
-        ctx.font = 'bold 70px sans-serif'; 
-        ctx.fillText(order.uniqueName || "", padding + qrSize + 80, padding + 140);
-        
-        const dateObj = order.creationDate ? (typeof order.creationDate === 'string' ? new Date(order.creationDate) : (order.creationDate as any).toDate?.() || new Date()) : null;
-        if (dateObj) { 
-            ctx.font = '40px sans-serif'; 
-            ctx.fillStyle = '#666'; 
-            ctx.fillText(`Date: ${dateObj.toLocaleDateString()}`, padding + qrSize + 80, padding + 240); 
-        }
-        
-        if (brandSettings?.logoUrl) {
-            const logoImg = new (window as any).Image(); 
-            logoImg.crossOrigin = "anonymous"; 
-            logoImg.src = brandSettings.logoUrl;
-            await new Promise((resolve) => { 
-                logoImg.onload = () => { 
-                    const aspect = logoImg.width / logoImg.height; 
-                    const h = 280; 
-                    const w = h * aspect; 
-                    ctx.drawImage(logoImg, width - w - padding - 20, (height - h) / 2, w, h); 
-                    resolve(null); 
-                }; 
-                logoImg.onerror = () => resolve(null); 
-            });
-        }
-        
-        const pngUrl = canvas.toDataURL("image/png"); 
-        const downloadLink = document.createElement("a"); 
-        downloadLink.href = pngUrl; 
-        downloadLink.download = `footer-${order.id}.png`; 
-        document.body.appendChild(downloadLink); 
-        downloadLink.click(); 
-        document.body.removeChild(downloadLink);
-    };
+  const handleStatusChange = (newStatus: OrderStatus) => { if (orderData) { setOptimisticOrder({ status: newStatus } as any); updateOrder({ id: orderData.id, status: newStatus }); } };
+  const handleImageClick = (clickedAttachment: OrderAttachment) => { 
+    const rawImageAttachments = (order?.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+    const allImageAttachments = order?.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
+    const imageIndex = allImageAttachments.findIndex(img => img.url === clickedAttachment.url); 
+    if (imageIndex !== -1) { setGalleryStartIndex(imageIndex); setGalleryOpen(true); } 
+  };
 
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
-  
   const customer = getCustomerById(order.customerId || "");
-  const isAdminView = role === 'AdminView';
-  const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && !isAdminView;
-  const canChangeStatus = (role === 'Admin' || role === 'Manager') && !isAdminView;
-  const isDesigner = role === 'Designer';
-  const canViewSensitiveData = role === 'Admin' || role === 'Sales' || role === 'AdminView';
-  const prepaid = order.prepaidAmount || 0;
-  const isPaid = order.paymentStatus === 'Paid';
-
-  const rawImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
-  const allImageAttachments = order.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;
-
-    const OrderInfoCard = (
-        <Card>
-            <CardHeader><CardTitle className="text-lg">Order Information</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-3"><Hash className="h-4 w-4 text-muted-foreground"/><span className="text-sm">ID: {formatOrderId(order.id)}</span></div>
-                <div className="flex items-center gap-3"><Calendar className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Created: {formatTimestamp(order.creationDate)}</span></div>
-                <div className="flex items-center gap-3"><Clock className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Deadline: {formatTimestamp(order.deadline)}</span></div>
-                {order.location && <div className="flex items-center gap-3"><MapPin className="h-4 w-4 text-muted-foreground"/><span className="text-sm">Location: {order.location.town}</span></div>}
-                {canViewSensitiveData && (
-                <>
-                    <Separator />
-                    {order.withReceipt && (
-                        <Card className="p-3 bg-primary/5 border border-primary/10 rounded-md mb-4">
-                            <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase mb-2"><Receipt className="h-3 w-3"/> Official Receipt Mode</div>
-                            <div className="space-y-2">
-                            {order.products?.map((p, idx) => (
-                                <div key={p.id || idx} className="flex justify-between items-center text-[11px]">
-                                    <span className="text-muted-foreground">{p.productName} ({p.quantity || 1} pcs)</span>
-                                    <span className="font-medium">{formatCurrency((p.price || 0) * (p.quantity || 1))}</span>
-                                </div>
-                            ))}
-                            <Separator className="bg-primary/10" />
-                            <div className="flex justify-between text-sm"><span>Base Price:</span><span>{formatCurrency(order.incomeAmount)}</span></div>
-                            <div className="flex justify-between text-sm text-muted-foreground"><span>VAT (15%):</span><span>+{formatCurrency(order.vatAmount || 0)}</span></div>
-                            <div className="flex justify-between font-bold border-t border-primary/20 pt-1"><span>Total Payable:</span><span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span></div>
-                            {order.receiptAttachment && <Button variant="outline" size="sm" className="w-full mt-2 h-7 text-[10px]" onClick={() => handleImageClick(order.receiptAttachment!)}><ImageIcon className="h-3 w-3 mr-1"/> View Receipt</Button>}
-                            </div>
-                        </Card>
-                    )}
-                    <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted-foreground">Pre-paid</span><span className="text-sm font-semibold">{formatCurrency(prepaid)}</span></div>
-                    <div className="flex items-center justify-between gap-3 font-bold"><span className="text-sm">Balance Due</span><span className="text-sm">{formatCurrency((order.totalWithVat || order.incomeAmount) - prepaid)}</span></div>
-                    <div className="flex items-center justify-between gap-3 mt-4"><span className="text-sm text-muted-foreground">Payment Mode</span><div className="flex items-center gap-1 font-medium text-sm"><CreditCard className="h-3 w-3"/> {order.paymentMethod || 'Cash'}</div></div>
-                    {order.bankName && <p className="text-[10px] text-muted-foreground text-right">{order.bankName} - {order.bankAccountNumber}</p>}
-                    <div className="flex items-center justify-between gap-3 mt-2"><span className="text-sm text-muted-foreground">Payment Status</span><Badge variant={isPaid ? 'default' : 'secondary'}>{order.paymentStatus || 'Unpaid'}</Badge></div>
-                    <Separator />
-                    <p className="text-sm text-muted-foreground pt-2">{order.paymentDetails}</p>
-                </>
-                )}
-            </CardContent>
-        </Card>
-    );
-
-    const CustomerCard = customer ? (
-        <Card>
-            <CardHeader><CardTitle className="text-lg">Customer</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                    <User className="h-4 w-4 text-muted-foreground"/> 
-                    <Link href={`/customers/${customer.id}`} className="font-bold text-sm hover:underline">{customer.name}</Link>
-                </div>
-                <div className="space-y-2">
-                    {(customer.phoneNumbers || []).map((p, idx) => (
-                        <a key={idx} href={`tel:${p.number}`} className="flex items-center justify-between p-2 rounded-lg bg-muted/30 hover:bg-muted/60 transition-colors group">
-                            <div className="flex items-center gap-2">
-                                <Phone className="h-3.5 w-3.5 text-primary" />
-                                <div className="flex flex-col">
-                                    <span className="text-[9px] font-bold text-muted-foreground uppercase leading-none">{p.type}</span>
-                                    <span className="text-sm font-medium">{p.number}</span>
-                                </div>
-                            </div>
-                            <Badge variant="outline" className="text-[8px] font-bold uppercase py-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">Call</Badge>
-                        </a>
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
-    ) : null;
-
-    const mainContent = (
-        <div className="space-y-6">
-            {order.isSample && order.status === 'Completed' && !order.isTransferredToStock && (
-                <Card className="border-orange-200 bg-orange-50/30 mx-1">
-                    <CardContent className="flex items-center justify-between p-4 gap-4">
-                        <div className="flex items-center gap-3">
-                            <FlaskConical className="h-6 v-6 text-orange-600" />
-                            <div>
-                                <p className="text-sm font-bold text-orange-900 uppercase tracking-tight">Sample Ready</p>
-                                <p className="text-xs text-orange-700">Add this finished piece to shop inventory.</p>
-                            </div>
-                        </div>
-                        {(canEdit || role === 'Admin') && !isAdminView && (
-                            <Button size="sm" className="bg-orange-600 hover:bg-orange-700 font-bold" onClick={transferToStock} disabled={isTransferring}>
-                                {isTransferring ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Package className="mr-2 h-4 w-4" />}
-                                Transfer to Stock
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-            {order.isSample && order.isTransferredToStock && (
-                <div className="mx-1 p-3 bg-green-50 border border-green-100 rounded-lg flex items-center gap-2 text-green-700 text-xs font-bold uppercase tracking-widest">
-                    <CheckCircle2 className="h-4 w-4" /> Units Transferred to Stock
-                </div>
-            )}
-            {(isDesigner || canEdit) && !isAdminView && (order.status === 'In Progress' || order.status === 'Designing') && (
-                <Card className="border-primary/40 bg-primary/5 mx-1">
-                    <CardContent className="flex items-center justify-between p-3 gap-4">
-                        <div className="flex items-center gap-2">
-                            <Boxes className="h-5 w-5 text-primary" />
-                            <span className="text-sm font-bold uppercase tracking-tight">Design Task</span>
-                        </div>
-                        {order.status === 'In Progress' && (
-                            <Button size="sm" className="font-bold" onClick={startDesign}>
-                                <PlayCircle className="mr-2 h-4 w-4" /> Start
-                            </Button>
-                        )}
-                        {order.status === 'Designing' && (
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 font-bold" onClick={() => setFinishDesignOpen(true)}>
-                                <CheckCircle2 className="mr-2 h-4 w-4" /> Finish
-                            </Button>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-            <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={(order.products && order.products[0]?.id) || undefined}>
-                {(order.products || []).map((product, index) => (
-                    <ProductDetails 
-                        key={product.id} 
-                        product={product} 
-                        order={order} 
-                        productIndex={index}
-                        onImageClick={handleImageClick} 
-                        onAttachmentDelete={(att) => removeAttachment(order.id, index, att, false)} 
-                        onDesignAttachmentDelete={(att) => removeAttachment(order.id, index, att, true)} 
-                        isDesigner={isDesigner || role === 'Admin'}
-                        onDesignUpload={(file, progressKey) => addAttachment(order.id, index, file, true, progressKey)}
-                        onFilePreview={handleFilePreview}
-                        canEdit={canEdit && !isAdminView}
-                    />
-                ))}
-            </Accordion>
-        </div>
-    );
+  const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && role !== 'AdminView';
+  const isDesigner = role === 'Designer' || role === 'Admin';
+  const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
 
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
-      <div className="w-full">
-        <div className="mt-2">
-            <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="px-1 py-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
-                                    {order.withReceipt && <Receipt className="h-6 w-6 text-muted-foreground/60" />}
-                                    {canChangeStatus ? (
-                                        <div className="flex items-center gap-2">
-                                            <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                                            {order.assignedTo && order.assignedTo.length > 0 && (
-                                                <div className="flex -space-x-2 ml-1">
-                                                    {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <StatusBadge status={order.status} />
-                                            {order.assignedTo && order.assignedTo.length > 0 && (
-                                                <div className="flex -space-x-2 ml-1">
-                                                    {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {order.isSample && <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 gap-1"><FlaskConical className="h-3 w-3" /> Sample</Badge>}
-                                    {order.isUrgent && <Badge variant="destructive" className="animate-pulse">Urgent</Badge>}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQrDialogOpen(true)} title="Order QR Code"><QrCode className="h-4 w-4" /></Button>
-                                {canEdit && (
-                                    <>
-                                    <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9"><Edit className="h-4 w-4" /></Button></Link>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="outline" size="icon" className="h-9 w-9"><MoreVertical className="h-4 w-4" /></Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={handleToggleUrgent}>
-                                                <AlertTriangle className="mr-2 h-4 w-4" />
-                                                <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Back</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                        <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                    </>
-                                )}
-                            </div>
-                        </div>
+        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8 py-4">
+                <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
+                        <StatusChanger order={order} onStatusChange={handleStatusChange} />
+                        {order.assignedTo?.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
                     </div>
-                    {mainContent}
+                    <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)}><QrCode className="h-4 w-4" /></Button>
                 </div>
-                <div className="space-y-8">
-                    {OrderInfoCard}
-                    {CustomerCard}
-
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-2 px-1">
-                        <MessageSquare className="h-5 w-5 text-primary" />
-                        <h3 className="font-bold text-sm uppercase tracking-wider text-muted-foreground">Team Discussion</h3>
-                        </div>
-                        <div className="h-[600px] rounded-xl border bg-card overflow-hidden shadow-sm">
-                        <ChatInterface order={order} />
-                        </div>
-                    </div>
+                <div className="space-y-6">
+                    {order.products?.map((p, idx) => (
+                        <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />
+                    ))}
                 </div>
             </div>
-
-            <div className="lg:hidden">
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <div className={cn(
-                        "sticky top-[-16px] z-40 bg-background/95 backdrop-blur-md shadow-sm border-b overflow-hidden transition-transform duration-300 ease-in-out",
-                        !showHeader && "translate-y-[-100%]"
-                    )}>
-                        <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/20 rounded-none border-b border-border/5">
-                            <TabsTrigger value="specs" className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-none transition-all">
-                                <ListChecks className="h-3.5 w-3.5" /> Specs
-                            </TabsTrigger>
-                            <TabsTrigger value="chat" className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest data-[state=active]:bg-background data-[state=active]:shadow-none transition-all">
-                                <MessageSquare className="h-3.5 w-3.5" /> Chat
-                            </TabsTrigger>
-                        </TabsList>
-                        
-                        <div className="px-3 py-3 animate-in fade-in slide-in-from-top-1 duration-300">
-                            <div className="flex justify-between items-center gap-3">
-                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                    {activeTab === 'chat' && (
-                                        <div className="relative h-10 w-10 rounded-xl overflow-hidden border shadow-sm shrink-0 bg-muted ring-2 ring-primary/5">
-                                            {order.mainImageUrl ? (
-                                                <Image src={order.mainImageUrl} alt="order" fill className="object-cover" />
-                                            ) : (
-                                                <Box className="h-5 w-5 m-auto text-muted-foreground opacity-30" />
-                                            )}
-                                        </div>
-                                    )}
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                            <h1 className={cn(
-                                                "font-bold font-headline tracking-tight truncate leading-tight transition-all",
-                                                activeTab === 'chat' ? "text-sm" : "text-base"
-                                            )}>
-                                                {activeTab === 'chat' ? simpleName : order.uniqueName}
-                                            </h1>
-                                            {order.withReceipt && <Receipt className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />}
-                                        </div>
-                                        {activeTab === 'specs' && (
-                                            <div className="flex items-center gap-1.5 mt-1 overflow-x-auto no-scrollbar">
-                                                {canChangeStatus ? (
-                                                    <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                                                ) : (
-                                                    <StatusBadge status={order.status} />
-                                                )}
-                                                {order.isUrgent && <Badge variant="destructive" className="text-[9px] px-1.5 h-4 uppercase font-bold tracking-tighter">Urgent</Badge>}
-                                                {order.assignedTo && order.assignedTo.length > 0 && (
-                                                    <div className="flex -space-x-1.5 ml-2">
-                                                        {order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50" onClick={() => setQrDialogOpen(true)} title="QR"><QrCode className="h-4 w-4" /></Button>
-                                    {canEdit && (
-                                        <>
-                                            <Link href={`/orders/${order.id}/edit`}><Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50"><Edit className="h-4 w-4" /></Button></Link>
-                                            {activeTab === 'specs' && (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl bg-background/50">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={handleToggleUrgent}>
-                                                            <AlertTriangle className="mr-2 h-4 w-4" />
-                                                            <span>{order.isUrgent ? "Remove Urgency" : "Mark as Urgent"}</span>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator />
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Cancel Order</DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This will cancel the order.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Back</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleCancel}>Cancel Order</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                        <AlertDialog>
-                                                            <AlertDialogTrigger asChild>
-                                                                <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>Delete Order</DropdownMenuItem>
-                                                            </AlertDialogTrigger>
-                                                            <AlertDialogContent>
-                                                                <AlertDialogHeader>
-                                                                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                                                                    <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
-                                                                </AlertDialogHeader>
-                                                                <AlertDialogFooter>
-                                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                    <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                                                                </AlertDialogFooter>
-                                                            </AlertDialogContent>
-                                                        </AlertDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <TabsContent value="specs" className="space-y-6 mt-4 animate-in slide-in-from-left-2 duration-300 outline-none pb-24">
-                        {mainContent}
-                        
-                        <div className="px-1 space-y-6">
-                            {OrderInfoCard}
-                            {CustomerCard}
-                        </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="chat" className="mt-0 animate-in slide-in-from-right-2 duration-300 outline-none">
-                        <div className="h-[calc(100vh-210px)]">
-                            <ChatInterface order={order} />
-                        </div>
-                    </TabsContent>
-                </Tabs>
+            <div className="space-y-8 py-4">
+                <Card><CardHeader><CardTitle className="text-lg">Info</CardTitle></CardHeader><CardContent className="space-y-2"><div className="text-sm">Created: {formatTimestamp(order.creationDate)}</div><div className="text-sm">Deadline: {formatTimestamp(order.deadline)}</div><Separator /><div className="text-lg font-bold">Total: {formatCurrency(order.totalWithVat || order.incomeAmount)}</div></CardContent></Card>
+                <div className="h-[500px] border rounded-xl overflow-hidden"><ChatInterface order={order} /></div>
             </div>
         </div>
-      </div>
-
-      <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
-      
-      <FilePreviewDialog 
-        open={previewOpen} 
-        onOpenChange={setPreviewOpen} 
-        attachment={previewAttachment} 
-      />
-
-      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-        <DialogPortal>
-            <DialogContent className="sm:max-w-sm overflow-hidden">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <QrCode className="h-5 w-5" /> Order QR Code
-                    </DialogTitle>
-                    <DialogDescription>Use this code for workshop tracking.</DialogDescription>
-                </DialogHeader>
-                <div className="flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                    <div className="p-4 bg-white rounded-3xl shadow-xl">
-                        <QRCodeCanvas 
-                            id="order-qr-code" 
-                            value={`O:${order.id}`} 
-                            size={200} 
-                            level="H" 
-                            includeMargin={false}
-                        />
-                    </div>
-                    <p className="mt-6 text-sm font-bold text-slate-700 uppercase tracking-widest">{order.uniqueName}</p>
-                    <p className="text-[10px] text-slate-400 font-mono mt-1">#{order.id.slice(-8).toUpperCase()}</p>
-                </div>
-                <DialogFooter className="flex flex-col sm:flex-row gap-2 mt-4">
-                    <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
-                    <Button onClick={downloadQRCode} className="flex-1">
-                        <Download className="mr-2 h-4 w-4" /> Download PNG
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </DialogPortal>
-    </Dialog>
-
-    <Dialog open={finishDesignOpen} onOpenChange={setFinishDesignOpen}>
-        <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" /> Confirm Design Submission
-                </DialogTitle>
-                <DialogDescription>
-                    Please ensure the following technical requirements are met for production.
-                </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4 py-4">
-                {order.products?.map((p, idx) => {
-                    const hasBOM = p.bomItems && p.bomItems.length > 0;
-                    const hasDocs = p.designAttachments && p.designAttachments.length > 0;
-                    const hasTAP = p.designAttachments?.some(att => att.fileName.toLowerCase().endsWith('.tap'));
-                    
-                    return (
-                        <div key={p.id || idx} className="p-4 border rounded-lg bg-muted/20 space-y-3">
-                            <p className="font-bold text-sm truncate">{p.productName}</p>
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-2">
-                                        <ListChecks className="h-3.5 w-3.5" /> Bill of Materials
-                                    </span>
-                                    {hasBOM ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Added</Badge> : <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/5">Missing</Badge>}
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-2">
-                                        <FileText className="h-3.5 w-3.5" /> Technical Drawings
-                                    </span>
-                                    {hasDocs ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Attached</Badge> : <Badge variant="outline" className="text-destructive border-destructive/20 bg-destructive/5">Missing</Badge>}
-                                </div>
-                                <div className="flex items-center justify-between text-xs">
-                                    <span className="flex items-center gap-2">
-                                        <Boxes className="h-3.5 w-3.5" /> CNC Files (.tap)
-                                    </span>
-                                    {hasTAP ? <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Ready</Badge> : <Badge variant="outline" className="opacity-50">Optional / Missing</Badge>}
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-                <Button variant="outline" onClick={() => setFinishDesignOpen(false)} className="flex-1">Back to Design</Button>
-                <Button onClick={confirmFinishDesign} className="flex-1 bg-green-600 hover:bg-green-700">
-                    Confirm & Mark Ready
-                </Button>
-            </DialogFooter>
-        </DialogContent>
-    </Dialog>
+        <div className="lg:hidden">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-2"><TabsTrigger value="specs">Specs</TabsTrigger><TabsTrigger value="chat">Chat</TabsTrigger></TabsList>
+                <TabsContent value="specs" className="space-y-6">{order.products?.map((p, idx) => <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />)}</TabsContent>
+                <TabsContent value="chat" className="h-[calc(100vh-210px)]"><ChatInterface order={order} /></TabsContent>
+            </Tabs>
+        </div>
+        <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
+        <FilePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} attachment={previewAttachment} />
     </div>
   );
 }

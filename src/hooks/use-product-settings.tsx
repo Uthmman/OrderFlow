@@ -7,7 +7,6 @@ import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
 import type { ProductSettings, ProductCategory, Material } from '@/lib/types';
 
-
 interface ProductSettingsContextType {
   productSettings: ProductSettings | null;
   loading: boolean;
@@ -22,22 +21,37 @@ interface ProductSettingsContextType {
 
 const ProductSettingsContext = createContext<ProductSettingsContextType | undefined>(undefined);
 
+const INITIAL_PRODUCT_SETTINGS: ProductSettings = {
+    productCategories: [
+        { name: "Sofa", icon: "Sofa" },
+        { name: "Bed", icon: "Bed" },
+        { name: "Wardrobe", icon: "Wardrobe" },
+        { name: "Door", icon: "DoorOpen" },
+    ],
+    materials: [
+        { name: 'MDF Paint', icon: 'PaintBucket' },
+        { name: 'Oak', icon: 'Leaf' },
+        { name: 'Laminated MDF', icon: 'Sheet' },
+    ]
+};
+
 export function ProductSettingProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'products'), [firestore]);
-  const { data: productSettings, isLoading: loading } = useDoc<ProductSettings>(settingsDocRef);
+  const { data: dbSettings, isLoading: loading } = useDoc<ProductSettings>(settingsDocRef);
+
+  const productSettings = dbSettings || (loading ? null : INITIAL_PRODUCT_SETTINGS);
 
   const updateProductSettings = useCallback(async (newSettings: ProductSettings) => {
     try {
-        await setDoc(settingsDocRef, newSettings, { merge: true });
+        await setDoc(settingsDocRef, newSettings);
         toast({
           title: "Settings Updated",
           description: "Your product settings have been saved.",
         });
     } catch (error) {
-        console.error("Failed to update product settings:", error);
         toast({
             variant: "destructive",
             title: "Update Failed",
@@ -83,49 +97,9 @@ export function ProductSettingProvider({ children }: { children: ReactNode }) {
       const updatedMaterials = productSettings.materials.filter((_, i) => i !== index);
       await updateProductSettings({ ...productSettings, materials: updatedMaterials });
   }, [productSettings, updateProductSettings]);
-  
-  // Seed initial data if it doesn't exist
-  React.useEffect(() => {
-    if (!loading && !productSettings) {
-        const initialSettings: ProductSettings = {
-            productCategories: [
-                { name: "Bunk Bed", icon: "BedDouble" },
-                { name: "Bed 150", icon: "Bed" },
-                { name: "Bed 120", icon: "Bed" },
-                { name: "Bed 180", icon: "Bed" },
-                { name: "Bed 200", icon: "Bed" },
-                { name: "Single Bed", icon: "BedSingle" },
-                { name: "Baby Bed", icon: "Baby" },
-                { name: "Wardrobe", icon: "Wardrobe" },
-                { name: "Kitchen Cabinet", icon: "ChefHat" },
-                { name: "TV Stand", icon: "Tv" },
-                { name: "Sofa", icon: "Sofa" },
-                { name: "Door", icon: "DoorOpen" },
-                { name: "Main Door", icon: "DoorClosed" },
-                { name: "Dressing Table", icon: "Square" },
-                { name: "Study Table", icon: "Book" },
-                { name: "Office Table", icon: "Briefcase" },
-                { name: "Dining Table", icon: "Utensils" },
-                { name: "Book Shelf", icon: "BookOpen" },
-            ],
-            materials: [
-                { name: 'MDF Paint', icon: 'PaintBucket' },
-                { name: 'MDF Paint 2K', icon: 'Paintbrush' },
-                { name: 'Oak', icon: 'Leaf' },
-                { name: 'Oak 2K', icon: 'TreeDeciduous' },
-                { name: 'Australian Wood', icon: 'Sprout' },
-                { name: 'UV MDF', icon: 'Sun' },
-                { name: 'Blockboard UV MDF', icon: 'Layers' },
-                { name: 'Laminated MDF', icon: 'Sheet' },
-                { name: 'Blockboard Laminated MDF', icon: 'Library' },
-            ]
-        };
-        setDoc(settingsDocRef, initialSettings);
-    }
-  }, [loading, productSettings, settingsDocRef]);
 
   const value = useMemo(() => ({
-    productSettings: productSettings,
+    productSettings,
     loading,
     updateProductSettings,
     addCategory,

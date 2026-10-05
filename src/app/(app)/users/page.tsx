@@ -1,4 +1,3 @@
-
 "use client"
 
 import * as React from "react"
@@ -136,7 +135,7 @@ export const columns: ColumnDef<AppUser>[] = [
     accessorKey: "workerType",
     header: "Worker Type",
     cell: ({ row }) => {
-        const type = row.getValue("workerType") as string || 'Daily';
+        const type = (row.getValue("workerType") as string) || 'Daily';
         return (
             <Badge variant="outline" className="flex w-fit items-center gap-1">
                 <Briefcase className="h-3 w-3" />
@@ -178,12 +177,6 @@ function UserTableToolbar({ table }: { table: any }) {
 function MobileUserList({ users }: { users: AppUser[] }) {
     return (
         <div className="space-y-4">
-             <div className="flex items-center justify-between gap-2">
-                <Input
-                    placeholder="Filter by user..."
-                    className="h-9 flex-1"
-                />
-            </div>
             {users.map(user => (
                  <Card key={user.id} className="hover:bg-muted/50 transition-colors">
                     <CardHeader>
@@ -249,11 +242,17 @@ export default function UsersPage() {
     }
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8 animate-in fade-in duration-700">
              <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">Team Management</h1>
             </div>
             <div className="md:hidden">
+                <div className="flex items-center justify-between gap-2 mb-4">
+                    <Input
+                        placeholder="Filter by user..."
+                        className="h-9 flex-1"
+                    />
+                </div>
                 <MobileUserList users={users} />
             </div>
             <Card className="hidden md:block">
