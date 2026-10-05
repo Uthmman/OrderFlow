@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -1144,10 +1145,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                       </Button>
                   )}
                   {currentStep === 10 && (
-                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit, (e) => {
-                          const msgs = Object.entries(e).map(([k,v]) => `${k}: ${(v as any).message || (v as any).productName?.message}`).join(". ");
-                          toast({ variant: "destructive", title: "Missing Fields", description: msgs || "Check all steps." });
-                      })} disabled={isSubmittingFinal || isAnyUploading} className="min-w-[120px] bg-primary">
+                      <Button type="button" onClick={form.handleSubmit(handleFormSubmit)} disabled={isSubmittingFinal || isAnyUploading} className="min-w-[120px] bg-primary">
                         {isSubmittingFinal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (initialOrder ? submitButtonText : 'Finish Order')}
                       </Button>
                   )}

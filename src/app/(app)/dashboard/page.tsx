@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -113,8 +114,6 @@ export default function Dashboard() {
     const onProduction = filteredOrdersByDate.filter(o => ['Manufacturing', 'Painting'].includes(o.status)).length;
     const delivered = filteredOrdersByDate.filter(o => o.status === 'Completed' || o.status === 'Shipped').length;
     
-    // Revenue is only full price if completed, shipped or explicitly paid. 
-    // Otherwise it is just the prepayment.
     const realizedRevenue = filteredOrdersByDate.reduce((sum, order) => {
       const total = order.totalWithVat || order.incomeAmount || 0;
       const prepaid = order.prepaidAmount || 0;
@@ -123,23 +122,13 @@ export default function Dashboard() {
     }, 0);
 
     const totalPotentialSales = filteredOrdersByDate.reduce((sum, order) => sum + (order.totalWithVat || order.incomeAmount || 0), 0);
-    
     const totalExp = filteredExpensesByDate.reduce((sum, exp) => sum + exp.amount, 0);
     const profit = realizedRevenue - totalExp;
     const unpaid = totalPotentialSales - realizedRevenue;
     
     return { 
-      totalOrders, 
-      active, 
-      designing, 
-      inProgress, 
-      designReady, 
-      onProduction, 
-      delivered, 
-      revenue: realizedRevenue, 
-      totalExp, 
-      profit, 
-      unpaid 
+      totalOrders, active, designing, inProgress, designReady, onProduction, delivered, 
+      revenue: realizedRevenue, totalExp, profit, unpaid 
     };
   }, [filteredOrdersByDate, filteredExpensesByDate]);
 
@@ -189,11 +178,13 @@ export default function Dashboard() {
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         <Card className={cn("border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50", !canViewFinancials ? "lg:col-span-3" : "lg:col-span-2")}>
           <CardHeader className="pb-2">
-            <div>
-              <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
-                <Layers className="h-5 w-5 text-primary" /> Operational Metrics
-              </CardTitle>
-              <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold flex items-center gap-2 text-slate-800">
+                  <Layers className="h-5 w-5 text-primary" /> Operational Metrics
+                </CardTitle>
+                <CardDescription className="text-[11px] font-bold uppercase tracking-widest mt-1 opacity-70">Workshop Flow Status</CardDescription>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">

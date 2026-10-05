@@ -63,9 +63,9 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
-        <div className="flex items-center gap-3 p-2">
+        <div className="flex items-center gap-4 p-2">
           {brandSettings?.logoUrl ? (
-            <div className="relative h-8 w-8 overflow-hidden rounded-lg border bg-white shadow-sm">
+            <div className="relative h-12 w-12 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0">
               <Image 
                 src={brandSettings.logoUrl} 
                 alt={brandSettings.companyName || "Logo"} 
@@ -74,10 +74,10 @@ export function AppSidebar() {
               />
             </div>
           ) : (
-            <Boxes className="h-8 w-8 text-primary" />
+            <Boxes className="h-10 w-10 text-primary shrink-0" />
           )}
-          <div className="flex flex-col">
-            <h2 className="font-headline text-lg font-semibold text-sidebar-foreground truncate max-w-[140px]">
+          <div className="flex flex-col min-w-0">
+            <h2 className="font-headline text-lg font-bold text-sidebar-foreground leading-tight">
               {brandSettings?.companyName || "OrderFlow"}
             </h2>
           </div>
