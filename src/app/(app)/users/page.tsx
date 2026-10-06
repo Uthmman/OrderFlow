@@ -247,12 +247,6 @@ export default function UsersPage() {
                 <h1 className="text-3xl font-bold font-headline tracking-tight">Team Management</h1>
             </div>
             <div className="md:hidden">
-                <div className="flex items-center justify-between gap-2 mb-4">
-                    <Input
-                        placeholder="Filter by user..."
-                        className="h-9 flex-1"
-                    />
-                </div>
                 <MobileUserList users={users} />
             </div>
             <Card className="hidden md:block">

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useCallback, useEffect, useRef } from 'react';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback, useRef } from 'react';
+import { doc, setDoc } from 'firebase/firestore';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
@@ -31,12 +31,10 @@ const INITIAL_COLOR_SETTINGS: ColorSettings = {
 export function ColorSettingProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { toast } = useToast();
-  const hasSeeded = useRef(false);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'colors'), [firestore]);
   const { data: dbSettings, isLoading: loading } = useDoc<ColorSettings>(settingsDocRef);
 
-  // Merge DB settings with defaults in UI, but don't force write back unless user saves
   const settings = dbSettings || (loading ? null : INITIAL_COLOR_SETTINGS);
 
   const updateSettings = useCallback(async (newSettings: ColorSettings) => {

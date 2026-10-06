@@ -11,10 +11,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
 
-/**
- * Robust Ethiopian Month Calculation for shop expenses.
- * Includes aliases for common spellings found in payroll records.
- */
 const ETHIOPIAN_MONTHS = [
   ['Meskerem'], 
   ['Tikimt', 'Tekemt'], 
@@ -58,33 +54,24 @@ export function getEthiopianPeriod(date: Date | any) {
   return `${ETHIOPIAN_MONTHS[ethMonthIndex][0]} ${year}`;
 }
 
-/**
- * Clean redundant text from period labels.
- * Aggressively removes "Week", "Week :", "Week -" prefixes.
- */
 function sanitizePeriodLabel(label: string): string {
     if (!label) return 'Unknown Period';
     return label
-        .replace(/^(week|weekly)\s*[:\- ]*\s*/i, '') // Aggressively removes "Week", "Week :", "Week -", "Weekly" etc
+        .replace(/^(week|weekly)\s*[:\- ]*\s*/i, '')
         .replace(/\s+am$/i, '')
         .trim();
 }
 
-/**
- * Converts an Ethiopian date to Gregorian.
- */
 export function ethToGregorian(monthName: string, day: number, ethYear: number): Date {
   const monthIdx = ETHIOPIAN_MONTHS.findIndex(aliases => 
     aliases.some(a => a.toLowerCase() === monthName.toLowerCase())
   );
   
-  if (monthIdx === -1) return new Date(0); // Return epoch for unparseable months
+  if (monthIdx === -1) return new Date(0); 
 
-  // Reference point: Meskerem 1, 2017 EC = Sept 11, 2024 GC
   const baseGreg = new Date(2024, 8, 11); 
   const yearsDiff = ethYear - 2017;
   
-  // Calculate total days elapsed in EC from reference
   let totalDays = yearsDiff * 365 + Math.floor((yearsDiff + 1) / 4);
   totalDays += monthIdx * 30;
   totalDays += (day - 1);
@@ -94,14 +81,10 @@ export function ethToGregorian(monthName: string, day: number, ethYear: number):
   return target;
 }
 
-/**
- * Extracts the last day Gregorian date from an Ethiopian period label.
- */
 function parseFilterDateFromLabel(label: string, fallback: Date): Date {
     if (!label) return fallback;
 
     try {
-        // Match weekly format: "Meskerem 17 - Meskerem 23, 2019"
         const weeklyMatch = label.match(/-\s+([a-zA-Z]+)\s+(\d+),\s+(\d+)/);
         if (weeklyMatch) {
             const [_, month, day, year] = weeklyMatch;
@@ -109,7 +92,6 @@ function parseFilterDateFromLabel(label: string, fallback: Date): Date {
             if (parsed.getTime() !== 0) return parsed;
         }
 
-        // Match monthly format: "Ter 2017"
         const monthlyMatch = label.match(/^([a-zA-Z]+)\s+(\d+)$/);
         if (monthlyMatch) {
             const [_, month, year] = monthlyMatch;
@@ -160,7 +142,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             ...doc.data()
           }));
           setSecondaryRecords(results);
-          secondaryLoading && setSecondaryLoading(false);
+          setSecondaryLoading(false);
         }, (error) => {
           console.error("Secondary expenses error:", error);
           setSecondaryLoading(false);
@@ -187,10 +169,6 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     });
 
     const processedSecondary = secondaryRecords
-        .filter(curr => {
-            const amount = curr.totalPay || curr.amount || 0;
-            return amount > 0;
-        })
         .map(curr => {
             const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
             const rawLabel = curr.periodLabel || getEthiopianPeriod(fallbackDate);
@@ -200,7 +178,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             return {
                 id: curr.id,
                 description: `Payroll: ${curr.employeeName || 'Staff'}`,
-                amount: curr.totalPay || curr.amount || 0,
+                amount: curr.totalPay ?? curr.amount ?? 0,
                 date: filterDate, 
                 category: 'Employee Expense',
                 paidTo: curr.employeeName || 'Staff Member',

@@ -141,32 +141,19 @@ const toDate = (timestamp: any): Date | undefined => {
     return undefined;
 }
 
-export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: OrderFormProps) {
+export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Create Order", isSubmitting: isExternallySubmitting = false }: { order?: Order; onSave: any; submitButtonText?: string; isSubmitting?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { customers, addCustomer } = useCustomers();
-  const { products: catalogProducts, loading: catalogLoading } = useProducts();
+  const { customers } = useCustomers();
+  const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
   const { productSettings } = useProductSettings();
-  const { settings: paymentSettings } = usePaymentSettings();
-  const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
-  const { uploadFile, uploadProgress } = useOrders();
+  const { uploadFile } = useOrders();
   
-  const [currentProductIndex, setCurrentProductIndex] = useState(0);
+  const [currentProductIndex] = useState(0);
   const [currentStep, setCurrentStep] = useState(searchParams.get('step') ? parseInt(searchParams.get('step')!) : 1);
-  const [isCreatingNewCustomer, setIsCreatingNewCustomer] = useState(false);
-  const [newCustomerSubmitting, setNewCustomerSubmitting] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [isManualSaving, setIsManualSaving] = useState(false);
-  const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [itemSearch, setItemSearch] = useState("");
-  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; progressKey: string }[]>([]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-  
   const mapOrderToFormValues = useCallback((orderToMap?: Order): OrderFormValues => {
     const defaultProduct: Product = { id: uuidv4(), productName: '', category: '', description: '', billOfMaterials: '', attachments: [], designAttachments: [], colors: [], material: [], price: 0, quantity: 1, bomItems: [], prepaidAmount: 0 };
     if (!orderToMap) return { products: [defaultProduct], isUrgent: false, status: "Pending", incomeAmount: 0, customerId: '', creationDate: new Date(), deadline: new Date(), location: { town: '' }, withReceipt: false, vatAmount: 0, totalWithVat: 0, paymentMethod: 'Cash', isSample: false, prepaidAmount: 0 } as OrderFormValues;
@@ -174,11 +161,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }, []);
 
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
-  const { setValue, getValues, watch, trigger, control, formState: { errors } } = form;
+  const { setValue, getValues, watch } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIsSample = watch("isSample");
-  const selectedCustomerId = watch("customerId");
 
   const totalIncomeValue = watchedProducts.reduce((sum, p) => sum + (Number(p.price) || 0) * (Number(p.quantity) || 1), 0);
   
@@ -194,34 +180,11 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
     }
   }, [totalIncomeValue, watchedWithReceipt, setValue]);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      files.forEach(file => {
-          const taskId = uuidv4();
-          const progressKey = `${file.name}-${taskId}`;
-          setActiveUploads(prev => [...prev, { id: taskId, name: file.name, progressKey }]);
-          uploadFile(file, progressKey).then(att => {
-              const up = [...getValues('products')];
-              if (up[currentProductIndex]) {
-                  up[currentProductIndex].attachments = [...(up[currentProductIndex].attachments || []), att];
-                  if (!up[currentProductIndex].mainImageUrl) up[currentProductIndex].mainImageUrl = att.url;
-                  setValue('products', up, { shouldDirty: true });
-              }
-              setActiveUploads(prev => prev.filter(u => u.id !== taskId));
-          }).catch(() => setActiveUploads(prev => prev.filter(u => u.id !== taskId)));
-      });
-      e.target.value = '';
-    }
-  };
-
   const nextStep = async () => {
     if (currentStep === 10) return;
     setCurrentStep(currentStep + 1);
   };
 
-  const filteredCustomers = customers.filter(c => (c.name || "").toLowerCase().includes((customerSearch || "").toLowerCase()));
-  const productCategories = productSettings?.productCategories || [];
   const isAnyUploading = activeUploads.length > 0;
 
   return (
@@ -229,7 +192,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
       <div className="mb-8 space-y-4">
         <Progress value={(currentStep / STEPS.length) * 100} className="h-2" />
         <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            <span>Step {currentStep} of 10</span>
+            <span>Step {currentStep} of {STEPS.length}</span>
             <span className="text-primary">{STEPS[currentStep - 1]?.title}</span>
         </div>
       </div>

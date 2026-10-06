@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -33,7 +32,6 @@ export default function LoginPage() {
   const { settings: brandSettings } = useBrandSettings();
   const { toast } = useToast();
 
-  // Immediate redirect if already logged in
   useEffect(() => {
     if (!isUserLoading && user) {
       router.replace('/dashboard');
@@ -66,14 +64,13 @@ export default function LoginPage() {
         localStorage.removeItem('rememberedPassword');
       }
 
-      // Transition is handled by AuthGuard and useEffect, but push here for speed
       router.push('/dashboard');
     } catch (error: any) {
       console.error('Sign in error:', error);
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
-        description: error.message || 'Please check your credentials and try again.',
+        description: 'Please check your credentials and try again.',
       });
       setLoading(false);
     }
@@ -90,7 +87,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="mx-auto w-full max-w-sm shadow-xl border-none">
+      <Card className="mx-auto w-full max-sm shadow-xl border-none">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
               {brandSettings?.logoUrl ? (

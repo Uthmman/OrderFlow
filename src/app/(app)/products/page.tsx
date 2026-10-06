@@ -3,31 +3,25 @@
 import React, { useState, useMemo, useTransition } from 'react';
 import { useProducts } from '@/hooks/use-products';
 import { useProductSettings } from '@/hooks/use-product-settings';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PlusCircle, Search, LayoutGrid, Loader2, RefreshCw, Box, Library, Package } from 'lucide-react';
+import { PlusCircle, Search, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import * as LucideIcons from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/use-orders';
-import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
-import { cn } from '@/lib/utils';
-import { Product } from '@/lib/types';
 
 function ProductCatalog() {
-  const { products, loading: productsLoading, syncProductsFromOrders } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
   const { orders, loading: ordersLoading } = useOrders();
   const { productSettings, loading: settingsLoading } = useProductSettings();
-  const { role } = useUser();
   const router = useRouter();
-  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'standard' | 'orders'>('standard');
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const handleTabChange = (val: string) => {

@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -77,7 +76,7 @@ export function AppSidebar() {
             <Boxes className="h-10 w-10 text-primary shrink-0" />
           )}
           <div className="flex flex-col min-w-0">
-            <h2 className="font-headline text-lg font-bold text-sidebar-foreground leading-tight">
+            <h2 className="font-headline text-lg font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
               {brandSettings?.companyName || "OrderFlow"}
             </h2>
           </div>

@@ -155,21 +155,6 @@ function OrderSkeleton() {
     );
 }
 
-function UploadingCard({ name, progress }: { name: string, progress: number }) {
-    return (
-        <Card className="bg-muted/30 border-dashed border-primary/20 animate-pulse overflow-hidden">
-            <CardContent className="p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    <p className="text-[10px] font-bold truncate flex-1 uppercase tracking-tighter">{name}</p>
-                    <span className="text-[10px] font-bold text-primary">{progress}%</span>
-                </div>
-                <Progress value={progress} className="h-1" />
-            </CardContent>
-        </Card>
-    );
-}
-
 function TAPVisualizer({ content }: { content: string }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [progress, setProgress] = useState(100);
@@ -417,47 +402,17 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview, canD
     );
 }
 
-function StatusBadge({ status }: { status: OrderStatus }) {
-    if (status === 'Pending') return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Draft</Badge>;
-    return <Badge variant={statusVariantMap[status]}>{status}</Badge>;
-}
-
-function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
-  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2 hover:bg-muted/50 transition-colors">
-          <StatusBadge status={order.status} />
-          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Change Status</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {statuses.map(status => (
-          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>{status === 'Pending' ? 'Draft' : status}</DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachmentDelete, onDesignAttachmentDelete, isDesigner, onDesignUpload, onFilePreview, canEdit }: { product: Product, order: Order, productIndex: number, onImageClick: (attachment: OrderAttachment) => void, onAttachmentDelete: (attachment: OrderAttachment) => void, onDesignAttachmentDelete: (attachment: OrderAttachment) => void, isDesigner: boolean, onDesignUpload: (file: File, progressKey?: string) => Promise<any>, onFilePreview: (attachment: OrderAttachment) => void, canEdit: boolean }) => {
     const { settings: colorSettings } = useColorSettings();
-    const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading, addSecondaryItem } = useSecondaryItems();
+    const { items: secondaryItems, categories: secondaryCategories, loading: secondaryLoading } = useSecondaryItems();
     const { uploadFile, uploadProgress } = useOrders();
     const firestore = useFirestore();
     const { toast } = useToast();
     const allColorOptions = [...(colorSettings?.woodFinishes || []), ...(colorSettings?.customColors || [])];
     const designInputRef = useRef<HTMLInputElement>(null);
-    const catalogImageRef = useRef<HTMLInputElement>(null);
     const [activeUploads, setActiveUploads] = useState<{ id: string; name: string; type: string; progressKey: string }[]>([]);
     const [itemSearch, setItemSearch] = useState("");
     const [isItemPopoverOpen, setIsItemPopoverOpen] = useState(false);
-    const [isAddingNewCatalogItem, setIsAddingNewCatalogItem] = useState(false);
-    const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs', imageUrl: '' });
-    const [isUploadingCatalogImage, setIsUploadingCatalogImage] = useState(false);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
@@ -473,16 +428,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                 try { await onDesignUpload(file, progressKey); } finally { setActiveUploads(prev => prev.filter(u => u.id !== taskId)); }
             }
             if (designInputRef.current) designInputRef.current.value = "";
-        }
-    };
-
-    const handleCatalogImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setIsUploadingCatalogImage(true);
-            try {
-                const att = await uploadFile(e.target.files[0]);
-                setNewItem(prev => ({ ...prev, imageUrl: att.url }));
-            } finally { setIsUploadingCatalogImage(false); }
         }
     };
 
@@ -529,7 +474,6 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
     const imageAttachments = allAttachments.filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
     const pdfAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.pdf'));
     const cncAttachments = allAttachments.filter(att => att.fileName.toLowerCase().endsWith('.tap'));
-    const otherAttachments = allAttachments.filter(att => !att.fileName.match(/\.(jpeg|jpg|gif|png|webp|pdf|tap)$/i));
 
     return (
         <AccordionItem value={product.id}>
@@ -624,6 +568,32 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
     );
 };
 
+function StatusBadge({ status }: { status: OrderStatus }) {
+    if (status === 'Pending') return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Draft</Badge>;
+    return <Badge variant={statusVariantMap[status]}>{status}</Badge>;
+}
+
+function StatusChanger({ order, onStatusChange }: { order: Order; onStatusChange: (status: OrderStatus) => void }) {
+  const statuses: OrderStatus[] = ["Pending", "In Progress", "Designing", "Design Ready", "Manufacturing", "Painting", "Completed", "Shipped", "Cancelled"];
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="flex items-center gap-1 h-auto py-1 px-2 hover:bg-muted/50 transition-colors">
+          <StatusBadge status={order.status} />
+          <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {statuses.map(status => (
+          <DropdownMenuItem key={status} disabled={order.status === status} onClick={() => onStatusChange(status)}>{status === 'Pending' ? 'Draft' : status}</DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }) {
     const profile = users.find(u => u.id === userId); if (!profile) return null;
     return ( 
@@ -634,37 +604,17 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
 function OrderDetailPageContent() {
   const params = useParams(); const id = params.id as string;
   const router = useRouter(); 
-  const { getOrderById, deleteOrder, updateOrder, removeAttachment, addAttachment, loading: ordersLoading } = useOrders();
-  const { addStockItem } = useStock();
+  const { getOrderById, updateOrder, removeAttachment, addAttachment, loading: ordersLoading } = useOrders();
   const { getCustomerById, loading: customersLoading } = useCustomers();
   const { users, loading: allUsersLoading } = useUsers();
   const { markOrderNotificationsAsRead } = useNotifications();
-  const { settings: brandSettings } = useBrandSettings();
   const { user, role } = useUser();
   const searchParams = useSearchParams(); const { toast } = useToast();
   const [galleryOpen, setGalleryOpen] = useState(false); const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [finishDesignOpen, setFinishDesignOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [isTransferring, setIsTransferring] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
-  const [showHeader, setShowHeader] = useState(true);
-  const lastScrollY = useRef(0);
-
-  useEffect(() => {
-    const mainElement = document.querySelector('main');
-    if (mainElement) {
-        const handleScroll = (e: any) => {
-            const currentScrollY = e.target.scrollTop;
-            if (currentScrollY > lastScrollY.current && currentScrollY > 100) setShowHeader(false);
-            else setShowHeader(true);
-            lastScrollY.current = currentScrollY;
-        };
-        mainElement.addEventListener('scroll', handleScroll);
-        return () => mainElement.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -681,7 +631,6 @@ function OrderDetailPageContent() {
   };
 
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
-  const customer = getCustomerById(order.customerId || "");
   const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && role !== 'AdminView';
   const isDesigner = role === 'Designer' || role === 'Admin';
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
