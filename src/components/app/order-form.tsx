@@ -208,7 +208,9 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                         <FormField control={form.control} name="isSample" render={({ field }) => (
                             <FormItem className="flex items-center gap-2 space-y-0">
                                 <FormLabel className="text-xs uppercase font-bold">Sample Mode</FormLabel>
-                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                <FormControl>
+                                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
                             </FormItem>
                         )} />
                     </div>
@@ -216,17 +218,21 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                 <CardContent className="space-y-6">
                     {!watchedIsSample && (
                         <FormField control={form.control} name="customerId" render={({ field }) => (
-                            <FormItem><FormLabel>Customer</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
-                                    <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <FormMessage />
+                            <FormItem>
+                              <FormLabel>Customer</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                  <FormControl><SelectTrigger><SelectValue placeholder="Select a customer" /></SelectTrigger></FormControl>
+                                  <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                              </Select>
+                              <FormMessage />
                             </FormItem>
                         )} />
                     )}
                     <FormField control={form.control} name="location.town" render={({ field }) => (
-                        <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>
+                        <FormItem>
+                          <FormLabel>Location</FormLabel>
+                          <FormControl><Input {...field} value={field.value ?? ""} /></FormControl>
+                        </FormItem>
                     )} />
                 </CardContent>
               </Card>

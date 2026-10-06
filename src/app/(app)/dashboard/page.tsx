@@ -249,7 +249,7 @@ export default function Dashboard() {
                   </div>
                   <div className="relative z-10 space-y-1">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Realized Profit</p>
-                    <p className="text-4xl font-black tracking-tighter leading-tight">{formatCurrency(stats.profit)}</p>
+                    <p className="text-2xl md:text-3xl font-black tracking-tight leading-tight tabular-nums">{formatCurrency(stats.profit)}</p>
                   </div>
                 </div>
 
@@ -259,14 +259,14 @@ export default function Dashboard() {
                       <BarChart3 className="h-3.5 w-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Realized Sales</span>
                     </div>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.revenue)}</p>
+                    <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{formatCurrency(stats.revenue)}</p>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Banknote className="h-3.5 w-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
                     </div>
-                    <p className="text-lg font-bold text-slate-800">{formatCurrency(stats.totalExp)}</p>
+                    <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{formatCurrency(stats.totalExp)}</p>
                   </div>
                 </div>
 
