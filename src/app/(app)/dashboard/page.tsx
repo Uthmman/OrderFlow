@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useMemo, useState } from "react";
@@ -38,12 +37,12 @@ interface StatusStatProps {
 
 function StatusStat({ label, count, color }: StatusStatProps) {
   return (
-    <div className="flex flex-col gap-2 p-3 md:p-4 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
+    <div className="flex flex-col gap-1.5 p-3 rounded-2xl bg-white/40 border border-slate-100/50 shadow-sm hover:shadow-md hover:bg-white/80 transition-all group cursor-default">
       <div className="flex items-center gap-1.5 overflow-hidden">
         <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125", color)} />
-        <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] md:tracking-[0.1em] font-black text-muted-foreground/70 truncate">{label}</span>
+        <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] font-black text-muted-foreground/70 truncate">{label}</span>
       </div>
-      <span className="text-xl md:text-2xl font-black leading-none tracking-tight text-slate-800">{count}</span>
+      <span className="text-lg md:text-xl font-black leading-none tracking-tight text-slate-800">{count}</span>
     </div>
   );
 }
@@ -196,7 +195,7 @@ export default function Dashboard() {
                 </div>
                 <div className="relative z-10 space-y-1">
                   <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Total Lifecycle</p>
-                  <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
+                  <p className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -206,7 +205,7 @@ export default function Dashboard() {
                 </div>
                 <div className="relative z-10 space-y-1">
                   <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">In Flow (Active)</p>
-                  <p className="text-4xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
+                  <p className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -249,7 +248,7 @@ export default function Dashboard() {
                   </div>
                   <div className="relative z-10 space-y-1">
                     <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.15em]">Realized Profit</p>
-                    <p className="text-2xl md:text-3xl font-black tracking-tight leading-tight tabular-nums">{formatCurrency(stats.profit)}</p>
+                    <p className="text-xl md:text-2xl font-black tracking-tight leading-tight tabular-nums">{formatCurrency(stats.profit)}</p>
                   </div>
                 </div>
 
@@ -277,11 +276,11 @@ export default function Dashboard() {
                     </div>
                     <div className="space-y-0.5">
                       <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Unpaid Balance</p>
-                      <p className="text-sm font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
+                      <p className="text-xs font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
                     </div>
                   </div>
                   {stats.unpaid > 0 && (
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
                   )}
                 </div>
               </CardContent>
@@ -303,7 +302,7 @@ export default function Dashboard() {
                             <span className="text-xs font-bold text-slate-700">{sh.name}</span>
                             <Badge variant="outline" className="h-4 px-1.5 py-0 text-[8px] font-black border-slate-200 text-slate-400 uppercase tracking-tighter">{sh.percentage}%</Badge>
                           </div>
-                          <span className="text-xs font-black text-primary">{formatCurrency(sh.profitShare)}</span>
+                          <span className="text-[10px] font-black text-primary">{formatCurrency(sh.profitShare)}</span>
                         </div>
                         <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
                           <div 

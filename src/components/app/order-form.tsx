@@ -1,4 +1,3 @@
-
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -279,7 +278,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <Button type="button" onClick={nextStep}>Next Step <ArrowRight className="ml-2 h-4 w-4" /></Button>
                 ) : (
                     <Button type="button" onClick={form.handleSubmit((v) => onSave?.(v as any, !initialOrder))} disabled={isExternallySubmitting || isAnyUploading}>
-                        {isExternallySubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} 
+                        {isExternallySubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} 
                         {submitButtonText}
                     </Button>
                 )}
