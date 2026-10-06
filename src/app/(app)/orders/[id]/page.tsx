@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
@@ -536,7 +537,7 @@ const ProductDetails = ({ product, order, productIndex, onImageClick, onAttachme
                         <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Technical Documentation</h3>
                         {(isDesigner || canEdit) && (
                             <div>
-                                <input type="file" ref={designInputRef} multiple onChange={handleFileChange} className="hidden" />
+                                <input type="file" resize-multiple="true" multiple onChange={handleFileChange} className="hidden" ref={designInputRef} />
                                 <Button size="sm" variant="outline" className="h-8 border-primary text-primary" onClick={() => designInputRef.current?.click()} disabled={activeUploads.length > 0}>
                                     {activeUploads.length > 0 ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <UploadCloud className="h-3 w-3 mr-2" />}
                                     Upload Technical File
@@ -623,6 +624,7 @@ function OrderDetailPageContent() {
   useEffect(() => { if (order?.id) markOrderNotificationsAsRead(order.id); }, [order?.id, markOrderNotificationsAsRead]);
 
   const handleStatusChange = (newStatus: OrderStatus) => { if (orderData) { setOptimisticOrder({ status: newStatus } as any); updateOrder({ id: orderData.id, status: newStatus }); } };
+  
   const handleImageClick = (clickedAttachment: OrderAttachment) => { 
     const rawImageAttachments = (order?.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
     const allImageAttachments = order?.receiptAttachment ? [...rawImageAttachments, order.receiptAttachment] : rawImageAttachments;

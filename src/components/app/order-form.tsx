@@ -1,3 +1,4 @@
+
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -205,7 +206,10 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     <div className="flex justify-between items-center">
                         <CardTitle>Project Foundation</CardTitle>
                         <FormField control={form.control} name="isSample" render={({ field }) => (
-                            <FormItem className="flex items-center gap-2 space-y-0"><FormLabel className="text-xs uppercase font-bold">Sample Mode</FormLabel><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>
+                            <FormItem className="flex items-center gap-2 space-y-0">
+                                <FormLabel className="text-xs uppercase font-bold">Sample Mode</FormLabel>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            </FormItem>
                         )} />
                     </div>
                 </CardHeader>
@@ -241,14 +245,17 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
                         <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-3"><Label className="text-xs font-bold">Wood Finishes</Label>
+                                <div className="space-y-3"><Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Wood Finishes</Label>
                                     <div className="grid grid-cols-3 gap-2">{colorSettings?.woodFinishes.map(w => (
-                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg", field.value?.includes(w.name) && "border-primary")}><Image src={w.imageUrl} alt={w.name} width={100} height={100} className="rounded-md"/><span className="text-[10px] block mt-1">{w.name}</span></button>
+                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg overflow-hidden transition-all", field.value?.includes(w.name) ? "border-primary ring-2 ring-primary/20" : "opacity-80 hover:opacity-100")}>
+                                            <div className="relative aspect-square rounded-md overflow-hidden"><Image src={w.imageUrl} alt={w.name} fill className="object-cover" /></div>
+                                            <span className="text-[10px] font-bold block mt-1 truncate">{w.name}</span>
+                                        </button>
                                     ))}</div>
                                 </div>
-                                <div className="space-y-3"><Label className="text-xs font-bold">Colors</Label>
+                                <div className="space-y-3"><Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Custom Colors</Label>
                                     <div className="grid grid-cols-4 gap-2">{colorSettings?.customColors.map(c => (
-                                        <button key={c.name} type="button" onClick={() => field.onChange([c.name])} className={cn("h-8 rounded", field.value?.includes(c.name) && "ring-2 ring-primary")} style={{ backgroundColor: c.colorValue }} />
+                                        <button key={c.name} type="button" onClick={() => field.onChange([c.name])} className={cn("h-10 rounded-md transition-all", field.value?.includes(c.name) ? "ring-2 ring-primary ring-offset-2 scale-105" : "opacity-80 hover:opacity-100")} style={{ backgroundColor: c.colorValue }} title={c.name} />
                                     ))}</div>
                                 </div>
                             </div>
@@ -258,11 +265,18 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
               </Card>
           )}
 
-          <div className="flex justify-between pt-8">
+          <div className="flex justify-between pt-8 border-t">
               <Button variant="outline" type="button" onClick={() => router.back()}>Cancel</Button>
               <div className="flex gap-2">
-                {currentStep > 1 && <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>}
-                {currentStep < 10 ? <Button onClick={nextStep}>Next</Button> : <Button onClick={form.handleSubmit((v) => onSave?.(v as any, !initialOrder))} disabled={isExternallySubmitting || isAnyUploading}>{isExternallySubmitting ? <Loader2 className="animate-spin" /> : submitButtonText}</Button>}
+                {currentStep > 1 && <Button variant="outline" type="button" onClick={() => setCurrentStep(currentStep - 1)}>Back</Button>}
+                {currentStep < 10 ? (
+                    <Button type="button" onClick={nextStep}>Next Step <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                ) : (
+                    <Button type="button" onClick={form.handleSubmit((v) => onSave?.(v as any, !initialOrder))} disabled={isExternallySubmitting || isAnyUploading}>
+                        {isExternallySubmitting ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} 
+                        {submitButtonText}
+                    </Button>
+                )}
               </div>
           </div>
         </form>

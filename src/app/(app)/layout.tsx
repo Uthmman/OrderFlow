@@ -22,6 +22,7 @@ import { FinancialSettingProvider } from "@/hooks/use-financial-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { ExpenseProvider } from "@/hooks/use-expenses";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
+import { PWAInstall } from "@/components/app/install-pwa";
 import { Loader2 } from "lucide-react";
 import { requestNotificationPermission } from "@/lib/notifications";
 
@@ -104,6 +105,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                                         {children}
                                     </main>
                                     <FloatingBottomNav />
+                                    <PWAInstall />
                                 </div>
                                 </div>
                             </ExpenseProvider>
