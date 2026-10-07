@@ -3,34 +3,40 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, X } from 'lucide-react';
+import { Download, X, Share } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useBrandSettings } from '@/hooks/use-brand-settings';
 import Image from 'next/image';
 
 /**
  * Logic to catch the PWA install event and show a prompt to the user.
+ * Includes specific instructions for iOS (iPhone/iPad).
  */
 export function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const { settings } = useBrandSettings();
 
   useEffect(() => {
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIphone = /iphone|ipad|ipod/.test(userAgent);
+    const isStandalone = (window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+    
+    setIsIOS(isIphone);
+
     const handleBeforeInstallPrompt = (e: any) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
-      setIsVisible(true);
+      if (!isStandalone) setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsVisible(false);
+    // Show banner on iOS if not already standalone
+    if (isIphone && !isStandalone) {
+      setIsVisible(true);
     }
 
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -38,18 +44,11 @@ export function PWAInstall() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    
-    // Show the install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    
     if (outcome === 'accepted') {
       setIsVisible(false);
     }
-    
-    // We've used the prompt, and can't use it again
     setDeferredPrompt(null);
   };
 
@@ -69,13 +68,20 @@ export function PWAInstall() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold uppercase tracking-widest opacity-80">Add to Home Screen</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Add to Home Screen</p>
             <p className="text-sm font-bold truncate">Install {settings?.companyName || 'OrderFlow'}</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={handleInstallClick} className="font-bold">
-              Install
-            </Button>
+            {isIOS ? (
+                <div className="flex flex-col items-center text-[9px] font-bold uppercase leading-tight bg-white/10 px-2 py-1 rounded-lg border border-white/20">
+                    <div className="flex items-center gap-1">Tap <Share className="h-3 w-3" /></div>
+                    <span>then "Add to Home"</span>
+                </div>
+            ) : (
+                <Button size="sm" variant="secondary" onClick={handleInstallClick} className="font-bold h-8 text-xs">
+                  Install
+                </Button>
+            )}
             <Button size="icon" variant="ghost" className="h-8 w-8 text-white/50 hover:text-white" onClick={() => setIsVisible(false)}>
               <X className="h-4 w-4" />
             </Button>
