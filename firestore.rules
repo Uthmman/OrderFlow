@@ -10,7 +10,8 @@ service cloud.firestore {
 
     // Helper function to get the current user's role
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc != null ? userDoc.data.role : 'Pending';
     }
 
     // Allow all authenticated users to read items from the catalog
@@ -39,23 +40,17 @@ service cloud.firestore {
 
     // User Profile rules
     match /users/{userId} {
-      // Any authenticated user can view user profiles (required for chat and assignment displays)
       allow get: if isAuthenticated();
-      // Allow any team member to list users to see who is assigned to orders
       allow list: if isAuthenticated();
-      // Users can only write to their own profile, unless they are an Admin
       allow write: if isAuthenticated() && (request.auth.uid == userId || getUserRole() == 'Admin');
       
-      // Notifications subcollection
       match /notifications/{notificationId} {
-        // Users can read/delete/update their own notifications
         allow read, update, delete: if isAuthenticated() && request.auth.uid == userId;
-        // Team members can create notifications for each other
         allow create: if isAuthenticated();
       }
     }
 
-    // Settings rules
+    // Settings rules - Branding and Colors must be readable by all logged in users
     match /settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && getUserRole() == 'Admin';

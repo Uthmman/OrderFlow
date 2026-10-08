@@ -1,3 +1,4 @@
+
 'use client';
 
 import { firebaseConfig } from '@/firebase/config';
@@ -5,19 +6,14 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
+/**
+ * Initializes Firebase with explicit configuration to prevent 
+ * "Automatic initialization failed" errors in standalone/PWA mode.
+ */
 export function initializeFirebase() {
   if (!getApps().length) {
-    let firebaseApp;
-    try {
-      firebaseApp = initializeApp();
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-
+    // We prioritize the explicit config object for stability
+    const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
   return getSdks(getApp());
@@ -31,7 +27,7 @@ export function getSdks(firebaseApp: FirebaseApp) {
   };
 }
 
-export * from './secondary'; // Export from the new dedicated file
+export * from './secondary';
 export * from './provider';
 export * from './client-provider';
 export * from './firestore/use-collection';
