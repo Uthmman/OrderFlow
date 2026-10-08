@@ -3,7 +3,6 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   const companyName = "OrderFlow";
-  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/512/512";
 
   return {
     name: companyName,
@@ -15,13 +14,13 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#4355b9',
     icons: [
       {
-        src: staticLogo,
+        src: '/icon-192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: staticLogo,
+        src: '/icon-512.png',
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',

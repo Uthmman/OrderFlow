@@ -254,9 +254,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   }), [combinedExpenses, primaryLoading, secondaryLoading, addExpense, updateExpense, deleteExpense]);
 
   return (
-    <ExpenseContext.Provider value={value}>
-      {children}
-    </ExpenseContext.Provider>
+    <div className="flex flex-col gap-8 pb-20 animate-in fade-in duration-700">
+      <ExpenseContext.Provider value={value}>
+        {children}
+      </ExpenseContext.Provider>
+    </div>
   );
 }
 

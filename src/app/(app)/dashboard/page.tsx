@@ -43,7 +43,7 @@ function StatusStat({ label, count, color }: StatusStatProps) {
         <div className={cn("h-1.5 w-1.5 rounded-full shrink-0 transition-transform group-hover:scale-125", color)} />
         <span className="text-[8px] md:text-[9px] uppercase tracking-[0.05em] font-black text-muted-foreground/70 truncate">{label}</span>
       </div>
-      <span className="text-lg md:text-xl font-black leading-none tracking-tight text-slate-800">{count}</span>
+      <span className="text-base md:text-lg font-black leading-none tracking-tight text-slate-800">{count}</span>
     </div>
   );
 }
@@ -196,7 +196,7 @@ export default function Dashboard() {
                 </div>
                 <div className="relative z-10 space-y-1">
                   <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Total Lifecycle</p>
-                  <p className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -206,7 +206,7 @@ export default function Dashboard() {
                 </div>
                 <div className="relative z-10 space-y-1">
                   <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">In Flow (Active)</p>
-                  <p className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
+                  <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -259,14 +259,14 @@ export default function Dashboard() {
                       <BarChart3 className="h-3.5 w-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Realized Sales</span>
                     </div>
-                    <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{formatCurrency(stats.revenue)}</p>
+                    <p className="text-xs md:text-sm font-bold text-slate-800 tabular-nums">{formatCurrency(stats.revenue)}</p>
                   </div>
                   <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/60 space-y-1">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Banknote className="h-3.5 w-3.5" />
                       <span className="text-[9px] font-black uppercase tracking-widest">Expenses</span>
                     </div>
-                    <p className="text-sm md:text-base font-bold text-slate-800 tabular-nums">{formatCurrency(stats.totalExp)}</p>
+                    <p className="text-xs md:text-sm font-bold text-slate-800 tabular-nums">{formatCurrency(stats.totalExp)}</p>
                   </div>
                 </div>
 

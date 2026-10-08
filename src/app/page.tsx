@@ -31,7 +31,7 @@ export default function LoginPage() {
   const { user, isUserLoading } = useFirebase();
   const { toast } = useToast();
 
-  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
+  const staticLogo = "/logo.png";
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -98,6 +98,9 @@ export default function LoginPage() {
                     width={80}
                     height={80}
                     className="object-contain p-2"
+                    onError={(e) => {
+                      (e.target as any).src = "https://picsum.photos/seed/orderflow/192/192";
+                    }}
                   />
               </div>
           </div>

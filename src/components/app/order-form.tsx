@@ -18,7 +18,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -30,45 +29,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
-import { Banknote, UserPlus, Loader2, UploadCloud, File as FileIcon, Trash2, ArrowLeft, ArrowRight, PlusCircle as PlusCircleIcon, Receipt, CheckCircle, Boxes, Palette, Ruler, CreditCard, Calendar as CalendarIcon, Phone, Search, PlusCircle, User, Plus, Minus, ImageIcon, CheckCircle2, ListChecks, Package, X, FlaskConical, Library } from "lucide-react"
-import { cn, formatCurrency } from "@/lib/utils"
-import { format } from "date-fns"
+import { ArrowRight, CheckCircle2, Loader2, PlusCircle, Trash2 } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { Switch } from "@/components/ui/switch"
-import { Order, OrderStatus, Product, OrderAttachment, BOMItem } from "@/lib/types"
+import { Order, Product } from "@/lib/types"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCustomers } from "@/hooks/use-customers"
-import { useState, useRef, useEffect, useCallback, useMemo } from "react"
+import { useState, useCallback, useEffect } from "react"
 import Image from "next/image"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useToast } from "@/hooks/use-toast"
-import { CustomerForm } from "./customer-form"
-import { Timestamp, serverTimestamp } from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useColorSettings } from "@/hooks/use-color-settings"
 import { useOrders } from "@/hooks/use-orders"
 import { Progress } from "@/components/ui/progress"
-import { useProductSettings } from "@/hooks/use-product-settings"
-import { usePaymentSettings } from "@/hooks/use-payment-settings"
-import { useSecondaryItems } from "@/hooks/use-secondary-items"
-import * as LucideIcons from 'lucide-react'
 import { v4 as uuidv4 } from "uuid"
 import { useProducts } from "@/hooks/use-products"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Calendar } from "@/components/ui/calendar"
-import { DynamicIcon } from "../ui/dynamic-icon"
 
 const bomItemSchema = z.object({
   itemId: z.string(),
@@ -148,7 +124,6 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   const { customers } = useCustomers();
   const { products: catalogProducts } = useProducts();
   const { settings: colorSettings } = useColorSettings();
-  const { productSettings } = useProductSettings();
   const { uploadFile } = useOrders();
   
   const [currentProductIndex] = useState(0);
@@ -162,7 +137,7 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
   }, []);
 
   const form = useForm<OrderFormValues>({ resolver: zodResolver(formSchema), defaultValues: mapOrderToFormValues(initialOrder) });
-  const { setValue, getValues, watch } = form;
+  const { setValue, watch } = form;
   const watchedProducts = watch("products");
   const watchedWithReceipt = watch("withReceipt");
   const watchedIsSample = watch("isSample");
@@ -251,18 +226,24 @@ export function OrderForm({ order: initialOrder, onSave, submitButtonText = "Cre
                     {!watch(`products.${currentProductIndex}.colorAsAttachment`) && (
                         <FormField control={form.control} name={`products.${currentProductIndex}.colors`} render={({ field }) => (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="space-y-3"><Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Wood Finishes</Label>
-                                    <div className="grid grid-cols-3 gap-2">{colorSettings?.woodFinishes.map(w => (
-                                        <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg overflow-hidden transition-all", field.value?.includes(w.name) ? "border-primary ring-2 ring-primary/20" : "opacity-80 hover:opacity-100")}>
-                                            <div className="relative aspect-square rounded-md overflow-hidden"><Image src={w.imageUrl} alt={w.name} fill className="object-cover" /></div>
-                                            <span className="text-[10px] font-bold block mt-1 truncate">{w.name}</span>
-                                        </button>
-                                    ))}</div>
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Wood Finishes</Label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {colorSettings?.woodFinishes.map(w => (
+                                            <button key={w.name} type="button" onClick={() => field.onChange([w.name])} className={cn("p-1 border rounded-lg overflow-hidden transition-all", field.value?.includes(w.name) ? "border-primary ring-2 ring-primary/20" : "opacity-80 hover:opacity-100")}>
+                                                <div className="relative aspect-square rounded-md overflow-hidden"><Image src={w.imageUrl} alt={w.name} fill className="object-cover" /></div>
+                                                <span className="text-[10px] font-bold block mt-1 truncate">{w.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="space-y-3"><Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Custom Colors</Label>
-                                    <div className="grid grid-cols-4 gap-2">{colorSettings?.customColors.map(c => (
-                                        <button key={c.name} type="button" onClick={() => field.onChange([c.name])} className={cn("h-10 rounded-md transition-all", field.value?.includes(c.name) ? "ring-2 ring-primary ring-offset-2 scale-105" : "opacity-80 hover:opacity-100")} style={{ backgroundColor: c.colorValue }} title={c.name} />
-                                    ))}</div>
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Custom Colors</Label>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {colorSettings?.customColors.map(c => (
+                                            <button key={c.name} type="button" onClick={() => field.onChange([c.name])} className={cn("h-10 rounded-md transition-all", field.value?.includes(c.name) ? "ring-2 ring-primary ring-offset-2 scale-105" : "opacity-80 hover:opacity-100")} style={{ backgroundColor: c.colorValue }} title={c.name} />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )} />

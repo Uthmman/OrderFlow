@@ -10,6 +10,10 @@ export const metadata: Metadata = {
   title: 'OrderFlow',
   description: 'Streamline your furniture order management process.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icon-512.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -30,8 +34,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -52,9 +54,6 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
-        <link rel="icon" href={staticLogo} />
-        <link rel="shortcut icon" href={staticLogo} />
-        <link rel="apple-touch-icon" href={staticLogo} />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>

@@ -17,7 +17,6 @@ import {
   Users,
   Package,
   Settings,
-  Boxes,
   ShieldCheck,
   Palette,
   Shapes,
@@ -55,7 +54,7 @@ export function AppSidebar() {
   const { user, role } = useUser();
   const { settings: brandSettings } = useBrandSettings();
 
-  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
+  const staticLogo = "/logo.png";
 
   if (!user) return null;
 
@@ -72,10 +71,13 @@ export function AppSidebar() {
               alt="Logo" 
               fill 
               className="object-contain p-1"
+              onError={(e) => {
+                (e.target as any).src = "https://picsum.photos/seed/orderflow/192/192";
+              }}
             />
           </div>
           <div className="flex flex-col min-w-0">
-            <h2 className="font-headline text-lg font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
+            <h2 className="font-headline text-base font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
               {brandSettings?.companyName || "OrderFlow"}
             </h2>
           </div>
