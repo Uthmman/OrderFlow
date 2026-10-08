@@ -1,14 +1,8 @@
 
 import { MetadataRoute } from 'next';
 
-/**
- * Dynamically generates the manifest. 
- * We use static values or environment variables here to ensure reliability 
- * across standalone mode and different browsers.
- */
 export default function manifest(): MetadataRoute.Manifest {
   const companyName = "OrderFlow";
-  // We use a reliable default icon that is always available
   const logoUrl = "https://picsum.photos/seed/orderflow/512/512";
 
   return {

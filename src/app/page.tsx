@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -90,22 +91,19 @@ export default function LoginPage() {
       <Card className="mx-auto w-full max-sm shadow-xl border-none">
         <CardHeader className="space-y-1">
           <div className="flex justify-center mb-4">
-              {brandSettings?.logoUrl ? (
-                <div className="relative h-20 w-20 overflow-hidden rounded-2xl border bg-white shadow-sm ring-4 ring-white">
+              <div className="relative h-20 w-20 overflow-hidden rounded-2xl border bg-white shadow-sm ring-4 ring-white flex items-center justify-center">
                   <Image 
-                    src={brandSettings.logoUrl} 
-                    alt={brandSettings.companyName || "Logo"} 
-                    fill 
+                    src="https://picsum.photos/seed/orderflow/200/200" 
+                    alt="Logo" 
+                    width={80}
+                    height={80}
                     className="object-contain p-2"
                   />
-                </div>
-              ) : (
-                <Boxes className="h-12 w-12 text-primary" />
-              )}
+              </div>
           </div>
           <CardTitle className="text-2xl text-center font-headline font-bold">Welcome Back</CardTitle>
           <CardDescription className="text-center">
-            {brandSettings?.companyName ? `Sign in to ${brandSettings.companyName}` : "Sign in to manage your workshop"}
+            Sign in to manage your workshop
           </CardDescription>
         </CardHeader>
         <CardContent>

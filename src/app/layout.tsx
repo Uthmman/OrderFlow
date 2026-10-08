@@ -5,10 +5,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/hooks/use-user';
 import { BrandSettingProvider } from '@/hooks/use-brand-settings';
-import { DynamicFavicon } from '@/components/app/dynamic-favicon';
 
 export const metadata: Metadata = {
-  title: 'Zenbab Furniture OrderFlow',
+  title: 'OrderFlow',
   description: 'Streamline your furniture order management process.',
   manifest: '/manifest.json',
   appleWebApp: {
@@ -51,13 +50,13 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
-        <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="https://picsum.photos/seed/orderflow/192/192" />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <UserProvider>
             <BrandSettingProvider>
-                <DynamicFavicon />
                 {children}
             </BrandSettingProvider>
           </UserProvider>

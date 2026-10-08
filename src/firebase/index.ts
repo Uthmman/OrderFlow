@@ -6,13 +6,8 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore'
 
-/**
- * Initializes Firebase with explicit configuration to prevent 
- * "Automatic initialization failed" errors in standalone/PWA mode.
- */
 export function initializeFirebase() {
   if (!getApps().length) {
-    // We prioritize the explicit config object for stability
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }

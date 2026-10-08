@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -34,8 +35,8 @@ const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
-    { href: "/products", icon: Library, label: "Products", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
-    { href: "/expenses", icon: Receipt, label: "Expenses", roles: ['Admin', 'Manager', 'Sales', 'AdminView'] },
+    { href: "/products", icon: Library, label: "Product", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
+    { href: "/expenses", icon: Receipt, label: "Expense", roles: ['Admin', 'Manager', 'Sales', 'AdminView'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales', 'AdminView'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin', 'AdminView'] },
     { href: "/settings", icon: Settings, label: "Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
@@ -63,18 +64,14 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-4 p-2">
-          {brandSettings?.logoUrl ? (
-            <div className="relative h-12 w-12 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0">
-              <Image 
-                src={brandSettings.logoUrl} 
-                alt={brandSettings.companyName || "Logo"} 
-                fill 
-                className="object-contain p-1"
-              />
-            </div>
-          ) : (
-            <Boxes className="h-10 w-10 text-primary shrink-0" />
-          )}
+          <div className="relative h-12 w-12 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0 flex items-center justify-center">
+            <Image 
+              src="https://picsum.photos/seed/orderflow/200/200" 
+              alt="Logo" 
+              fill 
+              className="object-contain p-1"
+            />
+          </div>
           <div className="flex flex-col min-w-0">
             <h2 className="font-headline text-lg font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
               {brandSettings?.companyName || "OrderFlow"}

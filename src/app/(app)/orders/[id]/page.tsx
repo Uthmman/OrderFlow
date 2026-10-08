@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useOptimistic, useTransition, useRef, useMemo } from "react";
+import { useState, useEffect, Suspense, useOptimistic, useRef, useMemo } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { useStock } from "@/hooks/use-stock";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
@@ -636,6 +636,18 @@ function OrderDetailPageContent() {
   const isDesigner = role === 'Designer' || role === 'Admin';
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
 
+  const downloadQRCode = async () => {
+    const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
+    if (!qrCanvas) return;
+    const pngUrl = qrCanvas.toDataURL("image/png");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `order-qr-${order.id}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
+
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -668,6 +680,27 @@ function OrderDetailPageContent() {
         </div>
         <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
         <FilePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} attachment={previewAttachment} />
+
+        <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+            <DialogPortal>
+                <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Order QR Code</DialogTitle>
+                        <DialogDescription>Scan this code in the workshop to open this order instantly.</DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border-2 border-dashed">
+                        <div className="p-4 bg-white rounded-3xl shadow-xl">
+                            <QRCodeCanvas id="order-qr-code" value={`O:${order.id}`} size={200} level="H" includeMargin={false} />
+                        </div>
+                        <p className="mt-6 text-sm font-bold uppercase tracking-widest text-center truncate w-full px-4">{order.uniqueName}</p>
+                    </div>
+                    <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                        <Button variant="outline" onClick={() => setQrDialogOpen(false)} className="flex-1">Close</Button>
+                        <Button onClick={downloadQRCode} className="flex-1"><Download className="mr-2 h-4 w-4" /> Download PNG</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </DialogPortal>
+        </Dialog>
     </div>
   );
 }

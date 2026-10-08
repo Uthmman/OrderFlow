@@ -8,10 +8,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useBrandSettings } from '@/hooks/use-brand-settings';
 import Image from 'next/image';
 
-/**
- * Logic to catch the PWA install event and show a prompt to the user.
- * Includes specific instructions for iOS (iPhone/iPad).
- */
 export function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -19,7 +15,6 @@ export function PWAInstall() {
   const { settings } = useBrandSettings();
 
   useEffect(() => {
-    // Detect iOS
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIphone = /iphone|ipad|ipod/.test(userAgent);
     const isStandalone = (window.navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
@@ -34,7 +29,6 @@ export function PWAInstall() {
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // Show banner on iOS if not already standalone
     if (isIphone && !isStandalone) {
       setIsVisible(true);
     }
@@ -58,14 +52,8 @@ export function PWAInstall() {
     <div className="fixed bottom-24 left-4 right-4 z-[60] md:hidden animate-in slide-in-from-bottom-8 duration-500">
       <Card className="bg-primary text-primary-foreground shadow-2xl border-none overflow-hidden ring-4 ring-primary/20">
         <CardContent className="p-4 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-white p-1.5 shrink-0 shadow-inner">
-            {settings?.logoUrl ? (
-                <div className="relative w-full h-full">
-                    <Image src={settings.logoUrl} alt="App" fill className="object-contain" />
-                </div>
-            ) : (
-                <div className="w-full h-full bg-primary/10 rounded flex items-center justify-center text-primary font-bold">ZF</div>
-            )}
+          <div className="h-12 w-12 rounded-xl bg-white p-1.5 shrink-0 shadow-inner flex items-center justify-center">
+             <Image src="https://picsum.photos/seed/orderflow/200/200" alt="App" width={40} height={40} className="object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Add to Home Screen</p>
