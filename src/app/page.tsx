@@ -20,7 +20,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Boxes } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useBrandSettings } from '@/hooks/use-brand-settings';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,8 +29,9 @@ export default function LoginPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useFirebase();
-  const { settings: brandSettings } = useBrandSettings();
   const { toast } = useToast();
+
+  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -93,7 +93,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
               <div className="relative h-20 w-20 overflow-hidden rounded-2xl border bg-white shadow-sm ring-4 ring-white flex items-center justify-center">
                   <Image 
-                    src="https://picsum.photos/seed/orderflow/200/200" 
+                    src={staticLogo} 
                     alt="Logo" 
                     width={80}
                     height={80}

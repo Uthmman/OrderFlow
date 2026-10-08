@@ -55,6 +55,8 @@ export function AppSidebar() {
   const { user, role } = useUser();
   const { settings: brandSettings } = useBrandSettings();
 
+  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
+
   if (!user) return null;
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(role || ''));
@@ -66,7 +68,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-4 p-2">
           <div className="relative h-12 w-12 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0 flex items-center justify-center">
             <Image 
-              src="https://picsum.photos/seed/orderflow/200/200" 
+              src={staticLogo} 
               alt="Logo" 
               fill 
               className="object-contain p-1"

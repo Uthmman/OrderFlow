@@ -14,6 +14,8 @@ export function PWAInstall() {
   const [isIOS, setIsIOS] = useState(false);
   const { settings } = useBrandSettings();
 
+  const staticLogo = "https://picsum.photos/seed/zenbab-furniture-icon/192/192";
+
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIphone = /iphone|ipad|ipod/.test(userAgent);
@@ -53,7 +55,7 @@ export function PWAInstall() {
       <Card className="bg-primary text-primary-foreground shadow-2xl border-none overflow-hidden ring-4 ring-primary/20">
         <CardContent className="p-4 flex items-center gap-4">
           <div className="h-12 w-12 rounded-xl bg-white p-1.5 shrink-0 shadow-inner flex items-center justify-center">
-             <Image src="https://picsum.photos/seed/orderflow/200/200" alt="App" width={40} height={40} className="object-contain" />
+             <Image src={staticLogo} alt="App" width={40} height={40} className="object-contain" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Add to Home Screen</p>
