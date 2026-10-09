@@ -662,9 +662,11 @@ function OrderDetailPageContent() {
                     <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)}><QrCode className="h-4 w-4" /></Button>
                 </div>
                 <div className="space-y-6">
-                    {order.products?.map((p, idx) => (
-                        <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />
-                    ))}
+                    <Accordion type="multiple" className="w-full space-y-6" defaultValue={order.products?.map(p => p.id)}>
+                        {order.products?.map((p, idx) => (
+                            <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />
+                        ))}
+                    </Accordion>
                 </div>
             </div>
             <div className="space-y-8 py-4">
@@ -675,7 +677,11 @@ function OrderDetailPageContent() {
         <div className="lg:hidden">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="grid grid-cols-2"><TabsTrigger value="specs">Specs</TabsTrigger><TabsTrigger value="chat">Chat</TabsTrigger></TabsList>
-                <TabsContent value="specs" className="space-y-6">{order.products?.map((p, idx) => <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />)}</TabsContent>
+                <TabsContent value="specs" className="space-y-6">
+                    <Accordion type="multiple" className="w-full space-y-6" defaultValue={order.products?.map(p => p.id)}>
+                        {order.products?.map((p, idx) => <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />)}
+                    </Accordion>
+                </TabsContent>
                 <TabsContent value="chat" className="h-[calc(100vh-210px)]"><ChatInterface order={order} /></TabsContent>
             </Tabs>
         </div>
