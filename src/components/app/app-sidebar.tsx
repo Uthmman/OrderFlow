@@ -65,7 +65,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-4 p-2">
-          <div className="relative h-12 w-12 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0 flex items-center justify-center">
+          <div className="relative h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm shrink-0 flex items-center justify-center">
             <Image 
               src={staticLogo} 
               alt="Logo" 
