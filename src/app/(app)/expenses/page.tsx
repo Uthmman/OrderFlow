@@ -289,7 +289,7 @@ export default function ExpensesPage() {
             </div>
         )}
 
-        <Accordion type="multiple" className="space-y-4" defaultValue={expensesByPeriod.length > 0 ? [expensesByPeriod[0].period] : []}>
+        <Accordion type="multiple" className="space-y-4" defaultValue={[]}>
             {expensesByPeriod.map(group => {
                 const containsPayroll = group.items.some(i => i.isSecondary);
                 const mainHeaderText = containsPayroll 
@@ -301,7 +301,7 @@ export default function ExpensesPage() {
 
                 return (
                     <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
-                        <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20">
+                        <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20 [&>svg]:hidden">
                             <div className="flex flex-1 items-center justify-between gap-4 text-left">
                                 <div className="flex items-center gap-4">
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -319,13 +319,13 @@ export default function ExpensesPage() {
                                         <h2 className="text-base font-bold text-slate-900 tracking-tight truncate">
                                             {mainHeaderText}
                                         </h2>
-                                        <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">
+                                        <div className="text-[9px] sm:text-[10px] text-muted-foreground font-medium uppercase tracking-tight">
                                             {group.period}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="text-right mr-4">
-                                    <p className="text-lg font-black text-primary">{formatCurrency(group.total)}</p>
+                                <div className="text-right">
+                                    <p className="text-sm sm:text-lg font-black text-primary">{formatCurrency(group.total)}</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
