@@ -267,6 +267,7 @@ function FilePreviewDialog({ open, onOpenChange, attachment }: { open: boolean, 
                         {isPdf ? <FileText className="h-5 w-5 text-red-600" /> : <Cpu className="h-5 w-5 text-blue-600" />}
                         {attachment.fileName}
                     </DialogTitle>
+                    <DialogDescription className="sr-only">Preview of technical document {attachment.fileName}</DialogDescription>
                 </DialogHeader>
                 <div className="flex-1 bg-muted/20 relative">
                     {isPdf ? (
@@ -635,6 +636,7 @@ function OrderDetailPageContent() {
   const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && role !== 'AdminView';
   const isDesigner = role === 'Designer' || role === 'Admin';
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
+  const customer = getCustomerById(order.customerId || '');
 
   const downloadQRCode = async () => {
     const qrCanvas = document.getElementById('order-qr-code') as HTMLCanvasElement;
@@ -650,7 +652,6 @@ function OrderDetailPageContent() {
 
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
-        {/* Persistent Header for both Mobile and Desktop */}
         <div className="flex flex-col gap-2 py-4 px-1 border-b lg:border-none">
             <div className="flex justify-between items-start">
                 <div className="flex flex-wrap items-center gap-2 md:gap-3 min-w-0">
@@ -674,7 +675,6 @@ function OrderDetailPageContent() {
                 </div>
             </div>
             
-            {/* Mobile-only secondary info summary */}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 lg:hidden text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 <div className="flex items-center gap-1.5 text-primary">
                     <Banknote className="h-3 w-3" />
@@ -726,7 +726,7 @@ function OrderDetailPageContent() {
             </div>
         </div>
 
-        <div className="lg:hidden">
+        <div className="lg:hidden space-y-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid grid-cols-2 w-full max-w-sm mx-auto mb-4">
                     <TabsTrigger value="specs">Specs</TabsTrigger>
@@ -743,6 +743,88 @@ function OrderDetailPageContent() {
                     <ChatInterface order={order} />
                 </TabsContent>
             </Tabs>
+
+            <Card className="border-none shadow-lg bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 rounded-2xl overflow-hidden">
+                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
+                        <Info className="h-4 w-4" /> Order & Customer Details
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 space-y-6">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10 border shadow-sm">
+                                <AvatarImage src={customer?.avatarUrl} />
+                                <AvatarFallback className="font-bold text-primary bg-primary/5">
+                                    {order.customerName?.split(' ').map(n => n[0]).join('')}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client</p>
+                                <p className="font-bold text-slate-900 truncate">{order.customerName}</p>
+                            </div>
+                        </div>
+                        
+                        {customer?.phoneNumbers && customer.phoneNumbers.length > 0 && (
+                            <div className="grid grid-cols-1 gap-2 pl-1">
+                                {customer.phoneNumbers.map((p, i) => (
+                                    <a key={i} href={`tel:${p.number}`} className="flex items-center gap-3 text-sm text-primary hover:underline font-medium">
+                                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                            <Phone className="h-3.5 w-3.5" />
+                                        </div>
+                                        <span>{p.number} <span className="text-[10px] opacity-60 uppercase font-black">({p.type})</span></span>
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="p-3 rounded-xl bg-slate-50 border space-y-1">
+                                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Prepaid</p>
+                                <p className="text-sm font-bold text-emerald-600 tabular-nums">{formatCurrency(order.prepaidAmount || 0)}</p>
+                            </div>
+                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
+                                <p className="text-[9px] font-black uppercase text-primary tracking-widest">Balance</p>
+                                <p className="text-sm font-bold text-primary tabular-nums">
+                                    {formatCurrency((order.totalWithVat || order.incomeAmount || 0) - (order.prepaidAmount || 0))}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center px-1">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                    <CreditCard className="h-3 w-3" /> Method
+                                </p>
+                                <p className="text-xs font-bold text-slate-800">{order.paymentMethod || 'Not specified'}</p>
+                            </div>
+                            
+                            {(order.bankName || order.bankId) && (
+                                <div className="flex justify-between items-center px-1">
+                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                        <Banknote className="h-3 w-3" /> Bank
+                                    </p>
+                                    <div className="text-right">
+                                        <p className="text-xs font-bold text-slate-800">{order.bankName || order.bankId}</p>
+                                        {order.bankAccountNumber && <p className="text-[9px] font-mono text-muted-foreground">{order.bankAccountNumber}</p>}
+                                    </div>
+                                </div>
+                            )}
+
+                             {order.paymentDetails && (
+                                <div className="space-y-1 px-1">
+                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payment Note</p>
+                                    <p className="text-xs text-slate-600 bg-muted/30 p-2 rounded-lg border italic">{order.paymentDetails}</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
