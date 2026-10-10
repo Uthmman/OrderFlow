@@ -102,10 +102,14 @@ export default function Dashboard() {
     if (!dateRange?.from) return dashboardOrders;
     return dashboardOrders.filter(order => {
       const creationDate = parseDate(order.creationDate);
-      if (!creationDate) return false;
+      const deadlineDate = parseDate(order.deadline);
       const start = startOfDay(dateRange.from!);
       const end = endOfDay(dateRange.to || dateRange.from!);
-      return isWithinInterval(creationDate, { start, end });
+      
+      const creationInRange = creationDate ? isWithinInterval(creationDate, { start, end }) : false;
+      const deadlineInRange = deadlineDate ? isWithinInterval(deadlineDate, { start, end }) : false;
+      
+      return creationInRange || deadlineInRange;
     });
   }, [dashboardOrders, dateRange]);
 
@@ -155,6 +159,14 @@ export default function Dashboard() {
     }));
   }, [finSettings, stats.profit]);
 
+  const activeStatusStats = useMemo(() => [
+    { label: "Designing", count: stats.designing, color: "bg-orange-400" },
+    { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
+    { label: "Ready", count: stats.designReady, color: "bg-purple-500" },
+    { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
+    { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
+  ].filter(s => s.count > 0), [stats]);
+
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -199,27 +211,27 @@ export default function Dashboard() {
                 <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.active}</p>
               </div>
 
-               <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 relative overflow-hidden group hover:bg-emerald-100/50 transition-all">
+               <div className="hidden md:block p-4 rounded-3xl bg-emerald-50 border border-emerald-100 relative overflow-hidden group hover:bg-emerald-100/50 transition-all">
                 <p className="text-[9px] font-black uppercase text-emerald-600 tracking-[0.15em] relative z-10">Complete</p>
                 <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.delivered}</p>
               </div>
 
-               <div className="p-4 rounded-3xl bg-orange-50 border border-orange-100 relative overflow-hidden group hover:bg-orange-100/50 transition-all">
+               <div className="hidden md:block p-4 rounded-3xl bg-orange-50 border border-orange-100 relative overflow-hidden group hover:bg-orange-100/50 transition-all">
                 <p className="text-[9px] font-black uppercase text-orange-600 tracking-[0.15em] relative z-10">Avg Depth</p>
                 <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.designing + stats.inProgress}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
-              {[
-                { label: "Designing", count: stats.designing, color: "bg-orange-400" },
-                { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
-                { label: "Ready", count: stats.designReady, color: "bg-purple-500" },
-                { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
-                { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
-              ].map((status) => (
+            <div className={cn(
+                "grid gap-2 md:gap-3",
+                activeStatusStats.length === 3 ? "grid-cols-3" : "grid-cols-2"
+            )}>
+              {activeStatusStats.map((status) => (
                 <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
               ))}
+              {activeStatusStats.length === 0 && (
+                  <p className="col-span-full py-6 text-center text-xs text-muted-foreground italic bg-slate-50 rounded-2xl border border-dashed">No active orders in this view.</p>
+              )}
             </div>
 
             <div className="space-y-3">

@@ -32,7 +32,11 @@ export default function OrdersPage() {
       return new Date(date.seconds * 1000);
     }
     if (typeof date === 'string') {
-      return parseISO(date);
+      try {
+        return parseISO(date);
+      } catch (e) {
+        return null;
+      }
     }
     return null;
   }
@@ -70,14 +74,16 @@ export default function OrdersPage() {
         
         let dateMatch = true;
         if (dateRange?.from) {
+            const start = startOfDay(dateRange.from);
+            const end = endOfDay(dateRange.to || dateRange.from);
+            
             const creationDate = parseOrderDate(order.creationDate);
-            if (!creationDate) {
-                dateMatch = false;
-            } else {
-                const start = startOfDay(dateRange.from);
-                const end = endOfDay(dateRange.to || dateRange.from);
-                dateMatch = isWithinInterval(creationDate, { start, end });
-            }
+            const deadlineDate = parseOrderDate(order.deadline);
+            
+            const creationInRange = creationDate ? isWithinInterval(creationDate, { start, end }) : false;
+            const deadlineInRange = deadlineDate ? isWithinInterval(deadlineDate, { start, end }) : false;
+            
+            dateMatch = creationInRange || deadlineInRange;
         }
         return statusMatch && searchMatch && dateMatch;
     });
