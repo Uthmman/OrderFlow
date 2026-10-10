@@ -378,7 +378,7 @@ export default function Dashboard() {
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
               <Link href="/customers/new" className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                   <UserPlus className="h-4 w-4" />
                 </div>
                 <span className="font-bold text-sm">New Customer</span>
@@ -386,7 +386,7 @@ export default function Dashboard() {
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
               <Link href="/products/new" className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                   <PackagePlus className="h-4 w-4" />
                 </div>
                 <span className="font-bold text-sm">New Product</span>
@@ -394,7 +394,7 @@ export default function Dashboard() {
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
               <Link href="/expenses" className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
                   <Receipt className="h-4 w-4" />
                 </div>
                 <span className="font-bold text-sm">New Expense</span>
