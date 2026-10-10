@@ -155,17 +155,6 @@ export default function Dashboard() {
     }));
   }, [finSettings, stats.profit]);
 
-  const activeStatuses = useMemo(() => {
-    const items = [
-      { label: "Designing", count: stats.designing, color: "bg-orange-400" },
-      { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
-      { label: "Design Ready", count: stats.designReady, color: "bg-purple-500" },
-      { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
-      { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
-    ].filter(s => s.count > 0);
-    return items;
-  }, [stats]);
-
   if (ordersLoading || customersLoading || userLoading || expensesLoading || financialLoading) {
     return (
       <div className="flex h-screen items-center justify-center">

@@ -5,16 +5,15 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { X, Share } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { useBrandSettings } from '@/hooks/use-brand-settings';
 import Image from 'next/image';
 
 export function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const { settings } = useBrandSettings();
 
   const staticLogo = "/logo.png";
+  const brandName = "ZENBABA FURNITURE";
 
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -68,7 +67,7 @@ export function PWAInstall() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">Add to Home Screen</p>
-            <p className="text-sm font-bold truncate">Install {settings?.companyName || 'OrderFlow'}</p>
+            <p className="text-sm font-bold truncate">Install {brandName}</p>
           </div>
           <div className="flex items-center gap-2">
             {isIOS ? (

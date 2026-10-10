@@ -2,7 +2,7 @@
 import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
-  const companyName = "OrderFlow";
+  const companyName = "ZENBABA FURNITURE";
 
   return {
     name: companyName,

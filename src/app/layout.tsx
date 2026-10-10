@@ -4,11 +4,10 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/hooks/use-user';
-import { BrandSettingProvider } from '@/hooks/use-brand-settings';
 
 export const metadata: Metadata = {
-  title: 'OrderFlow',
-  description: 'Streamline your furniture order management process.',
+  title: 'ZENBABA FURNITURE',
+  description: 'Workshop management platform for modern furniture manufacturing.',
   manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'OrderFlow',
+    title: 'ZENBABA FURNITURE',
   },
 };
 
@@ -47,10 +46,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <meta name="application-name" content="OrderFlow" />
+        <meta name="application-name" content="ZENBABA FURNITURE" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="OrderFlow" />
+        <meta name="apple-mobile-web-app-title" content="ZENBABA FURNITURE" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
@@ -58,9 +57,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <UserProvider>
-            <BrandSettingProvider>
-                {children}
-            </BrandSettingProvider>
+            {children}
           </UserProvider>
         </FirebaseClientProvider>
         <Toaster />

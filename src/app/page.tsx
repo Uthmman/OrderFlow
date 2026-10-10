@@ -20,7 +20,6 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Boxes, ShieldCheck, Warehouse } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useBrandSettings } from '@/hooks/use-brand-settings';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -31,9 +30,9 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useFirebase();
   const { toast } = useToast();
-  const { settings: brandSettings } = useBrandSettings();
 
   const staticLogo = "/logo.png";
+  const brandName = "ZENBABA FURNITURE";
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -112,7 +111,7 @@ export default function LoginPage() {
                     />
                 </div>
                 <span className="text-2xl font-black font-headline tracking-tighter uppercase">
-                    {brandSettings?.companyName || "OrderFlow"}
+                    {brandName}
                 </span>
             </div>
         </div>
@@ -153,7 +152,7 @@ export default function LoginPage() {
                 />
             </div>
             <h2 className="text-3xl font-black font-headline tracking-tighter text-slate-900">
-                {brandSettings?.companyName || "OrderFlow"}
+                {brandName}
             </h2>
             <p className="text-muted-foreground font-medium mt-2">Workshop Control Center</p>
           </div>

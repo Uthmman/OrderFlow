@@ -198,11 +198,6 @@ export type PaymentSettings = {
     banks: BankAccount[];
 }
 
-export type BrandSettings = {
-    logoUrl?: string;
-    companyName?: string;
-};
-
 export type Shareholder = {
   id: string;
   name: string;

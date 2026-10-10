@@ -17,7 +17,6 @@ import { ColorSettingProvider } from "@/hooks/use-color-settings";
 import { ProductProvider } from "@/hooks/use-products";
 import { ProductSettingProvider } from "@/hooks/use-product-settings";
 import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
-import { BrandSettingProvider } from "@/hooks/use-brand-settings";
 import { FinancialSettingProvider } from "@/hooks/use-financial-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { ExpenseProvider } from "@/hooks/use-expenses";

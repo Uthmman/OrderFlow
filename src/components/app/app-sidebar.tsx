@@ -28,7 +28,6 @@ import {
   PieChart,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
-import { useBrandSettings } from "@/hooks/use-brand-settings";
 
 const navItems = [
     { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
@@ -45,16 +44,15 @@ const settingsNavItems = [
     { href: "/settings", icon: Palette, label: "Color Settings", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/settings/products", icon: Shapes, label: "Product Categories", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/settings/payments", icon: CreditCard, label: "Payment & Banks", roles: ['Admin', 'Sales', 'AdminView'] },
-    { href: "/settings/branding", icon: Building, label: "Branding", roles: ['Admin', 'AdminView'] },
     { href: "/settings/shareholders", icon: PieChart, label: "Shareholders", roles: ['Admin', 'AdminView'] },
 ]
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, role } = useUser();
-  const { settings: brandSettings } = useBrandSettings();
 
   const staticLogo = "/logo.png";
+  const brandName = "ZENBABA FURNITURE";
 
   if (!user) return null;
 
@@ -78,7 +76,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col min-w-0">
             <h2 className="font-headline text-base font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
-              {brandSettings?.companyName || "OrderFlow"}
+              {brandName}
             </h2>
           </div>
         </div>
