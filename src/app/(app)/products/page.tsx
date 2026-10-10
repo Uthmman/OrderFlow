@@ -61,10 +61,10 @@ function ProductCatalog() {
             return (
               <Link key={cat.name} href={`/products/category/${encodeURIComponent(cat.name)}?type=${activeTab}`}>
                 <Card className="hover:border-primary transition-all group cursor-pointer active:scale-95">
-                  <CardContent className="pt-6">
+                  <CardContent className="pt-6 px-4 pb-4">
                     <div className="flex justify-between items-start">
                         <div className="p-2 bg-muted rounded-xl group-hover:bg-primary/10"><Icon className="h-6 w-6 text-muted-foreground group-hover:text-primary" /></div>
-                        {count > 0 && <div className="bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold">{count}</div>}
+                        {count > 0 && <div className="bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold">{count}</div>}
                     </div>
                     <div className="mt-4"><p className="text-sm font-bold truncate">{cat.name}</p><p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">{activeTab === 'standard' ? 'Standard' : 'Custom'}</p></div>
                   </CardContent>
