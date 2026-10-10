@@ -602,6 +602,104 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
     );
 }
 
+function PriorityDetailsCard({ order, customer }: { order: Order, customer: any }) {
+    return (
+        <Card className="border-none shadow-lg bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 rounded-2xl overflow-hidden mb-8">
+            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
+                    <Info className="h-4 w-4" /> Client & Financial Summary
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+                <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border shadow-sm">
+                            <AvatarImage src={customer?.avatarUrl} />
+                            <AvatarFallback className="font-bold text-primary bg-primary/5">
+                                {order.customerName?.split(' ').map((n: string) => n[0]).join('')}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client</p>
+                            <p className="font-bold text-slate-900 truncate">{order.customerName}</p>
+                        </div>
+                    </div>
+                    {customer?.phoneNumbers && customer.phoneNumbers.length > 0 && (
+                        <div className="grid grid-cols-1 gap-2 pl-1">
+                            {customer.phoneNumbers.map((p: any, i: number) => (
+                                <a key={i} href={`tel:${p.number}`} className="flex items-center gap-3 text-sm text-primary hover:underline font-medium">
+                                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                        <Phone className="h-3.5 w-3.5" />
+                                    </div>
+                                    <span>{p.number} <span className="text-[10px] opacity-60 uppercase font-black">({p.type})</span></span>
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                </div>
+                <Separator />
+                <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                        <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Total</p>
+                            <p className="text-[10px] font-bold text-slate-800 tabular-nums">{formatCurrency(order.totalWithVat || order.incomeAmount || 0)}</p>
+                        </div>
+                        <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Prepaid</p>
+                            <p className="text-[10px] font-bold text-emerald-600 tabular-nums">{formatCurrency(order.prepaidAmount || 0)}</p>
+                        </div>
+                        <div className="p-2 rounded-xl bg-primary/5 border border-primary/10 space-y-0.5">
+                            <p className="text-[8px] font-black uppercase text-primary tracking-widest">Balance</p>
+                            <p className="text-[10px] font-bold text-primary tabular-nums">
+                                {formatCurrency((order.totalWithVat || order.incomeAmount || 0) - (order.prepaidAmount || 0))}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 pt-1">
+                        <div className="space-y-0.5">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
+                                <Calendar className="h-2.5 w-2.5" /> Ordered
+                            </p>
+                            <p className="text-xs font-bold text-slate-800">{formatTimestamp(order.creationDate)}</p>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                            <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1 justify-end">
+                                <Clock className="h-2.5 w-2.5" /> Deadline
+                            </p>
+                            <p className="text-xs font-bold text-orange-600">{formatTimestamp(order.deadline)}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                        <div className="flex justify-between items-center px-1">
+                            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                <CreditCard className="h-3 w-3" /> Method
+                            </p>
+                            <p className="text-xs font-bold text-slate-800">{order.paymentMethod || 'Not specified'}</p>
+                        </div>
+                        {(order.bankName || order.bankId) && (
+                            <div className="flex justify-between items-center px-1">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
+                                    <Banknote className="h-3 w-3" /> Bank
+                                </p>
+                                <div className="text-right">
+                                    <p className="text-xs font-bold text-slate-800">{order.bankName || order.bankId}</p>
+                                    {order.bankAccountNumber && <p className="text-[9px] font-mono text-muted-foreground">{order.bankAccountNumber}</p>}
+                                </div>
+                            </div>
+                        )}
+                         {order.paymentDetails && (
+                            <div className="space-y-1 px-1 pt-2">
+                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payment Note</p>
+                                <p className="text-xs text-slate-600 bg-muted/30 p-2 rounded-lg border italic">{order.paymentDetails}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 function OrderDetailPageContent() {
   const params = useParams(); const id = params.id as string;
   const router = useRouter(); 
@@ -635,6 +733,7 @@ function OrderDetailPageContent() {
   if (ordersLoading || customersLoading || allUsersLoading || !order) return <OrderSkeleton />;
   const canEdit = (role === 'Admin' || (role === 'Sales' && order.ownerId === user?.id)) && role !== 'AdminView';
   const isDesigner = role === 'Designer' || role === 'Admin';
+  const isPriorityUser = role === 'Admin' || role === 'Sales' || role === 'AdminView';
   const allImageAttachments = (order.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
   const customer = getCustomerById(order.customerId || '');
 
@@ -655,7 +754,7 @@ function OrderDetailPageContent() {
         <div className="flex flex-col gap-2 py-4 px-1 border-b lg:border-none">
             <div className="flex justify-between items-start">
                 <div className="flex flex-wrap items-center gap-2 md:gap-3 min-w-0">
-                    <h1 className="text-xl md:text-3xl font-bold font-headline tracking-tight truncate max-w-[280px] sm:max-w-md">{order.uniqueName}</h1>
+                    <h1 className="text-xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
                     <div className="flex items-center gap-2">
                         <StatusChanger order={order} onStatusChange={handleStatusChange} />
                         <div className="flex -space-x-2">
@@ -665,7 +764,7 @@ function OrderDetailPageContent() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                     {canEdit && (
-                        <Button variant="outline" size="icon" asChild className="hidden sm:flex">
+                        <Button variant="outline" size="icon" asChild className="flex">
                             <Link href={`/orders/${order.id}/edit`}><Edit className="h-4 w-4" /></Link>
                         </Button>
                     )}
@@ -687,6 +786,10 @@ function OrderDetailPageContent() {
                 </div>
             </div>
             <div className="space-y-8">
+                {isPriorityUser && (
+                    <PriorityDetailsCard order={order} customer={customer} />
+                )}
+                
                 <Card>
                     <CardHeader><CardTitle className="text-lg">Project Info</CardTitle></CardHeader>
                     <CardContent className="space-y-2">
@@ -741,7 +844,7 @@ function OrderDetailPageContent() {
                             <Avatar className="h-10 w-10 border shadow-sm">
                                 <AvatarImage src={customer?.avatarUrl} />
                                 <AvatarFallback className="font-bold text-primary bg-primary/5">
-                                    {order.customerName?.split(' ').map(n => n[0]).join('')}
+                                    {order.customerName?.split(' ').map((n: string) => n[0]).join('')}
                                 </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
@@ -752,7 +855,7 @@ function OrderDetailPageContent() {
                         
                         {customer?.phoneNumbers && customer.phoneNumbers.length > 0 && (
                             <div className="grid grid-cols-1 gap-2 pl-1">
-                                {customer.phoneNumbers.map((p, i) => (
+                                {customer.phoneNumbers.map((p: any, i: number) => (
                                     <a key={i} href={`tel:${p.number}`} className="flex items-center gap-3 text-sm text-primary hover:underline font-medium">
                                         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                                             <Phone className="h-3.5 w-3.5" />

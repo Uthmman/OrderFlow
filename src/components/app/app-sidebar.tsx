@@ -26,6 +26,7 @@ import {
   Building,
   Receipt,
   PieChart,
+  Briefcase,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -34,6 +35,7 @@ const navItems = [
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/products", icon: Library, label: "Product", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
+    { href: "/employees", icon: Briefcase, label: "Employees", roles: ['Admin', 'Manager', 'AdminView'] },
     { href: "/expenses", icon: Receipt, label: "Expense", roles: ['Admin', 'Manager', 'Sales', 'AdminView'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales', 'AdminView'] },
     { href: "/users", icon: ShieldCheck, label: "Users", roles: ['Admin', 'AdminView'] },
@@ -75,7 +77,7 @@ export function AppSidebar() {
             />
           </div>
           <div className="flex flex-col min-w-0">
-            <h2 className="font-headline text-base font-bold text-sidebar-foreground leading-tight whitespace-pre-wrap">
+            <h2 className="font-headline text-sm font-black text-sidebar-foreground leading-tight whitespace-pre-wrap uppercase tracking-tighter">
               {brandName}
             </h2>
           </div>

@@ -21,6 +21,17 @@ export type AppUser = {
   workerType?: 'Monthly' | 'Daily';
 };
 
+export type Employee = {
+    id: string;
+    name: string;
+    role: string;
+    phoneNumber?: string;
+    avatarUrl?: string;
+    workerType?: 'Monthly' | 'Daily';
+    joinedDate?: any;
+    email?: string;
+}
+
 export type CustomerReview = {
   id: string;
   orderId: string;

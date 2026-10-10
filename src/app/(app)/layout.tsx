@@ -20,6 +20,7 @@ import { PaymentSettingProvider } from "@/hooks/use-payment-settings";
 import { FinancialSettingProvider } from "@/hooks/use-financial-settings";
 import { StockProvider } from "@/hooks/use-stock";
 import { ExpenseProvider } from "@/hooks/use-expenses";
+import { EmployeeProvider } from "@/hooks/use-employees";
 import { FloatingBottomNav } from "@/components/app/floating-bottom-nav";
 import { PWAInstall } from "@/components/app/install-pwa";
 import { Loader2 } from "lucide-react";
@@ -96,17 +97,19 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                       <NotificationProvider>
                           <StockProvider>
                             <ExpenseProvider>
-                                <div className="flex h-screen w-full flex-col overflow-hidden">
-                                <AppHeader />
-                                <div className="flex flex-1 overflow-hidden relative">
-                                    <AppSidebar />
-                                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
-                                        {children}
-                                    </main>
-                                    <FloatingBottomNav />
-                                    <PWAInstall />
-                                </div>
-                                </div>
+                                <EmployeeProvider>
+                                    <div className="flex h-screen w-full flex-col overflow-hidden">
+                                    <AppHeader />
+                                    <div className="flex flex-1 overflow-hidden relative">
+                                        <AppSidebar />
+                                        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-28 md:pb-6 lg:pb-8">
+                                            {children}
+                                        </main>
+                                        <FloatingBottomNav />
+                                        <PWAInstall />
+                                    </div>
+                                    </div>
+                                </EmployeeProvider>
                             </ExpenseProvider>
                           </StockProvider>
                       </NotificationProvider>
