@@ -674,21 +674,6 @@ function OrderDetailPageContent() {
                     </Button>
                 </div>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 lg:hidden text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                <div className="flex items-center gap-1.5 text-primary">
-                    <Banknote className="h-3 w-3" />
-                    {formatCurrency(order.totalWithVat || order.incomeAmount)}
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" />
-                    Due: {formatTimestamp(order.deadline)}
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <User className="h-3 w-3" />
-                    {order.customerName}
-                </div>
-            </div>
         </div>
 
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
