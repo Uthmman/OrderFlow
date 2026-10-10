@@ -15,7 +15,7 @@ import Link from "next/link"
 import { DateRange } from "react-day-picker"
 import { isWithinInterval, parseISO, startOfDay, endOfDay } from "date-fns"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
-import { cn } from "@/lib/utils"
+import { cn, formatTimestamp } from "@/lib/utils"
 
 export default function OrdersPage() {
   const { orders, loading } = useOrders();
@@ -59,9 +59,12 @@ export default function OrdersPage() {
     return getVisibleOrders.filter(order => {
         const statusMatch = statuses.includes(order.status);
         const displayName = order.uniqueName || order.id;
+        const deadlineStr = formatTimestamp(order.deadline).toLowerCase();
+        
         const searchMatch = (
             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            deadlineStr.includes(searchTerm.toLowerCase()) ||
             (order.products && order.products[0] && order.products[0].productName.toLowerCase().includes(searchTerm.toLowerCase()))
         );
         
@@ -121,7 +124,7 @@ export default function OrdersPage() {
             <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Search by customer, product, or ID..."
+                    placeholder="Search by customer, product, or deadline..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 h-10 w-full bg-background"

@@ -15,10 +15,15 @@ import {
   BarChart3, 
   Banknote,
   PieChart,
-  CreditCard
+  CreditCard,
+  Plus,
+  UserPlus,
+  PackagePlus,
+  Receipt,
+  ShoppingCart
 } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, formatTimestamp } from "@/lib/utils";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUser } from "@/hooks/use-user";
 import { useExpenses } from "@/hooks/use-expenses";
@@ -29,6 +34,12 @@ import { isWithinInterval, parseISO, startOfDay, endOfDay, startOfMonth, endOfMo
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface StatusStatProps {
   label: string;
@@ -57,7 +68,6 @@ export default function Dashboard() {
   
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  // Prevent hydration mismatch by setting date range after mount
   useEffect(() => {
     setDateRange({
       from: startOfMonth(new Date()),
@@ -133,7 +143,7 @@ export default function Dashboard() {
     
     return { 
       totalOrders, active, designing, inProgress, designReady, onProduction, delivered, 
-      revenue: realizedRevenue, totalExp, profit, unpaid 
+      revenue: realizedRevenue, totalExp, profit, unpaid, totalPotentialSales 
     };
   }, [filteredOrdersByDate, filteredExpensesByDate]);
 
@@ -164,10 +174,8 @@ export default function Dashboard() {
     );
   }
 
-  const gridColsClass = activeStatuses.length === 4 ? "grid-cols-2" : (activeStatuses.length <= 3 ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-3");
-
   return (
-    <div className="flex flex-col gap-8 pb-20 max-w-[1600px] mx-auto animate-in fade-in duration-700">
+    <div className="flex flex-col gap-8 pb-32 max-w-[1600px] mx-auto animate-in fade-in duration-700">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 px-1">
         <div className="space-y-1">
           <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">Dashboard</h1>
@@ -175,9 +183,6 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-3">
           <DateRangePicker dateRange={dateRange} onDateChange={setDateRange} />
-          <Button size="sm" asChild className="rounded-full px-6 shadow-md shadow-primary/20">
-            <Link href="/orders/new"><Activity className="mr-2 h-4 w-4" /> New Order</Link>
-          </Button>
         </div>
       </div>
 
@@ -194,30 +199,36 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="pt-6 space-y-10">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 sm:p-6 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <Layers className="h-20 w-20 text-slate-900" />
-                </div>
-                <div className="relative z-10 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.15em]">Total Lifecycle</p>
-                  <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.totalOrders.toLocaleString()}</p>
-                </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-3xl bg-slate-100/50 border border-slate-200/60 relative overflow-hidden group hover:bg-slate-100 transition-all">
+                <p className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-[0.15em] relative z-10">Lifecycle</p>
+                <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.totalOrders}</p>
               </div>
 
-              <div className="p-4 sm:p-6 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                  <Activity className="h-20 w-20 text-primary" />
-                </div>
-                <div className="relative z-10 space-y-1">
-                  <p className="text-[10px] font-black uppercase text-primary tracking-[0.15em]">In Flow (Active)</p>
-                  <p className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{stats.active.toLocaleString()}</p>
-                </div>
+              <div className="p-4 rounded-3xl bg-primary/5 border border-primary/10 relative overflow-hidden group hover:bg-primary/[0.08] transition-all">
+                <p className="text-[9px] font-black uppercase text-primary tracking-[0.15em] relative z-10">In Flow</p>
+                <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.active}</p>
+              </div>
+
+               <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-100 relative overflow-hidden group hover:bg-emerald-100/50 transition-all">
+                <p className="text-[9px] font-black uppercase text-emerald-600 tracking-[0.15em] relative z-10">Complete</p>
+                <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.delivered}</p>
+              </div>
+
+               <div className="p-4 rounded-3xl bg-orange-50 border border-orange-100 relative overflow-hidden group hover:bg-orange-100/50 transition-all">
+                <p className="text-[9px] font-black uppercase text-orange-600 tracking-[0.15em] relative z-10">Avg Depth</p>
+                <p className="text-2xl font-black text-slate-900 tracking-tighter leading-tight relative z-10">{stats.designing + stats.inProgress}</p>
               </div>
             </div>
 
-            <div className={cn("grid gap-2 md:gap-3", gridColsClass)}>
-              {activeStatuses.map((status) => (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
+              {[
+                { label: "Designing", count: stats.designing, color: "bg-orange-400" },
+                { label: "In Progress", count: stats.inProgress, color: "bg-blue-300" },
+                { label: "Ready", count: stats.designReady, color: "bg-purple-500" },
+                { label: "Production", count: stats.onProduction, color: "bg-emerald-500" },
+                { label: "Delivered", count: stats.delivered, color: "bg-blue-600" },
+              ].map((status) => (
                 <StatusStat key={status.label} label={status.label} count={status.count} color={status.color} />
               ))}
             </div>
@@ -281,12 +292,12 @@ export default function Dashboard() {
                       <CreditCard className="h-4 w-4" />
                     </div>
                     <div className="space-y-0.5">
-                      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Unpaid Balance</p>
-                      <p className="text-xs font-bold text-slate-700">{formatCurrency(stats.unpaid)}</p>
+                      <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Potential Total</p>
+                      <p className="text-xs font-bold text-slate-700">{formatCurrency(stats.totalPotentialSales)}</p>
                     </div>
                   </div>
                   {stats.unpaid > 0 && (
-                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] px-2 py-0.5 rounded-full font-bold uppercase">Pending</Badge>
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[8px] px-2 py-0.5 rounded-full font-bold uppercase">Br {stats.unpaid.toLocaleString()} Pending</Badge>
                   )}
                 </div>
               </CardContent>
@@ -339,12 +350,57 @@ export default function Dashboard() {
         <Card className="border-none shadow-xl bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 overflow-hidden rounded-3xl">
           <CardContent className="p-0">
             <OrderTable 
-              orders={filteredOrdersByDate.slice(0, 10)} 
+              orders={filteredOrdersByDate.slice(0, 15)} 
               preferenceKey="dashboardOrderSortPreference" 
               hidePagination={true} 
             />
           </CardContent>
         </Card>
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-24 right-6 z-50 md:bottom-12 md:right-12">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" className="h-14 w-14 rounded-full shadow-2xl shadow-primary/40 hover:scale-110 transition-transform active:scale-95">
+              <Plus className="h-7 w-7" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="top" className="w-56 p-2 rounded-2xl mb-2 animate-in slide-in-from-bottom-4 duration-300">
+            <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
+              <Link href="/orders/new" className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                  <ShoppingCart className="h-4 w-4" />
+                </div>
+                <span className="font-bold text-sm">New Order</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
+              <Link href="/customers/new" className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <UserPlus className="h-4 w-4" />
+                </div>
+                <span className="font-bold text-sm">New Customer</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
+              <Link href="/products/new" className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                  <PackagePlus className="h-4 w-4" />
+                </div>
+                <span className="font-bold text-sm">New Product</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
+              <Link href="/expenses" className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                  <Receipt className="h-4 w-4" />
+                </div>
+                <span className="font-bold text-sm">New Expense</span>
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
