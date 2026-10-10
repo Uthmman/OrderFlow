@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderTable } from "@/components/app/order-table";
 import { 
@@ -55,10 +55,15 @@ export default function Dashboard() {
   const { settings: finSettings, loading: financialLoading } = useFinancialSettings();
   const { role, loading: userLoading } = useUser();
   
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  // Prevent hydration mismatch by setting date range after mount
+  useEffect(() => {
+    setDateRange({
+      from: startOfMonth(new Date()),
+      to: endOfMonth(new Date()),
+    });
+  }, []);
   
   const canViewFinancials = role === 'Admin' || role === 'Sales' || role === 'AdminView';
 

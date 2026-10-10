@@ -10,16 +10,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useBrandSettings } from "@/hooks/use-brand-settings";
-import { Loader2, UploadCloud, Trash2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { uploadFileFlow } from "@/ai/flows/backblaze-flow";
-import { useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useUser } from "@/hooks/use-user";
 
 const brandingSchema = z.object({
-  logoUrl: z.string().url().optional().or(z.literal("")),
-  companyName: z.string().optional(),
+  companyName: z.string().min(1, "Company name is required"),
 });
 
 type BrandingFormValues = z.infer<typeof brandingSchema>;
@@ -27,50 +23,16 @@ type BrandingFormValues = z.infer<typeof brandingSchema>;
 export default function BrandingSettingsPage() {
   const { settings, loading, updateSettings } = useBrandSettings();
   const { role } = useUser();
-  const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = z.useState(false);
 
   const canEdit = role === 'Admin';
 
   const form = useForm<BrandingFormValues>({
     resolver: zodResolver(brandingSchema),
     values: {
-      logoUrl: settings?.logoUrl || "",
       companyName: settings?.companyName || "",
     }
   });
-
-  const logoUrl = form.watch('logoUrl');
-
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.onerror = reject;
-    });
-  };
-
-  const handleLogoUpload = async (file: File) => {
-    if (!file || !canEdit) return;
-    setIsUploading(true);
-    try {
-        const base64 = await fileToBase64(file);
-        const result = await uploadFileFlow({
-            fileContent: base64,
-            contentType: file.type,
-            fileName: file.name
-        });
-        form.setValue('logoUrl', result.url, { shouldDirty: true });
-        toast({ title: "Logo Uploaded" });
-    } catch (e) {
-        toast({ variant: "destructive", title: "Upload Failed" });
-    } finally {
-        setIsUploading(false);
-    }
-  };
 
   const onSubmit = async (data: BrandingFormValues) => {
     if (!canEdit) return;
@@ -85,7 +47,7 @@ export default function BrandingSettingsPage() {
     <div className="flex flex-col gap-8">
       <div>
         <h1 className="text-3xl font-bold font-headline tracking-tight">Branding</h1>
-        <p className="text-muted-foreground">Manage your company identity for exports and technical drawings.</p>
+        <p className="text-muted-foreground">Manage your company identity. Note: The app logo is now static (/logo.png).</p>
       </div>
 
       <Form {...form}>
@@ -93,38 +55,18 @@ export default function BrandingSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Company Identity</CardTitle>
-              <CardDescription>This logo will be used in generated QR footers.</CardDescription>
+              <CardDescription>Update your company name as it appears in the sidebar and reports.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <Label>Company Logo</Label>
+                <Label>Current App Logo</Label>
                 <div className="flex items-center gap-6">
-                  <div className="h-32 w-32 border-2 border-dashed rounded-lg flex items-center justify-center bg-muted/30 relative overflow-hidden">
-                    {logoUrl ? (
-                      <Image src={logoUrl} alt="Logo" fill className="object-contain p-2" />
-                    ) : (
-                      <UploadCloud className="h-8 w-8 text-muted-foreground opacity-30" />
-                    )}
-                    {isUploading && (
-                      <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                      </div>
-                    )}
+                  <div className="h-32 w-32 border rounded-lg flex items-center justify-center bg-white shadow-sm relative overflow-hidden">
+                    <Image src="/logo.png" alt="Static Logo" fill className="object-contain p-2" />
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => e.target.files && handleLogoUpload(e.target.files[0])} />
-                    {canEdit && (
-                      <>
-                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                          {logoUrl ? "Change Logo" : "Upload Logo"}
-                        </Button>
-                        {logoUrl && (
-                          <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => form.setValue('logoUrl', '', { shouldDirty: true })}>
-                            <Trash2 className="h-3 w-3 mr-2" /> Remove
-                          </Button>
-                        )}
-                      </>
-                    )}
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xs font-bold uppercase text-muted-foreground">Asset Location</p>
+                    <p className="text-[10px] font-mono bg-muted px-2 py-1 rounded">public/logo.png</p>
                   </div>
                 </div>
               </div>
@@ -147,7 +89,7 @@ export default function BrandingSettingsPage() {
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting || !form.formState.isDirty}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save Branding
+                Save Company Name
               </Button>
             </div>
           )}
