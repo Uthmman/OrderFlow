@@ -92,7 +92,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useCustomers } from "@/hooks/use-customers";
 import { useUser, useUsers } from "@/hooks/use-user";
 import { useColorSettings } from "@/hooks/use-color-settings";
-import { useBrandSettings } from "@/hooks/use-brand-settings";
 import { useNotifications } from "@/hooks/use-notifications";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -651,16 +650,49 @@ function OrderDetailPageContent() {
 
   return (
     <div className="flex flex-col gap-4 -mt-4 md:-mt-6 lg:-mt-8 animate-in fade-in duration-700">
-        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8 py-4">
-                <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-2xl md:text-3xl font-bold font-headline tracking-tight">{order.uniqueName}</h1>
+        {/* Persistent Header for both Mobile and Desktop */}
+        <div className="flex flex-col gap-2 py-4 px-1 border-b lg:border-none">
+            <div className="flex justify-between items-start">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 min-w-0">
+                    <h1 className="text-xl md:text-3xl font-bold font-headline tracking-tight truncate max-w-[280px] sm:max-w-md">{order.uniqueName}</h1>
+                    <div className="flex items-center gap-2">
                         <StatusChanger order={order} onStatusChange={handleStatusChange} />
-                        {order.assignedTo?.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                        <div className="flex -space-x-2">
+                            {order.assignedTo?.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                        </div>
                     </div>
-                    <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)}><QrCode className="h-4 w-4" /></Button>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    {canEdit && (
+                        <Button variant="outline" size="icon" asChild className="hidden sm:flex">
+                            <Link href={`/orders/${order.id}/edit`}><Edit className="h-4 w-4" /></Link>
+                        </Button>
+                    )}
+                    <Button variant="outline" size="icon" onClick={() => setQrDialogOpen(true)} className="h-9 w-9">
+                        <QrCode className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+            
+            {/* Mobile-only secondary info summary */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 lg:hidden text-[10px] md:text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-primary">
+                    <Banknote className="h-3 w-3" />
+                    {formatCurrency(order.totalWithVat || order.incomeAmount)}
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" />
+                    Due: {formatTimestamp(order.deadline)}
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <User className="h-3 w-3" />
+                    {order.customerName}
+                </div>
+            </div>
+        </div>
+
+        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
                 <div className="space-y-6">
                     <Accordion type="multiple" className="w-full space-y-6" defaultValue={order.products?.map(p => p.id)}>
                         {order.products?.map((p, idx) => (
@@ -669,22 +701,50 @@ function OrderDetailPageContent() {
                     </Accordion>
                 </div>
             </div>
-            <div className="space-y-8 py-4">
-                <Card><CardHeader><CardTitle className="text-lg">Info</CardTitle></CardHeader><CardContent className="space-y-2"><div className="text-sm">Created: {formatTimestamp(order.creationDate)}</div><div className="text-sm">Deadline: {formatTimestamp(order.deadline)}</div><Separator /><div className="text-lg font-bold">Total: {formatCurrency(order.totalWithVat || order.incomeAmount)}</div></CardContent></Card>
-                <div className="h-[500px] border rounded-xl overflow-hidden"><ChatInterface order={order} /></div>
+            <div className="space-y-8">
+                <Card>
+                    <CardHeader><CardTitle className="text-lg">Project Info</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Ordered</span>
+                            <span>{formatTimestamp(order.creationDate)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Deadline</span>
+                            <span className="font-bold text-orange-600">{formatTimestamp(order.deadline)}</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <div className="flex justify-between text-lg font-black text-primary">
+                            <span>Total</span>
+                            <span>{formatCurrency(order.totalWithVat || order.incomeAmount)}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+                <div className="h-[500px] border rounded-xl overflow-hidden shadow-sm">
+                    <ChatInterface order={order} />
+                </div>
             </div>
         </div>
+
         <div className="lg:hidden">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-2"><TabsTrigger value="specs">Specs</TabsTrigger><TabsTrigger value="chat">Chat</TabsTrigger></TabsList>
-                <TabsContent value="specs" className="space-y-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid grid-cols-2 w-full max-w-sm mx-auto mb-4">
+                    <TabsTrigger value="specs">Specs</TabsTrigger>
+                    <TabsTrigger value="chat">Chat</TabsTrigger>
+                </TabsList>
+                <TabsContent value="specs" className="space-y-6 mt-0">
                     <Accordion type="multiple" className="w-full space-y-6" defaultValue={order.products?.map(p => p.id)}>
-                        {order.products?.map((p, idx) => <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />)}
+                        {order.products?.map((p, idx) => (
+                            <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />
+                        ))}
                     </Accordion>
                 </TabsContent>
-                <TabsContent value="chat" className="h-[calc(100vh-210px)]"><ChatInterface order={order} /></TabsContent>
+                <TabsContent value="chat" className="h-[calc(100vh-320px)] mt-0">
+                    <ChatInterface order={order} />
+                </TabsContent>
             </Tabs>
         </div>
+
         <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
         <FilePreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} attachment={previewAttachment} />
 
