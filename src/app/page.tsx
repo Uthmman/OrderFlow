@@ -32,7 +32,7 @@ export default function LoginPage() {
   const { toast } = useToast();
 
   const staticLogo = "/logo.png";
-  const brandName = "ZENBABA FURNITURE";
+  const brandName = "Zenbaba Furniture";
 
   useEffect(() => {
     if (!isUserLoading && user) {

@@ -13,7 +13,7 @@ export function PWAInstall() {
   const [isIOS, setIsIOS] = useState(false);
 
   const staticLogo = "/logo.png";
-  const brandName = "ZENBABA FURNITURE";
+  const brandName = "Zenbaba Furniture";
 
   useEffect(() => {
     const userAgent = window.navigator.userAgent.toLowerCase();

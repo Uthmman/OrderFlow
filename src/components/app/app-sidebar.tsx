@@ -52,7 +52,7 @@ export function AppSidebar() {
   const { user, role } = useUser();
 
   const staticLogo = "/logo.png";
-  const brandName = "ZENBABA FURNITURE";
+  const brandName = "Zenbaba Furniture";
 
   if (!user) return null;
 

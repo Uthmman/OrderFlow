@@ -6,7 +6,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { UserProvider } from '@/hooks/use-user';
 
 export const metadata: Metadata = {
-  title: 'ZENBABA FURNITURE',
+  title: 'Zenbaba Furniture',
   description: 'Workshop management platform for modern furniture manufacturing.',
   manifest: '/manifest.json',
   icons: {
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'ZENBABA FURNITURE',
+    title: 'Zenbaba Furniture',
   },
 };
 
@@ -46,10 +46,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <meta name="application-name" content="ZENBABA FURNITURE" />
+        <meta name="application-name" content="Zenbaba Furniture" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="ZENBABA FURNITURE" />
+        <meta name="apple-mobile-web-app-title" content="Zenbaba Furniture" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#4355b9" />
