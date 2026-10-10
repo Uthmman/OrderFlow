@@ -34,7 +34,9 @@ import {
     Truck,
     Megaphone,
     Package,
-    Banknote
+    Banknote,
+    ArrowUpRight,
+    TrendingDown
 } from 'lucide-react';
 import { formatCurrency, formatTimestamp, cn } from '@/lib/utils';
 import { useUser } from '@/hooks/use-user';
@@ -217,49 +219,55 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 animate-in fade-in duration-700 pb-20">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
-          <h1 className="text-3xl font-bold font-headline tracking-tight">Financial Ledger</h1>
-          <p className="text-muted-foreground text-sm">Expenses and payroll grouped by Ethiopian calendar periods.</p>
+          <h1 className="text-4xl font-bold font-headline tracking-tight text-slate-900">Expense</h1>
         </div>
         {canEdit && (
-            <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto">
+            <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto h-11 rounded-full shadow-lg shadow-primary/20">
                 <PlusCircle className="mr-2 h-4 w-4" /> Record Purchase
             </Button>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="bg-primary/5 border-primary/10 lg:col-span-1">
-              <CardHeader className="py-4 pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total Filtered Outflow</CardTitle>
+          <Card className="bg-slate-900 text-white border-none shadow-xl relative overflow-hidden group lg:col-span-1 min-h-[160px] flex flex-col justify-center">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                <TrendingDown className="h-24 w-24" />
+              </div>
+              <CardHeader className="py-4 pb-2 relative z-10">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Outflow</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                  <div>
-                    <div className="text-4xl font-black text-primary tracking-tighter">{formatCurrency(totalSpentAllTime)}</div>
-                    <p className="text-[10px] text-muted-foreground mt-1 uppercase font-bold">{filteredExpenses.length} Transactions</p>
+              <CardContent className="space-y-1 relative z-10">
+                  <div className="text-4xl font-black tracking-tighter tabular-nums">{formatCurrency(totalSpentAllTime)}</div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[8px] font-black border-slate-700 text-slate-400 px-2 py-0">
+                        {filteredExpenses.length} TRANSACTIONS
+                    </Badge>
                   </div>
               </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2 border-dashed bg-muted/5 overflow-hidden">
-              <CardHeader className="py-4 pb-2">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Allocation by Category</CardTitle>
+          <Card className="lg:col-span-2 border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden">
+              <CardHeader className="py-4 pb-4 border-b border-slate-100/50">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                    <ArrowUpRight className="h-3 w-3" /> Allocation by Category
+                  </CardTitle>
               </CardHeader>
-              <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-6">
+              <CardContent className="pt-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-5">
                       {categoryStats.length === 0 ? (
-                          <p className="text-[11px] text-muted-foreground italic col-span-full">No distribution data available for current filter.</p>
+                          <p className="text-[11px] text-muted-foreground italic col-span-full py-4 text-center">No distribution data available for current filter.</p>
                       ) : categoryStats.map(stat => (
-                          <div key={stat.name} className="space-y-2">
+                          <div key={stat.name} className="space-y-1.5">
                               <div className="flex justify-between items-end">
                                   <span className="text-[11px] font-bold text-slate-700 uppercase tracking-tight">{stat.name}</span>
-                                  <div className="text-right">
-                                      <span className="text-[11px] font-black text-primary block">{formatCurrency(stat.amount)}</span>
-                                      <span className="text-[9px] font-bold text-muted-foreground uppercase">{stat.percentage.toFixed(1)}%</span>
+                                  <div className="text-right flex items-center gap-2">
+                                      <span className="text-[11px] font-black text-primary">{formatCurrency(stat.amount)}</span>
+                                      <span className="text-[9px] font-bold text-muted-foreground uppercase opacity-60">{stat.percentage.toFixed(0)}%</span>
                                   </div>
                               </div>
-                              <Progress value={stat.percentage} className="h-1.5" />
+                              <Progress value={stat.percentage} className="h-1 rounded-full bg-slate-100" />
                           </div>
                       ))}
                   </div>
@@ -267,12 +275,12 @@ export default function ExpensesPage() {
           </Card>
       </div>
 
-      <div className="bg-muted/20 p-4 rounded-xl border flex flex-col sm:flex-row gap-4 items-center">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="bg-white/40 backdrop-blur-sm p-3 rounded-2xl border ring-1 ring-slate-200/50 flex flex-col sm:flex-row gap-3 items-center shadow-sm">
+        <div className="relative flex-grow w-full max-w-lg">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
           <Input 
             placeholder="Search vendor, description or label..." 
-            className="pl-10 bg-background h-10" 
+            className="pl-10 bg-white/50 border-none h-10 shadow-inner rounded-xl" 
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
@@ -284,8 +292,8 @@ export default function ExpensesPage() {
         {loading && <div className="flex justify-center py-20"><Loader2 className="animate-spin h-10 w-10 opacity-20" /></div>}
         
         {!loading && expensesByPeriod.length === 0 && (
-            <div className="text-center py-20 text-muted-foreground bg-muted/5 rounded-xl border-2 border-dashed">
-                No records found for the current filter.
+            <div className="text-center py-20 text-muted-foreground bg-muted/5 rounded-2xl border-2 border-dashed">
+                <p className="text-sm font-bold uppercase tracking-widest opacity-30">No records found for current filter</p>
             </div>
         )}
 
@@ -300,19 +308,19 @@ export default function ExpensesPage() {
                 const IconComp = containsPayroll ? Users : (CATEGORY_ICONS[firstCategory] || Package);
 
                 return (
-                    <AccordionItem key={group.period} value={group.period} className="border rounded-xl bg-card shadow-sm overflow-hidden">
-                        <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/30 transition-all [&[data-state=open]]:bg-muted/20 [&>svg]:hidden">
+                    <AccordionItem key={group.period} value={group.period} className="border-none shadow-md rounded-2xl bg-white overflow-hidden ring-1 ring-slate-100">
+                        <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-slate-50 transition-all [&[data-state=open]]:bg-slate-50/80 [&>svg]:hidden">
                             <div className="flex flex-1 items-center justify-between gap-4 text-left">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                                        <IconComp className="h-5 w-5 text-muted-foreground" />
+                                    <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 shadow-inner">
+                                        <IconComp className="h-5 w-5 text-slate-500" />
                                     </div>
                                     <div className="space-y-0.5 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 leading-none">
                                                 {containsPayroll ? "Personnel" : firstCategory}
                                             </p>
-                                            <Badge variant="outline" className="text-[8px] font-black uppercase h-3.5 px-1.5 py-0 bg-slate-100 text-slate-600 border-none shrink-0">
+                                            <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1.5 py-0 bg-white text-slate-500 border-slate-200 shrink-0">
                                                 {group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}
                                             </Badge>
                                         </div>
@@ -325,14 +333,14 @@ export default function ExpensesPage() {
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm sm:text-lg font-black text-primary">{formatCurrency(group.total)}</p>
+                                    <p className="text-sm sm:text-lg font-black text-primary tracking-tighter tabular-nums">{formatCurrency(group.total)}</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
-                        <AccordionContent className="p-0 border-t">
-                            <div className="divide-y">
+                        <AccordionContent className="p-0 border-t border-slate-50">
+                            <div className="divide-y divide-slate-50">
                                 {group.items.map(exp => (
-                                    <div key={exp.id} className={cn("p-4 group", exp.isSecondary && "bg-blue-50/20")}>
+                                    <div key={exp.id} className={cn("p-4 px-6 group transition-colors", exp.isSecondary ? "bg-blue-50/10 hover:bg-blue-50/20" : "hover:bg-slate-50/50")}>
                                         {exp.isSecondary ? (
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-3">
@@ -341,25 +349,25 @@ export default function ExpensesPage() {
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
-                                                    <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
+                                                    <p className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(exp.amount)}</p>
                                                 </div>
                                             </div>
                                         ) : (
                                             <>
                                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-background h-4">
+                                                        <div className="flex items-center gap-2 mb-1.5">
+                                                            <Badge variant="outline" className="text-[8px] font-black uppercase px-1.5 py-0 bg-white h-4 border-slate-200">
                                                                 {exp.category}
                                                             </Badge>
-                                                            <span className="text-[10px] text-muted-foreground font-mono">{formatTimestamp(exp.date)}</span>
+                                                            <span className="text-[10px] text-muted-foreground font-mono bg-slate-100 px-1.5 rounded-sm">{formatTimestamp(exp.date)}</span>
                                                         </div>
                                                         <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                                                             {exp.description}
                                                         </h3>
                                                         <div className="flex items-center gap-3 mt-1.5">
-                                                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                                                <User className="h-3 w-3" />
+                                                            <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
+                                                                <User className="h-3 w-3 opacity-60" />
                                                                 {exp.paidTo}
                                                             </div>
                                                         </div>
@@ -367,8 +375,8 @@ export default function ExpensesPage() {
 
                                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                                                         <div className="text-right">
-                                                            <p className="text-sm font-black text-slate-900">{formatCurrency(exp.amount)}</p>
-                                                            <p className="text-[9px] text-muted-foreground uppercase font-medium">
+                                                            <p className="text-sm font-black text-slate-900 tabular-nums">{formatCurrency(exp.amount)}</p>
+                                                            <p className="text-[9px] text-slate-400 uppercase font-black tracking-widest">
                                                                 {exp.bankAccountId === 'Cash' ? 'Cash' : 
                                                                 paymentSettings?.banks.find(b => b.id === exp.bankAccountId)?.bankName || 'Unknown'}
                                                             </p>
@@ -376,7 +384,7 @@ export default function ExpensesPage() {
                                                         
                                                         {canEdit && (
                                                             <div className="flex items-center gap-1">
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteExpense(exp)}>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 rounded-full" onClick={() => deleteExpense(exp)}>
                                                                     <Trash2 className="h-4 w-4" />
                                                                 </Button>
                                                             </div>
@@ -384,15 +392,15 @@ export default function ExpensesPage() {
                                                     </div>
                                                 </div>
 
-                                                <div className="flex gap-2 mt-3">
+                                                <div className="flex gap-2 mt-4">
                                                     {exp.receiptAttachment && (
-                                                        <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
-                                                            <FileText className="h-3 w-3" /> Receipt
+                                                        <Button variant="outline" size="sm" className="h-7 px-3 rounded-full text-[9px] font-black uppercase gap-1.5 border-slate-200 hover:bg-slate-100" onClick={() => window.open(exp.receiptAttachment!.url, '_blank')}>
+                                                            <FileText className="h-3.5 w-3.5 text-blue-600" /> Receipt
                                                         </Button>
                                                     )}
                                                     {exp.withholdAttachment && (
-                                                        <Button variant="outline" size="sm" className="h-6 px-2 text-[9px] font-bold uppercase gap-1 border-amber-200 text-amber-700 bg-amber-50" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
-                                                            <ShieldCheck className="h-3 w-3" /> Withhold 2%
+                                                        <Button variant="outline" size="sm" className="h-7 px-3 rounded-full text-[9px] font-black uppercase gap-1.5 border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100" onClick={() => window.open(exp.withholdAttachment!.url, '_blank')}>
+                                                            <ShieldCheck className="h-3.5 w-3.5" /> Withhold 2%
                                                         </Button>
                                                     )}
                                                 </div>
@@ -409,38 +417,39 @@ export default function ExpensesPage() {
       </div>
 
       <Dialog open={isAdding} onOpenChange={setIsAdding}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] rounded-3xl">
           <DialogHeader>
-            <DialogTitle>Record Purchase</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Record Purchase</DialogTitle>
             <DialogDescription>Enter the details for a manual workshop expenditure.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label>Description</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Description</Label>
               <Input 
                 placeholder="e.g. 50 Sheets of White MDF" 
                 value={newExpense.description} 
                 onChange={e => setNewExpense({...newExpense, description: e.target.value})}
+                className="h-11 rounded-xl"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
                <div className="grid gap-2">
-                  <Label>Amount</Label>
+                  <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Amount</Label>
                   <div className="relative">
                     <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                     <Input 
                         type="number" 
-                        className="pl-10" 
+                        className="pl-10 h-11 rounded-xl font-bold" 
                         value={newExpense.amount} 
                         onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value)})}
                     />
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Category</Label>
+                  <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Category</Label>
                   <Select value={newExpense.category} onValueChange={v => setNewExpense({...newExpense, category: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
@@ -450,16 +459,16 @@ export default function ExpensesPage() {
 
             <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>Vendor / Recipient</Label>
+                  <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Vendor / Recipient</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
-                    <Input className="pl-10" value={newExpense.paidTo} onChange={e => setNewExpense({...newExpense, paidTo: e.target.value})} />
+                    <Input className="pl-10 h-11 rounded-xl" value={newExpense.paidTo} onChange={e => setNewExpense({...newExpense, paidTo: e.target.value})} />
                   </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Payment Source</Label>
+                  <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Payment Source</Label>
                   <Select value={newExpense.bankAccountId} onValueChange={v => setNewExpense({...newExpense, bankAccountId: v})}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Cash">Cash Account</SelectItem>
                       {paymentSettings?.banks.map(b => (
@@ -470,51 +479,55 @@ export default function ExpensesPage() {
                 </div>
             </div>
 
-            <div className="space-y-4 border-t pt-4">
+            <div className="space-y-4 border-t pt-6">
                 <div className="flex flex-col gap-4">
-                    <Label className="flex items-center gap-2 cursor-pointer">
-                        <Input 
-                            type="checkbox" 
-                            className="h-4 w-4" 
-                            checked={newExpense.hasReceipt} 
-                            onChange={e => setNewExpense({...newExpense, hasReceipt: e.target.checked})}
-                        />
-                        Official Purchase Receipt Available
+                    <Label className="flex items-center gap-3 cursor-pointer group">
+                        <div className="relative flex items-center">
+                            <Input 
+                                type="checkbox" 
+                                className="h-5 w-5 rounded-md border-2 border-slate-200 text-primary focus:ring-primary" 
+                                checked={newExpense.hasReceipt} 
+                                onChange={e => setNewExpense({...newExpense, hasReceipt: e.target.checked})}
+                            />
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Official Purchase Receipt Available</span>
                     </Label>
 
-                    <Label className="flex items-center gap-2 cursor-pointer">
-                        <Input 
-                            type="checkbox" 
-                            className="h-4 w-4" 
-                            checked={newExpense.hasWithhold} 
-                            onChange={e => setNewExpense({...newExpense, hasWithhold: e.target.checked})}
-                        />
-                        Withholding Tax Applied (2%)
+                    <Label className="flex items-center gap-3 cursor-pointer group">
+                        <div className="relative flex items-center">
+                            <Input 
+                                type="checkbox" 
+                                className="h-5 w-5 rounded-md border-2 border-slate-200 text-primary focus:ring-primary" 
+                                checked={newExpense.hasWithhold} 
+                                onChange={e => setNewExpense({...newExpense, hasWithhold: e.target.checked})}
+                            />
+                        </div>
+                        <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Withholding Tax Applied (2%)</span>
                     </Label>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     {newExpense.hasReceipt && (
                         <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Standard Receipt</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Standard Receipt</Label>
                             <input type="file" className="hidden" id="receipt-upload" onChange={handleReceiptUpload} />
                             <Button 
                                 variant="outline" 
-                                className="w-full h-16 border-dashed" 
+                                className="w-full h-16 border-dashed border-2 rounded-2xl hover:border-primary/50 transition-all" 
                                 type="button"
                                 disabled={uploadingReceipt}
                                 onClick={() => document.getElementById('receipt-upload')?.click()}
                             >
                                 {uploadingReceipt ? (
-                                    <Loader2 className="animate-spin h-4 w-4" />
+                                    <Loader2 className="animate-spin h-5 w-5 text-primary" />
                                 ) : newExpense.receiptAttachment ? (
                                     <div className="flex items-center gap-2 text-primary font-bold text-xs">
                                         <CheckCircle2 className="h-4 w-4" /> Attached
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-0.5">
-                                        <UploadCloud className="h-4 w-4 opacity-30" />
-                                        <span className="text-[10px]">Upload Recpt</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <UploadCloud className="h-5 w-5 opacity-40" />
+                                        <span className="text-[10px] font-black uppercase tracking-tighter">Upload Receipt</span>
                                     </div>
                                 )}
                             </Button>
@@ -523,25 +536,25 @@ export default function ExpensesPage() {
 
                     {newExpense.hasWithhold && (
                         <div className="space-y-2">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Withhold Receipt</Label>
+                            <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Withhold Receipt</Label>
                             <input type="file" className="hidden" id="withhold-upload" onChange={handleWithholdUpload} />
                             <Button 
                                 variant="outline" 
-                                className="w-full h-16 border-dashed border-amber-200 bg-amber-50/10" 
+                                className="w-full h-16 border-dashed border-2 border-amber-200 bg-amber-50/20 rounded-2xl hover:border-amber-400 transition-all" 
                                 type="button"
                                 disabled={uploadingWithhold}
                                 onClick={() => document.getElementById('withhold-upload')?.click()}
                             >
                                 {uploadingWithhold ? (
-                                    <Loader2 className="animate-spin h-4 w-4 text-amber-600" />
+                                    <Loader2 className="animate-spin h-5 w-5 text-amber-600" />
                                 ) : newExpense.withholdAttachment ? (
                                     <div className="flex items-center gap-2 text-amber-600 font-bold text-xs">
                                         <CheckCircle2 className="h-4 w-4" /> Attached
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center gap-0.5">
-                                        <ShieldCheck className="h-4 w-4 text-amber-600/30" />
-                                        <span className="text-[10px]">Withhold Recpt</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <ShieldCheck className="h-5 w-5 text-amber-600/40" />
+                                        <span className="text-[10px] font-black uppercase tracking-tighter">Withhold File</span>
                                     </div>
                                 )}
                             </Button>
@@ -550,10 +563,10 @@ export default function ExpensesPage() {
                 </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAdding(false)}>Cancel</Button>
-            <Button onClick={handleAddExpense} disabled={isSubmitting || uploadingReceipt || uploadingWithhold}>
-                {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4 animate-spin" />} Save Entry
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsAdding(false)} className="rounded-full px-6">Cancel</Button>
+            <Button onClick={handleAddExpense} disabled={isSubmitting || uploadingReceipt || uploadingWithhold} className="rounded-full px-8 shadow-lg shadow-primary/20">
+                {isSubmitting && <Loader2 className="animate-spin mr-2 h-4 w-4" />} Save Entry
             </Button>
           </DialogFooter>
         </DialogContent>
