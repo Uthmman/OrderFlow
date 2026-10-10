@@ -767,20 +767,39 @@ function OrderDetailPageContent() {
                     <Separator />
 
                     <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-3 rounded-xl bg-slate-50 border space-y-1">
-                                <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">Prepaid</p>
-                                <p className="text-sm font-bold text-emerald-600 tabular-nums">{formatCurrency(order.prepaidAmount || 0)}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
+                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Total</p>
+                                <p className="text-[10px] font-bold text-slate-800 tabular-nums">{formatCurrency(order.totalWithVat || order.incomeAmount || 0)}</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
-                                <p className="text-[9px] font-black uppercase text-primary tracking-widest">Balance</p>
-                                <p className="text-sm font-bold text-primary tabular-nums">
+                            <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
+                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Prepaid</p>
+                                <p className="text-[10px] font-bold text-emerald-600 tabular-nums">{formatCurrency(order.prepaidAmount || 0)}</p>
+                            </div>
+                            <div className="p-2 rounded-xl bg-primary/5 border border-primary/10 space-y-0.5">
+                                <p className="text-[8px] font-black uppercase text-primary tracking-widest">Balance</p>
+                                <p className="text-[10px] font-bold text-primary tabular-nums">
                                     {formatCurrency((order.totalWithVat || order.incomeAmount || 0) - (order.prepaidAmount || 0))}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4 pt-1">
+                            <div className="space-y-0.5">
+                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
+                                    <Calendar className="h-2.5 w-2.5" /> Ordered
+                                </p>
+                                <p className="text-xs font-bold text-slate-800">{formatTimestamp(order.creationDate)}</p>
+                            </div>
+                            <div className="space-y-0.5 text-right">
+                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1 justify-end">
+                                    <Clock className="h-2.5 w-2.5" /> Deadline
+                                </p>
+                                <p className="text-xs font-bold text-orange-600">{formatTimestamp(order.deadline)}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t border-slate-100">
                             <div className="flex justify-between items-center px-1">
                                 <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
                                     <CreditCard className="h-3 w-3" /> Method
@@ -801,7 +820,7 @@ function OrderDetailPageContent() {
                             )}
 
                              {order.paymentDetails && (
-                                <div className="space-y-1 px-1">
+                                <div className="space-y-1 px-1 pt-2">
                                     <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payment Note</p>
                                     <p className="text-xs text-slate-600 bg-muted/30 p-2 rounded-lg border italic">{order.paymentDetails}</p>
                                 </div>
