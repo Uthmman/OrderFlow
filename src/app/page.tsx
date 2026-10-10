@@ -18,8 +18,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Boxes } from 'lucide-react';
+import { Loader2, Boxes, ShieldCheck, Warehouse } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useBrandSettings } from '@/hooks/use-brand-settings';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -30,6 +31,7 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useFirebase();
   const { toast } = useToast();
+  const { settings: brandSettings } = useBrandSettings();
 
   const staticLogo = "/logo.png";
 
@@ -87,61 +89,117 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-screen w-full items-center justify-center bg-muted/40 p-4">
-      <Card className="mx-auto w-full max-sm shadow-xl border-none">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-              <div className="relative h-20 w-20 overflow-hidden rounded-2xl border bg-white shadow-sm ring-4 ring-white flex items-center justify-center">
-                  <Image 
+    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-muted/40">
+      {/* Brand Side (Desktop) */}
+      <div className="hidden lg:flex flex-1 flex-col justify-between bg-primary p-12 text-primary-foreground relative overflow-hidden">
+        {/* Abstract background shape */}
+        <div className="absolute top-0 right-0 w-full h-full opacity-10 pointer-events-none">
+            <Warehouse className="w-[800px] h-[800px] -mr-40 -mt-40 rotate-12" />
+        </div>
+        
+        <div className="relative z-10">
+            <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-white p-2 shadow-lg flex items-center justify-center overflow-hidden">
+                    <Image 
+                        src={staticLogo} 
+                        alt="Logo" 
+                        width={48} 
+                        height={48} 
+                        className="object-contain"
+                        onError={(e) => {
+                            (e.target as any).src = "https://picsum.photos/seed/orderflow/192/192";
+                        }}
+                    />
+                </div>
+                <span className="text-2xl font-black font-headline tracking-tighter uppercase">
+                    {brandSettings?.companyName || "OrderFlow"}
+                </span>
+            </div>
+        </div>
+
+        <div className="relative z-10 max-w-md">
+            <h1 className="text-5xl font-black font-headline tracking-tighter mb-6 leading-tight">
+                Crafting excellence, managing precision.
+            </h1>
+            <p className="text-lg opacity-80 font-medium leading-relaxed">
+                The unified workshop management platform for modern furniture manufacturing.
+            </p>
+        </div>
+
+        <div className="relative z-10 flex items-center gap-6">
+            <div className="flex -space-x-3">
+                {[1,2,3].map(i => (
+                    <div key={i} className="h-10 w-10 rounded-full border-2 border-primary bg-primary-foreground/10" />
+                ))}
+            </div>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-60">Trusted by top workshops</p>
+        </div>
+      </div>
+
+      {/* Form Side */}
+      <div className="flex flex-1 items-center justify-center p-6 sm:p-12 lg:p-24 bg-background">
+        <div className="w-full max-w-[400px] space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="lg:hidden flex flex-col items-center text-center mb-8">
+            <div className="relative h-20 w-20 overflow-hidden rounded-3xl border bg-white shadow-xl ring-8 ring-muted/20 mb-6 flex items-center justify-center">
+                <Image 
                     src={staticLogo} 
                     alt="Logo" 
-                    width={80}
-                    height={80}
+                    width={80} 
+                    height={80} 
                     className="object-contain p-2"
                     onError={(e) => {
-                      (e.target as any).src = "https://picsum.photos/seed/orderflow/192/192";
+                        (e.target as any).src = "https://picsum.photos/seed/orderflow/192/192";
                     }}
-                  />
-              </div>
+                />
+            </div>
+            <h2 className="text-3xl font-black font-headline tracking-tighter text-slate-900">
+                {brandSettings?.companyName || "OrderFlow"}
+            </h2>
+            <p className="text-muted-foreground font-medium mt-2">Workshop Control Center</p>
           </div>
-          <CardTitle className="text-2xl text-center font-headline font-bold">Welcome Back</CardTitle>
-          <CardDescription className="text-center">
-            Sign in to manage your workshop
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSignIn} className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                  href="/forgot-password"
-                  className="ml-auto inline-block text-xs underline text-primary"
-                >
-                  Forgot password?
-                </Link>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl lg:text-3xl font-black font-headline tracking-tighter text-slate-900">Sign In</h1>
+            <p className="text-muted-foreground text-sm font-medium">Enter your credentials to access your workspace.</p>
+          </div>
+
+          <form onSubmit={handleSignIn} className="space-y-5">
+            <div className="space-y-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest text-slate-500">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@example.com"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={loading}
+                  className="h-12 bg-muted/20 border-none focus-visible:ring-primary shadow-inner"
+                />
               </div>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-500">Password</Label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline"
+                  >
+                    Forgot?
+                  </Link>
+                </div>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="h-12 bg-muted/20 border-none focus-visible:ring-primary shadow-inner"
+                />
+              </div>
             </div>
+            
             <div className="flex items-center space-x-2 py-1">
               <Checkbox 
                 id="remember-me"
@@ -151,23 +209,41 @@ export default function LoginPage() {
               />
               <Label
                 htmlFor="remember-me"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                className="text-xs font-bold text-slate-600 cursor-pointer select-none"
               >
-                Remember me
+                Keep me signed in
               </Label>
             </div>
-            <Button type="submit" className="w-full h-11 text-base font-bold shadow-lg shadow-primary/20" disabled={loading}>
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Sign In"}
+
+            <Button 
+                type="submit" 
+                className="w-full h-12 text-sm font-black uppercase tracking-widest shadow-xl shadow-primary/20 transition-all active:scale-[0.98]" 
+                disabled={loading}
+            >
+              {loading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Authenticating...</span>
+                  </div>
+              ) : "Enter Workspace"}
             </Button>
           </form>
-          <div className="mt-6 text-center text-sm">
-            Need an account?{' '}
-            <Link href="/signup" className="underline font-bold text-primary">
-              Register here
-            </Link>
+
+          <div className="pt-6 text-center">
+            <p className="text-xs text-muted-foreground font-medium">
+              New team member?{' '}
+              <Link href="/signup" className="text-primary font-black uppercase tracking-widest hover:underline ml-1">
+                Register
+              </Link>
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="pt-8 flex items-center justify-center gap-2 opacity-30 grayscale pointer-events-none">
+             <ShieldCheck className="h-4 w-4" />
+             <span className="text-[10px] font-black uppercase tracking-[0.2em]">Secure Enterprise Access</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
