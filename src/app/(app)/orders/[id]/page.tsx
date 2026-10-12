@@ -382,7 +382,7 @@ const AttachmentPreview = ({ att, order, onDelete, onImageClick, onPreview, canD
                         <p className="text-xs text-center text-muted-foreground truncate w-full px-2">{att.fileName}</p>
                         <div className="flex flex-wrap items-center justify-center gap-1.5 w-full mt-2">
                              {(isPdf || isCNC) && <Button size="sm" variant="outline" onClick={() => onPreview(att)} className="h-7 text-[10px] px-2 flex-1"><Eye className="h-3 w-3 mr-1" /> Preview</Button>}
-                             <Button size="sm" variant="outline" onClick={() => downloadFile(att.url, att.fileName)} className="h-7 text-[10px] px-2 flex-1"><Download className="h-3 w-3 mr-1" /> Download</Button>
+                             <Button size="sm" variant="outline" onClick={() => downloadFile(att.url, attachment.fileName)} className="h-7 text-[10px] px-2 flex-1"><Download className="h-3 w-3 mr-1" /> Download</Button>
                         </div>
                     </div>
                 )}
@@ -604,7 +604,7 @@ function DesignerProfile({ userId, users }: { userId: string, users: AppUser[] }
 
 function PriorityDetailsCard({ order, customer }: { order: Order, customer: any }) {
     return (
-        <Card className="border-none shadow-lg bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 rounded-2xl overflow-hidden mb-8">
+        <Card className="border-none shadow-lg bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 rounded-2xl overflow-hidden">
             <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
                 <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
                     <Info className="h-4 w-4" /> Client & Financial Summary
@@ -826,112 +826,18 @@ function OrderDetailPageContent() {
                             <ProductDetails key={p.id} product={p} order={order} productIndex={idx} onImageClick={handleImageClick} onAttachmentDelete={(att) => removeAttachment(order.id, idx, att, false)} onDesignAttachmentDelete={(att) => removeAttachment(order.id, idx, att, true)} isDesigner={isDesigner} onDesignUpload={(file, pk) => addAttachment(order.id, idx, file, true, pk)} onFilePreview={(att) => { setPreviewAttachment(att); setPreviewOpen(true); }} canEdit={canEdit} />
                         ))}
                     </Accordion>
+                    
+                    {/* Authorized Financial Summary Card on Mobile Specs Tab */}
+                    {isPriorityUser && (
+                        <div className="mt-8">
+                            <PriorityDetailsCard order={order} customer={customer} />
+                        </div>
+                    )}
                 </TabsContent>
                 <TabsContent value="chat" className="h-[calc(100vh-320px)] mt-0">
                     <ChatInterface order={order} />
                 </TabsContent>
             </Tabs>
-
-            <Card className="border-none shadow-lg bg-white/40 backdrop-blur-sm ring-1 ring-slate-200/50 rounded-2xl overflow-hidden">
-                <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-600 flex items-center gap-2">
-                        <Info className="h-4 w-4" /> Order & Customer Details
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-6">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 border shadow-sm">
-                                <AvatarImage src={customer?.avatarUrl} />
-                                <AvatarFallback className="font-bold text-primary bg-primary/5">
-                                    {order.customerName?.split(' ').map((n: string) => n[0]).join('')}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Client</p>
-                                <p className="font-bold text-slate-900 truncate">{order.customerName}</p>
-                            </div>
-                        </div>
-                        
-                        {customer?.phoneNumbers && customer.phoneNumbers.length > 0 && (
-                            <div className="grid grid-cols-1 gap-2 pl-1">
-                                {customer.phoneNumbers.map((p: any, i: number) => (
-                                    <a key={i} href={`tel:${p.number}`} className="flex items-center gap-3 text-sm text-primary hover:underline font-medium">
-                                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                            <Phone className="h-3.5 w-3.5" />
-                                        </div>
-                                        <span>{p.number} <span className="text-[10px] opacity-60 uppercase font-black">({p.type})</span></span>
-                                    </a>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <Separator />
-
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
-                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Total</p>
-                                <p className="text-[10px] font-bold text-slate-800 tabular-nums">{formatCurrency(order.totalWithVat || order.incomeAmount || 0)}</p>
-                            </div>
-                            <div className="p-2 rounded-xl bg-slate-50 border space-y-0.5">
-                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest">Prepaid</p>
-                                <p className="text-[10px] font-bold text-emerald-600 tabular-nums">{formatCurrency(order.prepaidAmount || 0)}</p>
-                            </div>
-                            <div className="p-2 rounded-xl bg-primary/5 border border-primary/10 space-y-0.5">
-                                <p className="text-[8px] font-black uppercase text-primary tracking-widest">Balance</p>
-                                <p className="text-[10px] font-bold text-primary tabular-nums">
-                                    {formatCurrency((order.totalWithVat || order.incomeAmount || 0) - (order.prepaidAmount || 0))}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-1">
-                            <div className="space-y-0.5">
-                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1">
-                                    <Calendar className="h-2.5 w-2.5" /> Ordered
-                                </p>
-                                <p className="text-xs font-bold text-slate-800">{formatTimestamp(order.creationDate)}</p>
-                            </div>
-                            <div className="space-y-0.5 text-right">
-                                <p className="text-[8px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-1 justify-end">
-                                    <Clock className="h-2.5 w-2.5" /> Deadline
-                                </p>
-                                <p className="text-xs font-bold text-orange-600">{formatTimestamp(order.deadline)}</p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 pt-2 border-t border-slate-100">
-                            <div className="flex justify-between items-center px-1">
-                                <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                    <CreditCard className="h-3 w-3" /> Method
-                                </p>
-                                <p className="text-xs font-bold text-slate-800">{order.paymentMethod || 'Not specified'}</p>
-                            </div>
-                            
-                            {(order.bankName || order.bankId) && (
-                                <div className="flex justify-between items-center px-1">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest flex items-center gap-2">
-                                        <Banknote className="h-3 w-3" /> Bank
-                                    </p>
-                                    <div className="text-right">
-                                        <p className="text-xs font-bold text-slate-800">{order.bankName || order.bankId}</p>
-                                        {order.bankAccountNumber && <p className="text-[9px] font-mono text-muted-foreground">{order.bankAccountNumber}</p>}
-                                    </div>
-                                </div>
-                            )}
-
-                             {order.paymentDetails && (
-                                <div className="space-y-1 px-1 pt-2">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Payment Note</p>
-                                    <p className="text-xs text-slate-600 bg-muted/30 p-2 rounded-lg border italic">{order.paymentDetails}</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
 
         <ImageGallery open={galleryOpen} onOpenChange={setGalleryOpen} images={allImageAttachments} startIndex={galleryStartIndex} />
