@@ -12,7 +12,6 @@ import {
     Loader2, 
     Search, 
     Users, 
-    Mail, 
     Phone, 
     Calendar,
     Briefcase,
@@ -22,9 +21,11 @@ import {
 } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
 
 export default function EmployeesPage() {
     const { employees, loading } = useEmployees();
+    const { role, loading: userLoading } = useUser();
     const [searchTerm, setSearchTerm] = useState('');
     const { toast } = useToast();
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -42,13 +43,27 @@ export default function EmployeesPage() {
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    if (loading) {
+    if (loading || userLoading) {
         return (
             <div className="flex flex-col items-center justify-center h-96 gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Fetching Staff Profiles...</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Verifying Authorization...</p>
             </div>
         );
+    }
+
+    if (role !== 'Admin' && role !== 'Manager') {
+        return (
+             <Card className="max-w-md mx-auto mt-12">
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                    <CardDescription>You do not have permission to view the employee directory.</CardDescription>
+                </CardHeader>
+                 <CardContent>
+                    <p className="text-sm text-muted-foreground">This section is restricted to Admin and Management personnel. Please contact your administrator if you believe this is an error.</p>
+                </CardContent>
+            </Card>
+        )
     }
 
     return (
