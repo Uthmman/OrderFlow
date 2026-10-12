@@ -24,11 +24,16 @@ export type AppUser = {
 export type Employee = {
     id: string;
     name: string;
-    role: string;
-    phoneNumber?: string;
+    position: string;
+    phone: string;
     avatarUrl?: string;
-    workerType?: 'Monthly' | 'Daily';
-    joinedDate?: any;
+    paymentMethod?: string;
+    attendanceStartDate?: string;
+    inactiveDate?: string;
+    status: 'Active' | 'Inactive';
+    accountNumber?: string;
+    monthlyRate?: number;
+    dailyRate?: number;
     email?: string;
 }
 
