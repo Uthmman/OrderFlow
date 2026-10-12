@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, Suspense, useOptimistic, useRef, useMemo } from "react";
+import { useState, useEffect, Suspense, useOptimistic, useRef, useMemo, useTransition } from "react";
 import { useOrders } from "@/hooks/use-orders";
 import { useStock } from "@/hooks/use-stock";
 import { notFound, useRouter, useSearchParams, useParams } from "next/navigation";
@@ -714,6 +714,7 @@ function OrderDetailPageContent() {
   const [previewAttachment, setPreviewAttachment] = useState<OrderAttachment | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'specs');
+  const [isPending, startTransition] = useTransition();
   
   const orderData = getOrderById(id);
   const [optimisticOrder, setOptimisticOrder] = useOptimistic(orderData, (state, partial: Partial<Order>) => state ? { ...state, ...partial } : null);
@@ -721,7 +722,14 @@ function OrderDetailPageContent() {
 
   useEffect(() => { if (order?.id) markOrderNotificationsAsRead(order.id); }, [order?.id, markOrderNotificationsAsRead]);
 
-  const handleStatusChange = (newStatus: OrderStatus) => { if (orderData) { setOptimisticOrder({ status: newStatus } as any); updateOrder({ id: orderData.id, status: newStatus }); } };
+  const handleStatusChange = (newStatus: OrderStatus) => { 
+    if (orderData) { 
+        startTransition(() => {
+            setOptimisticOrder({ status: newStatus } as any); 
+            updateOrder({ id: orderData.id, status: newStatus }); 
+        });
+    } 
+  };
   
   const handleImageClick = (clickedAttachment: OrderAttachment) => { 
     const rawImageAttachments = (order?.products || []).flatMap(p => [...(p.attachments || []), ...(p.designAttachments || [])]).filter(att => att.fileName.match(/\.(jpeg|jpg|gif|png|webp)$/i));
