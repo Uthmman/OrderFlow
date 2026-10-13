@@ -55,6 +55,32 @@ export function getEthiopianPeriod(date: Date | any) {
   return `${ETHIOPIAN_MONTHS[ethMonthIndex][0]} ${year}`;
 }
 
+export function getEthiopianDateLabel(date: Date | any) {
+  const d = date?.seconds ? new Date(date.seconds * 1000) : new Date(date);
+  if (!d || isNaN(d.getTime())) return 'Unknown Date';
+
+  const month = d.getMonth();
+  const day = d.getDate();
+  let year = d.getFullYear() - 8;
+  let ethMonthIndex = 0;
+
+  const startDays = [9, 8, 10, 9, 9, 8, 8, 7, 11, 11, 10, 10];
+  
+  if (day >= startDays[month]) {
+      ethMonthIndex = (month === 8 || month === 9 || month === 10 || month === 11) ? month - 8 : month + 4;
+      if (month >= 8) year = d.getFullYear() - 7;
+  } else {
+      ethMonthIndex = (month === 8 || month === 9 || month === 10 || month === 11) ? (month === 8 ? 11 : month - 9) : month + 3;
+      if (month > 8) year = d.getFullYear() - 7;
+  }
+  
+  const ethDay = (day >= startDays[month]) 
+      ? day - startDays[month] + 1 
+      : day + (30 - startDays[(month === 0 ? 11 : month - 1)] + 1);
+
+  return `${ETHIOPIAN_MONTHS[ethMonthIndex][0]} ${ethDay}, ${year}`;
+}
+
 function sanitizePeriodLabel(label: string): string {
     if (!label) return 'Unknown Period';
     return label
@@ -185,7 +211,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
             ...exp,
             date: rawDate,
             periodLabel: getEthiopianPeriod(rawDate),
-            isSecondary: false
+            isSecondary: false,
+            isMaterial: false
         }
     });
 
@@ -208,6 +235,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
                 hasReceipt: true,
                 ownerId: 'system',
                 isSecondary: true,
+                isMaterial: false,
                 periodLabel: sanitizedLabel
             };
         });
@@ -227,7 +255,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
                 hasReceipt: true,
                 ownerId: 'system',
                 isSecondary: true,
-                periodLabel: getEthiopianPeriod(rawDate)
+                isMaterial: true,
+                periodLabel: getEthiopianDateLabel(rawDate)
             };
         });
 

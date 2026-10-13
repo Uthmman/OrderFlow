@@ -279,7 +279,9 @@ export type Expense = {
   status: 'Paid' | 'Pending';
   ownerId: string;
   isSecondary?: boolean;
+  isMaterial?: boolean;
   details?: ExpenseDetail[];
+  periodLabel?: string;
 };
 
 export type SecondaryCategory = {

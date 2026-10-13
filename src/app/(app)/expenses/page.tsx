@@ -299,13 +299,17 @@ export default function ExpensesPage() {
 
         <Accordion type="multiple" className="space-y-4" defaultValue={[]}>
             {expensesByPeriod.map(group => {
-                const containsPayroll = group.items.some(i => i.isSecondary);
+                const containsPayroll = group.items.some(i => i.category === 'Salary');
+                const containsMaterials = group.items.some(i => i.isMaterial);
+                
                 const mainHeaderText = containsPayroll 
                     ? "Employee Payout" 
-                    : (group.items.length === 1 ? group.items[0].description : "Batch Expense");
+                    : containsMaterials
+                        ? "Daily Stock Purchase"
+                        : (group.items.length === 1 ? group.items[0].description : "Batch Expense");
 
                 const firstCategory = group.items[0].category;
-                const IconComp = containsPayroll ? Users : (CATEGORY_ICONS[firstCategory] || Package);
+                const IconComp = containsPayroll ? Users : (containsMaterials ? Package : (CATEGORY_ICONS[firstCategory] || Package));
 
                 return (
                     <AccordionItem key={group.period} value={group.period} className="border-none shadow-md rounded-2xl bg-white overflow-hidden ring-1 ring-slate-100">
@@ -318,7 +322,7 @@ export default function ExpensesPage() {
                                     <div className="space-y-0.5 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-primary/70 leading-none">
-                                                {containsPayroll ? "Personnel" : firstCategory}
+                                                {containsPayroll ? "Personnel" : (containsMaterials ? "Stock" : firstCategory)}
                                             </p>
                                             <Badge variant="outline" className="text-[8px] font-black uppercase h-4 px-1.5 py-0 bg-white text-slate-500 border-slate-200 shrink-0">
                                                 {group.items.length} {group.items.length === 1 ? 'Item' : 'Items'}
@@ -345,7 +349,10 @@ export default function ExpensesPage() {
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-3">
                                                     <div className="min-w-0">
-                                                        <h3 className="text-sm font-bold text-slate-800 truncate">{exp.paidTo}</h3>
+                                                        <h3 className="text-sm font-bold text-slate-800 truncate">{exp.description}</h3>
+                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                                                            <User className="h-2.5 w-2.5 opacity-60" /> {exp.paidTo}
+                                                        </p>
                                                     </div>
                                                 </div>
                                                 <div className="text-right shrink-0">
