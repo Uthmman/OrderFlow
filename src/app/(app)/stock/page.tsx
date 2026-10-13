@@ -37,6 +37,7 @@ import {
 import { formatTimestamp, formatOrderId, formatOrderUniqueName, cn, formatCurrency } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import Image from 'next/image';
+import Link from 'next/link';
 import type { StockItem, StockUnit, StockTransactionType, SecondaryItem } from '@/lib/types';
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
@@ -204,7 +205,7 @@ export default function StockPage() {
                 <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Tx Log</TabsTrigger>
             </TabsList>
             
-            <div className="relative flex-grow w-full max-w-md ml-auto">
+            <div className="relative flex-grow w-full max-md ml-auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                 <Input 
                     placeholder="Quick search items or groups..." 
