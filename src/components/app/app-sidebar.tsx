@@ -26,6 +26,7 @@ import {
   Receipt,
   PieChart,
   Briefcase,
+  Boxes,
 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 
@@ -34,6 +35,7 @@ const navItems = [
     { href: "/orders", icon: Package, label: "Orders", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/chat", icon: MessageSquare, label: "Chat", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/products", icon: Library, label: "Product", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
+    { href: "/stock", icon: Boxes, label: "Inventory", roles: ['Admin', 'Manager', 'Sales', 'Designer', 'AdminView'] },
     { href: "/employees", icon: Briefcase, label: "Employees", roles: ['Admin', 'Manager'] },
     { href: "/expenses", icon: Receipt, label: "Expense", roles: ['Admin', 'Manager', 'Sales', 'AdminView'] },
     { href: "/customers", icon: Users, label: "Customers", roles: ['Admin', 'Sales', 'AdminView'] },
