@@ -30,7 +30,7 @@ const ETHIOPIAN_MONTHS = [
 
 export function getEthiopianPeriod(date: Date | any) {
   const d = date?.seconds ? new Date(date.seconds * 1000) : new Date(date);
-  if (isNaN(d.getTime())) return 'Unknown Period';
+  if (!d || isNaN(d.getTime())) return 'Unknown Period';
 
   const month = d.getMonth();
   const day = d.getDate();
@@ -125,29 +125,45 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
   const expensesRef = useMemoFirebase(() => query(collection(firestore, 'expenses'), orderBy('date', 'desc')), [firestore]);
   const { data: primaryExpenses, isLoading: primaryLoading } = useCollection<Expense>(expensesRef);
 
-  const [secondaryRecords, setSecondaryRecords] = useState<any[]>([]);
+  const [secondaryPayrollRecords, setSecondaryPayrollRecords] = useState<any[]>([]);
+  const [secondaryMaterialRecords, setSecondaryMaterialRecords] = useState<any[]>([]);
   const [secondaryLoading, setSecondaryLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribe: () => void;
+    let unsubscribePayroll: () => void;
+    let unsubscribeMaterials: () => void;
 
     const fetchSecondary = async () => {
       try {
         await ensureSecondaryAuth();
         const db = getSecondaryFirestore();
-        const q = query(collection(db, 'employeeExpenses'));
         
-        unsubscribe = onSnapshot(q, (snapshot) => {
+        // Listen to payroll records
+        const qPayroll = query(collection(db, 'employeeExpenses'));
+        unsubscribePayroll = onSnapshot(qPayroll, (snapshot) => {
           const results = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }));
-          setSecondaryRecords(results);
+          setSecondaryPayrollRecords(results);
+        }, (error) => {
+          console.error("Secondary payroll expenses error:", error);
+        });
+
+        // Listen to material purchase records (expenses collection in secondary DB)
+        const qMaterials = query(collection(db, 'expenses'));
+        unsubscribeMaterials = onSnapshot(qMaterials, (snapshot) => {
+          const results = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          setSecondaryMaterialRecords(results);
           setSecondaryLoading(false);
         }, (error) => {
-          console.error("Secondary expenses error:", error);
+          console.error("Secondary material expenses error:", error);
           setSecondaryLoading(false);
         });
+
       } catch (err) {
         console.error("Failed to initialize secondary expenses:", err);
         setSecondaryLoading(false);
@@ -155,10 +171,14 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
     };
 
     fetchSecondary();
-    return () => unsubscribe?.();
+    return () => {
+      unsubscribePayroll?.();
+      unsubscribeMaterials?.();
+    };
   }, []);
 
   const combinedExpenses = useMemo(() => {
+    // 1. Manual/Primary Expenses
     const processedPrimary = (primaryExpenses || []).map(exp => {
         const rawDate = exp.date?.seconds ? new Date(exp.date.seconds * 1000) : new Date(exp.date);
         return {
@@ -169,7 +189,8 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         }
     });
 
-    const processedSecondary = secondaryRecords
+    // 2. Payroll Records (mapped from employeeExpenses)
+    const processedPayroll = secondaryPayrollRecords
         .map(curr => {
             const fallbackDate = curr.timestamp?.seconds ? new Date(curr.timestamp.seconds * 1000) : (curr.date ? new Date(curr.date) : new Date(0));
             const rawLabel = curr.periodLabel || getEthiopianPeriod(fallbackDate);
@@ -181,25 +202,43 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
                 description: `Payroll: ${curr.employeeName || 'Staff'}`,
                 amount: curr.totalPay ?? curr.amount ?? 0,
                 date: filterDate, 
-                category: 'Employee Expense',
+                category: 'Salary',
                 paidTo: curr.employeeName || 'Staff Member',
                 status: curr.paymentStatus || 'Paid',
                 hasReceipt: true,
                 ownerId: 'system',
                 isSecondary: true,
-                periodLabel: sanitizedLabel,
-                type: curr.type || 'Monthly'
+                periodLabel: sanitizedLabel
             };
         });
 
-    const combined = [...processedPrimary, ...processedSecondary];
+    // 3. Raw Material Records (mapped from expenses in secondary DB)
+    const processedMaterials = secondaryMaterialRecords
+        .map(curr => {
+            const rawDate = curr.recordedAt ? new Date(curr.recordedAt) : new Date(0);
+            return {
+                id: curr.id,
+                description: curr.description || `Purchase of ${curr.itemName || 'Raw Materials'}`,
+                amount: curr.amount || 0,
+                date: rawDate,
+                category: curr.category || 'Materials',
+                paidTo: curr.supplier || 'Unknown Supplier',
+                status: curr.paymentStatus || 'Paid',
+                hasReceipt: true,
+                ownerId: 'system',
+                isSecondary: true,
+                periodLabel: getEthiopianPeriod(rawDate)
+            };
+        });
+
+    const combined = [...processedPrimary, ...processedPayroll, ...processedMaterials];
 
     return combined.sort((a, b) => {
         const dateA = a.date instanceof Date ? a.date.getTime() : 0;
         const dateB = b.date instanceof Date ? b.date.getTime() : 0;
         return dateB - dateA;
     });
-  }, [primaryExpenses, secondaryRecords]);
+  }, [primaryExpenses, secondaryPayrollRecords, secondaryMaterialRecords]);
 
   const addExpense = useCallback(async (expenseData: Omit<Expense, 'id' | 'ownerId'>) => {
     if (!user) return;
@@ -212,7 +251,7 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         ownerId: user.id,
       };
       await setDoc(ref, newExpense);
-      toast({ title: "Expense Added", description: "The expenditure has been recorded." });
+      toast({ title: "Expense Recorded", description: "The manual expenditure has been saved." });
       return newId;
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save expense." });
@@ -231,7 +270,11 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
 
   const deleteExpense = useCallback(async (expense: Expense) => {
     if (expense.isSecondary) {
-        toast({ variant: "destructive", title: "Action Denied", description: "System expenses must be managed in the Payroll system." });
+        toast({ 
+            variant: "destructive", 
+            title: "Action Denied", 
+            description: "System records from external databases cannot be deleted from this interface." 
+        });
         return;
     }
     try {
