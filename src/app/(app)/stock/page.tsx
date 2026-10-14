@@ -130,7 +130,7 @@ export default function StockPage() {
           <Card className="lg:col-span-2 border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center">
               <CardHeader className="py-4 pb-4 border-b border-slate-100/50">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Stock Level Alerts
+                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Stock Level Alerts ({lowStockItems.length})
                   </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
