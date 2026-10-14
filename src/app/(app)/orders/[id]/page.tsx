@@ -766,7 +766,7 @@ function OrderDetailPageContent() {
                     <div className="flex items-center gap-2">
                         <StatusChanger order={order} onStatusChange={handleStatusChange} />
                         <div className="flex -space-x-2">
-                            {order.assignedTo?.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
+                            {Array.isArray(order.assignedTo) && order.assignedTo.map(uid => <DesignerProfile key={uid} userId={uid} users={users} />)}
                         </div>
                     </div>
                 </div>

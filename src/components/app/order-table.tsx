@@ -136,7 +136,7 @@ function StatusCell({ order }: { order: Order }) {
                     {status}
                 </Badge>
             )}
-            {order.assignedTo && order.assignedTo.length > 0 && (
+            {Array.isArray(order.assignedTo) && order.assignedTo.length > 0 && (
                 <div className="flex -space-x-2 ml-1">
                     {order.assignedTo.map(uid => (
                         <DesignerAvatar key={uid} userId={uid} users={users} />
