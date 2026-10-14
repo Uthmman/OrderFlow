@@ -6,10 +6,11 @@ import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary
 import type { StockItem, StockTransaction, StockTransactionType, StockSettings } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useToast } from './use-toast';
-import { useUser } from './use-user';
+import { useUser, useUsers } from './use-user';
 import { useOrders } from './use-orders';
-import { useMemoFirebase } from '@/firebase/provider';
+import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { v4 as uuidv4 } from 'uuid';
+import { triggerNotification } from '@/lib/notifications';
 
 interface StockContextType {
   stockItems: StockItem[];
@@ -27,8 +28,10 @@ const StockContext = createContext<StockContextType | undefined>(undefined);
 
 export function StockProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
+  const { users } = useUsers();
   const { orders } = useOrders();
   const { toast } = useToast();
+  const { firestore: mainFirestore } = useFirebase();
   const [isSecondaryAuthReady, setIsSecondaryAuthReady] = useState(false);
 
   useEffect(() => {
@@ -139,6 +142,16 @@ export function StockProvider({ children }: { children: ReactNode }) {
         lastUpdated: serverTimestamp(),
       });
 
+      // Notify Admins
+      const adminIds = users.filter(u => u.role === 'Admin' && u.id !== user.id).map(u => u.id);
+      if (adminIds.length > 0) {
+        triggerNotification(mainFirestore, adminIds, {
+          type: 'Stock Movement',
+          message: `${user.name} adjusted ${foundItem?.name || 'item'}: ${qtyChange > 0 ? '+' : ''}${qtyChange} ${foundItem?.unit || ''}`,
+          orderId: orderId !== 'none' ? orderId : undefined
+        });
+      }
+
       toast({ 
         title: type === 'In' ? "Stock Added" : "Stock Used", 
         description: `${quantity} units recorded.` 
@@ -147,7 +160,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
       console.error("Error adjusting stock:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to record stock adjustment." });
     }
-  }, [firestore, user, orders, stockItems, toast, addOptimisticAdjustment]);
+  }, [firestore, mainFirestore, user, users, orders, stockItems, toast, addOptimisticAdjustment]);
 
   const deleteStockItem = useCallback(async (itemId: string) => {
     try {

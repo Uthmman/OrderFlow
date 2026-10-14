@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect } from 'react';
@@ -7,10 +6,12 @@ import type { Expense, OrderAttachment, ExpenseDetail } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
-import { useUser } from './use-user';
+import { useUser, useUsers } from './use-user';
 import { v4 as uuidv4 } from 'uuid';
 import { deleteFileFlow } from '@/ai/flows/backblaze-flow';
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
+import { triggerNotification } from '@/lib/notifications';
+import { formatCurrency } from '@/lib/utils';
 
 const ETHIOPIAN_MONTHS = [
   ['Meskerem'], 
@@ -146,6 +147,7 @@ const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 export function ExpenseProvider({ children }: { children: ReactNode }) {
   const { firestore } = useFirebase();
   const { user } = useUser();
+  const { users } = useUsers();
   const { toast } = useToast();
 
   const expensesRef = useMemoFirebase(() => query(collection(firestore, 'expenses'), orderBy('date', 'desc')), [firestore]);
@@ -280,12 +282,22 @@ export function ExpenseProvider({ children }: { children: ReactNode }) {
         ownerId: user.id,
       };
       await setDoc(ref, newExpense);
+
+      // Notify Admins
+      const adminIds = users.filter(u => u.role === 'Admin' && u.id !== user.id).map(u => u.id);
+      if (adminIds.length > 0) {
+        triggerNotification(firestore, adminIds, {
+          type: 'New Expense',
+          message: `${user.name} recorded: ${expenseData.description} (${formatCurrency(expenseData.amount)})`,
+        });
+      }
+
       toast({ title: "Expense Recorded", description: "The manual expenditure has been saved." });
       return newId;
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Failed to save expense." });
     }
-  }, [firestore, user, toast]);
+  }, [firestore, user, users, toast]);
 
   const updateExpense = useCallback(async (id: string, data: Partial<Expense>) => {
     try {

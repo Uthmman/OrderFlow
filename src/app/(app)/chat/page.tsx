@@ -11,6 +11,8 @@ import { formatOrderUniqueName } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { useNotifications } from '@/hooks/use-notifications';
+import { Badge } from '@/components/ui/badge';
 
 function getLastMessage(order: Order): OrderChatMessage | null {
   if (!order.chatMessages || !Array.isArray(order.chatMessages) || order.chatMessages.length === 0) {
@@ -50,8 +52,19 @@ function formatLastMessageTimestamp(timestamp: any): string {
 
 export default function ChatPage() {
   const { orders, loading } = useOrders();
+  const { notifications } = useNotifications();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("active");
+
+  const unreadNotificationsByOrder = useMemo(() => {
+    const counts: Record<string, number> = {};
+    notifications.filter(n => !n.isRead && n.orderId).forEach(n => {
+        if (n.orderId) {
+            counts[n.orderId] = (counts[n.orderId] || 0) + 1;
+        }
+    });
+    return counts;
+  }, [notifications]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
@@ -104,22 +117,30 @@ export default function ChatPage() {
             const lastMessage = getLastMessage(order);
             const orderName = formatOrderUniqueName(order.customerName, order.products, order.id);
             const productImg = order.mainImageUrl || (order.products?.[0]?.mainImageUrl);
+            const unreadCount = unreadNotificationsByOrder[order.id] || 0;
 
             return (
                 <Link
                   key={order.id}
                   href={`/orders/${order.id}?tab=chat`}
-                  className="flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-muted/50 transition-colors relative"
                 >
-                  <Avatar className="h-12 w-12 border shadow-sm rounded-lg overflow-hidden">
-                    <AvatarImage src={productImg} className="object-cover" />
-                    <AvatarFallback className="bg-primary/10 text-primary font-bold rounded-lg">
-                        {order.customerName.split(" ").map(n => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar className="h-12 w-12 border shadow-sm rounded-lg overflow-hidden">
+                        <AvatarImage src={productImg} className="object-cover" />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold rounded-lg">
+                            {order.customerName.split(" ").map(n => n[0]).join("")}
+                        </AvatarFallback>
+                    </Avatar>
+                    {unreadCount > 0 && (
+                        <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-destructive-foreground animate-in zoom-in duration-300">
+                            {unreadCount}
+                        </div>
+                    )}
+                  </div>
                   <div className="flex-grow overflow-hidden">
                     <div className="flex justify-between items-center mb-0.5">
-                      <p className="font-bold text-sm truncate">
+                      <p className={cn("font-bold text-sm truncate", unreadCount > 0 && "text-primary")}>
                         {orderName}
                       </p>
                        {lastMessage && (
@@ -129,7 +150,7 @@ export default function ChatPage() {
                       )}
                     </div>
                     {lastMessage ? (
-                         <p className="text-xs text-muted-foreground truncate">
+                         <p className={cn("text-xs truncate", unreadCount > 0 ? "text-foreground font-semibold" : "text-muted-foreground")}>
                             <span className="font-bold text-foreground/80">{lastMessage.isSystemMessage ? '' : `${lastMessage.user.name}: `}</span>
                             {lastMessage.text || (lastMessage.attachment ? 'Sent an attachment' : 'No message text')}
                         </p>
