@@ -162,9 +162,6 @@ export default function StockPage() {
           <p className="text-sm text-muted-foreground font-medium">Manage workshop materials and stock levels</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="rounded-full px-6 shadow-sm w-full sm:w-auto font-bold text-xs uppercase" onClick={() => openAdjustmentDialog()}>
-            <History className="h-4 w-4 mr-2" /> Record Movement
-          </Button>
           <Button className="rounded-full px-6 shadow-lg shadow-primary/20 w-full sm:w-auto font-bold text-xs uppercase" onClick={() => setIsAddingItem(true)}>
             <PlusCircle className="h-4 w-4 mr-2" /> New Catalog Item
           </Button>
@@ -232,14 +229,17 @@ export default function StockPage() {
             ) : filteredItems.map(item => {
               const isLow = item.currentQuantity <= (item.minQuantity || 5);
               return (
-                <Card key={item.id} className={cn(
-                    "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100",
-                    isLow && "ring-red-100 bg-red-50/5"
-                )}>
+                <Card 
+                    key={item.id} 
+                    onClick={() => openAdjustmentDialog(item.id)}
+                    className={cn(
+                        "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100 cursor-pointer group",
+                        isLow && "ring-red-100 bg-red-50/5"
+                    )}
+                >
                   <div className="p-3 sm:p-4 flex-grow flex flex-col gap-4">
                     <div className="flex justify-center items-start">
-                        {/* Visual Reference */}
-                        <div className="relative h-32 w-32 sm:h-40 sm:w-40 md:h-48 md:w-48 shrink-0 bg-muted rounded-[2rem] overflow-hidden border shadow-inner">
+                        <div className="relative h-32 w-32 sm:h-40 sm:w-40 md:h-48 md:w-48 shrink-0 bg-muted rounded-[2rem] overflow-hidden border shadow-inner group-hover:scale-105 transition-transform duration-300">
                              {item.imageUrl ? (
                                 <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                              ) : (
@@ -247,7 +247,6 @@ export default function StockPage() {
                                     <ImageIcon className="h-10 w-10 text-slate-200" />
                                 </div>
                              )}
-                             {/* Stock Counter Badge */}
                              <div className={cn(
                                  "absolute top-2 left-2 h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg ring-4 ring-white",
                                  isLow ? "bg-destructive text-white" : "bg-slate-900 text-white"
@@ -257,9 +256,8 @@ export default function StockPage() {
                         </div>
                     </div>
 
-                    {/* Info Section */}
                     <div className="space-y-1.5 min-w-0">
-                        <h3 className="text-sm sm:text-base font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
+                        <h3 className="text-sm sm:text-base font-black text-slate-800 leading-tight line-clamp-2 group-hover:text-primary transition-colors">{item.name}</h3>
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline" className="h-5 px-2 text-[8px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
                                 {item.category}
