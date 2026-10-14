@@ -23,14 +23,73 @@ import {
     Boxes,
     Plus,
     Minus,
-    Image as ImageIcon
+    Image as ImageIcon,
+    ArrowUpRight,
+    ArrowDownRight,
+    History
 } from 'lucide-react';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import Image from 'next/image';
-import type { StockUnit, StockTransactionType } from '@/lib/types';
+import type { StockUnit, StockTransactionType, StockItem, StockTransaction, Order } from '@/lib/types';
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
+
+function MobileHistoryList({ transactions, items, orders }: { transactions: StockTransaction[], items: StockItem[], orders: Order[] }) {
+    return (
+        <div className="space-y-3 px-1">
+            {transactions.length === 0 ? (
+                <div className="py-20 text-center bg-muted/5 rounded-2xl border-2 border-dashed">
+                    <p className="text-sm font-bold uppercase tracking-widest opacity-30">No history found</p>
+                </div>
+            ) : transactions.map(tx => {
+                const item = items.find(i => i.id === tx.itemId);
+                const foundOrder = orders.find(o => o.id === tx.orderId);
+                const orderLabel = foundOrder ? (foundOrder.uniqueName?.slice(-5) || 'Order') : (tx.orderId !== 'none' ? tx.orderId?.slice(-5) : null);
+                
+                return (
+                    <Card key={tx.id} className="border-none shadow-md bg-white overflow-hidden ring-1 ring-slate-100 p-4">
+                        <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1.5 min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-tight">{formatTimestamp(tx.timestamp)}</p>
+                                    <Badge variant={tx.type === 'In' ? 'default' : 'secondary'} className="h-4 px-1.5 text-[7px] font-black uppercase tracking-tighter">
+                                        {tx.type === 'In' ? 'Restock' : 'Usage'}
+                                    </Badge>
+                                </div>
+                                <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{item?.name || 'Unknown Item'}</h4>
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                    {orderLabel && (
+                                        <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 bg-primary/5 px-1.5 py-0.5 rounded-sm">
+                                            <Package className="h-2.5 w-2.5" /> Project {orderLabel}
+                                        </span>
+                                    )}
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{tx.userName}</span>
+                                </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <div className="flex flex-col items-end">
+                                    <p className={cn(
+                                        "text-xl font-black tabular-nums tracking-tighter",
+                                        tx.type === 'In' ? "text-emerald-600" : "text-slate-900"
+                                    )}>
+                                        {tx.type === 'In' ? '+' : '-'}{tx.quantity}
+                                    </p>
+                                    <span className="text-[9px] font-black uppercase text-muted-foreground opacity-50">{item?.unit}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {tx.reason && (
+                            <div className="mt-3 text-[10px] text-muted-foreground italic border-t pt-2 border-slate-50 leading-relaxed line-clamp-2">
+                                {tx.reason}
+                            </div>
+                        )}
+                    </Card>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function StockPage() {
   const { optimisticItems, transactions, stockSettings, loading, addStockItem, adjustStock } = useStock();
@@ -82,8 +141,8 @@ export default function StockPage() {
     });
   };
 
-  const quickAdjust = (itemId: string, type: StockTransactionType) => {
-      setAdjustment({ ...adjustment, itemId, type, orderId: '', reason: type === 'In' ? 'Restock' : 'Workshop Use' });
+  const openAdjustmentDialog = (itemId: string = '') => {
+      setAdjustment({ ...adjustment, itemId, type: 'Out', orderId: '', reason: '' });
       setIsAdjusting(true);
   };
 
@@ -103,7 +162,10 @@ export default function StockPage() {
           <p className="text-sm text-muted-foreground font-medium">Manage workshop materials and stock levels</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button className="rounded-full px-6 shadow-lg shadow-primary/20 w-full sm:w-auto" onClick={() => setIsAddingItem(true)}>
+          <Button variant="outline" className="rounded-full px-6 shadow-sm w-full sm:w-auto font-bold text-xs uppercase" onClick={() => openAdjustmentDialog()}>
+            <History className="h-4 w-4 mr-2" /> Record Movement
+          </Button>
+          <Button className="rounded-full px-6 shadow-lg shadow-primary/20 w-full sm:w-auto font-bold text-xs uppercase" onClick={() => setIsAddingItem(true)}>
             <PlusCircle className="h-4 w-4 mr-2" /> New Catalog Item
           </Button>
         </div>
@@ -175,8 +237,8 @@ export default function StockPage() {
                     isLow && "ring-red-100 bg-red-50/5"
                 )}>
                   <div className="p-3 sm:p-4 flex-grow flex flex-col gap-4">
-                    <div className="flex justify-between items-start">
-                        {/* Visual Reference - Sized up for better visibility */}
+                    <div className="flex justify-center items-start">
+                        {/* Visual Reference */}
                         <div className="relative h-32 w-32 sm:h-40 sm:w-40 md:h-48 md:w-48 shrink-0 bg-muted rounded-[2rem] overflow-hidden border shadow-inner">
                              {item.imageUrl ? (
                                 <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
@@ -192,22 +254,6 @@ export default function StockPage() {
                              )}>
                                  {item.currentQuantity}
                              </div>
-                        </div>
-
-                        {/* Quick Adjust Buttons */}
-                        <div className="flex flex-col gap-2 shrink-0">
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'In'); }}
-                                className="h-9 w-9 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors shadow-sm"
-                            >
-                                <Plus className="h-5 w-5" />
-                            </button>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'Out'); }}
-                                className="h-9 w-9 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors shadow-sm"
-                            >
-                                <Minus className="h-5 w-5" />
-                            </button>
                         </div>
                     </div>
 
@@ -229,7 +275,10 @@ export default function StockPage() {
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
-          <Card className="border-none shadow-xl bg-white overflow-hidden ring-1 ring-slate-100">
+          <div className="md:hidden">
+              <MobileHistoryList transactions={transactions} items={optimisticItems} orders={orders} />
+          </div>
+          <Card className="hidden md:block border-none shadow-xl bg-white overflow-hidden ring-1 ring-slate-100">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-slate-50">
@@ -355,19 +404,45 @@ export default function StockPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-4">
-            <div className="flex items-center gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-lg">
-              <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <DynamicIcon icon={optimisticItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <p className="font-bold text-white">{optimisticItems.find(i => i.id === adjustment.itemId)?.name}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current: {optimisticItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {optimisticItems.find(i => i.id === adjustment.itemId)?.unit}</p>
-              </div>
+             <div className="grid gap-2">
+                <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Select Material</Label>
+                <Select value={adjustment.itemId} onValueChange={v => setAdjustment({...adjustment, itemId: v})}>
+                    <SelectTrigger className="h-11 rounded-xl"><SelectValue placeholder="Search materials..." /></SelectTrigger>
+                    <SelectContent>
+                        {optimisticItems.map(item => (
+                            <SelectItem key={item.id} value={item.id}>{item.name} ({item.currentQuantity} {item.unit})</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Quantity ({optimisticItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
-              <Input type="number" min="1" value={adjustment.quantity} onChange={e => setAdjustment({...adjustment, quantity: Number(e.target.value)})} className="h-11 rounded-xl text-lg font-black" />
+            {adjustment.itemId && (
+                <div className="flex items-center gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-lg">
+                    <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                        <DynamicIcon icon={optimisticItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-white">{optimisticItems.find(i => i.id === adjustment.itemId)?.name}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current: {optimisticItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {optimisticItems.find(i => i.id === adjustment.itemId)?.unit}</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Type</Label>
+                    <Select value={adjustment.type} onValueChange={(v: StockTransactionType) => setAdjustment({...adjustment, type: v})}>
+                        <SelectTrigger className="h-11 rounded-xl"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="In">Restock (+)</SelectItem>
+                            <SelectItem value="Out">Usage (-)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid gap-2">
+                    <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Quantity</Label>
+                    <Input type="number" min="1" value={adjustment.quantity} onChange={e => setAdjustment({...adjustment, quantity: Number(e.target.value)})} className="h-11 rounded-xl text-lg font-black" />
+                </div>
             </div>
 
             {adjustment.type === 'Out' && (
