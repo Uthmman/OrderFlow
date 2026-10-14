@@ -35,20 +35,41 @@ export const playNotificationSound = () => {
 
 /**
  * Shows a native system notification.
+ * Updated to use ServiceWorker registration which is more reliable on Android.
  */
-export const showNativeNotification = (data: { type: string; message: string; orderId?: string }) => {
+export const showNativeNotification = async (data: { type: string; message: string; orderId?: string }) => {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
 
     if (Notification.permission === 'granted') {
-        const notification = new Notification(`OrderFlow: ${data.type}`, {
+        const title = `OrderFlow: ${data.type}`;
+        const options: NotificationOptions = {
             body: data.message,
             icon: '/icon-192.png',
             badge: '/icon-192.png',
             tag: data.orderId || 'general',
             renotify: true,
             silent: false,
-        });
+            vibrate: [200, 100, 200],
+            data: {
+                orderId: data.orderId,
+                url: data.orderId ? `/orders/${data.orderId}?tab=chat` : '/'
+            },
+            timestamp: Date.now()
+        };
 
+        // On Android PWA, using the ServiceWorker registration is much more reliable
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.showNotification(title, options);
+                return;
+            } catch (err) {
+                console.warn("ServiceWorker notification failed, falling back to standard Notification", err);
+            }
+        }
+
+        // Fallback for standard web/legacy
+        const notification = new Notification(title, options);
         notification.onclick = (e) => {
             e.preventDefault();
             window.focus();
