@@ -137,6 +137,7 @@ export type Product = {
   billOfMaterials?: string; // Legacy text BOM
   bomItems?: BOMItem[]; // Structured BOM linked to stock
   isStandard?: boolean; 
+  isShowroom?: boolean;
 }
 
 export type PaymentStatus = 'Paid' | 'Partially Paid' | 'Balance Due' | 'Unpaid';

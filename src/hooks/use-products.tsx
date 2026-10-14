@@ -89,6 +89,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
         dimensions: productData.dimensions,
         orderIds: productData.orderIds || [],
         isStandard: productData.isStandard ?? false,
+        isShowroom: productData.isShowroom ?? false,
       };
       
       await setDoc(newProductRef, removeUndefined(newProduct));
@@ -136,7 +137,6 @@ export function ProductProvider({ children }: { children: ReactNode }) {
   const syncProductsFromOrders = useCallback(async (orders: Order[]): Promise<number> => {
     if (!orders || orders.length === 0) return 0;
 
-    // Build a map of lowercase trimmed names to avoid shell entries
     const existingProductNames = new Set(
         products?.map(p => p.productName?.toLowerCase().trim()).filter(Boolean) || []
     );
@@ -147,7 +147,7 @@ export function ProductProvider({ children }: { children: ReactNode }) {
     for (const order of orders) {
       for (const orderProduct of (order.products || [])) {
         const rawName = orderProduct.productName?.trim();
-        if (!rawName) continue; // Skip items without names
+        if (!rawName) continue; 
         
         const normalizedName = rawName.toLowerCase();
         
@@ -159,13 +159,12 @@ export function ProductProvider({ children }: { children: ReactNode }) {
             productName: rawName,
             orderIds: [order.id],
             isStandard: false, 
+            isShowroom: order.isSample ?? false,
           };
           
           batch.set(newProductRef, removeUndefined(newProduct));
           existingProductNames.add(normalizedName);
           newProductsCount++;
-        } else {
-            // Logic to link existing product to this order could go here
         }
       }
     }

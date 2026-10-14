@@ -22,7 +22,7 @@ function ProductCatalog() {
   const router = useRouter();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'standard' | 'orders'>('standard');
+  const [activeTab, setActiveTab] = useState<'standard' | 'orders' | 'showroom'>('standard');
   const [isPending, startTransition] = useTransition();
 
   const handleTabChange = (val: string) => {
@@ -30,7 +30,15 @@ function ProductCatalog() {
   };
 
   const filteredProducts = useMemo(() => {
-    const base = activeTab === 'standard' ? products.filter(p => p.isStandard) : products.filter(p => !p.isStandard);
+    let base = [];
+    if (activeTab === 'standard') {
+        base = products.filter(p => p.isStandard);
+    } else if (activeTab === 'showroom') {
+        base = products.filter(p => !p.isStandard && p.isShowroom);
+    } else {
+        // Orders/Custom designs that are not explicitly showroom stock
+        base = products.filter(p => !p.isStandard && !p.isShowroom);
+    }
     return base.filter(p => p.productName?.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [products, activeTab, searchTerm]);
 
@@ -50,7 +58,13 @@ function ProductCatalog() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between bg-muted/20 p-4 rounded-xl border">
-        <Tabs value={activeTab} onValueChange={handleTabChange}><TabsList className="bg-background"><TabsTrigger value="standard">Catalog</TabsTrigger><TabsTrigger value="orders">Custom</TabsTrigger></TabsList></Tabs>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+            <TabsList className="bg-background">
+                <TabsTrigger value="standard">Catalog</TabsTrigger>
+                <TabsTrigger value="showroom">Showroom</TabsTrigger>
+                <TabsTrigger value="orders">Custom</TabsTrigger>
+            </TabsList>
+        </Tabs>
         <div className="relative flex-1 max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 opacity-40" /><Input placeholder="Search..." className="pl-10 h-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div>
       </div>
 
@@ -66,7 +80,7 @@ function ProductCatalog() {
                         <div className="p-2 bg-muted rounded-xl group-hover:bg-primary/10"><Icon className="h-6 w-6 text-muted-foreground group-hover:text-primary" /></div>
                         {count > 0 && <div className="bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold">{count}</div>}
                     </div>
-                    <div className="mt-4"><p className="text-sm font-bold truncate">{cat.name}</p><p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">{activeTab === 'standard' ? 'Standard' : 'Custom'}</p></div>
+                    <div className="mt-4"><p className="text-sm font-bold truncate">{cat.name}</p><p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest">{activeTab === 'standard' ? 'Standard' : activeTab === 'showroom' ? 'Inventory' : 'Custom'}</p></div>
                   </CardContent>
                 </Card>
               </Link>

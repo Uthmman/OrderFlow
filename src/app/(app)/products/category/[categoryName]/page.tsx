@@ -23,7 +23,7 @@ function CategoryProductCatalog() {
   const [searchTerm, setSearchTerm] = useState('');
   const { role } = useUser();
   
-  // 'standard' or 'orders'
+  // 'standard', 'orders', or 'showroom'
   const type = searchParams.get('type') || 'standard';
   
   const { products, loading: productsLoading } = useProducts();
@@ -32,10 +32,13 @@ function CategoryProductCatalog() {
   const filteredProducts = useMemo(() => {
     let baseProducts = [];
     
-    // First, filter by Standard vs Order source
-    const typeFiltered = (products || []).filter(p => 
-        type === 'standard' ? p.isStandard === true : p.isStandard !== true
-    );
+    // First, filter by source (Standard vs Showroom vs Order)
+    const typeFiltered = (products || []).filter(p => {
+        if (type === 'standard') return p.isStandard === true;
+        if (type === 'showroom') return p.isStandard !== true && p.isShowroom === true;
+        // Orders tab: NOT standard AND NOT explicitly marked as showroom stock
+        return p.isStandard !== true && !p.isShowroom;
+    });
 
     // Then filter by category
     if (categoryName === 'Custom') {
@@ -65,7 +68,12 @@ function CategoryProductCatalog() {
     return <div className="text-center p-8">Loading products...</div>;
   }
 
-  const typeLabel = type === 'standard' ? 'Standard Catalog' : 'Order Designs';
+  const typeLabels: Record<string, string> = {
+      standard: 'Standard Catalog',
+      orders: 'Order Designs',
+      showroom: 'Showroom Inventory'
+  };
+  const typeLabel = typeLabels[type] || 'Items';
 
   return (
     <div className="flex flex-col gap-8">
@@ -74,6 +82,7 @@ function CategoryProductCatalog() {
             <IconComponent className="h-10 w-10 text-muted-foreground" />
             <div>
                 <h1 className="text-3xl font-bold font-headline tracking-tight">{categoryName}</h1>
+                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground opacity-60">{typeLabel}</p>
             </div>
         </div>
         <Button variant="outline" onClick={() => router.push('/products')}>
@@ -95,7 +104,7 @@ function CategoryProductCatalog() {
         <CardContent className="pt-6">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <p>No {typeLabel.toLowerCase()} items found {searchTerm ? `matching "${searchTerm}"` : ''} in the "{categoryName}" category.</p>
+              <p>No items found {searchTerm ? `matching "${searchTerm}"` : ''} in the "{categoryName}" {typeLabel.toLowerCase()}.</p>
             </div>
           ) : (
              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
