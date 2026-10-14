@@ -1,12 +1,12 @@
 
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useOptimistic } from 'react';
+import React, { createContext, useContext, ReactNode, useMemo, useCallback, useState, useEffect, useOptimistic } from 'react';
 import { collection, doc, setDoc, updateDoc, increment, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
+import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
 import type { StockItem, StockTransaction, StockTransactionType, StockSettings } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { useDoc } from '@/firebase/firestore/use-doc';
-import { useFirebase, useMemoFirebase } from '@/firebase/provider';
 import { useToast } from './use-toast';
 import { useUser } from './use-user';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,18 +27,27 @@ interface StockContextType {
 const StockContext = createContext<StockContextType | undefined>(undefined);
 
 export function StockProvider({ children }: { children: ReactNode }) {
-  const { firestore } = useFirebase();
   const { user } = useUser();
   const { toast } = useToast();
+  const [isSecondaryAuthReady, setIsSecondaryAuthReady] = useState(false);
 
-  const stockRef = useMemoFirebase(() => collection(firestore, 'stock'), [firestore]);
-  const { data: stockItems, isLoading: itemsLoading } = useCollection<StockItem>(stockRef);
+  useEffect(() => {
+    ensureSecondaryAuth().then(() => setIsSecondaryAuthReady(true));
+  }, []);
 
-  const transactionsRef = useMemoFirebase(() => query(collection(firestore, 'stockTransactions'), orderBy('timestamp', 'desc')), [firestore]);
-  const { data: transactions, isLoading: txLoading } = useCollection<StockTransaction>(transactionsRef);
+  const firestore = useMemo(() => getSecondaryFirestore(), []);
 
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'stock'), [firestore]);
-  const { data: stockSettings, isLoading: settingsLoading } = useDoc<StockSettings>(settingsDocRef);
+  const stockRef = useMemo(() => isSecondaryAuthReady ? collection(firestore, 'stock') : null, [firestore, isSecondaryAuthReady]);
+  const { data: stockItems, isLoading: itemsLoading } = useCollection<StockItem>(stockRef as any);
+
+  const transactionsRef = useMemo(() => 
+    isSecondaryAuthReady ? query(collection(firestore, 'stockTransactions'), orderBy('timestamp', 'desc')) : null, 
+    [firestore, isSecondaryAuthReady]
+  );
+  const { data: transactions, isLoading: txLoading } = useCollection<StockTransaction>(transactionsRef as any);
+
+  const settingsDocRef = useMemo(() => isSecondaryAuthReady ? doc(firestore, 'settings', 'stock') : null, [firestore, isSecondaryAuthReady]);
+  const { data: stockSettings, isLoading: settingsLoading } = useDoc<StockSettings>(settingsDocRef as any);
 
   // Optimistic UI for stock quantities
   const [optimisticItems, addOptimisticAdjustment] = useOptimistic(
@@ -53,6 +62,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
   );
 
   const updateStockSettings = useCallback(async (newSettings: StockSettings) => {
+    if (!settingsDocRef) return;
     try {
       await setDoc(settingsDocRef, newSettings, { merge: true });
     } catch (error) {
@@ -97,7 +107,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
         type,
         quantity,
         reason,
-        orderId,
+        orderId: orderId || 'none',
         timestamp: serverTimestamp(),
         userId: user.id,
         userName: user.name || 'Unknown User',
@@ -133,26 +143,26 @@ export function StockProvider({ children }: { children: ReactNode }) {
   }, [stockItems]);
 
   // Seed default categories if none exist
-  React.useEffect(() => {
-    if (!settingsLoading && !stockSettings) {
+  useEffect(() => {
+    if (isSecondaryAuthReady && !settingsLoading && !stockSettings) {
       updateStockSettings({
         categories: ['Hardware', 'Material', 'Supplies', 'Paint', 'Fabric', 'Glue']
       });
     }
-  }, [settingsLoading, stockSettings, updateStockSettings]);
+  }, [isSecondaryAuthReady, settingsLoading, stockSettings, updateStockSettings]);
 
   const value = useMemo(() => ({
     stockItems: stockItems || [],
     optimisticItems,
     transactions: transactions || [],
     stockSettings: stockSettings || null,
-    loading: itemsLoading || txLoading || settingsLoading,
+    loading: !isSecondaryAuthReady || itemsLoading || txLoading || settingsLoading,
     addStockItem,
     adjustStock,
     deleteStockItem,
     getItemById,
     updateStockSettings,
-  }), [stockItems, optimisticItems, transactions, stockSettings, itemsLoading, txLoading, settingsLoading, addStockItem, adjustStock, deleteStockItem, getItemById, updateStockSettings]);
+  }), [stockItems, optimisticItems, transactions, stockSettings, isSecondaryAuthReady, itemsLoading, txLoading, settingsLoading, addStockItem, adjustStock, deleteStockItem, getItemById, updateStockSettings]);
 
   return (
     <StockContext.Provider value={value}>

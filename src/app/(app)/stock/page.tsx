@@ -5,7 +5,7 @@ import React, { useState, useTransition, useMemo } from 'react';
 import { useStock } from '@/hooks/use-stock';
 import { useOrders } from '@/hooks/use-orders';
 import { useSecondaryItems } from '@/hooks/use-secondary-items';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,7 +19,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { 
     Loader2, 
     PlusCircle, 
-    MinusCircle, 
     History, 
     Package, 
     Search, 
@@ -32,15 +31,15 @@ import {
     Minus,
     Image as ImageIcon
 } from 'lucide-react';
-import { formatTimestamp, cn, formatCurrency } from '@/lib/utils';
+import { formatTimestamp, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import Image from 'next/image';
-import type { StockItem, StockUnit, StockTransactionType, SecondaryItem } from '@/lib/types';
+import type { StockUnit, StockTransactionType } from '@/lib/types';
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
 
 export default function StockPage() {
-  const { stockItems, optimisticItems, transactions, stockSettings, loading: stockLoading, addStockItem, adjustStock, updateStockSettings, deleteStockItem } = useStock();
+  const { optimisticItems, transactions, stockSettings, loading: stockLoading, addStockItem, adjustStock, updateStockSettings } = useStock();
   const { items: secondaryItems, loading: secondaryLoading } = useSecondaryItems();
   const { orders } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,11 +121,7 @@ export default function StockPage() {
   };
 
   const quickAdjust = (itemId: string | undefined, type: StockTransactionType) => {
-      if (!itemId) {
-          // If no local record exists, we need to create one first or alert the user
-          // For now, we'll open the adjustment dialog with default context
-          return;
-      }
+      if (!itemId) return;
       setAdjustment({ ...adjustment, itemId, type, orderId: '', reason: type === 'In' ? 'Restock' : 'Workshop Use' });
       setIsAdjusting(true);
   };
@@ -167,7 +162,7 @@ export default function StockPage() {
                   <div className="text-4xl font-black tracking-tighter tabular-nums">{secondaryItems.length}</div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[8px] font-black border-slate-700 text-slate-400 px-2 py-0">
-                        {stockSettings?.categories.length} CATEGORIES
+                        {stockSettings?.categories.length || 0} CATEGORIES
                     </Badge>
                   </div>
               </CardContent>
@@ -269,9 +264,6 @@ export default function StockPage() {
                                 </Badge>
                                 <span className="text-[10px] text-muted-foreground font-medium">{item.unit}</span>
                             </div>
-                            <div className="pt-1">
-                                <span className="text-xs font-black text-primary tracking-tight">ETB 0.00</span>
-                            </div>
                         </div>
 
                         {/* Adjust Actions */}
@@ -355,7 +347,7 @@ export default function StockPage() {
                                 <Package className="h-2.5 w-2.5" /> Project {
                                     (() => {
                                         const foundOrder = orders.find(o => o.id === tx.orderId);
-                                        return foundOrder ? foundOrder.uniqueName?.slice(-5) : tx.orderId.slice(-5);
+                                        return foundOrder ? (foundOrder.uniqueName?.slice(-5) || 'Order') : tx.orderId.slice(-5);
                                     })()
                                 }
                               </span>
@@ -523,7 +515,7 @@ export default function StockPage() {
             
             <div className="grid gap-2">
               <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Activity Notes</Label>
-              <Input value={adjustment.reason === 'Sold' ? adjustment.reason : adjustment.reason} onChange={e => setAdjustment({...adjustment, reason: e.target.value})} placeholder={adjustment.type === 'In' ? 'Supplier name or P.O. #' : 'Brief details...'} className="h-11 rounded-xl" />
+              <Input value={adjustment.reason} onChange={e => setAdjustment({...adjustment, reason: e.target.value})} placeholder={adjustment.type === 'In' ? 'Supplier name or P.O. #' : 'Brief details...'} className="h-11 rounded-xl" />
             </div>
           </div>
           <DialogFooter>
