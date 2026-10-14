@@ -7,7 +7,7 @@ import { Order, OrderChatMessage } from '@/lib/types';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, isToday, isThisWeek, parseISO } from 'date-fns';
-import { formatOrderUniqueName } from '@/lib/utils';
+import { formatOrderUniqueName, cn } from '@/lib/utils';
 import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
