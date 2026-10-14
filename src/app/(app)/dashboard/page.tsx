@@ -20,7 +20,8 @@ import {
   UserPlus,
   PackagePlus,
   Receipt,
-  ShoppingCart
+  ShoppingCart,
+  Package
 } from "lucide-react";
 import { useOrders } from "@/hooks/use-orders";
 import { formatCurrency, cn, formatTimestamp } from "@/lib/utils";
@@ -390,6 +391,14 @@ export default function Dashboard() {
                   <PackagePlus className="h-4 w-4" />
                 </div>
                 <span className="font-bold text-sm">New Product</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
+              <Link href="/stock" className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                  <Package className="h-4 w-4" />
+                </div>
+                <span className="font-bold text-sm">Add Item</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="rounded-xl py-3 cursor-pointer group">
