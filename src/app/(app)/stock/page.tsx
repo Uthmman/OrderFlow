@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useTransition, useMemo } from 'react';
@@ -7,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,9 +19,6 @@ import {
     PlusCircle, 
     Package, 
     Search, 
-    Settings, 
-    Trash2, 
-    ShoppingCart, 
     AlertTriangle,
     Boxes,
     Plus,
@@ -192,17 +189,17 @@ export default function StockPage() {
               return (
                 <Card key={item.id} className={cn(
                     "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100",
-                    isLow && "ring-red-100 bg-red-50/10"
+                    isLow && "ring-red-100 bg-red-50/5"
                 )}>
-                  <div className="p-4 flex-grow space-y-4">
-                    <div className="flex gap-4 items-start">
+                  <div className="p-3 sm:p-4 flex-grow flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
                         {/* Visual Reference */}
-                        <div className="relative h-20 w-20 md:h-24 md:w-24 shrink-0 bg-muted rounded-2xl overflow-hidden border">
+                        <div className="relative h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 bg-muted rounded-2xl overflow-hidden border">
                              {item.imageUrl ? (
                                 <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                              ) : (
                                 <div className="h-full w-full flex items-center justify-center">
-                                    <ImageIcon className="h-8 w-8 text-slate-200" />
+                                    <ImageIcon className="h-6 w-6 text-slate-200" />
                                 </div>
                              )}
                              {/* Stock Counter Badge */}
@@ -214,41 +211,34 @@ export default function StockPage() {
                              </div>
                         </div>
 
-                        {/* Info Section */}
-                        <div className="flex-1 min-w-0 space-y-1">
-                            <h3 className="text-sm font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                                <Badge variant="outline" className="h-5 px-1.5 text-[8px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
-                                    {item.category}
-                                </Badge>
-                            </div>
-                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">{item.unit}</p>
-                        </div>
-
                         {/* Quick Adjust Buttons */}
-                        <div className="flex flex-col gap-2 shrink-0">
+                        <div className="flex flex-col gap-1.5 shrink-0">
                             <button 
-                                onClick={() => quickAdjust(item.id, 'In')}
+                                onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'In'); }}
                                 className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors"
                             >
                                 <Plus className="h-4 w-4" />
                             </button>
                             <button 
-                                onClick={() => quickAdjust(item.id, 'Out')}
+                                onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'Out'); }}
                                 className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
                             >
                                 <Minus className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
-                  </div>
 
-                  {isLow && (
-                      <div className="mt-auto bg-red-50 border-t border-red-100 py-1.5 px-4 flex items-center gap-2">
-                          <AlertTriangle className="h-3 w-3 text-red-500" />
-                          <span className="text-[9px] font-black uppercase tracking-widest text-red-600">Low Stock</span>
-                      </div>
-                  )}
+                    {/* Info Section - Now under icon */}
+                    <div className="space-y-1 min-w-0">
+                        <h3 className="text-xs sm:text-sm font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline" className="h-4 px-1.5 text-[7px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
+                                {item.category}
+                            </Badge>
+                            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">{item.unit}</span>
+                        </div>
+                    </div>
+                  </div>
                 </Card>
               )
             })}
@@ -296,11 +286,7 @@ export default function StockPage() {
                             {tx.type === 'In' ? '+' : '-'}{tx.quantity}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate text-[10px] font-medium text-slate-600">
-                            {tx.reason === 'Sold' ? (
-                                <span className="flex items-center gap-1 text-emerald-600 font-black uppercase tracking-tighter">
-                                    <ShoppingCart className="h-2.5 w-2.5" /> Retail Sale
-                                </span>
-                            ) : tx.orderId && tx.orderId !== 'none' ? (
+                            {tx.orderId && tx.orderId !== 'none' ? (
                                <span className="flex items-center gap-1 text-primary font-black uppercase tracking-tighter">
                                 <Package className="h-2.5 w-2.5" /> Project {
                                     (() => {
