@@ -109,25 +109,8 @@ export default function StockPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="bg-slate-900 text-white border-none shadow-xl relative overflow-hidden group lg:col-span-1 min-h-[140px] flex flex-col justify-center">
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                <Boxes className="h-24 w-24" />
-              </div>
-              <CardHeader className="py-4 pb-2 relative z-10">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Items</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1 relative z-10">
-                  <div className="text-4xl font-black tracking-tighter tabular-nums">{optimisticItems.length}</div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[8px] font-black border-slate-700 text-slate-400 px-2 py-0">
-                        {stockSettings?.categories.length || 0} CATEGORIES
-                    </Badge>
-                  </div>
-              </CardContent>
-          </Card>
-
-          <Card className="lg:col-span-2 border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center">
+      <div className="grid grid-cols-1 gap-6">
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center min-h-[140px]">
               <CardHeader className="py-4 pb-4 border-b border-slate-100/50">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                     <AlertTriangle className="h-3 w-3 text-amber-500" /> Stock Level Alerts ({lowStockItems.length})
@@ -191,20 +174,20 @@ export default function StockPage() {
                     "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100",
                     isLow && "ring-red-100 bg-red-50/5"
                 )}>
-                  <div className="p-3 sm:p-4 flex-grow flex flex-col gap-3">
+                  <div className="p-3 sm:p-4 flex-grow flex flex-col gap-4">
                     <div className="flex justify-between items-start">
-                        {/* Visual Reference */}
-                        <div className="relative h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 shrink-0 bg-muted rounded-2xl overflow-hidden border">
+                        {/* Visual Reference - Sized up for better visibility */}
+                        <div className="relative h-32 w-32 sm:h-40 sm:w-40 md:h-48 md:w-48 shrink-0 bg-muted rounded-[2rem] overflow-hidden border shadow-inner">
                              {item.imageUrl ? (
                                 <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                              ) : (
                                 <div className="h-full w-full flex items-center justify-center">
-                                    <ImageIcon className="h-6 w-6 text-slate-200" />
+                                    <ImageIcon className="h-10 w-10 text-slate-200" />
                                 </div>
                              )}
                              {/* Stock Counter Badge */}
                              <div className={cn(
-                                 "absolute top-1 left-1 h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-black shadow-lg ring-2 ring-white",
+                                 "absolute top-2 left-2 h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg ring-4 ring-white",
                                  isLow ? "bg-destructive text-white" : "bg-slate-900 text-white"
                              )}>
                                  {item.currentQuantity}
@@ -212,30 +195,30 @@ export default function StockPage() {
                         </div>
 
                         {/* Quick Adjust Buttons */}
-                        <div className="flex flex-col gap-1.5 shrink-0">
+                        <div className="flex flex-col gap-2 shrink-0">
                             <button 
                                 onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'In'); }}
-                                className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors"
+                                className="h-9 w-9 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors shadow-sm"
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-5 w-5" />
                             </button>
                             <button 
                                 onClick={(e) => { e.stopPropagation(); quickAdjust(item.id, 'Out'); }}
-                                className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                                className="h-9 w-9 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors shadow-sm"
                             >
-                                <Minus className="h-4 w-4" />
+                                <Minus className="h-5 w-5" />
                             </button>
                         </div>
                     </div>
 
-                    {/* Info Section - Now under icon */}
-                    <div className="space-y-1 min-w-0">
-                        <h3 className="text-xs sm:text-sm font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge variant="outline" className="h-4 px-1.5 text-[7px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
+                    {/* Info Section */}
+                    <div className="space-y-1.5 min-w-0">
+                        <h3 className="text-sm sm:text-base font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="h-5 px-2 text-[8px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
                                 {item.category}
                             </Badge>
-                            <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">{item.unit}</span>
+                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter">{item.unit}</span>
                         </div>
                     </div>
                   </div>
