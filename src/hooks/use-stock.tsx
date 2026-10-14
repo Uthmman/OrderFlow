@@ -5,9 +5,9 @@ import { collection, doc, setDoc, updateDoc, increment, serverTimestamp, query, 
 import { getSecondaryFirestore, ensureSecondaryAuth } from '@/firebase/secondary';
 import type { StockItem, StockTransaction, StockTransactionType, StockSettings } from '@/lib/types';
 import { useCollection } from '@/firebase/firestore/use-collection';
-import { useDoc } from '@/firebase/firestore/use-doc';
 import { useToast } from './use-toast';
 import { useUser } from './use-user';
+import { useOrders } from './use-orders';
 import { useMemoFirebase } from '@/firebase/provider';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -27,6 +27,7 @@ const StockContext = createContext<StockContextType | undefined>(undefined);
 
 export function StockProvider({ children }: { children: ReactNode }) {
   const { user } = useUser();
+  const { orders } = useOrders();
   const { toast } = useToast();
   const [isSecondaryAuthReady, setIsSecondaryAuthReady] = useState(false);
 
@@ -43,12 +44,12 @@ export function StockProvider({ children }: { children: ReactNode }) {
   );
   const { data: rawItems, isLoading: itemsLoading } = useCollection<any>(itemsRef as any);
 
-  // Stock Adjustments collection (history)
+  // Stock Adjustments collection (history) - ordered by adjustmentDate to match DB
   const adjustmentsRef = useMemoFirebase(
-    () => isSecondaryAuthReady ? query(collection(firestore, 'stockAdjustments'), orderBy('timestamp', 'desc')) : null, 
+    () => isSecondaryAuthReady ? query(collection(firestore, 'stockAdjustments'), orderBy('adjustmentDate', 'desc')) : null, 
     [firestore, isSecondaryAuthReady]
   );
-  const { data: adjustments, isLoading: txLoading } = useCollection<StockTransaction>(adjustmentsRef as any);
+  const { data: rawAdjustments, isLoading: txLoading } = useCollection<any>(adjustmentsRef as any);
 
   // Categories collection
   const categoriesRef = useMemoFirebase(
@@ -62,6 +63,14 @@ export function StockProvider({ children }: { children: ReactNode }) {
     currentQuantity: Number(item.stockLevel) || 0,
     unit: item.unit || 'pcs'
   })) as StockItem[];
+
+  // Process raw adjustments to match StockTransaction type used in UI
+  const transactions = (rawAdjustments || []).map(tx => ({
+    ...tx,
+    quantity: Math.abs(tx.adjustmentQuantity || tx.quantity || 0),
+    timestamp: tx.adjustmentDate || tx.timestamp,
+    userName: tx.userName || 'Workshop Team',
+  })) as StockTransaction[];
 
   const stockSettings = {
     categories: (rawCategories || []).map(c => c.name)
@@ -106,15 +115,20 @@ export function StockProvider({ children }: { children: ReactNode }) {
       const adjustmentId = uuidv4();
       const adjRef = doc(firestore, 'stockAdjustments', adjustmentId);
       const itemRef = doc(firestore, 'items', itemId);
+      
+      const foundItem = stockItems.find(i => i.id === itemId);
+      const foundOrder = orders.find(o => o.id === orderId);
 
-      const transaction: StockTransaction = {
+      const transaction = {
         id: adjustmentId,
         itemId,
+        itemName: foundItem?.name || 'Unknown Item',
         type,
-        quantity,
+        adjustmentQuantity: qtyChange,
+        adjustmentDate: new Date().toISOString(),
         reason,
         orderId: orderId || 'none',
-        timestamp: serverTimestamp(),
+        orderUniqueName: foundOrder?.uniqueName || 'General Shop',
         userId: user.id,
         userName: user.name || 'Unknown User',
       };
@@ -133,7 +147,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
       console.error("Error adjusting stock:", error);
       toast({ variant: "destructive", title: "Error", description: "Failed to record stock adjustment." });
     }
-  }, [firestore, user, toast, addOptimisticAdjustment]);
+  }, [firestore, user, orders, stockItems, toast, addOptimisticAdjustment]);
 
   const deleteStockItem = useCallback(async (itemId: string) => {
     try {
@@ -151,7 +165,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
   const value = {
     stockItems,
     optimisticItems,
-    transactions: adjustments || [],
+    transactions,
     stockSettings,
     loading: !isSecondaryAuthReady || itemsLoading || txLoading || categoriesLoading,
     addStockItem,

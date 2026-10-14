@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useTransition, useMemo } from 'react';
@@ -35,7 +34,7 @@ import type { StockUnit, StockTransactionType, StockItem, StockTransaction, Orde
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
 
-function MobileHistoryList({ transactions, items, orders }: { transactions: StockTransaction[], items: StockItem[], orders: Order[] }) {
+function MobileHistoryList({ transactions }: { transactions: StockTransaction[] }) {
     return (
         <div className="space-y-3 px-1">
             {transactions.length === 0 ? (
@@ -43,10 +42,6 @@ function MobileHistoryList({ transactions, items, orders }: { transactions: Stoc
                     <p className="text-sm font-bold uppercase tracking-widest opacity-30">No history found</p>
                 </div>
             ) : transactions.map(tx => {
-                const item = items.find(i => i.id === tx.itemId);
-                const foundOrder = orders.find(o => o.id === tx.orderId);
-                const orderLabel = foundOrder ? (foundOrder.uniqueName?.slice(-5) || 'Order') : (tx.orderId !== 'none' ? tx.orderId?.slice(-5) : null);
-                
                 return (
                     <Card key={tx.id} className="border-none shadow-md bg-white overflow-hidden ring-1 ring-slate-100 p-4">
                         <div className="flex justify-between items-start gap-4">
@@ -57,11 +52,11 @@ function MobileHistoryList({ transactions, items, orders }: { transactions: Stoc
                                         {tx.type === 'In' ? 'Restock' : 'Usage'}
                                     </Badge>
                                 </div>
-                                <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{item?.name || 'Unknown Item'}</h4>
+                                <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{tx.itemName || 'Unknown Item'}</h4>
                                 <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    {orderLabel && (
+                                    {tx.orderId !== 'none' && (
                                         <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 bg-primary/5 px-1.5 py-0.5 rounded-sm">
-                                            <Package className="h-2.5 w-2.5" /> Project {orderLabel}
+                                            <Package className="h-2.5 w-2.5" /> {tx.orderUniqueName || 'Project'}
                                         </span>
                                     )}
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{tx.userName}</span>
@@ -75,7 +70,6 @@ function MobileHistoryList({ transactions, items, orders }: { transactions: Stoc
                                     )}>
                                         {tx.type === 'In' ? '+' : '-'}{tx.quantity}
                                     </p>
-                                    <span className="text-[9px] font-black uppercase text-muted-foreground opacity-50">{item?.unit}</span>
                                 </div>
                             </div>
                         </div>
@@ -274,7 +268,7 @@ export default function StockPage() {
 
         <TabsContent value="history" className="mt-6">
           <div className="md:hidden">
-              <MobileHistoryList transactions={transactions} items={optimisticItems} orders={orders} />
+              <MobileHistoryList transactions={transactions} />
           </div>
           <Card className="hidden md:block border-none shadow-xl bg-white overflow-hidden ring-1 ring-slate-100">
             <div className="overflow-x-auto">
@@ -298,14 +292,13 @@ export default function StockPage() {
                     </TableRow>
                   ) : (
                     transactions.map(tx => {
-                      const item = optimisticItems.find(i => i.id === tx.itemId);
                       return (
                         <TableRow key={tx.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                           <TableCell className="whitespace-nowrap text-[10px] font-mono text-muted-foreground">
                             {formatTimestamp(tx.timestamp)}
                           </TableCell>
                           <TableCell className="font-bold text-xs whitespace-nowrap">
-                            {item?.name || 'Unknown Item'}
+                            {tx.itemName || 'Unknown Item'}
                           </TableCell>
                           <TableCell>
                             <Badge variant={tx.type === 'In' ? 'default' : 'secondary'} className="h-5 px-1.5 text-[8px] font-black uppercase tracking-tighter shrink-0">
@@ -316,14 +309,9 @@ export default function StockPage() {
                             {tx.type === 'In' ? '+' : '-'}{tx.quantity}
                           </TableCell>
                           <TableCell className="max-w-[200px] truncate text-[10px] font-medium text-slate-600">
-                            {tx.orderId && tx.orderId !== 'none' ? (
+                            {tx.orderId !== 'none' ? (
                                <span className="flex items-center gap-1 text-primary font-black uppercase tracking-tighter">
-                                <Package className="h-2.5 w-2.5" /> Project {
-                                    (() => {
-                                        const foundOrder = orders.find(o => o.id === tx.orderId);
-                                        return foundOrder ? (foundOrder.uniqueName?.slice(-5) || 'Order') : tx.orderId.slice(-5);
-                                    })()
-                                }
+                                <Package className="h-2.5 w-2.5" /> {tx.orderUniqueName || 'Project'}
                               </span>
                             ) : (
                               <span className="opacity-60">{tx.reason || '-'}</span>
