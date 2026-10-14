@@ -5,7 +5,7 @@ import React, { useState, useTransition, useMemo } from 'react';
 import { useStock } from '@/hooks/use-stock';
 import { useOrders } from '@/hooks/use-orders';
 import { useSecondaryItems } from '@/hooks/use-secondary-items';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,18 +26,15 @@ import {
     Settings, 
     Trash2, 
     ShoppingCart, 
-    FlaskConical, 
-    Library, 
     AlertTriangle,
     Boxes,
-    ArrowUpRight,
-    TrendingDown,
+    Plus,
+    Minus,
     Image as ImageIcon
 } from 'lucide-react';
-import { formatTimestamp, formatOrderId, formatOrderUniqueName, cn, formatCurrency } from '@/lib/utils';
+import { formatTimestamp, cn, formatCurrency } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import Image from 'next/image';
-import Link from 'next/link';
 import type { StockItem, StockUnit, StockTransactionType, SecondaryItem } from '@/lib/types';
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
@@ -66,20 +63,27 @@ export default function StockPage() {
     orderId: '' 
   });
 
-  const filteredItems = (optimisticItems || []).filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredCatalog = (secondaryItems || []).filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Combine SecondaryItems (Catalog) with StockItems (Quantities)
+  const combinedItems = useMemo(() => {
+    return secondaryItems.map(catalogItem => {
+        // Find local stock entry by name matching (or use a better ID mapping if available)
+        const localStock = optimisticItems.find(i => i.name.toLowerCase() === catalogItem.name.toLowerCase());
+        return {
+            ...catalogItem,
+            localId: localStock?.id,
+            currentQuantity: localStock?.currentQuantity || 0,
+            minQuantity: localStock?.minQuantity || 5, // Default threshold
+            lastUpdated: localStock?.lastUpdated
+        };
+    }).filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.category?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [secondaryItems, optimisticItems, searchTerm]);
 
   const lowStockItems = useMemo(() => 
-    optimisticItems.filter(i => i.currentQuantity <= (i.minQuantity || 0)),
-  [optimisticItems]);
+    combinedItems.filter(i => i.currentQuantity <= (i.minQuantity || 0)),
+  [combinedItems]);
 
   const handleAddItem = async () => {
     if (!newItem.name || !newItem.category) return;
@@ -117,12 +121,17 @@ export default function StockPage() {
     });
   };
 
-  const openAdjustmentDialog = (item: StockItem, type: StockTransactionType) => {
-    setAdjustment({ ...adjustment, itemId: item.id, type, orderId: '' });
-    setIsAdjusting(true);
+  const quickAdjust = (itemId: string | undefined, type: StockTransactionType) => {
+      if (!itemId) {
+          // If no local record exists, we need to create one first or alert the user
+          // For now, we'll open the adjustment dialog with default context
+          return;
+      }
+      setAdjustment({ ...adjustment, itemId, type, orderId: '', reason: type === 'In' ? 'Restock' : 'Workshop Use' });
+      setIsAdjusting(true);
   };
 
-  if (stockLoading && stockItems.length === 0) {
+  if (stockLoading && combinedItems.length === 0) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2 className="animate-spin h-8 w-8 text-primary opacity-20" />
@@ -141,7 +150,7 @@ export default function StockPage() {
             <Settings className="h-4 w-4 mr-2" /> Categories
           </Button>
           <Button className="rounded-full px-6 shadow-lg shadow-primary/20" onClick={() => setIsAddingItem(true)}>
-            <PlusCircle className="h-4 w-4 mr-2" /> New Record
+            <PlusCircle className="h-4 w-4 mr-2" /> New Local Item
           </Button>
         </div>
       </div>
@@ -152,10 +161,10 @@ export default function StockPage() {
                 <Boxes className="h-24 w-24" />
               </div>
               <CardHeader className="py-4 pb-2 relative z-10">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Total Tracked Items</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Master Catalog Items</CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 relative z-10">
-                  <div className="text-4xl font-black tracking-tighter tabular-nums">{optimisticItems.length}</div>
+                  <div className="text-4xl font-black tracking-tighter tabular-nums">{secondaryItems.length}</div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[8px] font-black border-slate-700 text-slate-400 px-2 py-0">
                         {stockSettings?.categories.length} CATEGORIES
@@ -200,9 +209,8 @@ export default function StockPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="bg-white/40 backdrop-blur-sm p-2 rounded-2xl border ring-1 ring-slate-200/50 flex flex-col sm:flex-row gap-3 items-center shadow-sm">
             <TabsList className="bg-transparent border-none p-0 h-10 w-full sm:w-auto">
-                <TabsTrigger value="inventory" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Stock Levels</TabsTrigger>
-                <TabsTrigger value="catalog" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Material Catalog</TabsTrigger>
-                <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Tx Log</TabsTrigger>
+                <TabsTrigger value="inventory" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Materials & Stock</TabsTrigger>
+                <TabsTrigger value="history" className="rounded-xl data-[state=active]:bg-slate-900 data-[state=active]:text-white font-bold text-xs px-6 h-full transition-all">Activity Log</TabsTrigger>
             </TabsList>
             
             <div className="relative flex-grow w-full max-md ml-auto">
@@ -217,106 +225,84 @@ export default function StockPage() {
         </div>
 
         <TabsContent value="inventory" className="space-y-6 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.length === 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            {secondaryLoading && (
+                <div className="col-span-full py-20 flex flex-col items-center gap-4">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Connecting to material database...</p>
+                </div>
+            )}
+            {!secondaryLoading && combinedItems.length === 0 ? (
               <div className="col-span-full py-20 text-center bg-muted/5 rounded-2xl border-2 border-dashed">
                   <p className="text-sm font-bold uppercase tracking-widest opacity-30">No items found matching filter</p>
               </div>
-            ) : filteredItems.map(item => {
+            ) : combinedItems.map(item => {
               const isLow = item.currentQuantity <= (item.minQuantity || 0);
               return (
                 <Card key={item.id} className={cn(
-                    "overflow-hidden group transition-all border-none shadow-md hover:shadow-xl bg-white relative ring-1 ring-slate-100",
-                    isLow && "ring-destructive/20 bg-red-50/10"
+                    "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100",
+                    isLow && "ring-red-100"
                 )}>
-                  <CardHeader className="bg-muted/30 pb-4 border-b">
-                    <div className="flex items-center gap-4">
-                      <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center shadow-sm shrink-0 ring-1 ring-slate-200/50">
-                        <DynamicIcon icon={item.icon || 'Package'} className={cn("h-6 w-6", isLow ? "text-destructive" : "text-slate-400")} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <CardTitle className="text-base font-bold truncate text-slate-800">{item.name}</CardTitle>
-                          {isLow && <Badge variant="destructive" className="h-5 px-1.5 text-[8px] font-black uppercase">Low Stock</Badge>}
+                  <div className="p-4 flex-grow space-y-4">
+                    <div className="flex gap-4 items-start">
+                        {/* Image Container */}
+                        <div className="relative h-20 w-20 md:h-24 md:w-24 shrink-0 bg-muted rounded-2xl overflow-hidden border">
+                             {item.imageUrl ? (
+                                <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
+                             ) : (
+                                <div className="h-full w-full flex items-center justify-center">
+                                    <ImageIcon className="h-8 w-8 text-slate-200" />
+                                </div>
+                             )}
+                             {/* Quantity Badge */}
+                             <div className="absolute top-1 left-1 h-6 w-6 rounded-full bg-destructive text-white flex items-center justify-center text-[10px] font-black shadow-lg ring-2 ring-white">
+                                 {item.currentQuantity}
+                             </div>
                         </div>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{item.category}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-5">
-                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner">
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-[0.1em] leading-none mb-1">Quantity on Hand</span>
-                            <span className={cn("text-3xl font-black tabular-nums leading-none tracking-tight", isLow ? "text-destructive" : "text-slate-900")}>
-                                {item.currentQuantity} <span className="text-xs font-bold text-muted-foreground opacity-60 ml-0.5">{item.unit}</span>
-                            </span>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg hover:bg-slate-900 hover:text-white" onClick={() => openAdjustmentDialog(item, 'In')}>
-                                <PlusCircle className="h-4 w-4" />
-                            </Button>
-                            <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg hover:bg-slate-900 hover:text-white" onClick={() => openAdjustmentDialog(item, 'Out')}>
-                                <MinusCircle className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
 
-                    <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold uppercase">
-                            <History className="h-3 w-3 opacity-40" />
-                            Updated {formatTimestamp(item.lastUpdated)}
+                        {/* Info Section */}
+                        <div className="flex-1 min-w-0 space-y-1">
+                            <h3 className="text-sm md:text-base font-black text-slate-800 leading-tight line-clamp-2">{item.name}</h3>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge variant="outline" className="h-5 px-1.5 text-[8px] font-black uppercase border-slate-200 text-slate-500 bg-slate-50">
+                                    {item.category}
+                                </Badge>
+                                <span className="text-[10px] text-muted-foreground font-medium">{item.unit}</span>
+                            </div>
+                            <div className="pt-1">
+                                <span className="text-xs font-black text-primary tracking-tight">ETB 0.00</span>
+                            </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive/20 hover:text-destructive hover:bg-destructive/5 rounded-full" onClick={() => deleteStockItem(item.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+
+                        {/* Adjust Actions */}
+                        <div className="flex flex-col gap-2 shrink-0">
+                            <button 
+                                onClick={() => quickAdjust(item.localId, 'In')}
+                                className="h-8 w-8 rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-colors"
+                            >
+                                <Plus className="h-4 w-4" />
+                            </button>
+                            <button 
+                                onClick={() => quickAdjust(item.localId, 'Out')}
+                                className="h-8 w-8 rounded-full border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                            >
+                                <Minus className="h-4 w-4" />
+                            </button>
+                        </div>
                     </div>
-                  </CardContent>
+                  </div>
+
+                  {/* Low Stock Alert Footer */}
+                  {isLow && (
+                      <div className="mt-auto bg-red-50 border-t border-red-100 py-1.5 px-4 flex items-center gap-2">
+                          <AlertTriangle className="h-3 w-3 text-red-500" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-red-600">Low Stock Alert</span>
+                      </div>
+                  )}
                 </Card>
               )
             })}
           </div>
-        </TabsContent>
-
-        <TabsContent value="catalog" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {secondaryLoading && (
-                    <div className="col-span-full py-20 flex flex-col items-center gap-4">
-                        <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Connecting to material database...</p>
-                    </div>
-                )}
-                {!secondaryLoading && filteredCatalog.length === 0 && (
-                    <div className="col-span-full py-20 text-center bg-muted/5 rounded-2xl border-2 border-dashed">
-                        <Library className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-10" />
-                        <p className="text-sm font-bold text-muted-foreground">No catalog designs found matching your search.</p>
-                    </div>
-                )}
-                {!secondaryLoading && filteredCatalog.map((item) => (
-                    <Card key={item.id} className="overflow-hidden border-none shadow-md group ring-1 ring-slate-100 flex flex-col h-full bg-white">
-                        <div className="aspect-square relative bg-muted flex items-center justify-center overflow-hidden">
-                            {item.imageUrl ? (
-                                <Image src={item.imageUrl} alt={item.name} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
-                            ) : (
-                                <ImageIcon className="h-10 w-10 text-muted-foreground/20" />
-                            )}
-                            <div className="absolute top-2 right-2">
-                                <Badge variant="secondary" className="h-5 px-1.5 text-[8px] font-black uppercase bg-white/90 backdrop-blur-sm border-none shadow-sm">{item.unit}</Badge>
-                            </div>
-                        </div>
-                        <CardContent className="p-4 flex-grow flex flex-col gap-1">
-                            <p className="text-[8px] font-black uppercase tracking-[0.15em] text-primary/70">{item.category}</p>
-                            <h3 className="text-sm font-bold text-slate-800 line-clamp-1">{item.name}</h3>
-                        </CardContent>
-                        <CardFooter className="px-4 pb-4 pt-0">
-                            <Button variant="outline" className="w-full h-8 rounded-xl text-[10px] font-bold uppercase tracking-tight hover:bg-slate-900 hover:text-white" asChild>
-                                <Link href="/orders/new">Add to BOM</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                ))}
-            </div>
         </TabsContent>
 
         <TabsContent value="history" className="mt-6">
@@ -342,17 +328,14 @@ export default function StockPage() {
                     </TableRow>
                   ) : (
                     transactions.map(tx => {
-                      const item = stockItems.find(i => i.id === tx.itemId);
+                      const item = combinedItems.find(i => i.localId === tx.itemId || i.name === tx.itemId);
                       return (
                         <TableRow key={tx.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                           <TableCell className="whitespace-nowrap text-[10px] font-mono text-muted-foreground">
                             {formatTimestamp(tx.timestamp)}
                           </TableCell>
                           <TableCell className="font-bold text-xs whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <DynamicIcon icon={item?.icon || 'Package'} className="h-3.5 w-3.5 opacity-40" />
-                              {item?.name || 'Deleted Item'}
-                            </div>
+                            {item?.name || 'Local Item'}
                           </TableCell>
                           <TableCell>
                             <Badge variant={tx.type === 'In' ? 'default' : 'secondary'} className="h-5 px-1.5 text-[8px] font-black uppercase tracking-tighter shrink-0">
@@ -495,16 +478,16 @@ export default function StockPage() {
           <div className="grid gap-6 py-4">
             <div className="flex items-center gap-4 bg-slate-900 text-white p-4 rounded-2xl shadow-lg">
               <div className="h-12 w-12 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
-                <DynamicIcon icon={optimisticItems.find(i => i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6 text-white" />
+                <DynamicIcon icon={combinedItems.find(i => i.localId === adjustment.itemId || i.id === adjustment.itemId)?.icon || 'Package'} className="h-6 w-6 text-white" />
               </div>
               <div>
-                <p className="font-bold text-white">{optimisticItems.find(i => i.id === adjustment.itemId)?.name}</p>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current: {optimisticItems.find(i => i.id === adjustment.itemId)?.currentQuantity} {optimisticItems.find(i => i.id === adjustment.itemId)?.unit}</p>
+                <p className="font-bold text-white">{combinedItems.find(i => i.localId === adjustment.itemId || i.id === adjustment.itemId)?.name}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current: {combinedItems.find(i => i.localId === adjustment.itemId || i.id === adjustment.itemId)?.currentQuantity} {combinedItems.find(i => i.localId === adjustment.itemId || i.id === adjustment.itemId)?.unit}</p>
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Quantity ({optimisticItems.find(i => i.id === adjustment.itemId)?.unit})</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-slate-500">Quantity ({combinedItems.find(i => i.localId === adjustment.itemId || i.id === adjustment.itemId)?.unit})</Label>
               <Input type="number" min="1" value={adjustment.quantity} onChange={e => setAdjustment({...adjustment, quantity: Number(e.target.value)})} className="h-11 rounded-xl text-lg font-black" />
             </div>
 
