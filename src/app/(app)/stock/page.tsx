@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useTransition, useMemo } from 'react';
@@ -25,60 +26,92 @@ import {
     Image as ImageIcon,
     ArrowUpRight,
     ArrowDownRight,
-    History
+    History,
+    Calendar,
+    Clock
 } from 'lucide-react';
 import { formatTimestamp, cn } from '@/lib/utils';
 import { DynamicIcon } from '@/components/ui/dynamic-icon';
 import Image from 'next/image';
-import type { StockUnit, StockTransactionType, StockItem, StockTransaction, Order } from '@/lib/types';
+import { format, isValid } from 'date-fns';
+import type { StockUnit, StockTransactionType, StockItem, StockTransaction } from '@/lib/types';
 
 const STOCK_UNITS: StockUnit[] = ['pcs', 'kg', 'liter', 'meters', 'set', 'box', 'sheets', 'liters', 'grams'];
 
 function MobileHistoryList({ transactions }: { transactions: StockTransaction[] }) {
+    if (transactions.length === 0) {
+        return (
+            <div className="py-20 text-center bg-muted/5 rounded-2xl border-2 border-dashed">
+                <p className="text-sm font-bold uppercase tracking-widest opacity-30">No history found</p>
+            </div>
+        );
+    }
+
+    let lastDate = "";
+
     return (
-        <div className="space-y-3 px-1">
-            {transactions.length === 0 ? (
-                <div className="py-20 text-center bg-muted/5 rounded-2xl border-2 border-dashed">
-                    <p className="text-sm font-bold uppercase tracking-widest opacity-30">No history found</p>
-                </div>
-            ) : transactions.map(tx => {
+        <div className="space-y-6 px-1 pb-10">
+            {transactions.map((tx) => {
+                const txDate = tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000) : new Date(tx.timestamp);
+                const dateHeader = isValid(txDate) ? format(txDate, 'MMMM d, yyyy') : 'Unknown Date';
+                const timeStr = isValid(txDate) ? format(txDate, 'HH:mm') : '--:--';
+                
+                const showHeader = dateHeader !== lastDate;
+                lastDate = dateHeader;
+
                 return (
-                    <Card key={tx.id} className="border-none shadow-md bg-white overflow-hidden ring-1 ring-slate-100 p-4">
-                        <div className="flex justify-between items-start gap-4">
-                            <div className="space-y-1.5 min-w-0 flex-1">
-                                <div className="flex items-center gap-2">
-                                    <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-tight">{formatTimestamp(tx.timestamp)}</p>
-                                    <Badge variant={tx.type === 'In' ? 'default' : 'secondary'} className="h-4 px-1.5 text-[7px] font-black uppercase tracking-tighter">
-                                        {tx.type === 'In' ? 'Restock' : 'Usage'}
-                                    </Badge>
+                    <React.Fragment key={tx.id}>
+                        {showHeader && (
+                            <div className="flex items-center justify-center py-6 relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-200/50"></div>
                                 </div>
-                                <h4 className="text-sm font-black text-slate-800 leading-tight truncate">{tx.itemName || 'Unknown Item'}</h4>
-                                <div className="flex flex-wrap items-center gap-2 pt-1">
-                                    {tx.orderId !== 'none' && (
-                                        <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1 bg-primary/5 px-1.5 py-0.5 rounded-sm">
-                                            <Package className="h-2.5 w-2.5" /> {tx.orderUniqueName || 'Project'}
-                                        </span>
-                                    )}
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{tx.userName}</span>
+                                <div className="relative bg-white border border-slate-100 shadow-sm rounded-full px-5 py-1.5 flex items-center gap-2.5 text-[10px] font-black uppercase tracking-[0.1em] text-slate-600">
+                                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                                    {dateHeader}
                                 </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                                <div className="flex flex-col items-end">
-                                    <p className={cn(
-                                        "text-xl font-black tabular-nums tracking-tighter",
-                                        tx.type === 'In' ? "text-emerald-600" : "text-slate-900"
-                                    )}>
-                                        {tx.type === 'In' ? '+' : '-'}{tx.quantity}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                        {tx.reason && (
-                            <div className="mt-3 text-[10px] text-muted-foreground italic border-t pt-2 border-slate-50 leading-relaxed line-clamp-2">
-                                {tx.reason}
                             </div>
                         )}
-                    </Card>
+                        <Card className="border-none shadow-sm bg-white rounded-[2rem] overflow-hidden relative group hover:shadow-md transition-all">
+                            <div className={cn(
+                                "absolute top-0 right-0 px-5 py-2.5 rounded-bl-[1.5rem] font-black text-[11px] uppercase tracking-tight text-white flex items-center gap-2",
+                                tx.type === 'In' ? "bg-emerald-500" : "bg-slate-800"
+                            )}>
+                                <span className="text-sm">{tx.type === 'In' ? '+' : '-'}{tx.quantity}</span>
+                                <span className="opacity-80 text-[9px] font-black">{tx.type === 'In' ? 'Restock' : 'Usage'}</span>
+                            </div>
+                            
+                            <CardContent className="p-7">
+                                <div className="space-y-1.5">
+                                    <h4 className="text-xl font-black text-slate-900 leading-tight pr-24 tracking-tight">
+                                        {tx.itemName}
+                                    </h4>
+                                    <div className="flex items-center gap-2 text-slate-400">
+                                        <Clock className="h-3.5 w-3.5" />
+                                        <span className="text-[11px] font-black uppercase tracking-tight">{timeStr}</span>
+                                    </div>
+                                </div>
+
+                                {tx.reason && (
+                                    <div className="mt-6 p-4 bg-slate-50/80 rounded-2xl border border-slate-100 text-[12px] italic text-slate-600 leading-relaxed shadow-inner">
+                                        &ldquo;{tx.reason}&rdquo;
+                                    </div>
+                                )}
+                                
+                                <div className="mt-5 pt-4 border-t border-slate-50 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">
+                                    <span className="flex items-center gap-1.5">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-slate-200" />
+                                        {tx.userName}
+                                    </span>
+                                    {tx.orderId !== 'none' && (
+                                        <span className="text-primary font-black tracking-tight">
+                                            {tx.orderUniqueName}
+                                        </span>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </React.Fragment>
                 );
             })}
         </div>
@@ -92,11 +125,9 @@ export default function StockPage() {
   const [activeTab, setActiveTab] = useState('inventory');
   const [isPending, startTransition] = useTransition();
 
-  // Dialog States
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
 
-  // Form States
   const [newItem, setNewItem] = useState({ name: '', category: '', unit: 'pcs' as StockUnit, icon: 'Package', description: '' });
   const [adjustment, setAdjustment] = useState({ 
     itemId: '', 
@@ -163,7 +194,7 @@ export default function StockPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center min-h-[140px]">
+          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center min-h-[120px]">
               <CardHeader className="py-4 pb-4 border-b border-slate-100/50">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
                     <AlertTriangle className="h-3 w-3 text-amber-500" /> Stock Level Alerts ({lowStockItems.length})
@@ -292,10 +323,11 @@ export default function StockPage() {
                     </TableRow>
                   ) : (
                     transactions.map(tx => {
+                      const txDate = tx.timestamp?.seconds ? new Date(tx.timestamp.seconds * 1000) : new Date(tx.timestamp);
                       return (
                         <TableRow key={tx.id} className="hover:bg-slate-50 transition-colors border-slate-100">
                           <TableCell className="whitespace-nowrap text-[10px] font-mono text-muted-foreground">
-                            {formatTimestamp(tx.timestamp)}
+                            {isValid(txDate) ? format(txDate, 'MMM d, p') : '--'}
                           </TableCell>
                           <TableCell className="font-bold text-xs whitespace-nowrap">
                             {tx.itemName || 'Unknown Item'}
@@ -312,7 +344,7 @@ export default function StockPage() {
                             {tx.orderId !== 'none' ? (
                                <span className="flex items-center gap-1 text-primary font-black uppercase tracking-tighter">
                                 <Package className="h-2.5 w-2.5" /> {tx.orderUniqueName || 'Project'}
-                              </span>
+                               </span>
                             ) : (
                               <span className="opacity-60">{tx.reason || '-'}</span>
                             )}
