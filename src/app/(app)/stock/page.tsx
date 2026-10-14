@@ -138,10 +138,19 @@ export default function StockPage() {
   });
 
   const filteredItems = useMemo(() => {
-    return optimisticItems.filter(item => 
+    const base = optimisticItems.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.category?.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    // Sort so low stock items are at the beginning
+    return [...base].sort((a, b) => {
+        const aLow = a.currentQuantity <= (a.minQuantity || 5);
+        const bLow = b.currentQuantity <= (b.minQuantity || 5);
+        if (aLow && !bLow) return -1;
+        if (!aLow && bLow) return 1;
+        return 0;
+    });
   }, [optimisticItems, searchTerm]);
 
   const lowStockItems = useMemo(() => 
@@ -171,7 +180,7 @@ export default function StockPage() {
       setIsAdjusting(true);
   };
 
-  if (loading && filteredItems.length === 0) {
+  if (loading && optimisticItems.length === 0) {
     return (
       <div className="flex justify-center items-center h-[50vh]">
         <Loader2 className="animate-spin h-8 w-8 text-primary opacity-20" />
@@ -193,39 +202,19 @@ export default function StockPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
-          <Card className="border-none shadow-xl bg-white/60 backdrop-blur-md ring-1 ring-slate-200/50 overflow-hidden flex flex-col justify-center min-h-[120px]">
-              <CardHeader className="py-4 pb-4 border-b border-slate-100/50">
-                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                    <AlertTriangle className="h-3 w-3 text-amber-500" /> Stock Level Alerts ({lowStockItems.length})
-                  </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                   {lowStockItems.length === 0 ? (
-                       <div className="flex items-center gap-3 py-2">
-                           <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                               <Package className="h-4 w-4 text-emerald-600" />
-                           </div>
-                           <p className="text-sm font-bold text-slate-600">All materials are currently above safety thresholds.</p>
-                       </div>
-                   ) : (
-                       <ScrollArea className="h-[80px]">
-                           <div className="space-y-3">
-                               {lowStockItems.map(item => (
-                                   <div key={item.id} className="flex items-center justify-between">
-                                       <div className="flex items-center gap-2">
-                                           <div className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                                           <span className="text-xs font-bold text-slate-800">{item.name}</span>
-                                       </div>
-                                       <Badge variant="destructive" className="h-5 px-1.5 text-[8px] font-black uppercase">Low: {item.currentQuantity} {item.unit}</Badge>
-                                   </div>
-                               ))}
-                           </div>
-                       </ScrollArea>
-                   )}
-              </CardContent>
-          </Card>
-      </div>
+      {lowStockItems.length > 0 && (
+          <div className="px-1">
+              <div className="flex items-center gap-2 p-4 rounded-2xl bg-destructive/5 border border-destructive/10 animate-in slide-in-from-top-2">
+                  <div className="h-8 w-8 rounded-full bg-destructive flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                      <p className="text-sm font-black text-destructive uppercase tracking-tight">Stock Attention Required</p>
+                      <p className="text-xs text-destructive/70 font-medium">{lowStockItems.length} materials are below safety thresholds and have been moved to the top.</p>
+                  </div>
+              </div>
+          </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="bg-white/40 backdrop-blur-sm p-2 rounded-2xl border ring-1 ring-slate-200/50 flex flex-col sm:flex-row gap-3 items-center shadow-sm">
@@ -259,7 +248,7 @@ export default function StockPage() {
                     onClick={() => openAdjustmentDialog(item.id)}
                     className={cn(
                         "overflow-hidden transition-all border-none shadow-md hover:shadow-xl bg-white relative flex flex-col h-full ring-1 ring-slate-100 cursor-pointer group",
-                        isLow && "ring-red-100 bg-red-50/5"
+                        isLow && "ring-red-200 bg-red-50/10 shadow-destructive/10"
                     )}
                 >
                   <div className="p-3 sm:p-4 flex-grow flex flex-col gap-4">
@@ -276,6 +265,7 @@ export default function StockPage() {
                                  "absolute top-2 left-2 h-9 w-9 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg ring-4 ring-white",
                                  isLow ? "bg-destructive text-white" : "bg-slate-900 text-white"
                              )}>
+                                 {isLow && <AlertTriangle className="h-3 w-3 mr-0.5" />}
                                  {item.currentQuantity}
                              </div>
                         </div>
