@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, ReactNode, useCallback, useState, useEffect, useOptimistic } from 'react';
@@ -16,13 +15,12 @@ interface StockContextType {
   stockItems: StockItem[];
   optimisticItems: StockItem[];
   transactions: StockTransaction[];
-  stockSettings: StockSettings | null;
+  stockSettings: { categories: string[] } | null;
   loading: boolean;
   addStockItem: (item: Omit<StockItem, 'id' | 'currentQuantity' | 'lastUpdated'>) => Promise<string | undefined>;
   adjustStock: (params: { itemId: string; type: StockTransactionType; quantity: number; reason: string; orderId?: string }) => Promise<void>;
   deleteStockItem: (itemId: string) => Promise<void>;
   getItemById: (id: string) => StockItem | undefined;
-  updateStockSettings: (settings: StockSettings) => Promise<void>;
 }
 
 const StockContext = createContext<StockContextType | undefined>(undefined);
@@ -38,27 +36,40 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const firestore = getSecondaryFirestore();
 
-  const stockRef = useMemoFirebase(
-    () => isSecondaryAuthReady ? collection(firestore, 'stock') : null, 
+  // Unified items collection (contains stockLevel)
+  const itemsRef = useMemoFirebase(
+    () => isSecondaryAuthReady ? collection(firestore, 'items') : null, 
     [firestore, isSecondaryAuthReady]
   );
-  const { data: stockItems, isLoading: itemsLoading } = useCollection<StockItem>(stockRef as any);
+  const { data: rawItems, isLoading: itemsLoading } = useCollection<any>(itemsRef as any);
 
-  const transactionsRef = useMemoFirebase(
-    () => isSecondaryAuthReady ? query(collection(firestore, 'stockTransactions'), orderBy('timestamp', 'desc')) : null, 
+  // Stock Adjustments collection (history)
+  const adjustmentsRef = useMemoFirebase(
+    () => isSecondaryAuthReady ? query(collection(firestore, 'stockAdjustments'), orderBy('timestamp', 'desc')) : null, 
     [firestore, isSecondaryAuthReady]
   );
-  const { data: transactions, isLoading: txLoading } = useCollection<StockTransaction>(transactionsRef as any);
+  const { data: adjustments, isLoading: txLoading } = useCollection<StockTransaction>(adjustmentsRef as any);
 
-  const settingsDocRef = useMemoFirebase(
-    () => isSecondaryAuthReady ? doc(firestore, 'settings', 'stock') : null, 
+  // Categories collection
+  const categoriesRef = useMemoFirebase(
+    () => isSecondaryAuthReady ? collection(firestore, 'categories') : null,
     [firestore, isSecondaryAuthReady]
   );
-  const { data: stockSettings, isLoading: settingsLoading } = useDoc<StockSettings>(settingsDocRef as any);
+  const { data: rawCategories, isLoading: categoriesLoading } = useCollection<any>(categoriesRef as any);
 
-  // Optimistic UI for stock quantities
+  const stockItems = (rawItems || []).map(item => ({
+    ...item,
+    currentQuantity: Number(item.stockLevel) || 0,
+    unit: item.unit || 'pcs'
+  })) as StockItem[];
+
+  const stockSettings = {
+    categories: (rawCategories || []).map(c => c.name)
+  };
+
+  // Optimistic UI for stock levels
   const [optimisticItems, addOptimisticAdjustment] = useOptimistic(
-    stockItems || [],
+    stockItems,
     (state, adjustment: { itemId: string, change: number }) => {
         return state.map(item => 
             item.id === adjustment.itemId 
@@ -68,23 +79,12 @@ export function StockProvider({ children }: { children: ReactNode }) {
     }
   );
 
-  const updateStockSettings = useCallback(async (newSettings: StockSettings) => {
-    if (!settingsDocRef) return;
-    try {
-      await setDoc(settingsDocRef, newSettings, { merge: true });
-    } catch (error) {
-      console.error("Error updating stock settings:", error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to update categories." });
-    }
-  }, [settingsDocRef, toast]);
-
   const addStockItem = useCallback(async (itemData: Omit<StockItem, 'id' | 'currentQuantity' | 'lastUpdated'>) => {
     try {
-      const newItemRef = doc(collection(firestore, 'stock'));
-      const newItem: StockItem = {
+      const newItemRef = doc(collection(firestore, 'items'));
+      const newItem = {
         ...itemData,
-        id: newItemRef.id,
-        currentQuantity: 0,
+        stockLevel: 0,
         lastUpdated: serverTimestamp(),
       };
       await setDoc(newItemRef, newItem);
@@ -99,17 +99,16 @@ export function StockProvider({ children }: { children: ReactNode }) {
   const adjustStock = useCallback(async ({ itemId, type, quantity, reason, orderId }: { itemId: string; type: StockTransactionType; quantity: number; reason: string; orderId?: string }) => {
     if (!user) return;
     
-    // Trigger optimistic update
     const qtyChange = type === 'In' ? quantity : -quantity;
     addOptimisticAdjustment({ itemId, change: qtyChange });
 
     try {
-      const txId = uuidv4();
-      const txRef = doc(firestore, 'stockTransactions', txId);
-      const itemRef = doc(firestore, 'stock', itemId);
+      const adjustmentId = uuidv4();
+      const adjRef = doc(firestore, 'stockAdjustments', adjustmentId);
+      const itemRef = doc(firestore, 'items', itemId);
 
       const transaction: StockTransaction = {
-        id: txId,
+        id: adjustmentId,
         itemId,
         type,
         quantity,
@@ -120,9 +119,9 @@ export function StockProvider({ children }: { children: ReactNode }) {
         userName: user.name || 'Unknown User',
       };
       
-      await setDoc(txRef, transaction);
+      await setDoc(adjRef, transaction);
       await updateDoc(itemRef, {
-        currentQuantity: increment(qtyChange),
+        stockLevel: increment(qtyChange),
         lastUpdated: serverTimestamp(),
       });
 
@@ -138,7 +137,7 @@ export function StockProvider({ children }: { children: ReactNode }) {
 
   const deleteStockItem = useCallback(async (itemId: string) => {
     try {
-      await deleteDoc(doc(firestore, 'stock', itemId));
+      await deleteDoc(doc(firestore, 'items', itemId));
       toast({ title: "Item Deleted", description: "Inventory item removed." });
     } catch (error) {
       console.error("Error deleting stock item:", error);
@@ -149,26 +148,16 @@ export function StockProvider({ children }: { children: ReactNode }) {
     return stockItems?.find(item => item.id === id);
   }, [stockItems]);
 
-  // Seed default categories if none exist
-  useEffect(() => {
-    if (isSecondaryAuthReady && !settingsLoading && !stockSettings) {
-      updateStockSettings({
-        categories: ['Hardware', 'Material', 'Supplies', 'Paint', 'Fabric', 'Glue']
-      });
-    }
-  }, [isSecondaryAuthReady, settingsLoading, stockSettings, updateStockSettings]);
-
   const value = {
-    stockItems: stockItems || [],
+    stockItems,
     optimisticItems,
-    transactions: transactions || [],
-    stockSettings: stockSettings || null,
-    loading: !isSecondaryAuthReady || itemsLoading || txLoading || settingsLoading,
+    transactions: adjustments || [],
+    stockSettings,
+    loading: !isSecondaryAuthReady || itemsLoading || txLoading || categoriesLoading,
     addStockItem,
     adjustStock,
     deleteStockItem,
     getItemById,
-    updateStockSettings,
   };
 
   return (
